@@ -1,0 +1,16 @@
+module,headers,src_files,class_decl_lines,approx_loc
+casa,280,353,580,172073
+tables,259,334,1044,214844
+scimath,149,91,273,97933
+scimath_f,0,26,0,24087
+measures,63,83,273,50930
+meas,18,24,34,9296
+coordinates,16,34,65,37010
+lattices,106,118,240,87842
+images,57,94,217,54574
+ms,130,135,274,75878
+derivedmscal,6,7,12,3457
+msfits,20,25,105,22872
+fits,20,43,93,29305
+mirlib,5,11,0,13661
+python3,0,0,0,0

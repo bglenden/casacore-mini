@@ -1,0 +1,60 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+install_manifest.txt
+_deps/
+
+# Generated files
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.i*
+*.ii
+*.s
+*.d
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+*.coverage
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Tooling caches
+.clangd/
+.cache/
+
+# Python virtual environments and cache (for helper scripts)
+.venv/
+venv/
+__pycache__/
+*.pyc
