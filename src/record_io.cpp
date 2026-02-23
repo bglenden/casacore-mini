@@ -19,7 +19,7 @@
 namespace casacore_mini {
 namespace {
 
-enum class value_tag : std::uint8_t {
+enum class ValueTag : std::uint8_t {
     boolean = 1,
     int64 = 2,
     float64 = 3,
@@ -99,32 +99,32 @@ void write_value(const RecordValue& value, std::ostream& output, const std::size
 
     const auto& storage = value.storage();
     if (const auto* as_bool = std::get_if<bool>(&storage)) {
-        write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::boolean));
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::boolean));
         write_unsigned_le(output, static_cast<std::uint8_t>(*as_bool ? 1U : 0U));
         return;
     }
 
     if (const auto* as_int = std::get_if<std::int64_t>(&storage)) {
-        write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::int64));
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::int64));
         write_unsigned_le(output,
                           static_cast<std::uint64_t>(std::bit_cast<std::uint64_t>(*as_int)));
         return;
     }
 
     if (const auto* as_double = std::get_if<double>(&storage)) {
-        write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::float64));
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::float64));
         write_unsigned_le(output, std::bit_cast<std::uint64_t>(*as_double));
         return;
     }
 
     if (const auto* as_string = std::get_if<std::string>(&storage)) {
-        write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::string));
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::string));
         write_string(output, *as_string);
         return;
     }
 
     if (const auto* as_complex = std::get_if<std::complex<double>>(&storage)) {
-        write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::complex128));
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::complex128));
         write_unsigned_le(output, std::bit_cast<std::uint64_t>(as_complex->real()));
         write_unsigned_le(output, std::bit_cast<std::uint64_t>(as_complex->imag()));
         return;
@@ -135,7 +135,7 @@ void write_value(const RecordValue& value, std::ostream& output, const std::size
             throw std::runtime_error("Record list pointer must not be null while writing");
         }
 
-        write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::list));
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::list));
         const auto& elements = (*as_list)->elements;
         if (elements.size() > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
             throw std::runtime_error("Record list too large for binary Record encoding");
@@ -153,7 +153,7 @@ void write_value(const RecordValue& value, std::ostream& output, const std::size
         throw std::runtime_error("Record pointer must not be null while writing");
     }
 
-    write_unsigned_le(output, static_cast<std::uint8_t>(value_tag::record));
+    write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::record));
     write_record_body(**as_record, output, depth + 1U);
 }
 
@@ -162,22 +162,22 @@ RecordValue read_value(std::istream& input, const std::size_t depth) {
         throw std::runtime_error("binary Record depth limit exceeded while reading");
     }
 
-    const auto tag = static_cast<value_tag>(read_unsigned_le<std::uint8_t>(input));
+    const auto tag = static_cast<ValueTag>(read_unsigned_le<std::uint8_t>(input));
     switch (tag) {
-    case value_tag::boolean:
+    case ValueTag::boolean:
         return RecordValue(read_unsigned_le<std::uint8_t>(input) != 0U);
-    case value_tag::int64:
+    case ValueTag::int64:
         return RecordValue(std::bit_cast<std::int64_t>(read_unsigned_le<std::uint64_t>(input)));
-    case value_tag::float64:
+    case ValueTag::float64:
         return RecordValue(std::bit_cast<double>(read_unsigned_le<std::uint64_t>(input)));
-    case value_tag::string:
+    case ValueTag::string:
         return RecordValue(read_string(input));
-    case value_tag::complex128: {
+    case ValueTag::complex128: {
         const auto real = std::bit_cast<double>(read_unsigned_le<std::uint64_t>(input));
         const auto imag = std::bit_cast<double>(read_unsigned_le<std::uint64_t>(input));
         return RecordValue(std::complex<double>(real, imag));
     }
-    case value_tag::list: {
+    case ValueTag::list: {
         const auto count = static_cast<std::size_t>(read_unsigned_le<std::uint32_t>(input));
         RecordList value;
         value.elements.reserve(count);
@@ -186,7 +186,7 @@ RecordValue read_value(std::istream& input, const std::size_t depth) {
         }
         return RecordValue::from_list(std::move(value));
     }
-    case value_tag::record:
+    case ValueTag::record:
         return RecordValue::from_record(read_record_body(input, depth + 1U));
     default:
         throw std::runtime_error("unsupported value tag in binary Record payload");

@@ -14,6 +14,8 @@ Local development should run the same quality checks enforced by CI.
 
 Legacy casacore names are preserved only when required for strict file-format or schema interoperability.
 
+Naming is enforced in CI/local lint via `clang-tidy` (`readability-identifier-naming`).
+
 ## Required tools
 
 - `cmake` (>= 3.27)
