@@ -183,6 +183,8 @@ Required feature coverage:
 - Phase 5: write-path parity and expanded MS operations.
 - Phase 6: optional capabilities (`Dysco`, UDFs, conversion extras, Python bindings).
 
+Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
+
 ## 8. Quantitative snapshot
 - Module-level inventory: `docs/module_inventory.csv`.
 - Current include blast radius sample from local casacore tree:

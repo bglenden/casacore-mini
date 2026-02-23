@@ -95,7 +95,11 @@ if(CASACORE_MINI_ENABLE_CLANG_TIDY)
   set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
 endif()
 
-add_library(casacore_mini_core src/version.cpp)
+add_library(
+  casacore_mini_core
+  src/version.cpp
+  src/record.cpp
+  src/record_io.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -107,3 +111,7 @@ enable_testing()
 add_executable(version_test tests/version_test.cpp)
 target_link_libraries(version_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME version_test COMMAND version_test)
+
+add_executable(record_io_test tests/record_io_test.cpp)
+target_link_libraries(record_io_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME record_io_test COMMAND record_io_test)
