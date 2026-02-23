@@ -23,6 +23,7 @@ Legacy casacore names are preserved only when required for strict file-format or
 - `clang-tidy`
 - `gcovr`
 - `python3` (`PyYAML` optional; current manifest uses JSON subset of YAML)
+- `doxygen` (optional, for API HTML generation)
 
 ## Install examples
 
@@ -30,16 +31,29 @@ Ubuntu/Debian:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y cmake ninja-build clang clang-format clang-tidy gcovr python3-yaml
+sudo apt-get install -y cmake ninja-build clang clang-format clang-tidy gcovr python3-yaml doxygen
 ```
 
 macOS (Homebrew):
 
 ```bash
-brew install cmake ninja llvm clang-format gcovr
+brew install cmake ninja llvm clang-format gcovr doxygen
 ```
 
 If you install LLVM from Homebrew, ensure `clang++` and `clang-tidy` from that install are on `PATH`.
+
+## Generate API docs
+
+If Doxygen is installed:
+
+```bash
+cmake -S . -B build-docs -G Ninja
+cmake --build build-docs --target doc
+```
+
+Generated HTML entry point:
+
+`build-docs/docs/doxygen/html/index.html`
 
 ## CI-equivalent local workflow
 

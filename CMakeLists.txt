@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(CASACORE_MINI_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(CASACORE_MINI_ENABLE_CLANG_TIDY "Enable clang-tidy linting" OFF)
 option(CASACORE_MINI_ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
+option(CASACORE_MINI_ENABLE_DOXYGEN "Enable Doxygen documentation target" ON)
 
 find_package(Git QUIET)
 set(CASACORE_MINI_GIT_REVISION "unknown")
@@ -115,3 +116,21 @@ add_test(NAME version_test COMMAND version_test)
 add_executable(record_io_test tests/record_io_test.cpp)
 target_link_libraries(record_io_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME record_io_test COMMAND record_io_test)
+
+if(CASACORE_MINI_ENABLE_DOXYGEN)
+  find_package(Doxygen QUIET)
+  if(DOXYGEN_FOUND)
+    set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs/doxygen")
+    configure_file("${CMAKE_SOURCE_DIR}/docs/Doxyfile.in" "${CMAKE_BINARY_DIR}/Doxyfile" @ONLY)
+
+    add_custom_target(
+      doc
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${DOXYGEN_OUTPUT_DIR}"
+      COMMAND "${DOXYGEN_EXECUTABLE}" "${CMAKE_BINARY_DIR}/Doxyfile"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+      COMMENT "Generating API documentation with Doxygen"
+      VERBATIM)
+  else()
+    message(STATUS "Doxygen not found; doc target is disabled")
+  endif()
+endif()

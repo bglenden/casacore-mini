@@ -37,6 +37,21 @@ CI workflow: `.github/workflows/quality.yml`.
 
 Local developer workflow: `CONTRIBUTING.md`.
 
+## API Documentation
+
+The repository includes optional Doxygen HTML generation from public headers.
+
+- Template: `docs/Doxyfile.in`
+- Build target: `doc`
+- Output directory: `build*/docs/doxygen/html/`
+
+Example:
+
+```bash
+cmake -S . -B build -G Ninja
+cmake --build build --target doc
+```
+
 ## Phase 0 Interop Tooling
 
 Phase 0 interoperability artifacts and tooling are in:
