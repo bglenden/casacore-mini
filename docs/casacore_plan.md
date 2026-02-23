@@ -195,6 +195,8 @@ Phase-2 completion summary lives in `docs/phase2/exit_report.md`.
 Phase-3 detailed execution tracking lives in `docs/phase3/plan.md`.
 Phase-3 completion summary lives in `docs/phase3/exit_report.md`.
 Phase-4 detailed execution tracking lives in `docs/phase4/plan.md`.
+Phase-4 completion summary lives in `docs/phase4/exit_report.md`.
+Phase-5 detailed execution tracking lives in `docs/phase5/plan.md`.
 
 ## 8. Quantitative snapshot
 - Module-level inventory: `docs/module_inventory.csv`.

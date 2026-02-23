@@ -30,7 +30,7 @@ Immediate goals:
 | `P4-W1` | Typed keyword-record model v0 | Completed | internal representation for nested keyword records with arrays/scalars and deterministic traversal |
 | `P4-W2` | Image coordinate metadata expansion | Completed | extraction of additional `coords.direction0` and related image keyword fields with tests |
 | `P4-W3` | Phase 4 compatibility checks | Completed | expanded fixture checks wired into CI/local quality for image/lattice metadata |
-| `P4-W4` | Phase 4 exit recommendation | Pending | risk update and Phase 5 write-path preparation scope |
+| `P4-W4` | Phase 4 exit recommendation | Completed | risk update and Phase 5 write-path preparation scope |
 
 ## `P4-W1` scope details
 
@@ -101,3 +101,11 @@ Implemented now:
 - wired Phase 4 checks into:
   - `tools/run_quality.sh`
   - `.github/workflows/quality.yml` (`quality / build-lint-test-coverage`)
+
+## `P4-W4` scope details
+
+Implemented now:
+
+- Phase 4 exit report added at `docs/phase4/exit_report.md`
+- residual compatibility risks and write-path readiness gaps documented
+- Phase 5 kickoff plan added at `docs/phase5/plan.md`

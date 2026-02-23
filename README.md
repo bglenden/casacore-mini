@@ -22,7 +22,8 @@ Initial architecture and rolling plan documents are in:
 - `docs/phase1/` (`plan`, `exit_report`)
 - `docs/phase2/` (`plan`, `exit_report`)
 - `docs/phase3/` (`plan`, `measure_coord_contract_v0`, `exit_report`)
-- `docs/phase4/` (`plan`)
+- `docs/phase4/` (`plan`, `exit_report`)
+- `docs/phase5/` (`plan`)
 - `docs/module_inventory.csv`
 - `docs/phase0/` (`baselines`, compatibility contract, corpus manifest, and exit report)
 
