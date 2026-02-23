@@ -18,7 +18,7 @@ read-paths:
 | `P2-W1` | `AipsIO` read primitive scaffold | Completed | `aipsio_reader` module with canonical scalar/string/complex decode + object-header decode + tests |
 | `P2-W2` | Direct table metadata read path | Completed | `table_dat` header parser (`Table` object, row-count, endian flag, table type) with fixture-backed tests |
 | `P2-W3` | Typed hash expansion | Completed | complex + multidimensional array typed payload hashing in oracle tooling with automated checks |
-| `P2-W4` | `Record` type matrix expansion | Pending | array-valued and additional compatibility-required value types |
+| `P2-W4` | `Record` type matrix expansion | Completed | array-valued and additional compatibility-required value types with multidimensional shape semantics |
 | `P2-W5` | Corpus and CI expansion | Pending | at least one additional non-replay artifact in automated schema/payload checks |
 | `P2-W6` | Phase 2 exit review | Pending | risk update and Phase 3 scope recommendation |
 
@@ -72,6 +72,29 @@ Implemented now:
   - `tools/check_phase2_typed_hash.py`
   - `tools/check_phase2.sh`
   - wired into local and CI quality workflows
+
+## `P2-W4` scope details
+
+Implemented now:
+
+- `RecordValue` scalar type matrix expanded to include:
+  - `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`
+  - `float`, `double`
+  - `complex<float>`, `complex<double>`
+- `RecordValue` now supports typed multidimensional arrays with explicit shape:
+  - integer arrays (`int16/32/64`, `uint16/32/64`)
+  - floating arrays (`float`, `double`)
+  - string arrays
+  - complex arrays (`complex<float>`, `complex<double>`)
+- array semantics are explicit:
+  - flattened Fortran-order (`first axis` varying fastest)
+  - constructor and read-path shape validation (shape-product must match element count)
+- `record_io` binary encoding expanded with new value tags and deterministic shape+payload encoding for all supported scalar/array alternatives
+- tests expanded to cover:
+  - scalar type preservation across round-trip
+  - multidimensional array round-trip and type preservation
+  - constructor-level invalid shape rejection
+  - malformed array payload rejection on deserialize
 
 ## Exit criteria for `P2-W1`
 

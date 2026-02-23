@@ -1,16 +1,54 @@
 #include "casacore_mini/record.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <stdexcept>
 #include <type_traits>
 
 namespace casacore_mini {
+namespace {
+
+template <typename element_t> void validate_array_shape(const RecordArray<element_t>& value) {
+    std::size_t expected = 0;
+    if (!value.shape.empty()) {
+        expected = 1;
+        for (const auto dim : value.shape) {
+            if (dim == 0) {
+                expected = 0;
+                break;
+            }
+            if (expected >
+                std::numeric_limits<std::size_t>::max() / static_cast<std::size_t>(dim)) {
+                throw std::invalid_argument("Record array shape product overflow");
+            }
+            expected *= static_cast<std::size_t>(dim);
+        }
+    }
+
+    if (expected != value.elements.size()) {
+        throw std::invalid_argument("Record array shape does not match element count");
+    }
+}
+
+} // namespace
 
 RecordValue::RecordValue() : storage_(false) {}
 
 RecordValue::RecordValue(const bool value) : storage_(value) {}
 
+RecordValue::RecordValue(const std::int16_t value) : storage_(value) {}
+
+RecordValue::RecordValue(const std::uint16_t value) : storage_(value) {}
+
+RecordValue::RecordValue(const std::int32_t value) : storage_(value) {}
+
+RecordValue::RecordValue(const std::uint32_t value) : storage_(value) {}
+
 RecordValue::RecordValue(const std::int64_t value) : storage_(value) {}
+
+RecordValue::RecordValue(const std::uint64_t value) : storage_(value) {}
+
+RecordValue::RecordValue(const float value) : storage_(value) {}
 
 RecordValue::RecordValue(const double value) : storage_(value) {}
 
@@ -21,6 +59,50 @@ RecordValue::RecordValue(const char* value) : storage_(std::string(value)) {}
 RecordValue::RecordValue(const std::complex<float> value) : storage_(value) {}
 
 RecordValue::RecordValue(const std::complex<double> value) : storage_(value) {}
+
+RecordValue::RecordValue(int16_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<int16_array>(storage_));
+}
+
+RecordValue::RecordValue(uint16_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<uint16_array>(storage_));
+}
+
+RecordValue::RecordValue(int32_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<int32_array>(storage_));
+}
+
+RecordValue::RecordValue(uint32_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<uint32_array>(storage_));
+}
+
+RecordValue::RecordValue(int64_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<int64_array>(storage_));
+}
+
+RecordValue::RecordValue(uint64_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<uint64_array>(storage_));
+}
+
+RecordValue::RecordValue(float_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<float_array>(storage_));
+}
+
+RecordValue::RecordValue(double_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<double_array>(storage_));
+}
+
+RecordValue::RecordValue(string_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<string_array>(storage_));
+}
+
+RecordValue::RecordValue(complex64_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<complex64_array>(storage_));
+}
+
+RecordValue::RecordValue(complex128_array value) : storage_(std::move(value)) {
+    validate_array_shape(std::get<complex128_array>(storage_));
+}
 
 RecordValue RecordValue::from_list(RecordList value) {
     return RecordValue(std::make_shared<RecordList>(std::move(value)));

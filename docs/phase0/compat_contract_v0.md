@@ -166,7 +166,7 @@ Canonical encoding for hashing:
 - float32/float64: IEEE-754 raw bits little-endian
 - complex: encoded as `(real, imag)` back-to-back
 - string: `uint32_le(byte_length)` + raw UTF-8 bytes
-- arrays: flattened with last dimension varying fastest (C-order)
+- arrays: flattened with first axis varying fastest (Fortran-order)
 
 If a value type cannot be encoded by this scheme in v0:
 - mark artifact result as `UNSUPPORTED_TYPE_V0`
