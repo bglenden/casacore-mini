@@ -28,7 +28,7 @@ Immediate goals:
 | `P3-W1` | Measure/coordinate keyword fixtures + baseline checks | Completed | replayed `showtableinfo` fixtures (`logtable`, `ms_tree`, `pagedimage_coords`) + deterministic hash/presence checks |
 | `P3-W2` | Typed metadata extraction contract v0 | Completed | explicit normalized schema for measure and coordinate keyword paths/values |
 | `P3-W3` | Initial C++ metadata extraction module | Completed | read-only extraction API for prioritized metadata fields + tests |
-| `P3-W4` | Phase 3 compatibility expansion recommendation | Pending | risk update + recommended Phase 4 integration scope |
+| `P3-W4` | Phase 3 compatibility expansion recommendation | Completed | risk update + recommended Phase 4 integration scope |
 
 ## `P3-W1` scope details
 
@@ -71,8 +71,17 @@ Implemented now:
 - build/test wiring:
   - `CMakeLists.txt` adds `measure_coord_metadata_test`
 
-## Exit criteria for `P3-W1`
+## `P3-W4` scope details
+
+Implemented now:
+
+- Phase 3 exit report added at `docs/phase3/exit_report.md`
+- risk update captured for text-source dependency and metadata coverage
+- Phase 4 kickoff plan added at `docs/phase4/plan.md`
+
+## Exit criteria for Phase 3
 
 1. Phase 3 fixture artifacts exist in repo with provenance notes.
 2. Phase 3 check script is deterministic and fails on fixture drift.
-3. Local `tools/run_quality.sh` and CI `quality` workflow run Phase 3 checks.
+3. Typed measure/coordinate extraction contract and initial C++ API are implemented and tested.
+4. Local `tools/run_quality.sh` and CI `quality` workflow run Phase 3 checks.

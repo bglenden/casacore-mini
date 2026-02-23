@@ -21,7 +21,8 @@ Initial architecture and rolling plan documents are in:
 - `docs/casacore_plan.md`
 - `docs/phase1/` (`plan`, `exit_report`)
 - `docs/phase2/` (`plan`, `exit_report`)
-- `docs/phase3/` (`plan`)
+- `docs/phase3/` (`plan`, `measure_coord_contract_v0`, `exit_report`)
+- `docs/phase4/` (`plan`)
 - `docs/module_inventory.csv`
 - `docs/phase0/` (`baselines`, compatibility contract, corpus manifest, and exit report)
 
