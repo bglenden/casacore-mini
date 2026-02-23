@@ -12,6 +12,17 @@ if ! command -v gcovr >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -n "${GCOV_EXECUTABLE:-}" ]]; then
+  gcov_executable="${GCOV_EXECUTABLE}"
+elif command -v llvm-cov >/dev/null 2>&1; then
+  gcov_executable="llvm-cov gcov"
+elif command -v gcov >/dev/null 2>&1; then
+  gcov_executable="gcov"
+else
+  echo "Neither llvm-cov nor gcov is available for coverage processing"
+  exit 1
+fi
+
 if ! find src -type f \( -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.c' \) | grep -q .; then
   echo "No source files under src/; coverage check skipped"
   exit 0
@@ -20,6 +31,7 @@ fi
 gcovr \
   --root "${ROOT_DIR}" \
   --object-directory "${BUILD_DIR}" \
+  --gcov-executable "${gcov_executable}" \
   --filter "${ROOT_DIR}/src" \
   --exclude "${ROOT_DIR}/tests" \
   --txt-summary \
