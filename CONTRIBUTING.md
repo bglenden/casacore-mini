@@ -25,7 +25,7 @@ Naming is enforced in CI/local lint via `clang-tidy` (`readability-identifier-na
 - `clang-tidy`
 - `gcovr`
 - `python3` (`PyYAML` optional; current manifest uses JSON subset of YAML)
-- `doxygen` (optional, for API HTML generation)
+- `doxygen`
 
 ## Install examples
 
@@ -46,8 +46,6 @@ If you install LLVM from Homebrew, ensure `clang++` and `clang-tidy` from that i
 
 ## Generate API docs
 
-If Doxygen is installed:
-
 ```bash
 cmake -S . -B build-docs -G Ninja
 cmake --build build-docs --target doc
@@ -56,6 +54,17 @@ cmake --build build-docs --target doc
 Generated HTML entry point:
 
 `build-docs/docs/doxygen/html/index.html`
+
+## Documentation standard for code phases
+
+Any phase that introduces or changes public C++ API must include Doxygen updates
+in the same phase. At minimum, document:
+
+1. Public type/function purpose.
+2. Key invariants/layout semantics (for persistence-sensitive types).
+3. Error behavior (`throws` conditions).
+
+Phase completion should not be declared until this documentation is updated.
 
 ## CI-equivalent local workflow
 
@@ -72,8 +81,10 @@ This performs:
 3. CMake configure with strict flags and lint enabled
 4. Build
 5. Phase 1 schema hook check (`tools/check_phase1.sh build-quality`)
-6. `ctest`
-7. Coverage gate (`tools/check_coverage.sh build-quality 70`)
+6. Phase 2 compatibility checks (`tools/check_phase2.sh build-quality`)
+7. Doxygen docs generation (`doc` target)
+8. `ctest`
+9. Coverage gate (`tools/check_coverage.sh build-quality 70`)
 
 ## Manual commands (equivalent)
 
@@ -90,6 +101,15 @@ cmake -S . -B build-quality -G Ninja \
 
 cmake --build build-quality
 bash tools/check_phase1.sh build-quality
+bash tools/check_phase2.sh build-quality
+cmake -S . -B build-docs -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
+  -DCASACORE_MINI_ENABLE_CLANG_TIDY=OFF \
+  -DCASACORE_MINI_ENABLE_COVERAGE=OFF \
+  -DCASACORE_MINI_ENABLE_DOXYGEN=ON
+cmake --build build-docs --target doc
 ctest --test-dir build-quality --output-on-failure
 bash tools/check_coverage.sh build-quality 70
 ```

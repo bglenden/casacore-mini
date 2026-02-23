@@ -11,6 +11,13 @@ read-paths:
 2. move table metadata extraction toward direct file-format reads (including table endianness metadata)
 3. broaden typed payload and `Record` coverage (including array-valued types)
 
+## Documentation gate (carry-forward)
+
+- Any Phase 2 task that introduces or changes public C++ API must include
+  Doxygen updates in the same task.
+- Phase closure requires passing CI docs generation with Doxygen warnings treated
+  as errors.
+
 ## Workstreams
 
 | ID | Workstream | Status | Deliverables |
@@ -20,7 +27,7 @@ read-paths:
 | `P2-W3` | Typed hash expansion | Completed | complex + multidimensional array typed payload hashing in oracle tooling with automated checks |
 | `P2-W4` | `Record` type matrix expansion | Completed | array-valued and additional compatibility-required value types with multidimensional shape semantics |
 | `P2-W5` | Corpus and CI expansion | Completed | additional non-replay artifacts in automated schema/payload checks |
-| `P2-W6` | Phase 2 exit review | Pending | risk update and Phase 3 scope recommendation |
+| `P2-W6` | Phase 2 exit review | Pending | risk update, Phase 3 scope recommendation, and Phase 2 public API documentation completeness check |
 
 ## `P2-W1` scope details
 

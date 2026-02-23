@@ -18,6 +18,28 @@ jobs:
       - name: Check formatting
         run: bash tools/check_format.sh
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install documentation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang doxygen
+      - name: Configure docs build
+        run: |
+          cmake -S . -B build-doc -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
+            -DCASACORE_MINI_ENABLE_CLANG_TIDY=OFF \
+            -DCASACORE_MINI_ENABLE_COVERAGE=OFF \
+            -DCASACORE_MINI_ENABLE_DOXYGEN=ON
+      - name: Generate Doxygen HTML
+        run: cmake --build build-doc --target doc
+      - name: Verify documentation output
+        run: test -f build-doc/docs/doxygen/html/index.html
+
   build-lint-test-coverage:
     runs-on: ubuntu-latest
     steps:

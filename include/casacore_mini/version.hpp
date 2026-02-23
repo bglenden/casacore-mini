@@ -6,6 +6,9 @@
 
 namespace casacore_mini {
 
+/// @file
+/// @brief Build and source version/provenance accessors.
+
 /// Canonical source version from `project(... VERSION X.Y.Z)`.
 [[nodiscard]] std::string_view project_version() noexcept;
 

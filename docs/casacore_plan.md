@@ -32,6 +32,7 @@ Date: 2026-02-23
 - Lint: `clang-tidy` is mandatory in CI.
 - Tests: `ctest` must pass in CI.
 - Coverage: `src/` line coverage gate is mandatory in CI (initial threshold `>= 70%`, to be ratcheted upward over time).
+- Documentation: every phase that introduces or changes public C++ API must update Doxygen comments for those APIs, and CI must validate docs generation.
 
 ## 2. Disposition legend
 - `KEEP-CAPABILITY`: preserve capability and persistence semantics; implementation and API may change.
@@ -176,7 +177,7 @@ Required feature coverage:
 3. Oracle output is deterministic across repeated runs on the same artifact.
 4. Comparator passes on baseline self-checks (upstream vs upstream, no spurious diffs).
 5. CI enforces manifest integrity and oracle determinism checks.
-6. CI enforces quality gates for format, warnings-as-errors, lint, test pass, and `src/` line coverage `>= 70%`.
+6. CI enforces quality gates for format, warnings-as-errors, lint, test pass, docs generation, and `src/` line coverage `>= 70%`.
 7. `docs/phase0/exit_report.md` names top 3 compatibility risks and a recommended Phase 1 scope.
 
 ### Phase 1+ (coarse, to be replanned later)

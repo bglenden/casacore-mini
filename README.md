@@ -32,6 +32,7 @@ The repository enforces quality from the start:
 - Compiler warnings: strict warning set with `-Werror`
 - Lint: `clang-tidy` (CI enforced)
 - Tests: `ctest` required in CI
+- API documentation: Doxygen HTML generation required in CI
 - Coverage: line coverage gate on `src/` (currently `>= 70%`)
 
 CI workflow: `.github/workflows/quality.yml`.
@@ -59,6 +60,8 @@ Example:
 cmake -S . -B build -G Ninja
 cmake --build build --target doc
 ```
+
+The `quality` CI workflow also validates Doxygen HTML generation on each push/PR.
 
 ## Phase 0 Interop Tooling
 
