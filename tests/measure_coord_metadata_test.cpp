@@ -1,6 +1,7 @@
 #include "casacore_mini/measure_coord_metadata.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -133,9 +134,79 @@ int main() noexcept {
                          "coords direction_system mismatch")) {
             return 1;
         }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_projection ==
+                             std::optional<std::string>{"SIN"},
+                         "coords direction_projection mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_projection_parameters ==
+                             std::vector<double>{0.0, 0.0},
+                         "coords direction_projection_parameters mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_crval ==
+                             std::vector<double>{0.0, 0.0},
+                         "coords direction_crval mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_crpix ==
+                             std::vector<double>{0.0, 0.0},
+                         "coords direction_crpix mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_cdelt ==
+                             std::vector<double>{-1.0, 1.0},
+                         "coords direction_cdelt mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_pc ==
+                             std::vector<double>{1.0, 0.0, 0.0, 1.0},
+                         "coords direction_pc mismatch")) {
+            return 1;
+        }
         if (!expect_true(pagedimage_metadata.coordinates.direction_axes ==
                              std::vector<std::string>{"Right Ascension", "Declination"},
                          "coords direction_axes mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_units ==
+                             std::vector<std::string>{"'", "'"},
+                         "coords direction_units mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_conversion_system ==
+                             std::optional<std::string>{"J2000"},
+                         "coords direction_conversion_system mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_longpole ==
+                             std::optional<double>{180.0},
+                         "coords direction_longpole mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.direction_latpole ==
+                             std::optional<double>{0.0},
+                         "coords direction_latpole mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.worldmap0 ==
+                             std::vector<std::int64_t>{0, 1},
+                         "coords worldmap0 mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.worldreplace0 ==
+                             std::vector<double>{0.0, 0.0},
+                         "coords worldreplace0 mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.pixelmap0 ==
+                             std::vector<std::int64_t>{0, 1},
+                         "coords pixelmap0 mismatch")) {
+            return 1;
+        }
+        if (!expect_true(pagedimage_metadata.coordinates.pixelreplace0 ==
+                             std::vector<double>{0.0, 0.0},
+                         "coords pixelreplace0 mismatch")) {
             return 1;
         }
 

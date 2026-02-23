@@ -23,6 +23,7 @@ cmake --build "${BUILD_DIR}"
 bash tools/check_phase1.sh "${BUILD_DIR}"
 bash tools/check_phase2.sh "${BUILD_DIR}"
 bash tools/check_phase3.sh
+bash tools/check_phase4.sh
 
 cmake -S . -B "${DOC_BUILD_DIR}" -G "${GENERATOR}" \
   -DCMAKE_BUILD_TYPE=Release \

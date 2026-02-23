@@ -2,6 +2,7 @@
 
 #include "casacore_mini/platform.hpp"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -36,8 +37,36 @@ struct CoordinateKeywordMetadata {
     std::optional<std::string> obsdate_reference;
     /// `coords.direction0.system`, when present.
     std::optional<std::string> direction_system;
+    /// `coords.direction0.projection`, when present.
+    std::optional<std::string> direction_projection;
+    /// `coords.direction0.projection_parameters` values.
+    std::vector<double> direction_projection_parameters;
+    /// `coords.direction0.crval` values.
+    std::vector<double> direction_crval;
+    /// `coords.direction0.crpix` values.
+    std::vector<double> direction_crpix;
+    /// `coords.direction0.cdelt` values.
+    std::vector<double> direction_cdelt;
+    /// `coords.direction0.pc` values in emitted order.
+    std::vector<double> direction_pc;
     /// `coords.direction0.axes` entries, when present.
     std::vector<std::string> direction_axes;
+    /// `coords.direction0.units` entries, when present.
+    std::vector<std::string> direction_units;
+    /// `coords.direction0.conversionSystem`, when present.
+    std::optional<std::string> direction_conversion_system;
+    /// `coords.direction0.longpole`, when present.
+    std::optional<double> direction_longpole;
+    /// `coords.direction0.latpole`, when present.
+    std::optional<double> direction_latpole;
+    /// `coords.worldmap0` values.
+    std::vector<std::int64_t> worldmap0;
+    /// `coords.worldreplace0` values.
+    std::vector<double> worldreplace0;
+    /// `coords.pixelmap0` values.
+    std::vector<std::int64_t> pixelmap0;
+    /// `coords.pixelreplace0` values.
+    std::vector<double> pixelreplace0;
 
     [[nodiscard]] bool operator==(const CoordinateKeywordMetadata& other) const = default;
 };
@@ -65,10 +94,23 @@ struct MeasureCoordinateMetadata {
 ///   - `coords.obsdate.type`
 ///   - `coords.obsdate.refer`
 ///   - `coords.direction0.system`
+///   - `coords.direction0.projection`
+///   - `coords.direction0.projection_parameters`
+///   - `coords.direction0.crval`
+///   - `coords.direction0.crpix`
+///   - `coords.direction0.cdelt`
+///   - `coords.direction0.pc`
 ///   - `coords.direction0.axes`
+///   - `coords.direction0.units`
+///   - `coords.direction0.conversionSystem`
+///   - `coords.direction0.longpole`
+///   - `coords.direction0.latpole`
+///   - `coords.worldmap0`
+///   - `coords.worldreplace0`
+///   - `coords.pixelmap0`
+///   - `coords.pixelreplace0`
 ///
-/// Missing sections produce an empty metadata result; malformed optional
-/// fragments are ignored rather than throwing.
+/// Missing sections or keyword parse failures produce an empty metadata result.
 [[nodiscard]] MeasureCoordinateMetadata
 parse_showtableinfo_measure_coordinate_metadata(std::string_view showtableinfo_text);
 

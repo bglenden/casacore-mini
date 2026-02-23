@@ -1,9 +1,10 @@
 #include "casacore_mini/measure_coord_metadata.hpp"
 
-#include <algorithm>
-#include <cstddef>
+#include "casacore_mini/keyword_record.hpp"
+
+#include <cstdint>
+#include <exception>
 #include <optional>
-#include <regex>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -12,283 +13,235 @@
 namespace casacore_mini {
 namespace {
 
-[[nodiscard]] std::string trim_copy(std::string_view input) {
-    constexpr std::string_view kWhitespace = " \t\r\n";
-    const auto begin = input.find_first_not_of(kWhitespace);
-    if (begin == std::string_view::npos) {
-        return "";
+[[nodiscard]] const KeywordRecord* as_record(const KeywordValue* value) {
+    if (value == nullptr) {
+        return nullptr;
     }
-    const auto end = input.find_last_not_of(kWhitespace);
-    return std::string(input.substr(begin, end - begin + 1U));
+    const auto* storage = std::get_if<KeywordValue::record_ptr>(&value->storage());
+    if (storage == nullptr || !*storage) {
+        return nullptr;
+    }
+    return storage->get();
 }
 
-[[nodiscard]] std::vector<std::string> split_lines(std::string_view text) {
-    std::vector<std::string> lines;
-    std::size_t offset = 0;
-    while (offset <= text.size()) {
-        const auto newline = text.find('\n', offset);
-        const auto end = (newline == std::string_view::npos) ? text.size() : newline;
-        std::string line(text.substr(offset, end - offset));
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        lines.push_back(std::move(line));
-        if (newline == std::string_view::npos) {
-            break;
-        }
-        offset = newline + 1U;
+[[nodiscard]] const KeywordArray* as_array(const KeywordValue* value) {
+    if (value == nullptr) {
+        return nullptr;
     }
-    return lines;
+    const auto* storage = std::get_if<KeywordValue::array_ptr>(&value->storage());
+    if (storage == nullptr || !*storage) {
+        return nullptr;
+    }
+    return storage->get();
 }
 
-[[nodiscard]] std::vector<std::string> split_bracket_items(std::string_view text) {
-    std::vector<std::string> items;
-    std::size_t start = 0;
-    while (start <= text.size()) {
-        std::size_t end = text.find(',', start);
-        if (end == std::string_view::npos) {
-            end = text.size();
-        }
-        const auto value = trim_copy(text.substr(start, end - start));
-        if (!value.empty()) {
-            items.push_back(value);
-        }
-        if (end == text.size()) {
-            break;
-        }
-        start = end + 1U;
+[[nodiscard]] std::optional<std::string> value_as_string(const KeywordValue* value) {
+    if (value == nullptr) {
+        return std::nullopt;
     }
-    return items;
+    const auto* string_value = std::get_if<std::string>(&value->storage());
+    if (string_value == nullptr) {
+        return std::nullopt;
+    }
+    return *string_value;
 }
 
-[[nodiscard]] std::optional<std::vector<std::string>>
-parse_bracket_list_from_following_line(const std::vector<std::string>& lines,
-                                       const std::size_t start_index) {
-    static const std::regex bracket_line_regex(R"(^\s*\[([^\]]*)\]\s*$)");
-    for (std::size_t index = start_index; index < lines.size(); ++index) {
-        const auto stripped = trim_copy(lines[index]);
-        if (stripped.empty()) {
-            continue;
-        }
-        std::smatch match;
-        if (!std::regex_match(stripped, match, bracket_line_regex)) {
-            return std::nullopt;
-        }
-        const std::string values = match[1].str();
-        return split_bracket_items(values);
+[[nodiscard]] std::optional<std::int64_t> value_as_int64(const KeywordValue* value) {
+    if (value == nullptr) {
+        return std::nullopt;
+    }
+    const auto* int_value = std::get_if<std::int64_t>(&value->storage());
+    if (int_value == nullptr) {
+        return std::nullopt;
+    }
+    return *int_value;
+}
+
+[[nodiscard]] std::optional<double> value_as_double(const KeywordValue* value) {
+    if (value == nullptr) {
+        return std::nullopt;
+    }
+    if (const auto* double_value = std::get_if<double>(&value->storage())) {
+        return *double_value;
+    }
+    if (const auto* int_value = std::get_if<std::int64_t>(&value->storage())) {
+        return static_cast<double>(*int_value);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] bool path_equals(const std::vector<std::string>& path,
-                               const std::initializer_list<std::string_view> expected) {
-    if (path.size() != expected.size()) {
-        return false;
+[[nodiscard]] std::vector<std::string> value_as_string_array(const KeywordValue* value) {
+    std::vector<std::string> result;
+    const auto* array = as_array(value);
+    if (array == nullptr) {
+        return result;
     }
-    auto expected_it = expected.begin();
-    for (std::size_t index = 0; index < path.size(); ++index, ++expected_it) {
-        if (path[index] != *expected_it) {
-            return false;
+    result.reserve(array->elements.size());
+    for (const auto& element : array->elements) {
+        const auto parsed = value_as_string(&element);
+        if (!parsed.has_value()) {
+            return {};
         }
+        result.push_back(*parsed);
     }
-    return true;
+    return result;
 }
 
-[[nodiscard]] std::pair<CoordinateKeywordMetadata, std::size_t>
-parse_coords_block(const std::vector<std::string>& lines, const std::size_t start_index) {
-    static const std::regex open_record_regex(R"(^([A-Za-z0-9_]+):\s*\{$)");
-    static const std::regex string_value_regex(R"re(^([A-Za-z0-9_]+):\s+String\s+"([^"]*)"\s*$)re");
-    static const std::regex axes_declaration_regex(
-        R"(^axes:\s+String array with shape\s+\[[^\]]*\]\s*$)");
-
-    CoordinateKeywordMetadata metadata;
-    metadata.has_coords = true;
-
-    std::vector<std::string> path{"coords"};
-    std::size_t depth = 1;
-    std::size_t index = start_index + 1U;
-    for (; index < lines.size() && depth > 0U; ++index) {
-        const auto stripped = trim_copy(lines[index]);
-        if (stripped.empty()) {
-            continue;
-        }
-
-        if (stripped == "}") {
-            if (!path.empty()) {
-                path.pop_back();
-            }
-            if (depth > 0U) {
-                --depth;
-            }
-            continue;
-        }
-
-        std::smatch open_match;
-        if (std::regex_match(stripped, open_match, open_record_regex)) {
-            path.push_back(open_match[1].str());
-            ++depth;
-            continue;
-        }
-
-        std::smatch value_match;
-        if (std::regex_match(stripped, value_match, string_value_regex)) {
-            const auto key = value_match[1].str();
-            const auto value = value_match[2].str();
-
-            if (path_equals(path, {"coords", "obsdate"})) {
-                if (key == "type") {
-                    metadata.obsdate_type = value;
-                } else if (key == "refer") {
-                    metadata.obsdate_reference = value;
-                }
-            } else if (path_equals(path, {"coords", "direction0"}) && key == "system") {
-                metadata.direction_system = value;
-            }
-            continue;
-        }
-
-        if (path_equals(path, {"coords", "direction0"}) &&
-            std::regex_match(stripped, axes_declaration_regex)) {
-            const auto axes = parse_bracket_list_from_following_line(lines, index + 1U);
-            if (axes.has_value()) {
-                metadata.direction_axes = *axes;
-            }
-        }
+[[nodiscard]] std::vector<std::int64_t> value_as_int64_array(const KeywordValue* value) {
+    std::vector<std::int64_t> result;
+    const auto* array = as_array(value);
+    if (array == nullptr) {
+        return result;
     }
-
-    if (index == 0U) {
-        return std::pair(metadata, start_index);
+    result.reserve(array->elements.size());
+    for (const auto& element : array->elements) {
+        const auto parsed = value_as_int64(&element);
+        if (!parsed.has_value()) {
+            return {};
+        }
+        result.push_back(*parsed);
     }
-    return std::pair(metadata, index - 1U);
+    return result;
 }
 
-[[nodiscard]] MeasureColumnMetadata& ensure_column(std::vector<MeasureColumnMetadata>& columns,
-                                                   std::string_view column_name) {
-    const auto it =
-        std::find_if(columns.begin(), columns.end(), [&](const MeasureColumnMetadata& value) {
-            return value.column_name == column_name;
-        });
-    if (it != columns.end()) {
-        return *it;
+[[nodiscard]] std::vector<double> value_as_double_array(const KeywordValue* value) {
+    std::vector<double> result;
+    const auto* array = as_array(value);
+    if (array == nullptr) {
+        return result;
     }
-    columns.push_back(MeasureColumnMetadata{
-        .column_name = std::string(column_name),
+    result.reserve(array->elements.size());
+    for (const auto& element : array->elements) {
+        const auto parsed = value_as_double(&element);
+        if (!parsed.has_value()) {
+            return {};
+        }
+        result.push_back(*parsed);
+    }
+    return result;
+}
+
+[[nodiscard]] std::optional<std::string> find_string(const KeywordRecord& record,
+                                                     const std::string_view key) {
+    return value_as_string(record.find(key));
+}
+
+[[nodiscard]] std::optional<double> find_double(const KeywordRecord& record,
+                                                const std::string_view key) {
+    return value_as_double(record.find(key));
+}
+
+[[nodiscard]] std::vector<std::string> find_string_array(const KeywordRecord& record,
+                                                         const std::string_view key) {
+    return value_as_string_array(record.find(key));
+}
+
+[[nodiscard]] std::vector<std::int64_t> find_int64_array(const KeywordRecord& record,
+                                                         const std::string_view key) {
+    return value_as_int64_array(record.find(key));
+}
+
+[[nodiscard]] std::vector<double> find_double_array(const KeywordRecord& record,
+                                                    const std::string_view key) {
+    return value_as_double_array(record.find(key));
+}
+
+[[nodiscard]] bool has_measure_data(const MeasureColumnMetadata& metadata) {
+    return !metadata.quantum_units.empty() || metadata.measure_type.has_value() ||
+           metadata.measure_reference.has_value();
+}
+
+[[nodiscard]] MeasureColumnMetadata parse_measure_column_metadata(std::string column_name,
+                                                                  const KeywordRecord& record) {
+    MeasureColumnMetadata metadata{
+        .column_name = std::move(column_name),
         .quantum_units = {},
         .measure_type = std::nullopt,
         .measure_reference = std::nullopt,
-    });
-    return columns.back();
+    };
+
+    metadata.quantum_units = find_string_array(record, "QuantumUnits");
+    if (metadata.quantum_units.empty()) {
+        if (const auto unit = find_string(record, "UNIT")) {
+            metadata.quantum_units = {*unit};
+        }
+    }
+
+    metadata.measure_type = find_string(record, "MEASURE_TYPE");
+    metadata.measure_reference = find_string(record, "MEASURE_REFERENCE");
+
+    const auto* measinfo = as_record(record.find("MEASINFO"));
+    if (measinfo != nullptr) {
+        if (!metadata.measure_type.has_value()) {
+            metadata.measure_type = find_string(*measinfo, "type");
+        }
+        if (!metadata.measure_reference.has_value()) {
+            metadata.measure_reference = find_string(*measinfo, "Ref");
+            if (!metadata.measure_reference.has_value()) {
+                metadata.measure_reference = find_string(*measinfo, "ref");
+            }
+        }
+    }
+
+    return metadata;
+}
+
+void populate_coordinate_metadata(const KeywordRecord& table_keywords,
+                                  CoordinateKeywordMetadata* metadata) {
+    const auto* coords = as_record(table_keywords.find("coords"));
+    if (coords == nullptr) {
+        return;
+    }
+
+    metadata->has_coords = true;
+    if (const auto* obsdate = as_record(coords->find("obsdate"))) {
+        metadata->obsdate_type = find_string(*obsdate, "type");
+        metadata->obsdate_reference = find_string(*obsdate, "refer");
+    }
+
+    if (const auto* direction0 = as_record(coords->find("direction0"))) {
+        metadata->direction_system = find_string(*direction0, "system");
+        metadata->direction_projection = find_string(*direction0, "projection");
+        metadata->direction_projection_parameters =
+            find_double_array(*direction0, "projection_parameters");
+        metadata->direction_crval = find_double_array(*direction0, "crval");
+        metadata->direction_crpix = find_double_array(*direction0, "crpix");
+        metadata->direction_cdelt = find_double_array(*direction0, "cdelt");
+        metadata->direction_pc = find_double_array(*direction0, "pc");
+        metadata->direction_axes = find_string_array(*direction0, "axes");
+        metadata->direction_units = find_string_array(*direction0, "units");
+        metadata->direction_conversion_system = find_string(*direction0, "conversionSystem");
+        metadata->direction_longpole = find_double(*direction0, "longpole");
+        metadata->direction_latpole = find_double(*direction0, "latpole");
+    }
+
+    metadata->worldmap0 = find_int64_array(*coords, "worldmap0");
+    metadata->worldreplace0 = find_double_array(*coords, "worldreplace0");
+    metadata->pixelmap0 = find_int64_array(*coords, "pixelmap0");
+    metadata->pixelreplace0 = find_double_array(*coords, "pixelreplace0");
 }
 
 } // namespace
 
 MeasureCoordinateMetadata
 parse_showtableinfo_measure_coordinate_metadata(const std::string_view showtableinfo_text) {
-    static const std::regex column_header_regex(R"(^Column\s+([A-Za-z0-9_]+)\s*$)");
-    static const std::regex unit_regex(R"re(^UNIT:\s+String\s+"([^"]*)"\s*$)re");
-    static const std::regex quantum_units_regex(
-        R"(^QuantumUnits:\s+String array with shape\s+\[[^\]]*\]\s*$)");
-    static const std::regex measure_type_regex(R"re(^MEASURE_TYPE:\s+String\s+"([^"]*)"\s*$)re");
-    static const std::regex measure_reference_regex(
-        R"re(^MEASURE_REFERENCE:\s+String\s+"([^"]*)"\s*$)re");
-    static const std::regex measure_info_open_regex(R"(^MEASINFO:\s*\{\s*$)");
-    static const std::regex measure_info_type_regex(R"re(^type:\s+String\s+"([^"]*)"\s*$)re");
-    static const std::regex measure_info_ref_regex(R"re(^Ref:\s+String\s+"([^"]*)"\s*$)re");
-    static const std::regex coords_open_regex(R"(^coords:\s*\{\s*$)");
-
     MeasureCoordinateMetadata metadata;
-
-    const auto marker_index = showtableinfo_text.find("Keywords of main table");
-    if (marker_index == std::string_view::npos) {
+    ShowtableinfoKeywords parsed;
+    try {
+        parsed = parse_showtableinfo_keywords(showtableinfo_text);
+    } catch (const std::exception&) {
         return metadata;
     }
 
-    const auto keywords_text =
-        showtableinfo_text.substr(marker_index + std::string_view("Keywords of main table").size());
-    const auto lines = split_lines(keywords_text);
-
-    std::string current_column;
-    for (std::size_t index = 0; index < lines.size(); ++index) {
-        const auto stripped = trim_copy(lines[index]);
-        if (stripped.empty()) {
-            continue;
-        }
-
-        std::smatch match;
-        if (std::regex_match(stripped, match, coords_open_regex)) {
-            const auto coords_result = parse_coords_block(lines, index);
-            metadata.coordinates = coords_result.first;
-            index = coords_result.second;
-            continue;
-        }
-
-        if (std::regex_match(stripped, match, column_header_regex)) {
-            current_column = match[1].str();
-            continue;
-        }
-
-        if (current_column.empty()) {
-            continue;
-        }
-
-        if (std::regex_match(stripped, match, unit_regex)) {
-            auto& column = ensure_column(metadata.measure_columns, current_column);
-            column.quantum_units = std::vector<std::string>{match[1].str()};
-            continue;
-        }
-
-        if (std::regex_match(stripped, quantum_units_regex)) {
-            auto& column = ensure_column(metadata.measure_columns, current_column);
-            const auto units = parse_bracket_list_from_following_line(lines, index + 1U);
-            if (units.has_value()) {
-                column.quantum_units = *units;
-            }
-            continue;
-        }
-
-        if (std::regex_match(stripped, match, measure_type_regex)) {
-            auto& column = ensure_column(metadata.measure_columns, current_column);
-            column.measure_type = match[1].str();
-            continue;
-        }
-
-        if (std::regex_match(stripped, match, measure_reference_regex)) {
-            auto& column = ensure_column(metadata.measure_columns, current_column);
-            column.measure_reference = match[1].str();
-            continue;
-        }
-
-        if (std::regex_match(stripped, measure_info_open_regex)) {
-            auto& column = ensure_column(metadata.measure_columns, current_column);
-            std::size_t depth = 1;
-            std::size_t inner_index = index + 1U;
-            for (; inner_index < lines.size() && depth > 0U; ++inner_index) {
-                const auto inner = trim_copy(lines[inner_index]);
-                if (inner.empty()) {
-                    continue;
-                }
-                if (inner == "}") {
-                    --depth;
-                    continue;
-                }
-                if (inner.find('{') != std::string::npos) {
-                    ++depth;
-                    continue;
-                }
-
-                std::smatch inner_match;
-                if (std::regex_match(inner, inner_match, measure_info_type_regex)) {
-                    column.measure_type = inner_match[1].str();
-                } else if (std::regex_match(inner, inner_match, measure_info_ref_regex)) {
-                    column.measure_reference = inner_match[1].str();
-                }
-            }
-            if (inner_index > 0U) {
-                index = inner_index - 1U;
-            }
+    metadata.measure_columns.reserve(parsed.column_keywords.size());
+    for (const auto& [column_name, column_keywords] : parsed.column_keywords) {
+        auto measure_column = parse_measure_column_metadata(column_name, column_keywords);
+        if (has_measure_data(measure_column)) {
+            metadata.measure_columns.push_back(std::move(measure_column));
         }
     }
 
+    populate_coordinate_metadata(parsed.table_keywords, &metadata.coordinates);
     return metadata;
 }
 
