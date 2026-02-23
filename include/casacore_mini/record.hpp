@@ -18,8 +18,8 @@ class RecordValue {
   public:
     using list_ptr = std::shared_ptr<RecordList>;
     using record_ptr = std::shared_ptr<Record>;
-    using storage_type = std::variant<bool, std::int64_t, double, std::string, std::complex<double>,
-                                      list_ptr, record_ptr>;
+    using storage_type = std::variant<bool, std::int64_t, double, std::string, std::complex<float>,
+                                      std::complex<double>, list_ptr, record_ptr>;
 
     RecordValue();
     explicit RecordValue(bool value);
@@ -27,6 +27,7 @@ class RecordValue {
     explicit RecordValue(double value);
     explicit RecordValue(std::string value);
     explicit RecordValue(const char* value);
+    explicit RecordValue(std::complex<float> value);
     explicit RecordValue(std::complex<double> value);
 
     [[nodiscard]] static RecordValue from_list(RecordList value);

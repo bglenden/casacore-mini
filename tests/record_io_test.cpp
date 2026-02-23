@@ -24,6 +24,7 @@ casacore_mini::Record build_scalar_record() {
     value.set("answer", casacore_mini::RecordValue(std::int64_t(42)));
     value.set("ratio", casacore_mini::RecordValue(1.5));
     value.set("label", casacore_mini::RecordValue("mini"));
+    value.set("phasorf", casacore_mini::RecordValue(std::complex<float>(1.0F, -2.0F)));
     value.set("phasor", casacore_mini::RecordValue(std::complex<double>(1.0, -2.0)));
     return value;
 }
@@ -55,6 +56,33 @@ bool test_nested_round_trip() {
     const auto payload = casacore_mini::serialize_record_binary(expected);
     const auto actual = casacore_mini::deserialize_record_binary(payload);
     return expect_true(actual == expected, "nested Record round-trip failed");
+}
+
+bool test_complex_precision_preserved() {
+    casacore_mini::Record value;
+    value.set("phasorf", casacore_mini::RecordValue(std::complex<float>(3.0F, 4.0F)));
+    value.set("phasor", casacore_mini::RecordValue(std::complex<double>(3.0, 4.0)));
+
+    const auto payload = casacore_mini::serialize_record_binary(value);
+    const auto round_trip = casacore_mini::deserialize_record_binary(payload);
+
+    const auto* phasorf = round_trip.find("phasorf");
+    if (!expect_true(phasorf != nullptr, "complex<float> field missing after round-trip")) {
+        return false;
+    }
+
+    if (!expect_true(std::holds_alternative<std::complex<float>>(phasorf->storage()),
+                     "complex<float> field changed type after round-trip")) {
+        return false;
+    }
+
+    const auto* phasor = round_trip.find("phasor");
+    if (!expect_true(phasor != nullptr, "complex<double> field missing after round-trip")) {
+        return false;
+    }
+
+    return expect_true(std::holds_alternative<std::complex<double>>(phasor->storage()),
+                       "complex<double> field changed type after round-trip");
 }
 
 bool test_deterministic_encoding() {
@@ -107,6 +135,9 @@ int main() noexcept {
             return 1;
         }
         if (!test_deterministic_encoding()) {
+            return 1;
+        }
+        if (!test_complex_precision_preserved()) {
             return 1;
         }
         if (!test_rejects_invalid_magic()) {

@@ -18,6 +18,8 @@ RecordValue::RecordValue(std::string value) : storage_(std::move(value)) {}
 
 RecordValue::RecordValue(const char* value) : storage_(std::string(value)) {}
 
+RecordValue::RecordValue(const std::complex<float> value) : storage_(value) {}
+
 RecordValue::RecordValue(const std::complex<double> value) : storage_(value) {}
 
 RecordValue RecordValue::from_list(RecordList value) {

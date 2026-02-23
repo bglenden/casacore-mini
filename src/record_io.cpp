@@ -27,6 +27,7 @@ enum class ValueTag : std::uint8_t {
     complex128 = 5,
     list = 6,
     record = 7,
+    complex64 = 8,
 };
 
 constexpr std::array<char, 4> kMagic{{'C', 'C', 'M', 'R'}};
@@ -123,6 +124,13 @@ void write_value(const RecordValue& value, std::ostream& output, const std::size
         return;
     }
 
+    if (const auto* as_complex = std::get_if<std::complex<float>>(&storage)) {
+        write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::complex64));
+        write_unsigned_le(output, std::bit_cast<std::uint32_t>(as_complex->real()));
+        write_unsigned_le(output, std::bit_cast<std::uint32_t>(as_complex->imag()));
+        return;
+    }
+
     if (const auto* as_complex = std::get_if<std::complex<double>>(&storage)) {
         write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::complex128));
         write_unsigned_le(output, std::bit_cast<std::uint64_t>(as_complex->real()));
@@ -172,6 +180,11 @@ RecordValue read_value(std::istream& input, const std::size_t depth) {
         return RecordValue(std::bit_cast<double>(read_unsigned_le<std::uint64_t>(input)));
     case ValueTag::string:
         return RecordValue(read_string(input));
+    case ValueTag::complex64: {
+        const auto real = std::bit_cast<float>(read_unsigned_le<std::uint32_t>(input));
+        const auto imag = std::bit_cast<float>(read_unsigned_le<std::uint32_t>(input));
+        return RecordValue(std::complex<float>(real, imag));
+    }
     case ValueTag::complex128: {
         const auto real = std::bit_cast<double>(read_unsigned_le<std::uint64_t>(input));
         const auto imag = std::bit_cast<double>(read_unsigned_le<std::uint64_t>(input));
