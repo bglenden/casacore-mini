@@ -17,6 +17,10 @@ cmake -S . -B "${BUILD_DIR}" -G "${GENERATOR}" \
   -DCASACORE_MINI_ENABLE_COVERAGE=ON
 
 cmake --build "${BUILD_DIR}"
+
+# Reset old runtime counters so repeated local runs produce deterministic coverage.
+find "${BUILD_DIR}" -type f -name '*.gcda' -delete 2>/dev/null || true
+
 ctest --test-dir "${BUILD_DIR}" --output-on-failure
 bash tools/check_coverage.sh "${BUILD_DIR}" 70
 

@@ -1,0 +1,12 @@
+#pragma once
+
+#include <string_view>
+
+namespace casacore_mini::build {
+
+inline constexpr std::string_view kProjectVersion = "@PROJECT_VERSION@";
+inline constexpr std::string_view kBuildVersion = "@CASACORE_MINI_BUILD_VERSION@";
+inline constexpr std::string_view kGitDescribe = "@CASACORE_MINI_GIT_DESCRIBE@";
+inline constexpr std::string_view kGitRevision = "@CASACORE_MINI_GIT_REVISION@";
+
+} // namespace casacore_mini::build

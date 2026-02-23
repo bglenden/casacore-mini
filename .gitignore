@@ -30,7 +30,7 @@ _deps/
 *.exe
 *.out
 *.app
-*.i*
+*.i
 *.ii
 *.s
 *.d

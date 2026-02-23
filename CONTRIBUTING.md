@@ -70,3 +70,13 @@ find include src tests -type f \
   \( -name '*.h' -o -name '*.hpp' -o -name '*.hh' -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' \) \
   -print0 | xargs -0 clang-format -i
 ```
+
+## Release tags
+
+Release tags must use `vX.Y.Z` and match `project(casacore_mini VERSION X.Y.Z)` in `CMakeLists.txt`.
+
+Local check:
+
+```bash
+bash tools/check_release_tag.sh v0.1.0
+```

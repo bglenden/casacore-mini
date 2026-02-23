@@ -35,6 +35,21 @@ CI workflow: `.github/workflows/quality.yml`.
 
 Local developer workflow: `CONTRIBUTING.md`.
 
+## Versioning
+
+Versioning is semantic (`MAJOR.MINOR.PATCH`) with Git tags as release truth.
+
+- Canonical source version is `project(casacore_mini VERSION X.Y.Z)` in `CMakeLists.txt`.
+- Releases are tagged as `vX.Y.Z` on GitHub.
+- CI enforces tag/version consistency (`tools/check_release_tag.sh`).
+- Build metadata is derived from git at CMake configure time:
+  - `project_version()` -> canonical `X.Y.Z`
+  - `build_version()` -> release `X.Y.Z` on matching tag, otherwise `X.Y.Z+<git-describe>` (or `X.Y.Z-dev` if git metadata is unavailable)
+  - `git_describe()` / `git_revision()` expose source provenance
+  - `version()` is an alias for `build_version()`
+
+This means source builds can be traced to an exact commit while keeping a stable release version model.
+
 ## Scope Direction (Initial)
 
 Priority is compatibility-critical read/write semantics for table-based persistence, then progressive implementation of measures, coordinates, images, and MeasurementSet-related functionality.

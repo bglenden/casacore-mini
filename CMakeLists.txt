@@ -11,6 +11,49 @@ option(CASACORE_MINI_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(CASACORE_MINI_ENABLE_CLANG_TIDY "Enable clang-tidy linting" OFF)
 option(CASACORE_MINI_ENABLE_COVERAGE "Enable coverage instrumentation" OFF)
 
+find_package(Git QUIET)
+set(CASACORE_MINI_GIT_REVISION "unknown")
+set(CASACORE_MINI_GIT_DESCRIBE "unknown")
+
+if(Git_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} -C "${CMAKE_SOURCE_DIR}" rev-parse --short=12 HEAD
+    OUTPUT_VARIABLE CASACORE_MINI_GIT_REVISION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} -C "${CMAKE_SOURCE_DIR}" describe --tags --dirty --always --match v[0-9]*
+    OUTPUT_VARIABLE CASACORE_MINI_GIT_DESCRIBE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+endif()
+
+if(NOT CASACORE_MINI_GIT_REVISION)
+  set(CASACORE_MINI_GIT_REVISION "unknown")
+endif()
+
+if(NOT CASACORE_MINI_GIT_DESCRIBE)
+  set(CASACORE_MINI_GIT_DESCRIBE "unknown")
+endif()
+
+if(CASACORE_MINI_GIT_DESCRIBE STREQUAL "unknown")
+  set(CASACORE_MINI_BUILD_VERSION "${PROJECT_VERSION}-dev")
+elseif(CASACORE_MINI_GIT_DESCRIBE MATCHES "^v([0-9]+\\.[0-9]+\\.[0-9]+)$")
+  if(CMAKE_MATCH_1 STREQUAL PROJECT_VERSION)
+    set(CASACORE_MINI_BUILD_VERSION "${PROJECT_VERSION}")
+  else()
+    set(CASACORE_MINI_BUILD_VERSION "${PROJECT_VERSION}+${CASACORE_MINI_GIT_DESCRIBE}")
+  endif()
+else()
+  set(CASACORE_MINI_BUILD_VERSION "${PROJECT_VERSION}+${CASACORE_MINI_GIT_DESCRIBE}")
+endif()
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version_generated.hpp.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/include/casacore_mini/version_generated.hpp"
+  @ONLY)
+
 add_library(casacore_mini_project_options INTERFACE)
 target_compile_features(casacore_mini_project_options INTERFACE cxx_std_20)
 
@@ -56,7 +99,8 @@ add_library(casacore_mini_core src/version.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated/include>)
 target_link_libraries(casacore_mini_core PUBLIC casacore_mini_project_options)
 
 enable_testing()
