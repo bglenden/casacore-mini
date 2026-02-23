@@ -44,23 +44,23 @@ This performs:
 2. CMake configure with strict flags and lint enabled
 3. Build
 4. `ctest`
-5. Coverage gate (`tools/check_coverage.sh build 70`)
+5. Coverage gate (`tools/check_coverage.sh build-quality 70`)
 
 ## Manual commands (equivalent)
 
 ```bash
 bash tools/check_format.sh
 
-cmake -S . -B build -G Ninja \
+cmake -S . -B build-quality -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_COMPILER=clang++ \
   -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
   -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
   -DCASACORE_MINI_ENABLE_COVERAGE=ON
 
-cmake --build build
-ctest --test-dir build --output-on-failure
-bash tools/check_coverage.sh build 70
+cmake --build build-quality
+ctest --test-dir build-quality --output-on-failure
+bash tools/check_coverage.sh build-quality 70
 ```
 
 ## Optional: apply formatting

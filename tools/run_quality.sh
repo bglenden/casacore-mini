@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${1:-build}"
+BUILD_DIR="${1:-build-quality}"
 GENERATOR="${GENERATOR:-Ninja}"
 
 cd "${ROOT_DIR}"
