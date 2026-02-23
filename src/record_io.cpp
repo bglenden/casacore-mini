@@ -83,7 +83,7 @@ template <typename unsigned_t> unsigned_t read_unsigned_le(std::istream& input) 
     unsigned_t value = 0;
     for (std::size_t index = 0; index < bytes.size(); ++index) {
         const auto shift = static_cast<unsigned_t>(index) * static_cast<unsigned_t>(8U);
-        value |= static_cast<unsigned_t>(bytes[index]) << shift;
+        value = static_cast<unsigned_t>(value | (static_cast<unsigned_t>(bytes[index]) << shift));
     }
     return value;
 }
@@ -214,12 +214,12 @@ RecordArray<element_t> read_array(std::istream& input, reader_t&& read_element) 
 void write_record_body(const Record& value, std::ostream& output, std::size_t depth);
 Record read_record_body(std::istream& input, std::size_t depth);
 
-void write_value(const RecordValue& value, std::ostream& output, const std::size_t depth) {
+void write_value(const RecordValue& record_value, std::ostream& output, const std::size_t depth) {
     if (depth > kMaxDepth) {
         throw std::runtime_error("binary Record depth limit exceeded while writing");
     }
 
-    const auto& storage = value.storage();
+    const auto& storage = record_value.storage();
     if (const auto* as_bool = std::get_if<bool>(&storage)) {
         write_unsigned_le(output, static_cast<std::uint8_t>(ValueTag::boolean));
         write_unsigned_le(output, static_cast<std::uint8_t>(*as_bool ? 1U : 0U));
