@@ -33,6 +33,8 @@ The repository enforces quality from the start:
 
 CI workflow: `.github/workflows/quality.yml`.
 
+Local developer workflow: `CONTRIBUTING.md`.
+
 ## Scope Direction (Initial)
 
 Priority is compatibility-critical read/write semantics for table-based persistence, then progressive implementation of measures, coordinates, images, and MeasurementSet-related functionality.

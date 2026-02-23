@@ -1,0 +1,72 @@
+# Contributing
+
+## Goal
+
+Local development should run the same quality checks enforced by CI.
+
+## Required tools
+
+- `cmake` (>= 3.27)
+- `ninja`
+- `clang++`
+- `clang-format`
+- `clang-tidy`
+- `gcovr`
+
+## Install examples
+
+Ubuntu/Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y cmake ninja-build clang clang-format clang-tidy gcovr
+```
+
+macOS (Homebrew):
+
+```bash
+brew install cmake ninja llvm clang-format gcovr
+```
+
+If you install LLVM from Homebrew, ensure `clang++` and `clang-tidy` from that install are on `PATH`.
+
+## CI-equivalent local workflow
+
+From the repository root, run:
+
+```bash
+bash tools/run_quality.sh
+```
+
+This performs:
+
+1. `clang-format` check (`tools/check_format.sh`)
+2. CMake configure with strict flags and lint enabled
+3. Build
+4. `ctest`
+5. Coverage gate (`tools/check_coverage.sh build 70`)
+
+## Manual commands (equivalent)
+
+```bash
+bash tools/check_format.sh
+
+cmake -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
+  -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
+  -DCASACORE_MINI_ENABLE_COVERAGE=ON
+
+cmake --build build
+ctest --test-dir build --output-on-failure
+bash tools/check_coverage.sh build 70
+```
+
+## Optional: apply formatting
+
+```bash
+find include src tests -type f \
+  \( -name '*.h' -o -name '*.hpp' -o -name '*.hh' -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' \) \
+  -print0 | xargs -0 clang-format -i
+```
