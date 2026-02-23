@@ -58,3 +58,6 @@ _deps/
 venv/
 __pycache__/
 *.pyc
+
+# Personal workspace files
+.obsidian/
