@@ -9,6 +9,11 @@ This directory contains Phase 0 corpus assets used by `docs/phase0/corpus_manife
   - `table_dat_ttable2_v0/`, `table_dat_ttable2_v1/`: compact `table.dat`
     binaries vendored from casacore table tests for Phase 2 direct metadata
     parser tests and non-replay corpus oracle checks.
+  - `logtable_stdstman_keywords/`, `ms_tree/`, `pagedimage_coords/`:
+    replayed `showtableinfo` captures used by Phase 3 measure/coordinate
+    metadata checks.
+  - `phase3_keyword_fixtures_provenance.md`: source/capture details for Phase 3
+    replayed keyword fixtures.
 
 ## Why replay fixtures exist
 
@@ -25,3 +30,7 @@ These checks validate tooling determinism; full interoperability checks against 
 Phase 2 extends CI coverage with vendored non-replay `table.dat` fixtures
 (`source.kind=fixture_path` in the corpus manifest), so direct binary
 metadata paths are also validated in automated oracle checks.
+
+Phase 3 extends CI coverage with replayed `showtableinfo` fixtures from
+measure/coordinate-rich artifacts, enabling deterministic metadata checks
+without requiring a full casacore runtime environment on CI runners.

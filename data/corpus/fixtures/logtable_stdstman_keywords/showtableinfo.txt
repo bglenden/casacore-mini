@@ -1,0 +1,21 @@
+${CASACORE_BUILD_ROOT}/tables/apps/showtableinfo: Version 2016Feb17GvD
+
+Structure of table ${CASACORE_BUILD_ROOT}/images/Images/test/tPagedImage2_tmp.img/logtable
+------------------ Log message
+0 rows, 5 columns in little endian format (using 1 data managers)
+
+ StandardStMan file=table.f0  name=SSM  bucketsize=32768
+    MaxCacheSize=2 PERSCACHESIZE=2 IndexLength=126
+  LOCATION  String   scalar
+  MESSAGE   String   scalar
+  OBJECT_ID String   scalar
+  PRIORITY  String   scalar
+  TIME      double   scalar unit=s
+
+Keywords of main table 
+----------------------
+  Column TIME
+    UNIT: String "s"
+    MEASURE_TYPE: String "EPOCH"
+    MEASURE_REFERENCE: String "UTC"
+

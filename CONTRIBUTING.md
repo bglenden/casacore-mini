@@ -82,9 +82,10 @@ This performs:
 4. Build
 5. Phase 1 schema hook check (`tools/check_phase1.sh build-quality`)
 6. Phase 2 compatibility checks (`tools/check_phase2.sh build-quality`)
-7. Doxygen docs generation (`doc` target)
-8. `ctest`
-9. Coverage gate (`tools/check_coverage.sh build-quality 70`)
+7. Phase 3 keyword/metadata checks (`tools/check_phase3.sh`)
+8. Doxygen docs generation (`doc` target)
+9. `ctest`
+10. Coverage gate (`tools/check_coverage.sh build-quality 70`)
 
 ## Manual commands (equivalent)
 
@@ -102,6 +103,7 @@ cmake -S . -B build-quality -G Ninja \
 cmake --build build-quality
 bash tools/check_phase1.sh build-quality
 bash tools/check_phase2.sh build-quality
+bash tools/check_phase3.sh
 cmake -S . -B build-docs -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CXX_COMPILER=clang++ \

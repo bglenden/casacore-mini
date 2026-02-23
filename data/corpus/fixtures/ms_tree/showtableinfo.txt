@@ -1,0 +1,98 @@
+${CASACORE_BUILD_ROOT}/tables/apps/showtableinfo: Version 2016Feb17GvD
+
+Structure of table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms
+------------------ Measurement Set
+375 rows, 22 columns in little endian format (using 1 data managers)
+
+ StandardStMan file=table.f0  name=StandardStMan  bucketsize=4484
+    MaxCacheSize=2 PERSCACHESIZE=2 IndexLength=214
+  ANTENNA1       Int      scalar
+  ANTENNA2       Int      scalar
+  ARRAY_ID       Int      scalar
+  DATA           Complex  ndim=2
+  DATA_DESC_ID   Int      scalar
+  EXPOSURE       double   scalar unit=[s]
+  FEED1          Int      scalar
+  FEED2          Int      scalar
+  FIELD_ID       Int      scalar
+  FLAG           Bool     ndim=2
+  FLAG_CATEGORY  Bool     ndim=3
+  FLAG_ROW       Bool     scalar
+  INTERVAL       double   scalar unit=[s]
+  OBSERVATION_ID Int      scalar
+  PROCESSOR_ID   Int      scalar
+  SCAN_NUMBER    Int      scalar
+  SIGMA          float    ndim=1
+  STATE_ID       Int      scalar
+  TIME           double   scalar unit=[s] measure=epoch,UTC
+  TIME_CENTROID  double   scalar unit=[s] measure=epoch,UTC
+  UVW            double   shape=[3] unit=[m,m,m] measure=uvw,ITRF directly stored
+  WEIGHT         float    ndim=1
+
+ SubTables:
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/ANTENNA
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/DATA_DESCRIPTION
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/FEED
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/FLAG_CMD
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/FIELD
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/HISTORY
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/OBSERVATION
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/POINTING
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/POLARIZATION
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/PROCESSOR
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/SPECTRAL_WINDOW
+    ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/STATE
+
+Keywords of main table 
+----------------------
+  Table Keywords
+    MS_VERSION: Float 2
+    ANTENNA: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/ANTENNA
+    DATA_DESCRIPTION: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/DATA_DESCRIPTION
+    FEED: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/FEED
+    FLAG_CMD: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/FLAG_CMD
+    FIELD: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/FIELD
+    HISTORY: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/HISTORY
+    OBSERVATION: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/OBSERVATION
+    POINTING: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/POINTING
+    POLARIZATION: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/POLARIZATION
+    PROCESSOR: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/PROCESSOR
+    SPECTRAL_WINDOW: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/SPECTRAL_WINDOW
+    STATE: Table ${CASACORE_BUILD_ROOT}/ms/MeasurementSets/test/tMSIter_severalfield_tmp.ms/STATE
+
+  Column UVW
+    QuantumUnits: String array with shape [3]
+      [m, m, m]
+    MEASINFO: {
+      type: String "uvw"
+      Ref: String "ITRF"
+    }
+
+  Column FLAG_CATEGORY
+    CATEGORY: String array with shape [0]
+      []
+
+  Column EXPOSURE
+    QuantumUnits: String array with shape [1]
+      [s]
+
+  Column INTERVAL
+    QuantumUnits: String array with shape [1]
+      [s]
+
+  Column TIME
+    QuantumUnits: String array with shape [1]
+      [s]
+    MEASINFO: {
+      type: String "epoch"
+      Ref: String "UTC"
+    }
+
+  Column TIME_CENTROID
+    QuantumUnits: String array with shape [1]
+      [s]
+    MEASINFO: {
+      type: String "epoch"
+      Ref: String "UTC"
+    }
+

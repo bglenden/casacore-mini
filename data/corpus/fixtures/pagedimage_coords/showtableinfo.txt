@@ -1,0 +1,114 @@
+${CASACORE_BUILD_ROOT}/tables/apps/showtableinfo: Version 2016Feb17GvD
+
+Structure of table ${CASACORE_BUILD_ROOT}/images/Images/test/tPagedImage2_tmp.img
+------------------ Image
+1 rows, 1 columns in little endian format (using 1 data managers)
+
+ TiledCellStMan file=table.f0  name=map
+    hypercubes:
+      bucketsize=1024 tileshape=[32,8] cellshape=[32,8] cubeshape=[32,8]
+    MaxCacheSize=0 DEFAULTTILESHAPE=[32, 8] MAXIMUMCACHESIZE=0
+  map float    ndim=2
+
+ SubTables:
+    ${CASACORE_BUILD_ROOT}/images/Images/test/tPagedImage2_tmp.img/logtable
+
+Keywords of main table 
+----------------------
+  Table Keywords
+    logtable: Table ${CASACORE_BUILD_ROOT}/images/Images/test/tPagedImage2_tmp.img/logtable
+    coords: {
+      telescope: String "UNKNOWN"
+      observer: String "UNKNOWN"
+      obsdate: {
+        type: String "epoch"
+        refer: String "LAST"
+        m0: {
+          value: Double 0
+          unit: String "d"
+        }
+      }
+      pointingcenter: {
+        value: Double array with shape [2]
+          [0, 0]
+        initial: Bool 1
+      }
+      direction0: {
+        system: String "J2000"
+        projection: String "SIN"
+        projection_parameters: Double array with shape [2]
+          [0, 0]
+        crval: Double array with shape [2]
+          [0, 0]
+        crpix: Double array with shape [2]
+          [0, 0]
+        cdelt: Double array with shape [2]
+          [-1, 1]
+        pc: Double array with shape [2, 2]
+          [1, 0, 0, 1]
+        axes: String array with shape [2]
+          [Right Ascension, Declination]
+        units: String array with shape [2]
+          [', ']
+        conversionSystem: String "J2000"
+        longpole: Double 180
+        latpole: Double 0
+      }
+      worldmap0: Int array with shape [2]
+        [0, 1]
+      worldreplace0: Double array with shape [2]
+        [0, 0]
+      pixelmap0: Int array with shape [2]
+        [0, 1]
+      pixelreplace0: Double array with shape [2]
+        [0, 0]
+    }
+    masks: {
+      reg1: {
+        isRegion: Int 3
+        name: String "LCSlicer"
+        comment: String ""
+        oneRel: Bool 1
+        blc: Float array with shape [2]
+          [1, 1]
+        trc: Float array with shape [2]
+          [32, 8]
+        inc: Float array with shape [2]
+          [1, 1]
+        fracblc: Bool array with shape [2]
+          [0, 0]
+        fractrc: Bool array with shape [2]
+          [0, 0]
+        fracinc: Bool array with shape [2]
+          [0, 0]
+        arblc: Int array with shape [2]
+          [1, 1]
+        artrc: Int array with shape [2]
+          [1, 1]
+      }
+    }
+    regions: {
+      regr2: {
+        isRegion: Int 3
+        name: String "LCSlicer"
+        comment: String ""
+        oneRel: Bool 1
+        blc: Float array with shape [2]
+          [1, 1]
+        trc: Float array with shape [2]
+          [32, 8]
+        inc: Float array with shape [2]
+          [1, 1]
+        fracblc: Bool array with shape [2]
+          [0, 0]
+        fractrc: Bool array with shape [2]
+          [0, 0]
+        fracinc: Bool array with shape [2]
+          [0, 0]
+        arblc: Int array with shape [2]
+          [1, 1]
+        artrc: Int array with shape [2]
+          [1, 1]
+      }
+    }
+

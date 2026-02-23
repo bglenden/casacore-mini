@@ -27,7 +27,7 @@ read-paths:
 | `P2-W3` | Typed hash expansion | Completed | complex + multidimensional array typed payload hashing in oracle tooling with automated checks |
 | `P2-W4` | `Record` type matrix expansion | Completed | array-valued and additional compatibility-required value types with multidimensional shape semantics |
 | `P2-W5` | Corpus and CI expansion | Completed | additional non-replay artifacts in automated schema/payload checks |
-| `P2-W6` | Phase 2 exit review | Pending | risk update, Phase 3 scope recommendation, and Phase 2 public API documentation completeness check |
+| `P2-W6` | Phase 2 exit review | Completed | risk update, Phase 3 scope recommendation, and Phase 2 public API documentation completeness check |
 
 ## `P2-W1` scope details
 
@@ -123,6 +123,19 @@ Implemented now:
 - quality wiring updated:
   - `tools/check_phase2.sh` now runs typed-hash checks and non-replay corpus checks
   - `tools/run_quality.sh` and CI workflow pass build-dir context into Phase 2 checks
+
+## `P2-W6` scope details
+
+Implemented now:
+
+- phase closure report added at `docs/phase2/exit_report.md`
+- remaining compatibility and implementation risks restated and prioritized for
+  Phase 3
+- Phase 3 kickoff plan added at `docs/phase3/plan.md`
+- Phase 2 public API documentation completeness revalidated with:
+  - Doxygen warning-as-error configuration
+  - CI docs generation job
+  - local `tools/run_quality.sh` docs generation step
 
 ## Exit criteria for `P2-W1`
 

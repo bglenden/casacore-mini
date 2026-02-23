@@ -191,6 +191,8 @@ Required feature coverage:
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
 Phase-1 completion summary lives in `docs/phase1/exit_report.md`.
 Phase-2 detailed execution tracking lives in `docs/phase2/plan.md`.
+Phase-2 completion summary lives in `docs/phase2/exit_report.md`.
+Phase-3 detailed execution tracking lives in `docs/phase3/plan.md`.
 
 ## 8. Quantitative snapshot
 - Module-level inventory: `docs/module_inventory.csv`.
