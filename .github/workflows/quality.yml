@@ -25,7 +25,7 @@ jobs:
       - name: Install documentation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang doxygen
+          sudo apt-get install -y cmake ninja-build clang doxygen graphviz
       - name: Configure docs build
         run: |
           cmake -S . -B build-doc -G Ninja \
