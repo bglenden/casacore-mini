@@ -4,6 +4,16 @@
 
 Local development should run the same quality checks enforced by CI.
 
+## Naming conventions
+
+`casacore-mini` uses modern project conventions rather than historical casacore naming.
+
+- Types/classes: `PascalCase`
+- Functions/methods/variables: `snake_case`
+- Constants: `kPascalCase`
+
+Legacy casacore names are preserved only when required for strict file-format or schema interoperability.
+
 ## Required tools
 
 - `cmake` (>= 3.27)

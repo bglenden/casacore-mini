@@ -21,6 +21,10 @@ Date: 2026-02-23
 - Preserve persistent interoperability semantics, not historical internal architecture.
 - Public API/source compatibility with historical casacore is not a primary goal.
 - Naming conventions, exception model, threading model, and ownership style are free to change to idiomatic modern C++.
+- Code style and naming follow `casacore-mini` conventions, not legacy casacore conventions.
+  - Types/classes: `PascalCase` (e.g. `RecordView`)
+  - Functions/methods/variables: `snake_case` (e.g. `read_record`, `column_name`)
+  - Constants: `kPascalCase` (e.g. `kMaxSamples`)
 
 ### 1.4 Engineering quality gates (enforced from day 0)
 - Formatting: `clang-format` is mandatory in CI.
