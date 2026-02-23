@@ -31,6 +31,17 @@ Phase 1 delivered the minimal persistence-read core requested for this phase:
   - `tools/run_quality.sh` step wiring
 - Typed payload hash upgrade:
   - `tools/oracle_dump.py` now emits `payload_hash_mode` and `typed_payload_sha256` when supported.
+- Documentation retrofit:
+  - concise Doxygen comments added to public headers:
+    - `include/casacore_mini/version.hpp`
+    - `include/casacore_mini/record.hpp`
+    - `include/casacore_mini/record_io.hpp`
+    - `include/casacore_mini/table_schema.hpp`
+
+## Documentation retrofit completion (P1 cleanup)
+
+- Doxygen generation was already wired as an optional build target in Phase 1.
+- Public API intent/invariants are now documented in headers so generated HTML has usable API guidance, not only symbol listings.
 
 ## Remaining gaps
 
@@ -57,7 +68,8 @@ Phase 1 delivered the minimal persistence-read core requested for this phase:
 
 ## Recommended Phase 2 scope
 
-1. Implement table read-paths for prioritized storage managers using direct file-format-aware readers.
-2. Expand typed hash support to complex values and multidimensional arrays.
-3. Start `AipsIO`-compatible read primitives and connect them to `Record`/table metadata paths.
-4. Add at least one non-replay corpus artifact into automated schema+payload checks in CI-capable environment.
+1. Expand `Record` type coverage beyond the current minimal set, including array-valued types required by corpus compatibility targets.
+2. Implement table read-paths for prioritized storage managers using direct file-format-aware readers.
+3. Expand typed hash support to complex values and multidimensional arrays.
+4. Start `AipsIO`-compatible read primitives and connect them to `Record`/table metadata paths.
+5. Add at least one non-replay corpus artifact into automated schema+payload checks in CI-capable environment.

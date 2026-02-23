@@ -8,6 +8,7 @@
 
 namespace casacore_mini {
 
+/// Storage manager binding metadata for a table or column.
 struct StorageManagerInfo {
     std::string manager_class;
     std::string file;
@@ -16,6 +17,7 @@ struct StorageManagerInfo {
     [[nodiscard]] bool operator==(const StorageManagerInfo& other) const = default;
 };
 
+/// Parsed schema information for a single column.
 struct ColumnSchema {
     std::string name;
     std::string data_type;
@@ -28,6 +30,7 @@ struct ColumnSchema {
     [[nodiscard]] bool operator==(const ColumnSchema& other) const = default;
 };
 
+/// Parsed schema summary for one table.
 struct TableSchema {
     std::string table_path;
     std::string table_kind;
@@ -39,6 +42,9 @@ struct TableSchema {
     [[nodiscard]] bool operator==(const TableSchema& other) const = default;
 };
 
+/// Parse schema-oriented sections from `showtableinfo` textual output.
+///
+/// This parser is a transitional interface used by the Phase 1 schema hook.
 [[nodiscard]] TableSchema parse_showtableinfo_schema(std::string_view showtableinfo_text);
 
 } // namespace casacore_mini

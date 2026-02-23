@@ -177,7 +177,7 @@ Required feature coverage:
 
 ### Phase 1+ (coarse, to be replanned later)
 - Phase 1: minimal persistence core (`Record`, `AipsIO`, table metadata read path).
-- Phase 2: table read-path for prioritized storage managers.
+- Phase 2: table read-path for prioritized storage managers plus `Record` type-matrix expansion (including array-valued types) driven by corpus compatibility needs.
 - Phase 3: measures + coordinates parity for common workflows.
 - Phase 4: image/lattice core capabilities.
 - Phase 5: write-path parity and expanded MS operations.

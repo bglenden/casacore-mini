@@ -49,9 +49,9 @@ namespace {
 }
 
 [[nodiscard]] std::optional<std::vector<std::size_t>> parse_shape(std::string_view descriptor) {
-    static const std::regex kShapeRegex(R"(shape=\[([^\]]*)\])");
+    static const std::regex shape_regex(R"(shape=\[([^\]]*)\])");
     std::cmatch match;
-    if (!std::regex_search(descriptor.begin(), descriptor.end(), match, kShapeRegex)) {
+    if (!std::regex_search(descriptor.begin(), descriptor.end(), match, shape_regex)) {
         return std::nullopt;
     }
 
@@ -80,9 +80,9 @@ namespace {
 }
 
 [[nodiscard]] std::optional<std::size_t> parse_ndim(std::string_view descriptor) {
-    static const std::regex kNdimRegex(R"(ndim=(\d+))");
+    static const std::regex ndim_regex(R"(ndim=(\d+))");
     std::cmatch match;
-    if (!std::regex_search(descriptor.begin(), descriptor.end(), match, kNdimRegex)) {
+    if (!std::regex_search(descriptor.begin(), descriptor.end(), match, ndim_regex)) {
         return std::nullopt;
     }
 
@@ -105,13 +105,13 @@ namespace {
 } // namespace
 
 TableSchema parse_showtableinfo_schema(const std::string_view showtableinfo_text) {
-    static const std::regex kStructureRegex(R"(^Structure of table[ \t]+(.+)$)");
-    static const std::regex kKindRegex(R"(^------------------[ \t]*(.*)$)");
-    static const std::regex kRowColRegex(
+    static const std::regex structure_regex(R"(^Structure of table[ \t]+(.+)$)");
+    static const std::regex kind_regex(R"(^------------------[ \t]*(.*)$)");
+    static const std::regex row_col_regex(
         R"(^[ \t]*([0-9]+)[ \t]+rows,[ \t]+([0-9]+)[ \t]+columns.*$)");
-    static const std::regex kManagerRegex(
+    static const std::regex manager_regex(
         R"(^ +([A-Za-z0-9_]+StMan)[ \t]+file=([^ \t]+)[ \t]+name=([^ \t]*).*$)");
-    static const std::regex kColumnRegex(R"(^  ([A-Za-z0-9_]+)[ \t]+([A-Za-z0-9_]+)[ \t]+(.+)$)");
+    static const std::regex column_regex(R"(^  ([A-Za-z0-9_]+)[ \t]+([A-Za-z0-9_]+)[ \t]+(.+)$)");
 
     TableSchema schema;
     schema.table_kind = "table";
@@ -133,18 +133,18 @@ TableSchema parse_showtableinfo_schema(const std::string_view showtableinfo_text
         }
 
         std::smatch match;
-        if (std::regex_match(line, match, kStructureRegex)) {
+        if (std::regex_match(line, match, structure_regex)) {
             schema.table_path = trim_copy(match[1].str());
             in_schema = true;
-        } else if (in_schema && std::regex_match(line, match, kKindRegex) &&
+        } else if (in_schema && std::regex_match(line, match, kind_regex) &&
                    !match[1].str().empty()) {
             schema.table_kind = trim_copy(match[1].str());
-        } else if (std::regex_match(line, match, kRowColRegex)) {
+        } else if (std::regex_match(line, match, row_col_regex)) {
             const auto rows = parse_size(match[1].str());
             const auto cols = parse_size(match[2].str());
             schema.row_count = rows.value_or(0);
             schema.column_count = cols.value_or(0);
-        } else if (in_schema && std::regex_match(line, match, kManagerRegex)) {
+        } else if (in_schema && std::regex_match(line, match, manager_regex)) {
             StorageManagerInfo manager{
                 .manager_class = match[1].str(),
                 .file = match[2].str(),
@@ -154,7 +154,7 @@ TableSchema parse_showtableinfo_schema(const std::string_view showtableinfo_text
             if (!contains(schema.storage_managers, manager)) {
                 schema.storage_managers.push_back(std::move(manager));
             }
-        } else if (in_schema && std::regex_match(line, match, kColumnRegex)) {
+        } else if (in_schema && std::regex_match(line, match, column_regex)) {
             const std::string descriptor = trim_copy(match[3].str());
             const std::string lower_descriptor = lower_ascii(descriptor);
             const bool is_manager_metadata =
