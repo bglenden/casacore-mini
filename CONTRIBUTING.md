@@ -12,6 +12,7 @@ Local development should run the same quality checks enforced by CI.
 - `clang-format`
 - `clang-tidy`
 - `gcovr`
+- `python3` (`PyYAML` optional; current manifest uses JSON subset of YAML)
 
 ## Install examples
 
@@ -19,7 +20,7 @@ Ubuntu/Debian:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y cmake ninja-build clang clang-format clang-tidy gcovr
+sudo apt-get install -y cmake ninja-build clang clang-format clang-tidy gcovr python3-yaml
 ```
 
 macOS (Homebrew):
@@ -41,15 +42,17 @@ bash tools/run_quality.sh
 This performs:
 
 1. `clang-format` check (`tools/check_format.sh`)
-2. CMake configure with strict flags and lint enabled
-3. Build
-4. `ctest`
-5. Coverage gate (`tools/check_coverage.sh build-quality 70`)
+2. Phase 0 manifest + oracle determinism checks (`tools/check_phase0.sh build-quality`)
+3. CMake configure with strict flags and lint enabled
+4. Build
+5. `ctest`
+6. Coverage gate (`tools/check_coverage.sh build-quality 70`)
 
 ## Manual commands (equivalent)
 
 ```bash
 bash tools/check_format.sh
+bash tools/check_phase0.sh build-quality
 
 cmake -S . -B build-quality -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \

@@ -1,0 +1,13 @@
+showtableinfo: Version 2016Feb17GvD
+
+Structure of table ${CASACORE_BUILD_ROOT}/tables/Tables/test/tTableAccess_tmp.tab
+------------------ 
+2 rows, 2 columns in little endian format (using 1 data managers)
+
+ IncrementalStMan file=table.f0  name=  bucketsize=32768
+    MaxCacheSize=1 PERSCACHESIZE=1
+  arrcol Int      array
+  scacol Int      scalar
+
+Keywords of main table 
+----------------------

@@ -20,6 +20,7 @@ Initial architecture and rolling plan documents are in:
 
 - `docs/casacore_plan.md`
 - `docs/module_inventory.csv`
+- `docs/phase0/` (`baselines`, compatibility contract, corpus manifest, and exit report)
 
 ## Engineering Quality Gates
 
@@ -34,6 +35,19 @@ The repository enforces quality from the start:
 CI workflow: `.github/workflows/quality.yml`.
 
 Local developer workflow: `CONTRIBUTING.md`.
+
+## Phase 0 Interop Tooling
+
+Phase 0 interoperability artifacts and tooling are in:
+
+- Corpus manifest: `docs/phase0/corpus_manifest.yaml`
+- Replay fixtures: `data/corpus/`
+- Oracle extractor: `tools/oracle_dump.py`
+- Comparator: `tools/oracle_compare.py`
+- Manifest validator: `tools/validate_corpus_manifest.py`
+- Combined phase check: `tools/check_phase0.sh`
+
+The CI quality workflow runs `tools/check_phase0.sh` before compile/test steps.
 
 ## Versioning
 

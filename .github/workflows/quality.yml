@@ -28,7 +28,9 @@ jobs:
       - name: Install build and analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ clang-tidy gcovr
+          sudo apt-get install -y cmake ninja-build g++ clang-tidy gcovr python3-yaml
+      - name: Phase 0 manifest and oracle determinism checks
+        run: bash tools/check_phase0.sh build
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \

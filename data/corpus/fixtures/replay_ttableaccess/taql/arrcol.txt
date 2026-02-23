@@ -1,0 +1,4 @@
+    select result of 2 rows
+1 selected columns:  arrcol
+[1, 1, 1]
+[3, 3, 3]

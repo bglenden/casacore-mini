@@ -1,0 +1,4 @@
+    select result of 2 rows
+1 selected columns:  scacol
+1
+3

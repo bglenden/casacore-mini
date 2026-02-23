@@ -8,6 +8,7 @@ GENERATOR="${GENERATOR:-Ninja}"
 cd "${ROOT_DIR}"
 
 bash tools/check_format.sh
+bash tools/check_phase0.sh "${BUILD_DIR}"
 
 cmake -S . -B "${BUILD_DIR}" -G "${GENERATOR}" \
   -DCMAKE_BUILD_TYPE=Debug \
