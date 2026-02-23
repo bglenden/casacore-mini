@@ -103,7 +103,8 @@ add_library(
   src/record_io.cpp
   src/aipsio_reader.cpp
   src/table_dat.cpp
-  src/table_schema.cpp)
+  src/table_schema.cpp
+  src/measure_coord_metadata.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -137,6 +138,15 @@ target_compile_definitions(
   table_schema_test
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME table_schema_test COMMAND table_schema_test)
+
+add_executable(measure_coord_metadata_test tests/measure_coord_metadata_test.cpp)
+target_link_libraries(
+  measure_coord_metadata_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  measure_coord_metadata_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME measure_coord_metadata_test COMMAND measure_coord_metadata_test)
 
 add_executable(table_schema_cli src/table_schema_cli.cpp)
 target_link_libraries(table_schema_cli PRIVATE casacore_mini_core casacore_mini_project_options)

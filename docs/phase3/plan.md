@@ -26,8 +26,8 @@ Immediate goals:
 | ID | Workstream | Status | Deliverables |
 |---|---|---|---|
 | `P3-W1` | Measure/coordinate keyword fixtures + baseline checks | Completed | replayed `showtableinfo` fixtures (`logtable`, `ms_tree`, `pagedimage_coords`) + deterministic hash/presence checks |
-| `P3-W2` | Typed metadata extraction contract v0 | Pending | explicit normalized schema for measure and coordinate keyword paths/values |
-| `P3-W3` | Initial C++ metadata extraction module | Pending | read-only extraction API for prioritized metadata fields + tests |
+| `P3-W2` | Typed metadata extraction contract v0 | Completed | explicit normalized schema for measure and coordinate keyword paths/values |
+| `P3-W3` | Initial C++ metadata extraction module | Completed | read-only extraction API for prioritized metadata fields + tests |
 | `P3-W4` | Phase 3 compatibility expansion recommendation | Pending | risk update + recommended Phase 4 integration scope |
 
 ## `P3-W1` scope details
@@ -45,6 +45,31 @@ Implemented now:
 - wire Phase 3 checks into:
   - `tools/run_quality.sh`
   - `.github/workflows/quality.yml`
+
+## `P3-W2` scope details
+
+Implemented now:
+
+- contract document added at `docs/phase3/measure_coord_contract_v0.md`
+- normalized output model defined for:
+  - `MeasureColumnMetadata`
+  - `CoordinateKeywordMetadata`
+- extraction mapping rules and partial-data behavior documented explicitly
+
+## `P3-W3` scope details
+
+Implemented now:
+
+- new API module:
+  - `include/casacore_mini/measure_coord_metadata.hpp`
+  - `src/measure_coord_metadata.cpp`
+- parser entry point:
+  - `parse_showtableinfo_measure_coordinate_metadata(...)`
+- fixture-backed tests:
+  - `tests/measure_coord_metadata_test.cpp`
+  - `logtable_stdstman_keywords`, `ms_tree`, `pagedimage_coords` replay fixtures
+- build/test wiring:
+  - `CMakeLists.txt` adds `measure_coord_metadata_test`
 
 ## Exit criteria for `P3-W1`
 
