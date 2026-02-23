@@ -101,6 +101,7 @@ add_library(
   src/version.cpp
   src/record.cpp
   src/record_io.cpp
+  src/aipsio_reader.cpp
   src/table_schema.cpp)
 target_include_directories(
   casacore_mini_core
@@ -117,6 +118,10 @@ add_test(NAME version_test COMMAND version_test)
 add_executable(record_io_test tests/record_io_test.cpp)
 target_link_libraries(record_io_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME record_io_test COMMAND record_io_test)
+
+add_executable(aipsio_reader_test tests/aipsio_reader_test.cpp)
+target_link_libraries(aipsio_reader_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME aipsio_reader_test COMMAND aipsio_reader_test)
 
 add_executable(table_schema_test tests/table_schema_test.cpp)
 target_link_libraries(table_schema_test PRIVATE casacore_mini_core casacore_mini_project_options)
