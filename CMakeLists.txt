@@ -102,6 +102,8 @@ add_library(
   src/record.cpp
   src/record_io.cpp
   src/aipsio_reader.cpp
+  src/aipsio_writer.cpp
+  src/aipsio_record_reader.cpp
   src/table_dat.cpp
   src/table_schema.cpp
   src/measure_coord_metadata.cpp
@@ -125,6 +127,16 @@ add_test(NAME record_io_test COMMAND record_io_test)
 add_executable(aipsio_reader_test tests/aipsio_reader_test.cpp)
 target_link_libraries(aipsio_reader_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME aipsio_reader_test COMMAND aipsio_reader_test)
+
+add_executable(aipsio_writer_test tests/aipsio_writer_test.cpp)
+target_link_libraries(aipsio_writer_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME aipsio_writer_test COMMAND aipsio_writer_test)
+
+add_executable(aipsio_record_reader_test tests/aipsio_record_reader_test.cpp)
+target_link_libraries(
+  aipsio_record_reader_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME aipsio_record_reader_test COMMAND aipsio_record_reader_test)
 
 add_executable(table_dat_test tests/table_dat_test.cpp)
 target_link_libraries(table_dat_test PRIVATE casacore_mini_core casacore_mini_project_options)

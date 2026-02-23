@@ -1,4 +1,4 @@
-# Phase 5 Plan (Kickoff)
+# Phase 5 Plan (Closed)
 
 Date: 2026-02-23
 
@@ -27,11 +27,21 @@ Immediate goals:
 
 | ID | Workstream | Status | Deliverables |
 |---|---|---|---|
-| `P5-W1` | Keyword-record fidelity contract v1 | Pending | explicit scalar type/array shape requirements for read+write parity and a staged API update plan |
-| `P5-W2` | `AipsIO` write primitive slice | Pending | deterministic write functions for selected primitive/object-header paths + round-trip tests |
-| `P5-W3` | Direct keyword binary read bridge | Pending | initial extraction path from table keyword binary structures to normalized typed model |
-| `P5-W4` | Write-path metadata compatibility checks | Pending | fixture-backed checks and comparator hooks for write/read metadata parity |
-| `P5-W5` | Phase 5 exit recommendation | Pending | residual write-path risks and prioritized scope for broader table/MS/image write support |
+| `P5-W1` | Keyword-record fidelity contract v1 | Done | `docs/phase5/keyword_record_fidelity_v1.md` |
+| `P5-W2` | `AipsIO` write primitive slice | Done | `aipsio_writer.hpp/cpp` + `aipsio_writer_test.cpp` |
+| `P5-W3` | Direct keyword binary read bridge | Done | `aipsio_record_reader.hpp/cpp` + `aipsio_record_reader_test.cpp` |
+| `P5-W4` | Write-path metadata compatibility checks | Done | `tools/check_phase5.sh` wired into `run_quality.sh` and CI |
+| `P5-W5` | Phase 5 exit recommendation | Done | `docs/phase5/exit_report.md` |
+
+## Closure status
+
+Phase 5 is closed. Completion details and residual risks are captured in:
+
+- `docs/phase5/exit_report.md`
+
+Phase 6 detailed execution now continues in:
+
+- `docs/phase6/plan.md`
 
 ## Phase 5 sequencing notes
 

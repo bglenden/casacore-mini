@@ -180,13 +180,16 @@ Required feature coverage:
 6. CI enforces quality gates for format, warnings-as-errors, lint, test pass, docs generation, and `src/` line coverage `>= 70%`.
 7. `docs/phase0/exit_report.md` names top 3 compatibility risks and a recommended Phase 1 scope.
 
-### Phase 1+ (coarse, to be replanned later)
+### Phase 1+ (rolling roadmap)
 - Phase 1: minimal persistence core (`Record`, `AipsIO`, table metadata read path).
 - Phase 2: table read-path for prioritized storage managers plus `Record` type-matrix expansion (including array-valued types) driven by corpus compatibility needs.
 - Phase 3: measures + coordinates parity for common workflows.
 - Phase 4: image/lattice core capabilities.
 - Phase 5: write-path parity and expanded MS operations.
-- Phase 6: optional capabilities (`Dysco`, UDFs, conversion extras, Python bindings).
+- Phase 6: integrated binary keyword/record interoperability and metadata-first table write bootstrap.
+- Phase 7 (final interoperability prove-out): generate rich artifacts in both
+  casacore and casacore-mini, then verify bidirectional full interpretation.
+- Phase 8: optional capabilities (`Dysco`, UDFs, conversion extras, Python bindings).
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
 Phase-1 completion summary lives in `docs/phase1/exit_report.md`.
@@ -197,8 +200,62 @@ Phase-3 completion summary lives in `docs/phase3/exit_report.md`.
 Phase-4 detailed execution tracking lives in `docs/phase4/plan.md`.
 Phase-4 completion summary lives in `docs/phase4/exit_report.md`.
 Phase-5 detailed execution tracking lives in `docs/phase5/plan.md`.
+Phase-5 completion summary lives in `docs/phase5/exit_report.md`.
+Phase-6 detailed execution tracking lives in `docs/phase6/plan.md`.
 
-## 8. Quantitative snapshot
+## 8. AI Implementation Review Checklist
+
+When another AI agent contributes implementation, review at least:
+
+1. behavior claims vs code reality:
+   - docs/plan assertions match concrete implementation behavior
+   - no "full fidelity/parity" claims without corpus-backed evidence
+2. API character and consistency:
+   - naming/style follows project conventions (`PascalCase` types, `snake_case`
+     functions)
+   - public API shape matches neighboring modules (ownership, error model,
+     determinism guarantees)
+3. safety and malformed-input handling:
+   - signed/unsigned conversions are guarded
+   - negative sizes, overflow risks, and deep recursion are handled explicitly
+   - undefined-behavior edge cases are avoided in pointer/length operations
+4. interoperability evidence quality:
+   - synthetic tests are supplemented with corpus-backed fixtures for key claims
+   - both success and failure/invalid-input paths are covered
+5. CI and quality integration:
+   - new checks are wired into `tools/run_quality.sh` and CI workflow
+   - Doxygen/API docs are updated when public APIs change
+6. phase accounting accuracy:
+   - plan status fields (`Pending/Done/Deferred`) match implementation reality
+   - deferred items are explicit and referenced in exit reports
+
+## 9. Phase-Closeout Learning Loop
+
+To ensure iterative learning across waves, each phase closeout must feed missed
+items back into the rolling plan.
+
+Required closeout actions:
+
+1. Every `docs/phaseN/exit_report.md` must include a `Misses observed` section:
+   - concrete items that were missed, overstated, or only partially done
+   - whether each miss was code, API contract, tests, docs, or planning scope
+2. For each miss, define a carry-forward action:
+   - `fix in next phase`, `add checklist guard`, or `defer with rationale`
+3. Update this rolling plan section with any new recurring miss pattern.
+4. The next phase kickoff plan must explicitly list which carry-forward actions
+   were absorbed.
+
+Carry-forward guardrails (minimum):
+
+1. avoid declaring "done" unless integrated into active paths, not only
+   standalone components
+2. avoid parity/fidelity claims without corpus-backed evidence
+3. require malformed-input and boundary tests for all new binary parsers/writers
+4. keep API docs and behavior aligned (especially throws and fidelity semantics)
+5. ensure phase checks verify critical new capabilities directly
+
+## 10. Quantitative snapshot
+
 - Module-level inventory: `docs/module_inventory.csv`.
 - Current include blast radius sample from local casacore tree:
   - `#include <casacore/casa/Arrays/IPosition.h>`: `255`
