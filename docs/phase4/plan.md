@@ -27,20 +27,27 @@ Immediate goals:
 
 | ID | Workstream | Status | Deliverables |
 |---|---|---|---|
-| `P4-W1` | Typed keyword-record model v0 | In Progress | internal representation for nested keyword records with arrays/scalars and deterministic traversal |
+| `P4-W1` | Typed keyword-record model v0 | Completed | internal representation for nested keyword records with arrays/scalars and deterministic traversal |
 | `P4-W2` | Image coordinate metadata expansion | Pending | extraction of additional `coords.direction0` and related image keyword fields with tests |
 | `P4-W3` | Phase 4 compatibility checks | Pending | expanded fixture checks wired into CI/local quality for image/lattice metadata |
 | `P4-W4` | Phase 4 exit recommendation | Pending | risk update and Phase 5 write-path preparation scope |
 
 ## `P4-W1` scope details
 
-Planned now:
+Implemented now:
 
 - define a compact internal keyword-value representation suitable for nested
   records and scalar/array payloads
 - keep representation separate from legacy casacore naming and implementation
   internals
 - start with read-only extraction from replayed `showtableinfo` fixtures
+
+Current implementation artifacts:
+
+- `include/casacore_mini/keyword_record.hpp`
+- `src/keyword_record.cpp`
+- `tests/keyword_record_test.cpp`
+- `CMakeLists.txt` test/build wiring (`keyword_record_test`)
 
 ## Exit criteria for `P4-W1`
 
