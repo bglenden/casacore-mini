@@ -1,157 +1,180 @@
-# casacore-mini audit and initial plan
+# casacore-mini audit and rolling plan (Phase 0 detailed)
 
 Date: 2026-02-23
 
-## Baseline and method
-- Source tree audited: `/Users/brianglendenning/SoftwareProjects/casacore/main`
-- Source commit: `b2a8f4c4c` (working tree is locally modified)
-- Inputs used:
-  - Build graph from `CMakeLists.txt` and per-module `CMakeLists.txt`
-  - Module descriptions/dependencies from `mainpage.dox`
-  - Header and class-declaration inventory (see `docs/module_inventory.csv`)
-- Goal lens: modern C++ with minimal bespoke infrastructure while preserving interoperability with persistent data created by casacore.
+## 1. Baseline and policy
 
-## Disposition legend
-- `KEEP`: keep capability and API surface (or a strict compatible subset), modernize internals.
-- `THIN`: keep mostly as a thin adapter around a standard or widely used external library.
-- `REPLACE`: replace bespoke implementation with std/third-party.
-- `DEFER`: not in first implementation wave.
-- `DROP`: out of scope for casacore-mini.
+### 1.1 Source baselines
+- Compatibility reference baseline: upstream `casacore/casacore` (`upstream/master` at `dede86795`, fetched 2026-02-23).
+- Local working baseline used for this inventory: `bglenden/casacore` (`master` at `e8b5faf81`), currently `24` commits ahead of upstream.
+- Practical rule: compatibility decisions are anchored to upstream behavior; local fork deltas are treated as additional requirements to catalog in Phase 0.
 
-## Module audit (first pass)
+### 1.2 Language/toolchain target (as of February 2026)
+- Required language standard: `C++20`.
+- Required compilers for CI support:
+  - GCC `>= 13`
+  - LLVM Clang `>= 17`
+  - Apple Clang `>= 16`
+- Build system target: CMake `>= 3.27`.
 
-| Module | Size (approx LoC / class decl lines) | Representative classes | Persistence interoperability impact | Proposed disposition |
-|---|---:|---|---|---|
-| `casa` | `172,073 / 580` | `Array`, `IPosition`, `Block`, `Record`, `AipsIO`, `ByteIO`, `Quantum`, `Unit` | **Critical** (`Record`, `AipsIO`, low-level I/O conventions feed table formats) | `SPLIT`: `KEEP` (`IO`, `Record`, `Quanta`), `REPLACE` (`Arrays`, `Containers`, `OS`, `Logging`, `Inputs`, `Json`) |
-| `tables` | `214,844 / 1,044` | `Table`, `TableDesc`, `TableColumn`, `StandardStMan`, `IncrementalStMan`, `TiledDataStMan`, `TableExprNode` | **Critical** (primary on-disk table format and storage managers) | `KEEP` (core), with staged support for storage-manager families |
-| `scimath` | `97,933 / 273` | `LSQFit`, `FFTServer`, `GaussianBeam`, `StatisticsAlgorithm` | Medium (used by `measures`, `tables`, `lattices`) | `SPLIT`: `KEEP` minimal required subset, `REPLACE` generic numerics with Eigen/BLAS/FFTW wrappers |
-| `scimath_f` | `24,087 / 0` | Fortran kernels (`fwproj`, `hclean`, `fgridft`) | Low for table interop, medium for algorithm parity | `DEFER` then `REPLACE` with C++/library equivalents where needed |
-| `measures` | `50,930 / 273` | `Measure`, `MeasFrame`, `MDirection`, `MEpoch`, `MFrequency`, `TableMeasDesc` | High (measure metadata stored in table keywords/columns) | `KEEP` |
-| `meas` | `9,296 / 34` | `DirectionUDF`, `EpochUDF`, `MeasEngine` | Low for raw file interop; medium for TaQL feature parity | `DEFER` (after table + measures core) |
-| `coordinates` | `37,010 / 65` | `CoordinateSystem`, `DirectionCoordinate`, `SpectralCoordinate`, `Projection` | High for image WCS metadata interpretation | `KEEP` + modernize internals |
-| `lattices` | `87,842 / 240` | `Lattice`, `PagedArray`, `LatticeExpr`, `LCRegion` | Medium-high (image operations and masking stack) | `SPLIT`: `KEEP` domain abstractions, `REPLACE` bespoke array/expression internals |
-| `images` | `54,574 / 217` | `PagedImage`, `FITSImage`, `ImageInterface`, `ImageRegion` | High (image persistence and WCS/regions) | `KEEP` core image persistence/coords; parser-heavy expression features can be staged |
-| `ms` | `75,878 / 274` | `MeasurementSet`, `MSColumns`, `MSSelection`, `MSSummary` | High (MS schema on top of tables/measures) | `KEEP` schema/core I/O; `DEFER` advanced selection/ops initially |
-| `derivedmscal` | `3,457 / 12` | `DerivedMSCal`, `UDFMSCal` | Low for file interop | `DEFER` |
-| `msfits` | `22,872 / 105` | `MSFitsInput`, `MSFitsOutput`, `FITSIDItoMS1` | Medium (conversion path, not core table format) | `THIN/DEFER` (use cfitsio + minimal adapters) |
-| `fits` | `29,305 / 93` | `FITS`, `FitsInput`, `FitsOutput`, `BinaryTable` | Medium (external FITS interoperability, coordinate dependencies) | `THIN` wrapper over `cfitsio` |
-| `mirlib` | `13,661 / 0` | `miriad.h` API wrappers | Low unless MIRIAD support required | `DROP` for initial scope |
-| `python3` | `0 / 0` (after local cleanup) | N/A | None for core C++ interop | `DEFER`; if needed later, use `pybind11` |
+### 1.3 Modernization policy
+- Preserve persistent interoperability semantics, not historical internal architecture.
+- Public API/source compatibility with historical casacore is not a primary goal.
+- Naming conventions, exception model, threading model, and ownership style are free to change to idiomatic modern C++.
 
-## Submodule/class-family disposition
+## 2. Disposition legend
+- `KEEP-CAPABILITY`: preserve capability and persistence semantics; implementation and API may change.
+- `THIN`: preserve capability via a thin adapter over a widely used library.
+- `REPLACE`: substitute bespoke infrastructure with std/widely used libraries.
+- `DEFER`: planned but not in immediate phase.
+- `DROP`: out of scope for initial product direction.
 
-### `casa`
-| Submodule | Representative classes | Disposition | Preferred replacement / notes |
-|---|---|---|---|
-| `casa/Arrays` | `Array`, `Matrix`, `Vector`, `IPosition`, `Slicer` | `REPLACE` | C++ `std::mdspan`-style API + backend (`Eigen` or `xtensor`) and `std::array/std::vector` shapes |
-| `casa/Containers` | `Block`, `PtrBlock`, allocators | `REPLACE` | `std::vector`, `std::pmr`, `std::span`, `std::unique_ptr/shared_ptr` |
-| `casa/Utilities` | `CountedPtr`, `Regex`, `Sort`, `BitVector` | Mostly `REPLACE` | std smart pointers, `std::regex`/RE2 as needed, std algorithms |
-| `casa/OS` | `File`, `Directory`, `Path`, `Time` | Mostly `REPLACE` | `std::filesystem`, `std::chrono`, platform shims only where required |
-| `casa/Logging` | `LogIO`, `LogSink` | `REPLACE` | `spdlog` + `fmt` |
-| `casa/Json` | `JsonParser`, `JsonValue` | `REPLACE` | `nlohmann/json` or `simdjson` |
-| `casa/Inputs` | `Input`, `Param` | `DROP/REPLACE` | `CLI11`/`cxxopts` |
-| `casa/Quanta` | `Quantum`, `Unit`, `MV*` | `KEEP` | Keep semantics for measures integration |
-| `casa/IO` | `AipsIO`, `ByteIO`, `CanonicalIO`, bucket/mmap/file classes | `KEEP` (compatibility-critical) | May hide behind modern RAII wrappers, but wire format must match |
-| `casa/Containers` (`Record*`) | `Record`, `RecordDesc`, `ValueHolder` | `KEEP` (compatibility-critical) | Re-implement internals with `std::variant` but keep serialized behavior |
+## 3. Module audit (first pass)
 
-### `tables`
-| Submodule | Representative classes | Disposition | Notes |
-|---|---|---|---|
-| `tables/Tables` | `Table`, `TableDesc`, `TableColumn`, `TableRow`, `SetupNewTable` | `KEEP` | Core interoperability contract |
-| `tables/DataMan` | `DataManager`, `StandardStMan`, `IncrementalStMan`, `Tiled*StMan`, `MemoryStMan` | `KEEP` staged | Prioritize managers seen most in existing datasets |
-| `tables/TaQL` | `TableExprNode`, parser/AST classes | `KEEP` language, staged implementation | Keep grammar compatibility; parser backend can remain flex/bison or be replaced later |
-| `tables/Dysco` | `DyscoStMan*` | `DEFER` | Add after core managers |
-| `tables/AlternateMans` | `AntennaPairStMan*` | `DEFER/DROP` | Specialty manager |
-| `tables/LogTables` | `TableLogSink` | `DEFER` | Non-core |
+| Module | Size (approx LoC / class decl lines) | Persistence interoperability impact | Disposition |
+|---|---:|---|---|
+| `casa` | `172,073 / 580` | Critical (`AipsIO`, `Record`, low-level I/O behavior under table formats) | `SPLIT`: `KEEP-CAPABILITY` (`IO`, `Record`, `Quanta`), `REPLACE` (`Arrays`, `Containers`, `OS`, `Logging`, `Inputs`, `Json`) |
+| `tables` | `214,844 / 1,044` | Critical (table storage formats and storage managers) | `KEEP-CAPABILITY` (staged by storage-manager family) |
+| `scimath` | `97,933 / 273` | Medium (dependency for measures/tables/lattices) | `KEEP-CAPABILITY` with implementations primarily built on existing libraries |
+| `scimath_f` | `24,087 / 0` | Medium for algorithm/perf parity in radio astronomy workflows | `KEEP-CAPABILITY` but `DEFER` implementation timing; plan C++ replacements benchmarked against legacy Fortran |
+| `measures` | `50,930 / 273` | High (measure metadata in table keywords/columns) | `KEEP-CAPABILITY` |
+| `meas` | `9,296 / 34` | Medium (TaQL UDF parity) | `DEFER` but explicitly in roadmap |
+| `coordinates` | `37,010 / 65` | High (WCS and metadata interpretation) | `KEEP-CAPABILITY` |
+| `lattices` | `87,842 / 240` | Medium-high (image processing stack; expressions may be persistent in practice) | `SPLIT`: keep domain model, replace bespoke tensor/expression internals |
+| `images` | `54,574 / 217` | High (image persistence and WCS/regions) | `KEEP-CAPABILITY` staged |
+| `ms` | `75,878 / 274` | High (MS schema semantics over tables/measures) | `KEEP-CAPABILITY` staged; advanced selection/ops later |
+| `derivedmscal` | `3,457 / 12` | Low for raw file interop | `DEFER` |
+| `msfits` | `22,872 / 105` | Medium (conversion path, not core storage format) | `DEFER` |
+| `fits` | `29,305 / 93` | Medium (external FITS interop) | `THIN` or direct `cfitsio` usage |
+| `mirlib` | `13,661 / 0` | Low unless MIRIAD explicitly required | `DROP` initially |
+| `python3` | `0 / 0` in current local tree | None for core C++ interoperability | `DEFER` (`pybind11` if needed) |
 
-### Domain modules
-| Module | Representative classes | Disposition | Notes |
-|---|---|---|---|
-| `measures/Measures` + `TableMeasures` | `Measure`, `MeasFrame`, `MDirection`, `MEpoch`, `TableMeasDesc`, `ScalarMeasColumn` | `KEEP` | Required for semantic interoperability of physical quantities |
-| `coordinates/Coordinates` | `CoordinateSystem`, `DirectionCoordinate`, `SpectralCoordinate`, `Projection` | `KEEP` | Required for image/MS metadata interpretation |
-| `images/Images` + `Regions` | `PagedImage`, `ImageInfo`, `ImageRegion`, `WCRegion` | `KEEP` staged | Keep persistence path first, expression parser features later |
-| `lattices/*` | `Lattice`, `PagedArray`, `LEL*`, `LCRegion*` | `SPLIT` | Keep user-visible model, replace bespoke tensor/expression internals |
-| `ms/MeasurementSets` | `MeasurementSet`, `MSColumns`, `MS*` table classes | `KEEP` staged | Core MS schema and I/O first |
-| `ms/MSSel`, `ms/MSOper` | selection grammars, operations/simulator | `DEFER` | Add after basic MS read/write interoperability |
-| `fits/FITS` | `FITS`, `FitsInput`, `FitsOutput` | `THIN` | Keep as cfitsio adapter layer |
-| `msfits/MSFits` | `MSFitsInput/Output` | `DEFER` | Conversion path after MS and FITS core are stable |
-| `derivedmscal/DerivedMC`, `meas/MeasUDF` | TaQL UDF and derived columns | `DEFER` | Add when TaQL parity becomes a requirement |
+Module counts are in `docs/module_inventory.csv`.
 
-## Compatibility-critical contracts (must match existing casacore)
-1. `AipsIO` stream encoding and canonical endianness/type conversion behavior.
-2. Table directory/file layout, lock metadata, and schema/keyword encoding (`TableDesc`, `TableRecord`, `Record`).
-3. Storage-manager wire/file formats at least for common managers:
+## 4. Clarifications from review comments
+
+### 4.1 Record representation
+Question: can we adopt an existing runtime typed record class instead of implementing one?
+
+Decision:
+- Keep a `casacore-mini` `Record` abstraction, but implement internals using standard building blocks (`std::variant`, `std::vector`, `std::string`, `std::unordered_map`/flat-map).
+- Reason: we must match casacore `Record` persistence semantics and type system details tightly; there is no drop-in external library that directly matches those on-disk semantics.
+- Action: Phase 0 defines exact `Record` type/value contract; Phase 1 implements it.
+
+### 4.2 scimath/scimath_f expectation
+- Agreed: retained functionality should be re-implemented largely on top of existing numerical libraries wherever possible.
+- `scimath_f` remains in-scope capability-wise, but implementation is intentionally deferred until core persistence compatibility is established.
+- A benchmark gate will compare C++ replacements against legacy Fortran paths before declaring parity.
+
+### 4.3 FITS layer
+- Agreed: no requirement for a custom C++ FITS class stack if direct `cfitsio` use is cleaner.
+- Working stance: thin compatibility adapter where needed; direct `cfitsio` calls are acceptable.
+
+### 4.4 Lattice expressions persistence
+- Agreed: treat lattice/image expression persistence as a potential compatibility requirement.
+- Phase 0 corpus must explicitly include any persistent expression cases found in existing datasets.
+
+## 5. Compatibility-critical contracts (must match existing casacore)
+1. `AipsIO` stream encoding and canonical numeric conversion behavior.
+2. Table directory/file layout and lock metadata semantics.
+3. Table schema and keyword encoding (`TableDesc`, `TableRecord`, `Record`).
+4. Storage-manager file formats, at minimum:
    - `StandardStMan`
    - `IncrementalStMan`
    - `TiledShapeStMan`
    - `TiledDataStMan`
    - `TiledColumnStMan`
    - `TiledCellStMan`
-4. Measure metadata encoding in table keywords/columns (`TableMeasures`).
-5. MeasurementSet schema conventions (`MS*` subtables and keywords).
-6. Image table conventions (`PagedImage`) and coordinate metadata conventions.
+5. Measure metadata encoding in table keywords/columns (`TableMeasures`).
+6. MeasurementSet schema conventions (`MS*` tables/keywords).
+7. Image table conventions (`PagedImage`) and coordinate metadata conventions.
+8. If present in corpus: persistent lattice/expression encodings.
 
-## Recommended external dependencies (to reduce bespoke code)
-- Containers/utility/runtime: C++20 standard library first (`std::span`, `std::filesystem`, `std::chrono`, `std::variant`, `std::pmr`).
+## 6. Recommended dependency posture
+- Prefer C++20 stdlib first (`std::span`, `std::filesystem`, `std::chrono`, `std::variant`, `std::pmr`).
+- Numerics: `Eigen` + BLAS/LAPACK/FFTW where appropriate.
 - Logging/formatting: `spdlog` + `fmt`.
-- JSON: `nlohmann/json` (or `simdjson` for perf-critical parse paths).
-- Linear algebra: `Eigen` + BLAS/LAPACK/FFTW where needed.
-- CLI (apps only): `CLI11`.
-- Python bindings (if/when needed): `pybind11`.
-- FITS/WCS: keep using `cfitsio` and `wcslib`.
+- JSON/config tooling: `nlohmann/json` (or `simdjson` for heavy parse paths).
+- CLI for utilities: `CLI11`.
+- FITS/WCS: `cfitsio`, `wcslib`.
+- Python (if needed later): `pybind11`.
 
-## Initial implementation plan
+## 7. Rolling-phase plan
 
-### Phase 0: interoperability contract and corpus (mandatory first)
-- Define supported casacore format versions and exact success criteria.
-- Build a frozen test corpus of real casacore artifacts: generic tables, MeasurementSets, PagedImage tables, FITS round-trip fixtures.
-- Add conformance harness that compares `casacore` vs `casacore-mini` reads (schema, keywords, scalar/array values).
+Plan precision policy:
+- Phase 0 is fully specified below.
+- Phases 1+ are intentionally coarse and will be replanned at phase boundaries.
 
-### Phase 1: minimal compatibility core
-- Implement `mini::record` (`Record`-compatible semantics) using `std::variant`.
-- Implement `mini::io` with `AipsIO`-compatible read primitives and canonical numeric conversions.
-- Add modern wrappers for files/mmap/locking using std + narrow platform shims.
-- Deliverable: open table metadata and read simple scalar columns from existing casacore tables.
+### Phase 0 (detailed): interoperability contract, corpus, and oracle harness
 
-### Phase 2: tables read-path (core storage managers)
-- Implement table descriptor/keyword parser and column access for the core managers listed above.
-- Support row/column slicing APIs sufficient for MS and image readers.
-- Defer uncommon managers (`Dysco`, `AlternateMans`, `Adios2`) to plugin phase.
-- Deliverable: read representative MeasurementSet and PagedImage table trees with parity checks.
+#### 0.1 Objectives
+- Pin and document compatibility targets.
+- Build a reproducible corpus that covers compatibility-critical persistence surfaces.
+- Produce deterministic oracle outputs from upstream casacore that all future phases can test against.
+- Define explicit Phase 1 entry criteria.
 
-### Phase 3: measures + coordinates
-- Port `Quanta` + `Measures` semantics needed by `TableMeasures`.
-- Port coordinate objects needed for image and MS metadata interpretation.
-- Validate conversions against casacore reference outputs for representative frame transforms.
-- Deliverable: semantic parity for common frame/unit conversions used by MS/images.
+#### 0.2 Workstreams and deliverables
 
-### Phase 4: images and lattice abstraction
-- Introduce array backend abstraction (decision point: Eigen-backed N-D adapter vs xtensor).
-- Implement `PagedImage` compatibility path first; stage expression parser and advanced region operations.
-- Deliverable: read/write core image metadata and pixel planes from existing casacore image tables.
+| ID | Workstream | Deliverables |
+|---|---|---|
+| `P0-W1` | Baseline pinning and delta mapping | `docs/phase0/baselines.md` with upstream commit, local fork commit, and module-level delta summary |
+| `P0-W2` | Compatibility contract v0 | `docs/phase0/compat_contract_v0.md` defining exact parity checks (schema, keywords, values, ordering/tolerances) |
+| `P0-W3` | Corpus assembly | `data/corpus/` plus `docs/phase0/corpus_manifest.yaml` (IDs, provenance, checksums, feature tags, licenses) |
+| `P0-W4` | Oracle extractor | `tools/oracle_dump/` executable that emits canonical JSON from upstream casacore reads |
+| `P0-W5` | Comparator and CI gate | `tools/oracle_compare/` and CI job validating reproducibility + manifest completeness |
+| `P0-W6` | Phase 1 readiness report | `docs/phase0/exit_report.md` with unresolved gaps and recommended Phase 1 scope |
 
-### Phase 5: MS feature expansion and write-path parity
-- Implement write-path for core storage managers with compatibility tests.
-- Expand MS operations (`MSSel`/`MSOper`) incrementally based on real user workflows.
-- Add `msfits` conversion only after MS + FITS core are stable.
-- Deliverable: create new datasets readable by upstream casacore and vice versa.
+#### 0.3 Corpus minimum coverage requirements
+A dataset is Phase-0-valid only if manifest includes checksum, provenance, and feature tags.
 
-### Phase 6: optional/advanced modules
-- Evaluate `Dysco`, `Adios2`, `AlternateMans`, `derivedmscal`, `meas` UDFs based on demand.
-- Add Python bindings if needed using `pybind11`.
+Required feature coverage:
+1. Generic table with scalar columns and keywords.
+2. Generic table with array columns.
+3. One dataset each for these storage managers when available:
+   - `StandardStMan`
+   - `IncrementalStMan`
+   - `TiledShapeStMan`
+   - `TiledDataStMan`
+   - `TiledColumnStMan`
+   - `TiledCellStMan`
+4. Table using `Record`-valued metadata/keywords.
+5. Table with `TableMeasures`-encoded metadata.
+6. At least one MeasurementSet tree with core subtables.
+7. At least one PagedImage table with coordinates metadata.
+8. FITS fixtures used by existing workflows (read at minimum).
+9. If encountered in real artifacts: persistent image/lattice expression cases.
 
-## Open decisions for next iteration
-1. Array backend decision (`Eigen` adapters vs `xtensor` vs `mdspan` + custom view layer).
-2. TaQL compatibility target in v1 (`read-only selection subset` vs `full parser+engine`).
-3. Exact storage-manager support target for first public release (core 6 only vs include `Dysco`).
-4. Whether `ms` belongs in v1 or v1.5 (depends on immediate user workflows).
+#### 0.4 Oracle output contract (deterministic)
+`oracle_dump` must emit canonical JSON with stable ordering and explicit typing:
+- Schema block: table desc, column definitions, storage-manager bindings.
+- Keywords block: table and column keywords with explicit value types.
+- Data block:
+  - Scalar columns: full values for small tables; sampled deterministic rows for large tables.
+  - Array columns: shape, dtype, deterministic hash of payload, and optional sampled slices.
+- Metadata block: source path, artifact ID, tool version, timestamp, and content hash.
 
-## Quantitative snapshot
-- Module-level counts are stored in `docs/module_inventory.csv`.
-- Selected include blast radius in current casacore tree:
+#### 0.5 Phase 0 acceptance criteria (exit gate)
+1. `P0-W1..P0-W6` deliverables exist and are reviewed.
+2. Corpus manifest covers all required feature categories in Section 0.3 or explicitly documents unavailable categories with mitigation.
+3. Oracle output is deterministic across repeated runs on the same artifact.
+4. Comparator passes on baseline self-checks (upstream vs upstream, no spurious diffs).
+5. CI enforces manifest integrity and oracle determinism checks.
+6. `docs/phase0/exit_report.md` names top 3 compatibility risks and a recommended Phase 1 scope.
+
+### Phase 1+ (coarse, to be replanned later)
+- Phase 1: minimal persistence core (`Record`, `AipsIO`, table metadata read path).
+- Phase 2: table read-path for prioritized storage managers.
+- Phase 3: measures + coordinates parity for common workflows.
+- Phase 4: image/lattice core capabilities.
+- Phase 5: write-path parity and expanded MS operations.
+- Phase 6: optional capabilities (`Dysco`, UDFs, conversion extras, Python bindings).
+
+## 8. Quantitative snapshot
+- Module-level inventory: `docs/module_inventory.csv`.
+- Current include blast radius sample from local casacore tree:
   - `#include <casacore/casa/Arrays/IPosition.h>`: `255`
   - `#include <casacore/casa/Arrays/Array.h>`: `205`
   - `#include <casacore/tables/Tables/Table.h>`: `236`
   - `#include <casacore/casa/Containers/Block.h>`: `134`
 
-These counts indicate that replacing array/container primitives should be done behind compatibility wrappers, not via immediate large-scale API breaks.
+Interpretation: replace foundational array/container internals behind compatibility facades, not via early broad mechanical rewrites.
