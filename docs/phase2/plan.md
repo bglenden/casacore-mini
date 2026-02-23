@@ -30,6 +30,7 @@ Implemented now:
 - complex reads (`complex64` as two `f32`, `complex128` as two `f64`)
 - TypeIO-style string reads (`uInt` length + raw bytes)
 - `AipsIO` object header reads (`magic`, object length, object type, object version)
+- compile-time host guard: little-endian host only (on-disk canonical big-endian decode retained)
 
 Deliberately deferred from `P2-W1`:
 

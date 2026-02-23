@@ -1,5 +1,7 @@
 #pragma once
 
+#include "casacore_mini/platform.hpp"
+
 #include <cstddef>
 #include <optional>
 #include <string>

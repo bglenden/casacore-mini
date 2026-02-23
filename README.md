@@ -38,6 +38,13 @@ CI workflow: `.github/workflows/quality.yml`.
 
 Local developer workflow: `CONTRIBUTING.md`.
 
+## Endianness Policy
+
+- Host architecture support is currently limited to little-endian systems.
+- A compile-time guard enforces this in `include/casacore_mini/platform.hpp`.
+- This does not change on-disk compatibility goals: `AipsIO` canonical bytes are
+  still treated as big-endian in read paths.
+
 ## API Documentation
 
 The repository includes optional Doxygen HTML generation from public headers.
