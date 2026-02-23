@@ -5,6 +5,10 @@ This directory contains Phase 0 corpus assets used by `docs/phase0/corpus_manife
 ## Layout
 
 - `fixtures/`: repo-local replay fixtures used for deterministic CI checks.
+  - `replay_ttableaccess/`: Phase 0 deterministic oracle fixture.
+  - `table_dat_ttable2_v0/`, `table_dat_ttable2_v1/`: compact `table.dat`
+    binaries vendored from casacore table tests for Phase 2 direct metadata
+    parser tests.
 
 ## Why replay fixtures exist
 

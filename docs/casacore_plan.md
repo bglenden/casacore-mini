@@ -87,7 +87,11 @@ Decision:
 
 ## 5. Compatibility-critical contracts (must match existing casacore)
 1. `AipsIO` stream encoding and canonical numeric conversion behavior.
-2. Table directory/file layout and lock metadata semantics.
+2. Table directory/file layout, lock metadata semantics, and table endianness flags.
+   - casacore table storage managers can store bulk data in either big-endian
+     or little-endian canonical format.
+   - Compatibility scope requires read support for both on-disk table
+     endianness variants.
 3. Table schema and keyword encoding (`TableDesc`, `TableRecord`, `Record`).
 4. Storage-manager file formats, at minimum:
    - `StandardStMan`
