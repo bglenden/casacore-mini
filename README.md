@@ -16,10 +16,22 @@ This repository aims to:
 
 ## Current Status
 
-Initial architecture audit and staged implementation plan are in:
+Initial architecture and rolling plan documents are in:
 
-- `docs/casacore_audit.md`
+- `docs/casacore_plan.md`
 - `docs/module_inventory.csv`
+
+## Engineering Quality Gates
+
+The repository enforces quality from the start:
+
+- Formatting: `clang-format` (CI checked)
+- Compiler warnings: strict warning set with `-Werror`
+- Lint: `clang-tidy` (CI enforced)
+- Tests: `ctest` required in CI
+- Coverage: line coverage gate on `src/` (currently `>= 70%`)
+
+CI workflow: `.github/workflows/quality.yml`.
 
 ## Scope Direction (Initial)
 

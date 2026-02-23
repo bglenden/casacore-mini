@@ -1,4 +1,4 @@
-# casacore-mini audit and rolling plan (Phase 0 detailed)
+# casacore-mini rolling plan (Phase 0 detailed)
 
 Date: 2026-02-23
 
@@ -21,6 +21,13 @@ Date: 2026-02-23
 - Preserve persistent interoperability semantics, not historical internal architecture.
 - Public API/source compatibility with historical casacore is not a primary goal.
 - Naming conventions, exception model, threading model, and ownership style are free to change to idiomatic modern C++.
+
+### 1.4 Engineering quality gates (enforced from day 0)
+- Formatting: `clang-format` is mandatory in CI.
+- Warnings: strict warning set with warnings-as-errors in CI (`-Werror` / `/WX`).
+- Lint: `clang-tidy` is mandatory in CI.
+- Tests: `ctest` must pass in CI.
+- Coverage: `src/` line coverage gate is mandatory in CI (initial threshold `>= 70%`, to be ratcheted upward over time).
 
 ## 2. Disposition legend
 - `KEEP-CAPABILITY`: preserve capability and persistence semantics; implementation and API may change.
@@ -111,6 +118,7 @@ Plan precision policy:
 - Pin and document compatibility targets.
 - Build a reproducible corpus that covers compatibility-critical persistence surfaces.
 - Produce deterministic oracle outputs from upstream casacore that all future phases can test against.
+- Put automated engineering quality gates in place before substantial implementation starts.
 - Define explicit Phase 1 entry criteria.
 
 #### 0.2 Workstreams and deliverables
@@ -123,6 +131,7 @@ Plan precision policy:
 | `P0-W4` | Oracle extractor | `tools/oracle_dump/` executable that emits canonical JSON from upstream casacore reads |
 | `P0-W5` | Comparator and CI gate | `tools/oracle_compare/` and CI job validating reproducibility + manifest completeness |
 | `P0-W6` | Phase 1 readiness report | `docs/phase0/exit_report.md` with unresolved gaps and recommended Phase 1 scope |
+| `P0-W7` | Engineering quality automation | CI quality workflow + repo configs enforcing format, warnings-as-errors, lint, tests, and coverage |
 
 #### 0.3 Corpus minimum coverage requirements
 A dataset is Phase-0-valid only if manifest includes checksum, provenance, and feature tags.
@@ -154,12 +163,13 @@ Required feature coverage:
 - Metadata block: source path, artifact ID, tool version, timestamp, and content hash.
 
 #### 0.5 Phase 0 acceptance criteria (exit gate)
-1. `P0-W1..P0-W6` deliverables exist and are reviewed.
+1. `P0-W1..P0-W7` deliverables exist and are reviewed.
 2. Corpus manifest covers all required feature categories in Section 0.3 or explicitly documents unavailable categories with mitigation.
 3. Oracle output is deterministic across repeated runs on the same artifact.
 4. Comparator passes on baseline self-checks (upstream vs upstream, no spurious diffs).
 5. CI enforces manifest integrity and oracle determinism checks.
-6. `docs/phase0/exit_report.md` names top 3 compatibility risks and a recommended Phase 1 scope.
+6. CI enforces quality gates for format, warnings-as-errors, lint, test pass, and `src/` line coverage `>= 70%`.
+7. `docs/phase0/exit_report.md` names top 3 compatibility risks and a recommended Phase 1 scope.
 
 ### Phase 1+ (coarse, to be replanned later)
 - Phase 1: minimal persistence core (`Record`, `AipsIO`, table metadata read path).
