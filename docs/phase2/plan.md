@@ -17,7 +17,7 @@ read-paths:
 |---|---|---|---|
 | `P2-W1` | `AipsIO` read primitive scaffold | Completed | `aipsio_reader` module with canonical scalar/string/complex decode + object-header decode + tests |
 | `P2-W2` | Direct table metadata read path | Completed | `table_dat` header parser (`Table` object, row-count, endian flag, table type) with fixture-backed tests |
-| `P2-W3` | Typed hash expansion | Pending | complex + multidimensional array typed payload hashing in oracle tooling |
+| `P2-W3` | Typed hash expansion | Completed | complex + multidimensional array typed payload hashing in oracle tooling with automated checks |
 | `P2-W4` | `Record` type matrix expansion | Pending | array-valued and additional compatibility-required value types |
 | `P2-W5` | Corpus and CI expansion | Pending | at least one additional non-replay artifact in automated schema/payload checks |
 | `P2-W6` | Phase 2 exit review | Pending | risk update and Phase 3 scope recommendation |
@@ -57,6 +57,21 @@ Implemented now:
   - table implementation type string (`PlainTable` in current fixtures)
 - fixture-backed tests against vendored casacore test artifacts (`tTable_2` v0/v1)
 - no dependence on `showtableinfo` text formatting for these checks
+
+## `P2-W3` scope details
+
+Implemented now:
+
+- typed payload hashing now supports:
+  - scalar `Complex` and `DComplex`
+  - complex-valued array payloads
+  - multiline matrix-style TaQL array output (`Axis Lengths: [...]` + bracket body)
+  - slice-style multidimensional TaQL output (`Ndim=... Axis Lengths` with index/value slice lines)
+- parser upgraded from line-based to value-block extraction, so multiline array values are normalized before hashing
+- dedicated automated check added:
+  - `tools/check_phase2_typed_hash.py`
+  - `tools/check_phase2.sh`
+  - wired into local and CI quality workflows
 
 ## Exit criteria for `P2-W1`
 

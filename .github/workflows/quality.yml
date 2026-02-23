@@ -44,6 +44,8 @@ jobs:
         run: cmake --build build
       - name: Phase 1 schema hook check
         run: bash tools/check_phase1.sh build
+      - name: Phase 2 typed hash check
+        run: bash tools/check_phase2.sh
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Coverage gate

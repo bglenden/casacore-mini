@@ -219,18 +219,85 @@ def sample_indices(row_count: int, full_threshold: int) -> tuple[list[int], str]
     return (ordered, "sampled")
 
 
-def taql_value_lines(taql_text: str) -> list[str]:
+def is_taql_header_line(line: str) -> bool:
+    if line.startswith("select result of"):
+        return True
+    if re.match(r"^\d+\s+selected columns:\s+", line):
+        return True
+    return False
+
+
+def is_taql_axis_line(line: str) -> bool:
+    return re.match(r"^(Ndim=\d+\s+)?Axis Lengths:\s*\[[^\]]*\]", line) is not None
+
+
+def flatten_slice_array_lines(lines: list[str]) -> tuple[str | None, str | None]:
+    slices: list[str] = []
+    for line in lines:
+        match = re.match(r"^\[[^\]]+\]\s*(\[[^\]]*\])\s*$", line)
+        if not match:
+            return (None, f"slice_array_parse_error:{line}")
+        inner = match.group(1)[1:-1].strip()
+        if inner:
+            slices.append(inner)
+    if not slices:
+        return ("[]", None)
+    return ("[" + ", ".join(slices) + "]", None)
+
+
+def taql_value_tokens(taql_text: str) -> tuple[list[str] | None, str | None]:
+    lines = canonical_text(taql_text).splitlines()
     values: list[str] = []
-    for line in canonical_text(taql_text).splitlines():
-        stripped = line.strip()
-        if not stripped:
+    index = 0
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if not stripped or is_taql_header_line(stripped) or is_taql_axis_line(stripped):
+            index += 1
             continue
-        if stripped.startswith("select result of"):
+
+        if re.match(r"^\[[^\]]+\]\s*\[[^\]]*\]\s*$", stripped):
+            slice_lines = [stripped]
+            index += 1
+            while index < len(lines):
+                next_line = lines[index].strip()
+                if not next_line:
+                    break
+                if is_taql_header_line(next_line) or is_taql_axis_line(next_line):
+                    break
+                if not re.match(r"^\[[^\]]+\]\s*\[[^\]]*\]\s*$", next_line):
+                    break
+                slice_lines.append(next_line)
+                index += 1
+            token, reason = flatten_slice_array_lines(slice_lines)
+            if token is None:
+                return (None, reason or "slice_array_flatten_error")
+            values.append(token)
             continue
-        if re.match(r"^\d+\s+selected columns:\s+", stripped):
+
+        if stripped.startswith("["):
+            block = [stripped]
+            bracket_depth = stripped.count("[") - stripped.count("]")
+            index += 1
+            while bracket_depth > 0:
+                if index >= len(lines):
+                    return (None, "unterminated_array_value")
+                next_line = lines[index].strip()
+                index += 1
+                if not next_line:
+                    continue
+                if is_taql_header_line(next_line):
+                    return (None, "unexpected_header_inside_array_value")
+                if is_taql_axis_line(next_line):
+                    return (None, "unexpected_axis_inside_array_value")
+                block.append(next_line)
+                bracket_depth += next_line.count("[") - next_line.count("]")
+            values.append("\n".join(block))
             continue
+
         values.append(stripped)
-    return values
+        index += 1
+
+    return (values, None)
 
 
 def parse_bool_token(token: str) -> bool | None:
@@ -248,6 +315,16 @@ def encode_int(value: int, width: int, signed: bool) -> bytes | None:
     if not (min_value <= value <= max_value):
         return None
     return value.to_bytes(width, byteorder="little", signed=signed)
+
+
+def parse_complex_token(token: str) -> tuple[float, float] | None:
+    match = re.match(r"^\(\s*([^,]+?)\s*,\s*([^)]+?)\s*\)$", token.strip())
+    if not match:
+        return None
+    try:
+        return (float(match.group(1)), float(match.group(2)))
+    except ValueError:
+        return None
 
 
 def encode_scalar_typed(data_type: str, token: str) -> tuple[bytes | None, str | None]:
@@ -293,6 +370,18 @@ def encode_scalar_typed(data_type: str, token: str) -> tuple[bytes | None, str |
         except (OverflowError, ValueError):
             return (None, f"double_parse_error:{value}")
 
+    if lower_type in {"complex", "complex64"}:
+        parsed = parse_complex_token(value)
+        if parsed is None:
+            return (None, f"complex_parse_error:{value}")
+        return (struct.pack("<ff", parsed[0], parsed[1]), None)
+
+    if lower_type in {"dcomplex", "complex128"}:
+        parsed = parse_complex_token(value)
+        if parsed is None:
+            return (None, f"dcomplex_parse_error:{value}")
+        return (struct.pack("<dd", parsed[0], parsed[1]), None)
+
     if lower_type == "string":
         unquoted = value
         if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
@@ -303,19 +392,56 @@ def encode_scalar_typed(data_type: str, token: str) -> tuple[bytes | None, str |
     return (None, f"unsupported_data_type:{data_type}")
 
 
+def split_top_level_items(text: str) -> tuple[list[str] | None, str | None]:
+    values: list[str] = []
+    token_chars: list[str] = []
+    paren_depth = 0
+    for char in text:
+        if char == "(":
+            paren_depth += 1
+            token_chars.append(char)
+            continue
+        if char == ")":
+            if paren_depth == 0:
+                return (None, "array_parse_unbalanced_parentheses")
+            paren_depth -= 1
+            token_chars.append(char)
+            continue
+        if char == "," and paren_depth == 0:
+            token = "".join(token_chars).strip()
+            if token:
+                values.append(token)
+            token_chars = []
+            continue
+        token_chars.append(char)
+
+    if paren_depth != 0:
+        return (None, "array_parse_unbalanced_parentheses")
+
+    tail = "".join(token_chars).strip()
+    if tail:
+        values.append(tail)
+    elif text.strip():
+        return (None, "array_parse_trailing_comma")
+    return (values, None)
+
+
 def encode_array_typed(data_type: str, token: str) -> tuple[bytes | None, str | None]:
     value = token.strip()
     if not (value.startswith("[") and value.endswith("]")):
-        return (None, "multiline_or_nonbracket_array_not_supported_v1")
+        return (None, "nonbracket_array_value")
 
     inner = value[1:-1].strip()
+    inner = re.sub(r"\s*\n\s*", ",", inner)
     if not inner:
         return (struct.pack("<I", 0), None)
 
     if "[" in inner or "]" in inner:
-        return (None, "nested_array_not_supported_v1")
+        return (None, "nested_array_not_supported")
 
-    items = [item.strip() for item in inner.split(",")]
+    items, split_reason = split_top_level_items(inner)
+    if items is None:
+        return (None, split_reason or "array_split_error")
     encoded = bytearray()
     encoded.extend(struct.pack("<I", len(items)))
     for item in items:
@@ -329,7 +455,9 @@ def encode_array_typed(data_type: str, token: str) -> tuple[bytes | None, str | 
 
 
 def typed_payload_hash(column: dict[str, Any], taql_text: str) -> tuple[str | None, str | None]:
-    values = taql_value_lines(taql_text)
+    values, parse_reason = taql_value_tokens(taql_text)
+    if values is None:
+        return (None, parse_reason or "taql_value_parse_error")
     buffer = bytearray()
     buffer.extend(struct.pack("<I", len(values)))
 

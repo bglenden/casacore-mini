@@ -20,6 +20,7 @@ cmake -S . -B "${BUILD_DIR}" -G "${GENERATOR}" \
 
 cmake --build "${BUILD_DIR}"
 bash tools/check_phase1.sh "${BUILD_DIR}"
+bash tools/check_phase2.sh
 
 # Reset old runtime counters so repeated local runs produce deterministic coverage.
 find "${BUILD_DIR}" -type f -name '*.gcda' -delete 2>/dev/null || true
