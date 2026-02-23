@@ -28,12 +28,12 @@ jobs:
       - name: Install build and analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang clang-tidy gcovr
+          sudo apt-get install -y cmake ninja-build g++ clang-tidy gcovr
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_COMPILER=g++ \
             -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
             -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
             -DCASACORE_MINI_ENABLE_COVERAGE=ON
@@ -42,4 +42,4 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Coverage gate
-        run: bash tools/check_coverage.sh build 70
+        run: GCOV_EXECUTABLE=gcov bash tools/check_coverage.sh build 70
