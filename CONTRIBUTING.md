@@ -69,8 +69,9 @@ This performs:
 2. Phase 0 manifest + oracle determinism checks (`tools/check_phase0.sh build-quality`)
 3. CMake configure with strict flags and lint enabled
 4. Build
-5. `ctest`
-6. Coverage gate (`tools/check_coverage.sh build-quality 70`)
+5. Phase 1 schema hook check (`tools/check_phase1.sh build-quality`)
+6. `ctest`
+7. Coverage gate (`tools/check_coverage.sh build-quality 70`)
 
 ## Manual commands (equivalent)
 
@@ -86,6 +87,7 @@ cmake -S . -B build-quality -G Ninja \
   -DCASACORE_MINI_ENABLE_COVERAGE=ON
 
 cmake --build build-quality
+bash tools/check_phase1.sh build-quality
 ctest --test-dir build-quality --output-on-failure
 bash tools/check_coverage.sh build-quality 70
 ```

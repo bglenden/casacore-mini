@@ -100,7 +100,8 @@ add_library(
   casacore_mini_core
   src/version.cpp
   src/record.cpp
-  src/record_io.cpp)
+  src/record_io.cpp
+  src/table_schema.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -116,6 +117,16 @@ add_test(NAME version_test COMMAND version_test)
 add_executable(record_io_test tests/record_io_test.cpp)
 target_link_libraries(record_io_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME record_io_test COMMAND record_io_test)
+
+add_executable(table_schema_test tests/table_schema_test.cpp)
+target_link_libraries(table_schema_test PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  table_schema_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME table_schema_test COMMAND table_schema_test)
+
+add_executable(table_schema_cli src/table_schema_cli.cpp)
+target_link_libraries(table_schema_cli PRIVATE casacore_mini_core casacore_mini_project_options)
 
 if(CASACORE_MINI_ENABLE_DOXYGEN)
   find_package(Doxygen QUIET)

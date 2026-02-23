@@ -14,11 +14,23 @@ Build the minimal persistence-read core for `casacore-mini`:
 
 | ID | Workstream | Status | Deliverables |
 |---|---|---|---|
-| `P1-W1` | Record backend spike + API freeze v0 | In progress | backend alternatives matrix, `Record` interface contract |
-| `P1-W2` | Record binary I/O scaffolding | In progress | deterministic binary read/write with round-trip tests |
-| `P1-W3` | Table metadata reader skeleton | Pending | table header/schema reader + oracle schema compare hook |
-| `P1-W4` | Typed payload hash upgrade | Pending | replace TaQL-text hashing for supported primitive scalar/array paths |
-| `P1-W5` | Phase 1 exit review | Pending | capability delta, risks, and Phase 2 scope recommendation |
+| `P1-W1` | Record backend spike + API freeze v0 | Completed | backend alternatives matrix, `Record` interface contract |
+| `P1-W2` | Record binary I/O scaffolding | Completed | deterministic binary read/write with round-trip tests |
+| `P1-W3` | Table metadata reader skeleton | Completed | table header/schema reader + oracle schema compare hook |
+| `P1-W4` | Typed payload hash upgrade | Completed | replace TaQL-text hashing for supported primitive scalar/array paths |
+| `P1-W5` | Phase 1 exit review | Completed | capability delta, risks, and Phase 2 scope recommendation |
+
+## Documentation Intention
+
+Documentation is phase-aligned rather than exhaustive from day 1.
+
+- Priority order for each phase: implementation and validation first, then documentation retrofit in the same phase boundary.
+- Documentation style target:
+  - concise API intent and invariants
+  - usage-oriented examples
+  - machine-readable/agent-friendly structure where feasible
+- We avoid generating large reference sets until core behavior stabilizes.
+- Doxygen HTML is available as a baseline API index; curated narrative docs remain the primary interface for design intent.
 
 ## `P1-W1` backend alternatives (spike result)
 
@@ -54,8 +66,19 @@ Implemented in this phase kickoff:
 - `src/record.cpp`
 - `src/record_io.cpp`
 - `tests/record_io_test.cpp`
+- `include/casacore_mini/table_schema.hpp`
+- `src/table_schema.cpp`
+- `src/table_schema_cli.cpp`
+- `tests/table_schema_test.cpp`
+- `tools/check_phase1_schema_hook.py`
+- `tools/check_phase1.sh`
 
-These establish the first typed record model and deterministic binary round-trip path.
+These establish:
+
+- typed record model and deterministic binary round-trip path
+- first table-schema parser from `showtableinfo` text
+- an oracle schema hook check (`table_schema_cli` output compared against oracle JSON schema)
+- typed payload hashing for supported primitive scalar/array paths in `tools/oracle_dump.py` (`typed_v1`, fallback to `text_v0` for unsupported shapes/types)
 
 ## Exit criteria for Phase 1
 

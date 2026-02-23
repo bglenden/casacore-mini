@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import re
+import struct
 import subprocess
 import sys
 from typing import Any
@@ -82,15 +83,15 @@ def parse_showtableinfo(show_text: str) -> dict[str, Any]:
     row_count = 0
     col_count = 0
 
-    table_match = re.search(r"^Structure of table\s+(.+)$", show_text, re.MULTILINE)
+    table_match = re.search(r"^Structure of table[ \t]+(.+)$", show_text, re.MULTILINE)
     if table_match:
         table_path = table_match.group(1).strip()
 
-    kind_match = re.search(r"^------------------\s*(.*)$", show_text, re.MULTILINE)
+    kind_match = re.search(r"^------------------[ \t]*(.*)$", show_text, re.MULTILINE)
     if kind_match and kind_match.group(1).strip():
         table_kind = kind_match.group(1).strip()
 
-    rc_match = re.search(r"^\s*(\d+)\s+rows,\s+(\d+)\s+columns", show_text, re.MULTILINE)
+    rc_match = re.search(r"^[ \t]*([0-9]+)[ \t]+rows,[ \t]+([0-9]+)[ \t]+columns", show_text, re.MULTILINE)
     if rc_match:
         row_count = int(rc_match.group(1))
         col_count = int(rc_match.group(2))
@@ -113,7 +114,7 @@ def parse_showtableinfo(show_text: str) -> dict[str, Any]:
         if not stripped.strip():
             continue
 
-        mgr_match = re.match(r"^\s+([A-Za-z0-9_]+StMan)\s+file=([^\s]+)\s+name=([^\s]*)", stripped)
+        mgr_match = re.match(r"^ +([A-Za-z0-9_]+StMan)[ \t]+file=([^ \t]+)[ \t]+name=([^ \t]*)", stripped)
         if mgr_match:
             key = (mgr_match.group(1), mgr_match.group(2), mgr_match.group(3))
             current_manager = manager_by_key.get(key)
@@ -127,7 +128,7 @@ def parse_showtableinfo(show_text: str) -> dict[str, Any]:
                 managers.append(current_manager)
             continue
 
-        col_match = re.match(r"^\s{2}([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)\s+(.+)$", stripped)
+        col_match = re.match(r"^  ([A-Za-z0-9_]+)[ \t]+([A-Za-z0-9_]+)[ \t]+(.+)$", stripped)
         if not col_match:
             continue
 
@@ -218,6 +219,140 @@ def sample_indices(row_count: int, full_threshold: int) -> tuple[list[int], str]
     return (ordered, "sampled")
 
 
+def taql_value_lines(taql_text: str) -> list[str]:
+    values: list[str] = []
+    for line in canonical_text(taql_text).splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("select result of"):
+            continue
+        if re.match(r"^\d+\s+selected columns:\s+", stripped):
+            continue
+        values.append(stripped)
+    return values
+
+
+def parse_bool_token(token: str) -> bool | None:
+    normalized = token.strip().lower()
+    if normalized in {"1", "true", "t", "yes"}:
+        return True
+    if normalized in {"0", "false", "f", "no"}:
+        return False
+    return None
+
+
+def encode_int(value: int, width: int, signed: bool) -> bytes | None:
+    min_value = -(1 << (width * 8 - 1)) if signed else 0
+    max_value = (1 << (width * 8 - (1 if signed else 0))) - 1
+    if not (min_value <= value <= max_value):
+        return None
+    return value.to_bytes(width, byteorder="little", signed=signed)
+
+
+def encode_scalar_typed(data_type: str, token: str) -> tuple[bytes | None, str | None]:
+    value = token.strip()
+    lower_type = data_type.lower()
+
+    as_bool = parse_bool_token(value)
+    if lower_type in {"bool", "boolean"}:
+        if as_bool is None:
+            return (None, f"bool_parse_error:{value}")
+        return (bytes([1 if as_bool else 0]), None)
+
+    int_specs: dict[str, tuple[int, bool]] = {
+        "byte": (1, False),
+        "uchar": (1, False),
+        "short": (2, True),
+        "ushort": (2, False),
+        "int": (4, True),
+        "uint": (4, False),
+        "int64": (8, True),
+        "uint64": (8, False),
+    }
+    if lower_type in int_specs:
+        try:
+            parsed = int(value, 10)
+        except ValueError:
+            return (None, f"int_parse_error:{value}")
+        width, signed = int_specs[lower_type]
+        encoded = encode_int(parsed, width, signed)
+        if encoded is None:
+            return (None, f"int_range_error:{value}:{lower_type}")
+        return (encoded, None)
+
+    if lower_type == "float":
+        try:
+            return (struct.pack("<f", float(value)), None)
+        except (OverflowError, ValueError):
+            return (None, f"float_parse_error:{value}")
+
+    if lower_type == "double":
+        try:
+            return (struct.pack("<d", float(value)), None)
+        except (OverflowError, ValueError):
+            return (None, f"double_parse_error:{value}")
+
+    if lower_type == "string":
+        unquoted = value
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            unquoted = value[1:-1]
+        encoded = unquoted.encode("utf-8")
+        return (struct.pack("<I", len(encoded)) + encoded, None)
+
+    return (None, f"unsupported_data_type:{data_type}")
+
+
+def encode_array_typed(data_type: str, token: str) -> tuple[bytes | None, str | None]:
+    value = token.strip()
+    if not (value.startswith("[") and value.endswith("]")):
+        return (None, "multiline_or_nonbracket_array_not_supported_v1")
+
+    inner = value[1:-1].strip()
+    if not inner:
+        return (struct.pack("<I", 0), None)
+
+    if "[" in inner or "]" in inner:
+        return (None, "nested_array_not_supported_v1")
+
+    items = [item.strip() for item in inner.split(",")]
+    encoded = bytearray()
+    encoded.extend(struct.pack("<I", len(items)))
+    for item in items:
+        element, reason = encode_scalar_typed(data_type, item)
+        if element is None:
+            return (None, reason or "array_element_encode_error")
+        encoded.extend(struct.pack("<I", len(element)))
+        encoded.extend(element)
+
+    return (bytes(encoded), None)
+
+
+def typed_payload_hash(column: dict[str, Any], taql_text: str) -> tuple[str | None, str | None]:
+    values = taql_value_lines(taql_text)
+    buffer = bytearray()
+    buffer.extend(struct.pack("<I", len(values)))
+
+    value_kind = str(column.get("value_kind", ""))
+    data_type = str(column.get("data_type", ""))
+
+    for value in values:
+        if value_kind == "scalar":
+            encoded, reason = encode_scalar_typed(data_type, value)
+        elif value_kind == "array":
+            encoded, reason = encode_array_typed(data_type, value)
+        else:
+            return (None, f"unsupported_value_kind:{value_kind}")
+
+        if encoded is None:
+            return (None, reason or "typed_encode_error")
+
+        buffer.extend(struct.pack("<I", len(encoded)))
+        buffer.extend(encoded)
+
+    return (sha256_hex(bytes(buffer)), None)
+
+
 def run_command(args: list[str]) -> str:
     proc = subprocess.run(args, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
@@ -275,13 +410,23 @@ def dump_replay_artifact(
             continue
         taql_text = taql_path.read_text(encoding="utf-8")
         canonical = canonical_text(taql_text)
+        typed_hash, typed_reason = typed_payload_hash(column, canonical)
+        payload_hash_mode = "text_v0"
+        payload_hash = sha256_hex(canonical.encode("utf-8"))
+        if typed_hash is not None:
+            payload_hash = typed_hash
+            payload_hash_mode = "typed_v1"
+        elif typed_reason is not None:
+            unsupported.append(f"typed_payload_hash_fallback:{column['name']}:{typed_reason}")
         column_payloads.append(
             {
                 "column": column["name"],
                 "row_count": row_count,
                 "value_mode": value_mode,
                 "sample_row_indices": rows,
-                "full_payload_sha256": sha256_hex(canonical.encode("utf-8")),
+                "full_payload_sha256": payload_hash,
+                "payload_hash_mode": payload_hash_mode,
+                "typed_payload_sha256": typed_hash,
                 "sample_preview": canonical.splitlines()[:20],
             }
         )
@@ -376,13 +521,23 @@ def dump_casacore_artifact(
         query = f"select {column['name']} from {source_path}{row_clause}"
         taql_out = run_command([taql_bin, "-ps", "-ph", "-pr", query])
         canonical = canonical_text(taql_out)
+        typed_hash, typed_reason = typed_payload_hash(column, canonical)
+        payload_hash_mode = "text_v0"
+        payload_hash = sha256_hex(canonical.encode("utf-8"))
+        if typed_hash is not None:
+            payload_hash = typed_hash
+            payload_hash_mode = "typed_v1"
+        elif typed_reason is not None:
+            unsupported.append(f"typed_payload_hash_fallback:{column['name']}:{typed_reason}")
         payloads.append(
             {
                 "column": column["name"],
                 "row_count": row_count,
                 "value_mode": value_mode,
                 "sample_row_indices": rows,
-                "full_payload_sha256": sha256_hex(canonical.encode("utf-8")),
+                "full_payload_sha256": payload_hash,
+                "payload_hash_mode": payload_hash_mode,
+                "typed_payload_sha256": typed_hash,
                 "sample_preview": canonical.splitlines()[:20],
             }
         )

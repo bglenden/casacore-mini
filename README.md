@@ -19,7 +19,7 @@ This repository aims to:
 Initial architecture and rolling plan documents are in:
 
 - `docs/casacore_plan.md`
-- `docs/phase1/plan.md`
+- `docs/phase1/` (`plan`, `exit_report`)
 - `docs/module_inventory.csv`
 - `docs/phase0/` (`baselines`, compatibility contract, corpus manifest, and exit report)
 

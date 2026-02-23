@@ -15,9 +15,11 @@ cmake -S . -B "${BUILD_DIR}" -G "${GENERATOR}" \
   -DCMAKE_CXX_COMPILER=clang++ \
   -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
   -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
-  -DCASACORE_MINI_ENABLE_COVERAGE=ON
+  -DCASACORE_MINI_ENABLE_COVERAGE=ON \
+  -DCASACORE_MINI_ENABLE_DOXYGEN=OFF
 
 cmake --build "${BUILD_DIR}"
+bash tools/check_phase1.sh "${BUILD_DIR}"
 
 # Reset old runtime counters so repeated local runs produce deterministic coverage.
 find "${BUILD_DIR}" -type f -name '*.gcda' -delete 2>/dev/null || true

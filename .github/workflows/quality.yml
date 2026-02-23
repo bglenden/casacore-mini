@@ -38,9 +38,12 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++ \
             -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
             -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
-            -DCASACORE_MINI_ENABLE_COVERAGE=ON
+            -DCASACORE_MINI_ENABLE_COVERAGE=ON \
+            -DCASACORE_MINI_ENABLE_DOXYGEN=OFF
       - name: Build
         run: cmake --build build
+      - name: Phase 1 schema hook check
+        run: bash tools/check_phase1.sh build
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Coverage gate
