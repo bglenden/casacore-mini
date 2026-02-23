@@ -83,6 +83,12 @@ def resolve_manifest_path(
             return None
         return (repo_root / fixture).resolve()
 
+    if kind == "fixture_path":
+        raw = source.get("path")
+        if not isinstance(raw, str):
+            return None
+        return (repo_root / raw).resolve()
+
     if kind == "path":
         raw = source.get("path")
         if not isinstance(raw, str):
@@ -140,9 +146,13 @@ def validate_manifest_structure(manifest: dict[str, Any]) -> list[str]:
             errors.append(f"artifacts[{idx}] ({artifact_id}) source must be an object")
         else:
             kind = source.get("kind")
-            if kind not in {"path", "replay"}:
-                errors.append(f"artifacts[{idx}] ({artifact_id}) source.kind must be 'path' or 'replay'")
+            if kind not in {"path", "replay", "fixture_path"}:
+                errors.append(
+                    f"artifacts[{idx}] ({artifact_id}) source.kind must be 'path', 'replay', or 'fixture_path'"
+                )
             if kind == "path" and (not isinstance(source.get("path"), str) or not source.get("path")):
+                errors.append(f"artifacts[{idx}] ({artifact_id}) source.path must be a non-empty string")
+            if kind == "fixture_path" and (not isinstance(source.get("path"), str) or not source.get("path")):
                 errors.append(f"artifacts[{idx}] ({artifact_id}) source.path must be a non-empty string")
             if kind == "replay" and (not isinstance(source.get("fixture_dir"), str) or not source.get("fixture_dir")):
                 errors.append(f"artifacts[{idx}] ({artifact_id}) source.fixture_dir must be a non-empty string")

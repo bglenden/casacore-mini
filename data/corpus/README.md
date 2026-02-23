@@ -8,7 +8,7 @@ This directory contains Phase 0 corpus assets used by `docs/phase0/corpus_manife
   - `replay_ttableaccess/`: Phase 0 deterministic oracle fixture.
   - `table_dat_ttable2_v0/`, `table_dat_ttable2_v1/`: compact `table.dat`
     binaries vendored from casacore table tests for Phase 2 direct metadata
-    parser tests.
+    parser tests and non-replay corpus oracle checks.
 
 ## Why replay fixtures exist
 
@@ -21,3 +21,7 @@ CI runners do not have a full casacore build tree by default, so we keep a small
 - comparator behavior checks
 
 These checks validate tooling determinism; full interoperability checks against external artifacts run in developer environments with a local casacore build.
+
+Phase 2 extends CI coverage with vendored non-replay `table.dat` fixtures
+(`source.kind=fixture_path` in the corpus manifest), so direct binary
+metadata paths are also validated in automated oracle checks.

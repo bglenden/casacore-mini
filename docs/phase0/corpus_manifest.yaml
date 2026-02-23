@@ -130,6 +130,52 @@
       }
     },
     {
+      "artifact_id": "table_dat_ttable2_v0",
+      "artifact_type": "table",
+      "feature_tags": [
+        "phase2_non_replay_fixture",
+        "table_dat_metadata"
+      ],
+      "source": {
+        "kind": "fixture_path",
+        "path": "data/corpus/fixtures/table_dat_ttable2_v0/table.dat",
+        "required_local": true
+      },
+      "provenance": {
+        "source_repo": "https://github.com/casacore/casacore",
+        "source_commit": "dede86795",
+        "origin": "Vendored from tables/Tables tTable_2 artifact v0 for direct table.dat metadata checks."
+      },
+      "license": "GPL-2.0-or-later",
+      "checksum": {
+        "algorithm": "sha256-file",
+        "value": "a25f7eefe103eef8f9dae035d9155652daa9a91d337f916b97915040d1da30e3"
+      }
+    },
+    {
+      "artifact_id": "table_dat_ttable2_v1",
+      "artifact_type": "table",
+      "feature_tags": [
+        "phase2_non_replay_fixture",
+        "table_dat_metadata"
+      ],
+      "source": {
+        "kind": "fixture_path",
+        "path": "data/corpus/fixtures/table_dat_ttable2_v1/table.dat",
+        "required_local": true
+      },
+      "provenance": {
+        "source_repo": "https://github.com/casacore/casacore",
+        "source_commit": "dede86795",
+        "origin": "Vendored from tables/Tables tTable_2 artifact v1 for direct table.dat metadata checks."
+      },
+      "license": "GPL-2.0-or-later",
+      "checksum": {
+        "algorithm": "sha256-file",
+        "value": "b98124b2f4081bfb759cebcc9b128efb2318070dc3933138f99092a476130b5c"
+      }
+    },
+    {
       "artifact_id": "logtable_stdstman_keywords",
       "artifact_type": "table",
       "feature_tags": [

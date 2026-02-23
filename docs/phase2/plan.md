@@ -19,7 +19,7 @@ read-paths:
 | `P2-W2` | Direct table metadata read path | Completed | `table_dat` header parser (`Table` object, row-count, endian flag, table type) with fixture-backed tests |
 | `P2-W3` | Typed hash expansion | Completed | complex + multidimensional array typed payload hashing in oracle tooling with automated checks |
 | `P2-W4` | `Record` type matrix expansion | Completed | array-valued and additional compatibility-required value types with multidimensional shape semantics |
-| `P2-W5` | Corpus and CI expansion | Pending | at least one additional non-replay artifact in automated schema/payload checks |
+| `P2-W5` | Corpus and CI expansion | Completed | additional non-replay artifacts in automated schema/payload checks |
 | `P2-W6` | Phase 2 exit review | Pending | risk update and Phase 3 scope recommendation |
 
 ## `P2-W1` scope details
@@ -95,6 +95,27 @@ Implemented now:
   - multidimensional array round-trip and type preservation
   - constructor-level invalid shape rejection
   - malformed array payload rejection on deserialize
+
+## `P2-W5` scope details
+
+Implemented now:
+
+- corpus manifest now includes vendored non-replay `table.dat` artifacts:
+  - `table_dat_ttable2_v0`
+  - `table_dat_ttable2_v1`
+- manifest and tooling extended with `source.kind=fixture_path` for in-repo
+  non-replay fixtures
+- oracle tooling supports direct `table.dat` fixture extraction:
+  - parses `AipsIO` table header metadata (table version, row count, endian flag,
+    table type)
+  - emits deterministic schema/data blocks and metadata hashes
+- new automated non-replay Phase 2 corpus check:
+  - `tools/check_phase2_non_replay.py`
+  - verifies deterministic oracle output (`run1` vs `run2`) and expected decoded
+    metadata values for both vendored fixtures
+- quality wiring updated:
+  - `tools/check_phase2.sh` now runs typed-hash checks and non-replay corpus checks
+  - `tools/run_quality.sh` and CI workflow pass build-dir context into Phase 2 checks
 
 ## Exit criteria for `P2-W1`
 

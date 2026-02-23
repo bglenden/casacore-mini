@@ -19,6 +19,7 @@ except ImportError:  # pragma: no cover - optional dependency
     yaml = None
 
 CONTRACT_VERSION = "0.1"
+AIPSIO_MAGIC = 0xBEBEBEBE
 
 
 def load_manifest(path: pathlib.Path) -> dict[str, Any]:
@@ -74,6 +75,61 @@ def hash_path(path: pathlib.Path) -> str:
 def json_dump(path: pathlib.Path, payload: dict[str, Any]) -> None:
     text = json.dumps(payload, sort_keys=True, indent=2)
     path.write_text(text + "\n", encoding="utf-8")
+
+
+def read_u32_be(data: bytes, offset: int, context: str) -> tuple[int, int]:
+    if offset + 4 > len(data):
+        raise RuntimeError(f"truncated table.dat while reading {context} (u32)")
+    return (struct.unpack_from(">I", data, offset)[0], offset + 4)
+
+
+def read_u64_be(data: bytes, offset: int, context: str) -> tuple[int, int]:
+    if offset + 8 > len(data):
+        raise RuntimeError(f"truncated table.dat while reading {context} (u64)")
+    return (struct.unpack_from(">Q", data, offset)[0], offset + 8)
+
+
+def read_aipsio_string_be(data: bytes, offset: int, context: str) -> tuple[str, int]:
+    size_u32, offset = read_u32_be(data, offset, f"{context}.length")
+    if offset + size_u32 > len(data):
+        raise RuntimeError(f"truncated table.dat while reading {context} bytes")
+    raw = data[offset : offset + size_u32]
+    try:
+        value = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(f"table.dat {context} is not valid UTF-8") from exc
+    return (value, offset + size_u32)
+
+
+def parse_table_dat_metadata_bytes(data: bytes) -> dict[str, Any]:
+    offset = 0
+    magic, offset = read_u32_be(data, offset, "aipsio.magic")
+    if magic != AIPSIO_MAGIC:
+        raise RuntimeError("invalid AipsIO magic in table.dat")
+
+    object_length, offset = read_u32_be(data, offset, "aipsio.object_length")
+    object_type, offset = read_aipsio_string_be(data, offset, "aipsio.object_type")
+    object_version, offset = read_u32_be(data, offset, "aipsio.object_version")
+    if object_type != "Table":
+        raise RuntimeError("table.dat root object is not Table")
+
+    if object_version <= 2:
+        row_count, offset = read_u32_be(data, offset, "table.row_count_u32")
+    else:
+        row_count, offset = read_u64_be(data, offset, "table.row_count_u64")
+
+    endian_flag, offset = read_u32_be(data, offset, "table.endian_flag")
+    if endian_flag > 1:
+        raise RuntimeError("table.dat endian flag is not 0/1")
+
+    table_type, _ = read_aipsio_string_be(data, offset, "table.table_type")
+    return {
+        "table_version": object_version,
+        "row_count": row_count,
+        "big_endian": endian_flag == 0,
+        "table_type": table_type,
+        "object_length": object_length,
+    }
 
 
 def parse_showtableinfo(show_text: str) -> dict[str, Any]:
@@ -500,6 +556,10 @@ def resolve_path(raw_path: str, casacore_build_root: str | None) -> pathlib.Path
     return pathlib.Path(value).expanduser().resolve()
 
 
+def resolve_fixture_path(raw_path: str, repo_root: pathlib.Path) -> pathlib.Path:
+    return (repo_root / raw_path).resolve()
+
+
 def git_revision(repo_root: pathlib.Path) -> str:
     proc = subprocess.run(
         ["git", "-C", str(repo_root), "rev-parse", "--short=12", "HEAD"],
@@ -583,6 +643,52 @@ def dump_replay_artifact(
         },
     }
     return (doc, unsupported)
+
+
+def dump_table_dat_fixture_artifact(
+    artifact: dict[str, Any],
+    repo_root: pathlib.Path,
+) -> tuple[dict[str, Any], list[str]]:
+    source = artifact["source"]
+    table_dat_path = resolve_fixture_path(source["path"], repo_root)
+    if not table_dat_path.exists():
+        raise FileNotFoundError(f"table.dat fixture missing: {table_dat_path}")
+
+    table_dat_bytes = table_dat_path.read_bytes()
+    metadata = parse_table_dat_metadata_bytes(table_dat_bytes)
+
+    metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    content_hash = hash_path(table_dat_path)
+
+    doc = {
+        "artifact": {
+            "artifact_id": artifact["artifact_id"],
+            "artifact_type": artifact["artifact_type"],
+            "content_hash": content_hash,
+            "source_path": str(table_dat_path),
+        },
+        "schema": {
+            "column_count": 0,
+            "columns": [],
+            "row_count": int(metadata["row_count"]),
+            "storage_managers": [],
+            "table_kind": "table_dat_fixture",
+            "table_path": str(table_dat_path),
+            "table_dat_metadata": metadata,
+        },
+        "keywords": {
+            "raw_showtableinfo": "",
+            "raw_showtableinfo_sha256": sha256_hex(b"\n"),
+            "typed_leaves": [],
+        },
+        "data": {
+            "column_payloads": [],
+            "row_count": int(metadata["row_count"]),
+            "table_dat_payload_sha256": sha256_hex(table_dat_bytes),
+            "table_dat_metadata_sha256": sha256_hex(metadata_json),
+        },
+    }
+    return (doc, [])
 
 
 def dump_casacore_artifact(
@@ -731,6 +837,8 @@ def main() -> int:
         source_kind = artifact.get("source", {}).get("kind")
         if source_kind == "replay":
             doc, unsupported = dump_replay_artifact(artifact, repo_root, args.full_threshold)
+        elif source_kind == "fixture_path":
+            doc, unsupported = dump_table_dat_fixture_artifact(artifact, repo_root)
         elif source_kind == "path":
             doc, unsupported = dump_casacore_artifact(
                 artifact,
