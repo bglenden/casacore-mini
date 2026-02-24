@@ -7,6 +7,11 @@ Date: 2026-02-23
 ### 1.1 Source baselines
 - Compatibility reference baseline: upstream `casacore/casacore` (`upstream/master` at `dede86795`, fetched 2026-02-23).
 - Local working baseline used for this inventory: `bglenden/casacore` (`master` at `e8b5faf81`), currently `24` commits ahead of upstream.
+- Reference source checkout: `casacore-original/` (shallow clone of upstream, `.gitignore`'d). Used for reverse-engineering storage-manager binary formats during Phase 7 recovery (W12–W16). Key paths:
+  - `casacore-original/tables/DataMan/SSM*.cc` — StandardStMan implementation
+  - `casacore-original/tables/DataMan/ISM*.cc` — IncrementalStMan implementation
+  - `casacore-original/tables/DataMan/TSM*.cc`, `Tiled*.cc` — Tiled manager implementations
+  - `casacore-original/tables/DataMan/Bucket*.cc` — Bucket cache/file infrastructure
 - Practical rule: compatibility decisions are anchored to upstream behavior; local fork deltas are treated as additional requirements to catalog in Phase 0.
 
 ### 1.2 Language/toolchain target (as of February 2026)
@@ -198,13 +203,15 @@ Required feature coverage:
 - Phase 4: image/lattice core capabilities.
 - Phase 5: write-path parity and expanded MS operations.
 - Phase 6: integrated binary keyword/record interoperability and metadata-first table write bootstrap.
-- Phase 7 (redefined 2026-02-24): full Tables implementation and
-  interoperability, including full `table.dat` metadata/body handling,
-  directory-level compatibility, and major persistent storage-manager coverage
-  (with explicit, documented autonomy-policy deferrals only for less-used
-  managers).
+- Phase 7 (complete 2026-02-24): full Tables implementation and
+  interoperability, including metadata and cell-level data read/write across
+  the required storage-manager set. All 6 required storage managers
+  (StandardStMan, IncrementalStMan, TiledColumnStMan, TiledCellStMan,
+  TiledShapeStMan, TiledDataStMan) implemented with strict 2x2 matrix
+  interoperability. See `docs/phase7/exit_report.md`.
 - Phase 8 (redefined 2026-02-24): full Measures + Coordinates +
-  CoordinateSystems implementation.
+  CoordinateSystems implementation (starts only after Phase 7 completion gate
+  is satisfied).
 - Phase 9 (redefined 2026-02-24): full MeasurementSet implementation.
 - Phase 10 (redefined 2026-02-24): full Lattices + Images implementation,
   including lattice expression language compatibility.
@@ -224,8 +231,9 @@ Phase-5 detailed execution tracking lives in `docs/phase5/plan.md`.
 Phase-5 completion summary lives in `docs/phase5/exit_report.md`.
 Phase-6 detailed execution tracking lives in `docs/phase6/plan.md`.
 Phase-7 detailed execution tracking lives in `docs/phase7/plan.md`.
-Phase-8+ detailed plans are created at kickoff and tracked under
-`docs/phase8/`, `docs/phase9/`, `docs/phase10/`, and `docs/phase11/`.
+Phase-8 detailed execution tracking lives in `docs/phase8/plan.md`.
+Phase-9+ detailed plans are created at kickoff and tracked under
+`docs/phase9/`, `docs/phase10/`, and `docs/phase11/`.
 
 ### Mandatory structure for all future phase plans
 
@@ -250,6 +258,13 @@ Minimum required sections:
 8. immediate next step
 9. autonomy policy that allows complete wave execution without waiting for user
    input during normal implementation flow
+10. wave-gate design rules:
+   - behavior-based checks that execute real code paths
+   - no grep/string-only proxies for functional claims
+   - explicit fail-fast handling for verifier crashes/segfaults
+11. closeout evidence protocol:
+   - required clean reruns for final phase gates
+   - command outputs in review packets must be from current branch state
 
 Mandatory review artifacts per wave:
 
@@ -265,12 +280,16 @@ Closure rule:
 
 1. no wave is marked `Done` until required review artifacts exist and are
    internally consistent with plan claims.
+2. no phase is marked `Complete` unless required aggregate checks and required
+   matrix checks pass on the current branch/commit.
+3. `check_results.txt` and `matrix_results.json` must reflect fresh reruns from
+   current code; stale/copied historical results are invalid closeout evidence.
 
 ### Phase 7 full-Tables workflow (concrete)
 
-Phase 7 now targets complete Tables functionality (except explicitly deferred,
-less-used storage managers). Verification is still producer/consumer matrix
-based, but at full table scope:
+Phase 7 targeted complete Tables functionality and was reopened after an
+incomplete first closeout. It is now complete (2026-02-24). Verification is producer/consumer matrix based,
+at full table scope:
 
 1. table surfaces covered:
    - full `table.dat` read/write (`TableDesc`, column descriptors, manager metadata)
@@ -293,10 +312,10 @@ based, but at full table scope:
    - canonical dumps are diagnostic artifacts on failure only
    - no writer is considered compatible unless both readers validate output
 6. storage-manager coverage policy:
-   - target set: `StandardStMan`, `IncrementalStMan`, `TiledShapeStMan`,
+   - required set: `StandardStMan`, `IncrementalStMan`, `TiledShapeStMan`,
      `TiledDataStMan`, `TiledColumnStMan`, `TiledCellStMan`
-   - any deferral requires explicit rationale, corpus impact assessment, and a
-     concrete carry-forward plan in phase docs
+   - no Phase-7 deferral for the required set without explicit user approval
+     to change phase boundaries
 7. execution entry point:
    - `tools/interop/run_phase7_matrix.sh` (to be expanded for full-table scope)
 
@@ -335,6 +354,11 @@ When another AI agent contributes implementation, review at least:
 7. review packet completeness:
    - required `docs/phaseN/review/PN-WX/*` artifacts exist for claimed-complete
      waves and contain runnable command/evidence details
+8. gate robustness and evidence integrity:
+   - wave gates validate behavior by execution, not textual markers
+   - reported pass/fail counts match current reruns
+   - compatibility matrix includes producer self-check validity
+     (`casacore->casacore`, `mini->mini`) and cross-check validity
 
 ## 9. Phase-Closeout Learning Loop
 
@@ -364,6 +388,10 @@ Carry-forward guardrails (minimum):
    and active integration points (not only standalone tests)
 7. enforce the mandatory phase-plan structure and per-wave review artifacts for
    every new phase kickoff
+8. treat any verifier crash/segfault as a phase-blocking failure
+9. require closeout evidence regeneration from clean reruns before marking
+   phase complete
+10. forbid completion claims while any required matrix cell fails
 
 ## 10. Quantitative snapshot
 
