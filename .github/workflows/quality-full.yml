@@ -30,7 +30,7 @@ jobs:
       - name: Install documentation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang doxygen graphviz
+          sudo apt-get install -y cmake ninja-build clang doxygen graphviz liberfa-dev wcslib-dev
       - name: Docs quality checks
         run: bash tools/check_docs.sh build-doc
 
@@ -44,6 +44,6 @@ jobs:
       - name: Install build and analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ clang clang-tidy llvm gcovr python3-yaml
+          sudo apt-get install -y cmake ninja-build g++ clang clang-tidy llvm gcovr python3-yaml liberfa-dev wcslib-dev
       - name: Build/lint/test/coverage quality checks
         run: bash tools/check_ci_build_lint_test_coverage.sh build
