@@ -206,6 +206,9 @@ target_compile_definitions(
 add_executable(table_schema_cli src/table_schema_cli.cpp)
 target_link_libraries(table_schema_cli PRIVATE casacore_mini_core casacore_mini_project_options)
 
+add_executable(interop_mini_tool src/interop_mini_tool.cpp)
+target_link_libraries(interop_mini_tool PRIVATE casacore_mini_core casacore_mini_project_options)
+
 if(CASACORE_MINI_ENABLE_DOXYGEN)
   find_package(Doxygen QUIET)
   if(DOXYGEN_FOUND)

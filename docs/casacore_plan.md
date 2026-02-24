@@ -202,6 +202,38 @@ Phase-4 completion summary lives in `docs/phase4/exit_report.md`.
 Phase-5 detailed execution tracking lives in `docs/phase5/plan.md`.
 Phase-5 completion summary lives in `docs/phase5/exit_report.md`.
 Phase-6 detailed execution tracking lives in `docs/phase6/plan.md`.
+Phase-7 detailed execution tracking lives in `docs/phase7/plan.md`.
+
+### Phase 7 interoperability matrix (concrete workflow)
+
+Phase 7 interoperability verification is executed as a producer/consumer matrix:
+
+1. producers:
+   - `casacore` helper tool writes scoped interoperability artifacts
+   - `casacore-mini` helper tool writes the same logical artifacts
+2. consumers:
+   - `casacore` helper tool reads + canonical-dumps artifacts
+   - `casacore-mini` helper tool reads + canonical-dumps artifacts
+3. matrix:
+   - casacore -> casacore
+   - casacore -> casacore-mini
+   - casacore-mini -> casacore
+   - casacore-mini -> casacore-mini
+4. validation:
+   - each matrix cell must pass semantic read/verify checks by both consumers
+   - canonical text dumps are diagnostic artifacts on failure, not the primary
+     pass/fail criterion
+   - no writer is considered compatible unless both readers validate the
+     decoded structure/value content
+5. execution entry point:
+   - `tools/interop/run_phase7_matrix.sh`
+
+Local prerequisite for `casacore` tooling on macOS (from upstream README):
+
+```bash
+brew tap casacore/tap
+brew install casacore
+```
 
 ## 8. AI Implementation Review Checklist
 

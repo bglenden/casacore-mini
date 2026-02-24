@@ -135,11 +135,41 @@ bool test_object_lengths_valid() {
         return false;
     }
 
-    // object_length should cover everything from after the length field to end of Record.
-    // The header consumes: magic(4) + length(4) + string_len(4) + "Record"(6) + version(4) = 22.
-    // So object_length = total_bytes - 4(magic) - 4(length) = total_bytes - 8.
-    const auto expected_length = static_cast<std::uint32_t>(bytes.size() - 8U);
+    // casacore stores object_length as the full object byte count excluding
+    // only the leading magic word.
+    const auto expected_length = static_cast<std::uint32_t>(bytes.size() - 4U);
     return expect_true(header.object_length == expected_length, "object length mismatch");
+}
+
+[[nodiscard]] std::size_t count_magic_markers(const std::vector<std::uint8_t>& bytes) {
+    std::size_t count = 0;
+    for (std::size_t index = 0; index + 3U < bytes.size(); ++index) {
+        if (bytes[index] == 0xBEU && bytes[index + 1U] == 0xBEU && bytes[index + 2U] == 0xBEU &&
+            bytes[index + 3U] == 0xBEU) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool test_only_root_object_has_magic() {
+    casacore_mini::Record child;
+    child.set("name", casacore_mini::RecordValue("nested"));
+
+    casacore_mini::Record record;
+    record.set("child", casacore_mini::RecordValue::from_record(std::move(child)));
+    record.set("value", casacore_mini::RecordValue(std::int32_t{42}));
+
+    casacore_mini::RecordValue::double_array arr;
+    arr.shape = {2U};
+    arr.elements = {1.0, 2.0};
+    record.set("arr", casacore_mini::RecordValue(std::move(arr)));
+
+    casacore_mini::AipsIoWriter writer;
+    casacore_mini::write_aipsio_record(writer, record);
+    const auto bytes = writer.take_bytes();
+    return expect_true(count_magic_markers(bytes) == 1U,
+                       "writer should emit only one AipsIO magic marker");
 }
 
 bool test_rejects_uint64_scalar() {
@@ -218,6 +248,9 @@ int main() noexcept {
             return 1;
         }
         if (!test_object_lengths_valid()) {
+            return 1;
+        }
+        if (!test_only_root_object_has_magic()) {
             return 1;
         }
         if (!test_rejects_uint64_scalar()) {

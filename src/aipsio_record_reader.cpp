@@ -50,14 +50,33 @@ constexpr std::size_t kMaxRecordDepth = 256;
 struct FieldDesc {
     std::string name;
     CasacoreType type{};
-    std::vector<std::uint64_t> shape;
+    std::vector<std::int64_t> shape;
     std::vector<FieldDesc> sub_fields;
     std::string comment;
 };
 
+/// Read an embedded AipsIO object header.
+///
+/// casacore nested objects inside a parent object are encoded without repeating
+/// the magic value. Older casacore-mini fixtures include nested magic. Accept
+/// both forms to remain backward-compatible with existing fixtures while also
+/// supporting casacore-produced streams.
+[[nodiscard]] AipsIoObjectHeader read_embedded_object_header(AipsIoReader& reader) {
+    AipsIoObjectHeader header;
+    const auto first = reader.read_u32();
+    if (first == kAipsIoMagic) {
+        header.object_length = reader.read_u32();
+    } else {
+        header.object_length = first;
+    }
+    header.object_type = reader.read_string();
+    header.object_version = reader.read_u32();
+    return header;
+}
+
 /// Read an IPosition from an AipsIO stream.
-std::vector<std::uint64_t> read_iposition(AipsIoReader& reader) {
-    const auto header = reader.read_object_header();
+std::vector<std::int64_t> read_iposition(AipsIoReader& reader) {
+    const auto header = read_embedded_object_header(reader);
     if (header.object_type != "IPosition") {
         throw std::runtime_error("expected IPosition, got: " + header.object_type);
     }
@@ -68,21 +87,13 @@ std::vector<std::uint64_t> read_iposition(AipsIoReader& reader) {
     if (nelements > reader.remaining() / kMinBytesPerDim) {
         throw std::runtime_error("IPosition element count exceeds plausible stream size");
     }
-    std::vector<std::uint64_t> values;
+    std::vector<std::int64_t> values;
     values.reserve(nelements);
     for (std::size_t index = 0; index < nelements; ++index) {
         if (header.object_version >= 2U) {
-            const auto dim = reader.read_i64();
-            if (dim < 0) {
-                throw std::runtime_error("IPosition dimension is negative");
-            }
-            values.push_back(static_cast<std::uint64_t>(dim));
+            values.push_back(reader.read_i64());
         } else {
-            const auto dim = reader.read_i32();
-            if (dim < 0) {
-                throw std::runtime_error("IPosition dimension is negative");
-            }
-            values.push_back(static_cast<std::uint64_t>(dim));
+            values.push_back(reader.read_i32());
         }
     }
     return values;
@@ -90,7 +101,7 @@ std::vector<std::uint64_t> read_iposition(AipsIoReader& reader) {
 
 /// Read a RecordDesc from an AipsIO stream.
 std::vector<FieldDesc> read_record_desc(AipsIoReader& reader) {
-    const auto header = reader.read_object_header();
+    const auto header = read_embedded_object_header(reader);
     if (header.object_type != "RecordDesc") {
         throw std::runtime_error("expected RecordDesc, got: " + header.object_type);
     }
@@ -143,7 +154,7 @@ bool read_bool(AipsIoReader& reader) {
 /// Read an Array<T> object and produce a RecordArray.
 template <typename element_t, typename reader_fn>
 RecordArray<element_t> read_aipsio_array(AipsIoReader& reader, reader_fn&& read_element) {
-    const auto header = reader.read_object_header();
+    const auto header = read_embedded_object_header(reader);
     // Accept "Array" or "Array<...>" prefixed names.
     if (header.object_type.rfind("Array", 0) != 0) {
         throw std::runtime_error("expected Array object, got: " + header.object_type);
@@ -189,7 +200,7 @@ RecordArray<element_t> read_aipsio_array(AipsIoReader& reader, reader_fn&& read_
 
 /// Read a Bool Array — bit-packed encoding.
 RecordArray<std::int32_t> read_aipsio_bool_array(AipsIoReader& reader) {
-    const auto header = reader.read_object_header();
+    const auto header = read_embedded_object_header(reader);
     if (header.object_type.rfind("Array", 0) != 0) {
         throw std::runtime_error("expected Array object, got: " + header.object_type);
     }
@@ -225,6 +236,7 @@ RecordArray<std::int32_t> read_aipsio_bool_array(AipsIoReader& reader) {
 
 Record read_record_fields(AipsIoReader& reader, const std::vector<FieldDesc>& fields,
                           std::size_t depth);
+Record read_aipsio_record_impl(AipsIoReader& reader, bool expect_magic_header);
 
 /// Read a single field value based on its type descriptor.
 RecordValue read_field_value(AipsIoReader& reader, const FieldDesc& field, std::size_t depth) {
@@ -260,7 +272,7 @@ RecordValue read_field_value(AipsIoReader& reader, const FieldDesc& field, std::
     case CasacoreType::tp_record: {
         if (field.sub_fields.empty()) {
             // Variable sub-record: full Record object.
-            return RecordValue::from_record(read_aipsio_record(reader));
+            return RecordValue::from_record(read_aipsio_record_impl(reader, false));
         }
         // Fixed sub-record: bare field values, schema from descriptor.
         return RecordValue::from_record(read_record_fields(reader, field.sub_fields, depth + 1U));
@@ -327,10 +339,9 @@ Record read_record_fields(AipsIoReader& reader, const std::vector<FieldDesc>& fi
     return result;
 }
 
-} // namespace
-
-Record read_aipsio_record(AipsIoReader& reader) {
-    const auto header = reader.read_object_header();
+Record read_aipsio_record_impl(AipsIoReader& reader, const bool expect_magic_header) {
+    const auto header =
+        expect_magic_header ? reader.read_object_header() : read_embedded_object_header(reader);
     if (header.object_type != "Record") {
         throw std::runtime_error("expected Record object, got: " + header.object_type);
     }
@@ -339,6 +350,12 @@ Record read_aipsio_record(AipsIoReader& reader) {
     static_cast<void>(reader.read_i32()); // recordType (Fixed=0, Variable=1), not needed
 
     return read_record_fields(reader, fields, 0U);
+}
+
+} // namespace
+
+Record read_aipsio_record(AipsIoReader& reader) {
+    return read_aipsio_record_impl(reader, true);
 }
 
 } // namespace casacore_mini

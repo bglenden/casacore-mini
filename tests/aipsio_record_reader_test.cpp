@@ -26,8 +26,7 @@ class RecordBuilder {
   public:
     /// Start a Record object. Call end_record() when done.
     void begin_record(const std::vector<std::pair<std::string, std::int32_t>>& fields) {
-        // Record object header. Object length is a placeholder (casacore back-patches;
-        // we don't need a valid length for the reader since AipsIoReader doesn't use it).
+        // Top-level Record object header includes the AipsIO magic marker.
         writer_.write_object_header(0U, "Record", 1U);
         write_record_desc(fields);
         writer_.write_i32(1); // recordType = Variable
@@ -35,7 +34,7 @@ class RecordBuilder {
 
     /// Write a RecordDesc with only scalar fields (no sub-records or arrays in desc).
     void write_record_desc(const std::vector<std::pair<std::string, std::int32_t>>& fields) {
-        writer_.write_object_header(0U, "RecordDesc", 2U);
+        write_embedded_object_header("RecordDesc", 2U);
         writer_.write_i32(static_cast<std::int32_t>(fields.size()));
         for (const auto& [name, type] : fields) {
             writer_.write_string(name);
@@ -49,7 +48,7 @@ class RecordBuilder {
     }
 
     void write_iposition(const std::vector<std::uint32_t>& dims) {
-        writer_.write_object_header(0U, "IPosition", 1U);
+        write_embedded_object_header("IPosition", 1U);
         writer_.write_u32(static_cast<std::uint32_t>(dims.size()));
         for (const auto dim : dims) {
             writer_.write_i32(static_cast<std::int32_t>(dim));
@@ -87,7 +86,7 @@ class RecordBuilder {
     /// Write an Array<T> header (version 3 format).
     void begin_array(const std::string& type_name, const std::vector<std::uint32_t>& shape,
                      std::uint32_t nelements) {
-        writer_.write_object_header(0U, type_name, 3U);
+        write_embedded_object_header(type_name, 3U);
         writer_.write_u32(static_cast<std::uint32_t>(shape.size()));
         for (const auto dim : shape) {
             writer_.write_u32(dim);
@@ -100,6 +99,13 @@ class RecordBuilder {
     }
 
   private:
+    void write_embedded_object_header(const std::string& type_name, const std::uint32_t version) {
+        // Embedded objects omit magic in casacore streams.
+        writer_.write_u32(0U); // placeholder length
+        writer_.write_string(type_name);
+        writer_.write_u32(version);
+    }
+
     casacore_mini::AipsIoWriter writer_;
 };
 
@@ -273,20 +279,28 @@ bool test_nested_sub_record() {
     // Outer Record header.
     writer.write_object_header(0U, "Record", 1U);
     // Outer RecordDesc: one field "child" of type TpRecord.
-    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_u32(0U);
+    writer.write_string("RecordDesc");
+    writer.write_u32(2U);
     writer.write_i32(1); // nfields
     writer.write_string("child");
     writer.write_i32(kTpRecord);
     // Sub-RecordDesc: empty (variable sub-record).
-    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_u32(0U);
+    writer.write_string("RecordDesc");
+    writer.write_u32(2U);
     writer.write_i32(0);
     writer.write_string(""); // comment
     // recordType = Variable.
     writer.write_i32(1);
 
     // Now write the child as a full Record.
-    writer.write_object_header(0U, "Record", 1U);
-    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_u32(0U);
+    writer.write_string("Record");
+    writer.write_u32(1U);
+    writer.write_u32(0U);
+    writer.write_string("RecordDesc");
+    writer.write_u32(2U);
     writer.write_i32(2); // 2 fields
     writer.write_string("pi");
     writer.write_i32(kTpDouble);
@@ -426,7 +440,9 @@ bool test_rejects_huge_field_count() {
     // Manually craft a stream with a RecordDesc claiming huge nfields.
     casacore_mini::AipsIoWriter writer;
     writer.write_object_header(0U, "Record", 1U);
-    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_u32(0U);
+    writer.write_string("RecordDesc");
+    writer.write_u32(2U);
     writer.write_i32(999999); // nfields — way more than remaining bytes can support
     // No actual field data follows.
 
@@ -446,7 +462,9 @@ bool test_rejects_negative_field_type() {
     // Field type code out of known range should throw.
     casacore_mini::AipsIoWriter writer;
     writer.write_object_header(0U, "Record", 1U);
-    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_u32(0U);
+    writer.write_string("RecordDesc");
+    writer.write_u32(2U);
     writer.write_i32(1); // nfields = 1
     writer.write_string("bad_field");
     writer.write_i32(99);    // invalid type code

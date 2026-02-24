@@ -146,8 +146,10 @@ constexpr std::int32_t kArrayInt64 = 30;
 
 /// Write object header with a placeholder length, returning offset of the length field.
 [[nodiscard]] std::size_t begin_object(AipsIoWriter& writer, std::string_view type_name,
-                                       std::uint32_t version) {
-    writer.write_u32(kAipsIoMagic);
+                                       std::uint32_t version, const bool include_magic) {
+    if (include_magic) {
+        writer.write_u32(kAipsIoMagic);
+    }
     const auto length_offset = writer.size();
     writer.write_u32(0); // placeholder
     writer.write_string(type_name);
@@ -155,15 +157,18 @@ constexpr std::int32_t kArrayInt64 = 30;
     return length_offset;
 }
 
-/// Patch the object length field to reflect bytes written after the length field.
+/// Patch the object length field to casacore AipsIO semantics.
+///
+/// The stored length includes the 4-byte length field itself (i.e. object
+/// bytes excluding only the optional leading magic word).
 void end_object(AipsIoWriter& writer, std::size_t length_offset) {
-    const auto length = writer.size() - length_offset - sizeof(std::uint32_t);
+    const auto length = writer.size() - length_offset;
     writer.patch_u32(length_offset, checked_u32(length, "AipsIO object length"));
 }
 
 /// Write an IPosition (version 1, i32 dimensions).
 void write_iposition(AipsIoWriter& writer, const std::vector<std::uint64_t>& shape) {
-    const auto length_offset = begin_object(writer, "IPosition", 1U);
+    const auto length_offset = begin_object(writer, "IPosition", 1U, false);
     writer.write_u32(checked_u32(shape.size(), "IPosition rank"));
     for (const auto dim : shape) {
         writer.write_i32(checked_i32(dim, "IPosition dimension"));
@@ -212,7 +217,8 @@ void write_iposition(AipsIoWriter& writer, const std::vector<std::uint64_t>& sha
 }
 
 // Forward declarations for mutual recursion.
-void write_record_impl(AipsIoWriter& writer, const Record& record, std::size_t depth);
+void write_record_impl(AipsIoWriter& writer, const Record& record, std::size_t depth,
+                       bool include_magic);
 
 /// Write RecordDesc (version 2 with comments).
 void write_record_desc(AipsIoWriter& writer, const Record& record, const std::size_t depth) {
@@ -220,7 +226,7 @@ void write_record_desc(AipsIoWriter& writer, const Record& record, const std::si
         throw std::runtime_error("AipsIO Record write nesting depth exceeded");
     }
 
-    const auto length_offset = begin_object(writer, "RecordDesc", 2U);
+    const auto length_offset = begin_object(writer, "RecordDesc", 2U, false);
     writer.write_i32(checked_i32(record.size(), "RecordDesc field count"));
 
     for (const auto& [name, value] : record.entries()) {
@@ -233,7 +239,7 @@ void write_record_desc(AipsIoWriter& writer, const Record& record, const std::si
             type_code == casacore_type::kArrayInt64;
         if (type_code == casacore_type::kRecord) {
             // Variable sub-record: empty RecordDesc.
-            const auto sub_length_offset = begin_object(writer, "RecordDesc", 2U);
+            const auto sub_length_offset = begin_object(writer, "RecordDesc", 2U, false);
             writer.write_i32(0);
             end_object(writer, sub_length_offset);
         } else if (is_array_type) {
@@ -250,7 +256,7 @@ void write_record_desc(AipsIoWriter& writer, const Record& record, const std::si
 template <typename element_t, typename write_fn>
 void write_aipsio_array(AipsIoWriter& writer, std::string_view type_name,
                         const RecordArray<element_t>& array, write_fn&& write_element) {
-    const auto length_offset = begin_object(writer, type_name, 3U);
+    const auto length_offset = begin_object(writer, type_name, 3U, false);
 
     writer.write_u32(checked_u32(array.shape.size(), "Array rank"));
     for (const auto dim : array.shape) {
@@ -328,15 +334,16 @@ void write_field_value(AipsIoWriter& writer, const RecordValue& value, const std
         if (!*rec) {
             throw std::runtime_error("null record_ptr in RecordValue");
         }
-        write_record_impl(writer, **rec, depth + 1U);
+        write_record_impl(writer, **rec, depth + 1U, false);
     } else {
         throw std::runtime_error("unsupported RecordValue type for AipsIO encoding");
     }
 }
 
 /// Internal implementation with depth tracking.
-void write_record_impl(AipsIoWriter& writer, const Record& record, const std::size_t depth) {
-    const auto length_offset = begin_object(writer, "Record", 1U);
+void write_record_impl(AipsIoWriter& writer, const Record& record, const std::size_t depth,
+                       const bool include_magic) {
+    const auto length_offset = begin_object(writer, "Record", 1U, include_magic);
     write_record_desc(writer, record, depth);
     writer.write_i32(1); // recordType = Variable
     for (const auto& [name, value] : record.entries()) {
@@ -348,7 +355,7 @@ void write_record_impl(AipsIoWriter& writer, const Record& record, const std::si
 } // namespace
 
 void write_aipsio_record(AipsIoWriter& writer, const Record& record) {
-    write_record_impl(writer, record, 0U);
+    write_record_impl(writer, record, 0U, true);
 }
 
 } // namespace casacore_mini

@@ -46,8 +46,9 @@ void write_table_dat_header(AipsIoWriter& writer, const TableDatMetadata& metada
     writer.write_u32(metadata.big_endian ? 0U : 1U);
     writer.write_string(metadata.table_type);
 
-    // Patch object length.
-    const auto length = writer.size() - length_offset - sizeof(std::uint32_t);
+    // Patch object length using casacore AipsIO semantics:
+    // object bytes excluding only the leading magic value.
+    const auto length = writer.size() - length_offset;
     writer.patch_u32(length_offset, checked_u32(length, "table.dat object length"));
 }
 

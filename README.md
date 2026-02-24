@@ -25,6 +25,7 @@ Initial architecture and rolling plan documents are in:
 - `docs/phase4/` (`plan`, `exit_report`)
 - `docs/phase5/` (`plan`, `keyword_record_fidelity_v1`, `exit_report`)
 - `docs/phase6/` (`plan`)
+- `docs/phase7/` (`plan`)
 - `docs/module_inventory.csv`
 - `docs/phase0/` (`baselines`, compatibility contract, corpus manifest, and exit report)
 
@@ -79,6 +80,26 @@ Phase 0 interoperability artifacts and tooling are in:
 - Combined phase check: `tools/check_phase0.sh`
 
 The CI quality workflow runs `tools/check_phase0.sh` before compile/test steps.
+
+## Phase 7 Interop Matrix Harness (Scoped)
+
+Scoped bidirectional `casacore` <-> `casacore-mini` interop checks are run via:
+
+```bash
+bash tools/interop/run_phase7_matrix.sh
+```
+
+This executes a 2x2 producer/consumer matrix for currently implemented
+artifacts (`AipsIO Record` + `table.dat` header scope). Pass/fail is based on
+semantic read/verify checks in both consumers. Canonical ASCII dumps are kept
+as diagnostics and are emitted automatically on verification failure.
+
+Prerequisite (macOS/Homebrew):
+
+```bash
+brew tap casacore/tap
+brew install casacore
+```
 
 ## Versioning
 
