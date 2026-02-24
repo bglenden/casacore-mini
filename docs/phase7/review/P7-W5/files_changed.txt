@@ -1,0 +1,16 @@
+=== Modified ===
+ CMakeLists.txt                             | 9 ++++++++-
+ tools/check_ci_build_lint_test_coverage.sh | 1 +
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+=== New ===
+docs/phase7/review/P7-W5/check_results.txt
+docs/phase7/review/P7-W5/decisions.md
+docs/phase7/review/P7-W5/files_changed.txt
+docs/phase7/review/P7-W5/matrix_results.json
+docs/phase7/review/P7-W5/open_issues.md
+docs/phase7/review/P7-W5/summary.md
+include/casacore_mini/keyword_record_convert.hpp
+src/keyword_record_convert.cpp
+tests/keyword_record_convert_test.cpp
+tools/check_phase7_w5.sh

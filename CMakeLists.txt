@@ -113,7 +113,8 @@ add_library(
   src/table_desc.cpp
   src/table_desc_writer.cpp
   src/measure_coord_metadata.cpp
-  src/keyword_record.cpp)
+  src/keyword_record.cpp
+  src/keyword_record_convert.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -208,6 +209,12 @@ target_compile_definitions(
   table_desc_test
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME table_desc_test COMMAND table_desc_test)
+
+add_executable(keyword_record_convert_test tests/keyword_record_convert_test.cpp)
+target_link_libraries(
+  keyword_record_convert_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME keyword_record_convert_test COMMAND keyword_record_convert_test)
 
 add_executable(table_binary_schema_test tests/table_binary_schema_test.cpp)
 target_link_libraries(
