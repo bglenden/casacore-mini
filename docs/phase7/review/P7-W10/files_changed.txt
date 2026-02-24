@@ -1,0 +1,7 @@
+docs/phase7/exit_report.md
+docs/phase7/review/P7-W10/summary.md
+docs/phase7/review/P7-W10/files_changed.txt
+docs/phase7/review/P7-W10/check_results.txt
+docs/phase7/review/P7-W10/matrix_results.json
+docs/phase7/review/P7-W10/open_issues.md
+docs/phase7/review/P7-W10/decisions.md
