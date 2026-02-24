@@ -106,6 +106,15 @@ Decision:
 7. Image table conventions (`PagedImage`) and coordinate metadata conventions.
 8. If present in corpus: persistent lattice/expression encodings.
 
+### 5.1 Shape/IPosition boundary policy
+- Public in-memory shape/extents APIs use unsigned dimensions:
+  `std::vector<std::uint64_t>`.
+- AipsIO/table wire parsing and encoding use an internal signed wire type:
+  `wire_i_position` (`std::vector<std::int64_t>`).
+- Conversion occurs at API boundaries. This preserves compatibility with
+  historical signed wire semantics (including sentinel-style negative values)
+  while keeping public array shapes explicit and non-negative.
+
 ## 6. Recommended dependency posture
 - Prefer C++20 stdlib first (`std::span`, `std::filesystem`, `std::chrono`, `std::variant`, `std::pmr`).
 - Numerics: `Eigen` + BLAS/LAPACK/FFTW where appropriate.

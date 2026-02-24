@@ -28,6 +28,9 @@ struct RecordList;
 /// - If `shape` is empty, expected element count is `0`.
 template <typename element_t> struct RecordArray {
     /// Array extents. Rank is `shape.size()`.
+    ///
+    /// Public APIs use unsigned extents (`uint64_t`); wire formats with signed
+    /// `IPosition` semantics are handled internally during I/O conversion.
     std::vector<std::uint64_t> shape;
     /// Flattened values in Fortran-order.
     std::vector<element_t> elements;

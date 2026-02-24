@@ -389,6 +389,11 @@ void verify_lines_equal(const std::string_view label,
     return metadata;
 }
 
+struct DumpPaths {
+    std::filesystem::path input_path;
+    std::filesystem::path output_path;
+};
+
 void write_record_artifact(const std::filesystem::path& output_path,
                            const casacore_mini::Record& record) {
     casacore_mini::AipsIoWriter writer;
@@ -396,13 +401,12 @@ void write_record_artifact(const std::filesystem::path& output_path,
     write_binary(output_path, writer.take_bytes());
 }
 
-void dump_record_artifact(const std::filesystem::path& input_path,
-                          const std::filesystem::path& output_path) {
-    const auto bytes = read_binary(input_path);
+void dump_record_artifact(const DumpPaths& paths) {
+    const auto bytes = read_binary(paths.input_path);
     casacore_mini::AipsIoReader reader(bytes);
     const auto record = casacore_mini::read_aipsio_record(reader);
 
-    write_text(output_path, canonical_record_lines(record));
+    write_text(paths.output_path, canonical_record_lines(record));
 }
 
 void verify_record_artifact(const std::filesystem::path& input_path,
@@ -434,11 +438,10 @@ canonical_table_dat_lines(const casacore_mini::TableDatMetadata& metadata) {
     return lines;
 }
 
-void dump_table_dat_header_artifact(const std::filesystem::path& input_path,
-                                    const std::filesystem::path& output_path) {
-    const auto bytes = read_binary(input_path);
+void dump_table_dat_header_artifact(const DumpPaths& paths) {
+    const auto bytes = read_binary(paths.input_path);
     const auto metadata = casacore_mini::parse_table_dat_metadata(bytes);
-    write_text(output_path, canonical_table_dat_lines(metadata));
+    write_text(paths.output_path, canonical_table_dat_lines(metadata));
 }
 
 void verify_table_dat_header_artifact(const std::filesystem::path& input_path,
@@ -501,7 +504,7 @@ int main(int argc, char** argv) noexcept {
             if (!input.has_value() || !output.has_value()) {
                 throw std::runtime_error("missing required --input/--output");
             }
-            dump_record_artifact(*input, *output);
+            dump_record_artifact(DumpPaths{*input, *output});
             return 0;
         }
         if (subcommand == "dump-table-dat-header") {
@@ -510,7 +513,7 @@ int main(int argc, char** argv) noexcept {
             if (!input.has_value() || !output.has_value()) {
                 throw std::runtime_error("missing required --input/--output");
             }
-            dump_table_dat_header_artifact(*input, *output);
+            dump_table_dat_header_artifact(DumpPaths{*input, *output});
             return 0;
         }
         if (subcommand == "verify-record-basic") {

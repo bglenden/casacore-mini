@@ -47,10 +47,14 @@ enum class CasacoreType : std::int32_t {
 
 constexpr std::size_t kMaxRecordDepth = 256;
 
+// Public Record array shapes use uint64_t extents; wire IPosition remains
+// signed to preserve casacore-compatible descriptor semantics.
+using wire_i_position = std::vector<std::int64_t>;
+
 struct FieldDesc {
     std::string name;
     CasacoreType type{};
-    std::vector<std::int64_t> shape;
+    wire_i_position shape;
     std::vector<FieldDesc> sub_fields;
     std::string comment;
 };
@@ -75,7 +79,7 @@ struct FieldDesc {
 }
 
 /// Read an IPosition from an AipsIO stream.
-std::vector<std::int64_t> read_iposition(AipsIoReader& reader) {
+wire_i_position read_iposition(AipsIoReader& reader) {
     const auto header = read_embedded_object_header(reader);
     if (header.object_type != "IPosition") {
         throw std::runtime_error("expected IPosition, got: " + header.object_type);
@@ -87,7 +91,7 @@ std::vector<std::int64_t> read_iposition(AipsIoReader& reader) {
     if (nelements > reader.remaining() / kMinBytesPerDim) {
         throw std::runtime_error("IPosition element count exceeds plausible stream size");
     }
-    std::vector<std::int64_t> values;
+    wire_i_position values;
     values.reserve(nelements);
     for (std::size_t index = 0; index < nelements; ++index) {
         if (header.object_version >= 2U) {

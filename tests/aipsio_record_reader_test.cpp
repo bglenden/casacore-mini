@@ -483,6 +483,54 @@ bool test_rejects_negative_field_type() {
     return false;
 }
 
+bool test_accepts_negative_descriptor_iposition() {
+    constexpr std::int32_t kTpArrayDouble = 21;
+
+    casacore_mini::AipsIoWriter writer;
+    writer.write_object_header(0U, "Record", 1U);
+
+    writer.write_u32(0U);
+    writer.write_string("RecordDesc");
+    writer.write_u32(2U);
+    writer.write_i32(1); // nfields
+    writer.write_string("data");
+    writer.write_i32(kTpArrayDouble);
+
+    // Descriptor IPosition uses signed wire dimensions and may carry sentinel-like values.
+    writer.write_u32(0U);
+    writer.write_string("IPosition");
+    writer.write_u32(1U);
+    writer.write_u32(1U);
+    writer.write_i32(-1);
+
+    writer.write_string(""); // comment
+    writer.write_i32(1);     // recordType
+
+    writer.write_u32(0U);
+    writer.write_string("Array<double>");
+    writer.write_u32(3U);
+    writer.write_u32(1U); // ndim
+    writer.write_u32(1U); // shape[0]
+    writer.write_u32(1U); // nelements
+    writer.write_f64(42.0);
+
+    auto bytes = writer.take_bytes();
+    casacore_mini::AipsIoReader reader(bytes);
+    const auto record = casacore_mini::read_aipsio_record(reader);
+
+    const auto* data = record.find("data");
+    if (!expect_true(data != nullptr, "data field missing")) {
+        return false;
+    }
+    const auto* arr = std::get_if<casacore_mini::RecordValue::double_array>(&data->storage());
+    if (!expect_true(arr != nullptr, "data should be double_array")) {
+        return false;
+    }
+    return expect_true(arr->shape == std::vector<std::uint64_t>{1U} &&
+                           arr->elements == std::vector<double>{42.0},
+                       "array payload mismatch after negative descriptor IPosition");
+}
+
 } // namespace
 
 int main() noexcept {
@@ -515,6 +563,9 @@ int main() noexcept {
             return 1;
         }
         if (!test_rejects_negative_field_type()) {
+            return 1;
+        }
+        if (!test_accepts_negative_descriptor_iposition()) {
             return 1;
         }
     } catch (const std::exception& error) {

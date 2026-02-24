@@ -14,6 +14,11 @@ namespace {
 
 constexpr std::size_t kMaxWriteDepth = 256;
 
+// Public Record array shapes use uint64_t extents; wire IPosition remains
+// signed to preserve casacore-compatible descriptor semantics.
+using public_shape = std::vector<std::uint64_t>;
+using wire_i_position = std::vector<std::int64_t>;
+
 [[nodiscard]] std::uint32_t checked_u32(const std::size_t value, std::string_view field_name) {
     if (value > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
         throw std::runtime_error(std::string(field_name) + " exceeds uint32 range");
@@ -35,11 +40,18 @@ constexpr std::size_t kMaxWriteDepth = 256;
     return static_cast<std::int32_t>(value);
 }
 
-[[nodiscard]] std::int32_t checked_i32(const std::uint64_t value, std::string_view field_name) {
-    if (value > static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max())) {
+[[nodiscard]] std::int32_t checked_i32(const std::int64_t value, std::string_view field_name) {
+    if (value < 0 || value > static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max())) {
         throw std::runtime_error(std::string(field_name) + " exceeds int32 range");
     }
     return static_cast<std::int32_t>(value);
+}
+
+[[nodiscard]] std::int64_t checked_i64(const std::uint64_t value, std::string_view field_name) {
+    if (value > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) {
+        throw std::runtime_error(std::string(field_name) + " exceeds int64 range");
+    }
+    return static_cast<std::int64_t>(value);
 }
 
 /// casacore DataType codes matching the reader's CasacoreType enum.
@@ -166,8 +178,17 @@ void end_object(AipsIoWriter& writer, std::size_t length_offset) {
     writer.patch_u32(length_offset, checked_u32(length, "AipsIO object length"));
 }
 
+[[nodiscard]] wire_i_position to_wire_iposition(const public_shape& shape) {
+    wire_i_position wire_shape;
+    wire_shape.reserve(shape.size());
+    for (const auto dim : shape) {
+        wire_shape.push_back(checked_i64(dim, "IPosition dimension"));
+    }
+    return wire_shape;
+}
+
 /// Write an IPosition (version 1, i32 dimensions).
-void write_iposition(AipsIoWriter& writer, const std::vector<std::uint64_t>& shape) {
+void write_iposition(AipsIoWriter& writer, const wire_i_position& shape) {
     const auto length_offset = begin_object(writer, "IPosition", 1U, false);
     writer.write_u32(checked_u32(shape.size(), "IPosition rank"));
     for (const auto dim : shape) {
@@ -177,7 +198,7 @@ void write_iposition(AipsIoWriter& writer, const std::vector<std::uint64_t>& sha
 }
 
 /// Extract shape from a RecordValue that holds an array alternative.
-[[nodiscard]] const std::vector<std::uint64_t>& get_array_shape(const RecordValue& value) {
+[[nodiscard]] const public_shape& get_array_shape(const RecordValue& value) {
     const auto& storage = value.storage();
     if (const auto* a = std::get_if<RecordValue::int16_array>(&storage)) {
         return a->shape;
@@ -243,7 +264,7 @@ void write_record_desc(AipsIoWriter& writer, const Record& record, const std::si
             writer.write_i32(0);
             end_object(writer, sub_length_offset);
         } else if (is_array_type) {
-            write_iposition(writer, get_array_shape(value));
+            write_iposition(writer, to_wire_iposition(get_array_shape(value)));
         }
 
         writer.write_string(""); // comment (version 2)
