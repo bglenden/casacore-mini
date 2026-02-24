@@ -216,12 +216,14 @@ Required feature coverage:
   utility layer (CoordinateUtil, FITSCoordinateUtil, GaussianConvert).
   24/24 interop matrix cells pass. 43 unit tests, 3 hardening test suites.
   See `docs/phase8/exit_report.md`.
-- Phase 9 (redefined 2026-02-24): full MeasurementSet implementation.
-- Phase 10 (redefined 2026-02-24): full Lattices + Images implementation,
-  including lattice expression language compatibility.
-- Phase 11 (redefined 2026-02-24): remaining capabilities closure; first wave
-  is a full missing-capabilities audit with explicit include/exclude decisions,
-  followed by implementation of accepted remainder.
+- Phase 9 (pending): full MeasurementSet implementation.
+- Phase 10 (pending): full Lattices + Images implementation, including lattice
+  expression language compatibility. Detailed wave plan:
+  `docs/phase10/plan.md`.
+- Phase 11 (pending, planned terminal phase): remaining capabilities closure;
+  first wave is a full missing-capabilities audit with explicit
+  include/exclude decisions, followed by implementation of accepted remainder.
+  Detailed wave plan: `docs/phase11/plan.md`.
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
 Phase-1 completion summary lives in `docs/phase1/exit_report.md`.
@@ -237,8 +239,8 @@ Phase-6 detailed execution tracking lives in `docs/phase6/plan.md`.
 Phase-7 detailed execution tracking lives in `docs/phase7/plan.md`.
 Phase-8 detailed execution tracking lives in `docs/phase8/plan.md`.
 Phase-9 detailed execution tracking lives in `docs/phase9/plan.md`.
-Phase-10+ detailed plans are created at kickoff and tracked under
-`docs/phase10/` and `docs/phase11/`.
+Phase-10 detailed execution tracking lives in `docs/phase10/plan.md`.
+Phase-11 detailed execution tracking lives in `docs/phase11/plan.md`.
 
 ### Mandatory structure for all future phase plans
 
