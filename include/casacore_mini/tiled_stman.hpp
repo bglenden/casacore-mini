@@ -67,8 +67,7 @@ class TiledStManReader {
 
     const TsmColumnInfo* find_column(std::string_view col_name, std::size_t& original_index) const;
     [[nodiscard]] std::uint64_t cell_byte_offset(std::size_t original_col_index,
-                                                 std::uint32_t pixel_size,
-                                                 const std::vector<std::int64_t>& cell_shape,
+                                                 const TsmColumnInfo& column,
                                                  std::uint64_t row) const;
 
     bool is_open_ = false;
@@ -94,17 +93,17 @@ class TiledStManWriter {
                const std::vector<ColumnDesc>& columns, std::uint64_t row_count);
 
     /// Write all array elements for a cell.
-    void write_float_cell(std::size_t col_index, std::uint64_t row,
-                          const std::vector<float>& values);
+    void write_float_cell(std::size_t col_index, const std::vector<float>& values,
+                          std::uint64_t row);
 
     /// Write all array elements for a cell (Int).
-    void write_int_cell(std::size_t col_index, std::uint64_t row,
-                        const std::vector<std::int32_t>& values);
+    void write_int_cell(std::size_t col_index, const std::vector<std::int32_t>& values,
+                        std::uint64_t row);
 
     /// Write raw cell bytes (works for any data type including tp_complex).
     /// @p data must be exactly element_size * cell_elements bytes.
-    void write_raw_cell(std::size_t col_index, std::uint64_t row,
-                        const std::vector<std::uint8_t>& data);
+    void write_raw_cell(std::size_t col_index, const std::vector<std::uint8_t>& data,
+                        std::uint64_t row);
 
     /// Produce the TSM blob for inclusion in table.dat.
     [[nodiscard]] std::vector<std::uint8_t> make_blob() const;

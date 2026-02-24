@@ -784,10 +784,10 @@ void write_table_dir_artifact(const std::filesystem::path& output_dir) {
     const double dval_vals[] = {0.0, 3.14, 6.28, 9.42, 12.56};
 
     for (std::uint64_t r = 0; r < 5; ++r) {
-        ssm_writer.write_cell(0, r, casacore_mini::CellValue{id_vals[r]});
-        ssm_writer.write_cell(1, r, casacore_mini::CellValue{value_vals[r]});
-        ssm_writer.write_cell(2, r, casacore_mini::CellValue{label_vals[r]});
-        ssm_writer.write_cell(3, r, casacore_mini::CellValue{dval_vals[r]});
+        ssm_writer.write_cell(0, casacore_mini::CellValue{id_vals[r]}, r);
+        ssm_writer.write_cell(1, casacore_mini::CellValue{value_vals[r]}, r);
+        ssm_writer.write_cell(2, casacore_mini::CellValue{label_vals[r]}, r);
+        ssm_writer.write_cell(3, casacore_mini::CellValue{dval_vals[r]}, r);
     }
 
     // Set the SSM blob in the storage manager entry.
@@ -1316,10 +1316,10 @@ void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
 
     // Write the expected cell values (same as casacore side).
     for (std::uint64_t i = 0; i < 10; ++i) {
-        ism_writer.write_cell(0, i,
-                              casacore_mini::CellValue{4.8e9 + static_cast<double>(i) * 10.0});
-        ism_writer.write_cell(1, i, casacore_mini::CellValue{static_cast<std::int32_t>(i % 3)});
-        ism_writer.write_cell(2, i, casacore_mini::CellValue{(i % 2) == 0});
+        ism_writer.write_cell(0, casacore_mini::CellValue{4.8e9 + static_cast<double>(i) * 10.0},
+                              i);
+        ism_writer.write_cell(1, casacore_mini::CellValue{static_cast<std::int32_t>(i % 3)}, i);
+        ism_writer.write_cell(2, casacore_mini::CellValue{(i % 2) == 0}, i);
     }
 
     full.storage_managers[0].data_blob = ism_writer.make_blob();
@@ -1649,10 +1649,10 @@ void write_tiled_col_dir_artifact(const std::filesystem::path& output_dir) {
     // Write cell data: data[r] = all elements r*0.1F, flags[r] = all elements r.
     for (std::uint64_t r = 0; r < 10; ++r) {
         std::vector<float> data_vals(32, static_cast<float>(r) * 0.1F); // 4*8=32
-        tsm_writer.write_float_cell(0, r, data_vals);
+        tsm_writer.write_float_cell(0, data_vals, r);
 
         std::vector<std::int32_t> flag_vals(32, static_cast<std::int32_t>(r));
-        tsm_writer.write_int_cell(1, r, flag_vals);
+        tsm_writer.write_int_cell(1, flag_vals, r);
     }
 
     full.storage_managers[0].data_blob = tsm_writer.make_blob();
@@ -1669,7 +1669,7 @@ void write_tiled_cell_dir_artifact(const std::filesystem::path& output_dir) {
     // Write cell data: map[r] = all elements r*1.5F.
     for (std::uint64_t r = 0; r < 5; ++r) {
         std::vector<float> vals(std::size_t{32} * 8, static_cast<float>(r) * 1.5F);
-        tsm_writer.write_float_cell(0, r, vals);
+        tsm_writer.write_float_cell(0, vals, r);
     }
 
     full.storage_managers[0].data_blob = tsm_writer.make_blob();
@@ -1694,7 +1694,7 @@ void write_tiled_shape_dir_artifact(const std::filesystem::path& output_dir) {
             std::memcpy(raw.data() + i * std::size_t{8}, &real_val, 4);
             std::memcpy(raw.data() + i * std::size_t{8} + 4, &imag_val, 4);
         }
-        tsm_writer.write_raw_cell(0, r, raw);
+        tsm_writer.write_raw_cell(0, raw, r);
     }
 
     full.storage_managers[0].data_blob = tsm_writer.make_blob();
@@ -1711,7 +1711,7 @@ void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
     // Write cell data: spectrum[r] = all elements r*0.01F.
     for (std::uint64_t r = 0; r < 5; ++r) {
         std::vector<float> vals(256, static_cast<float>(r) * 0.01F);
-        tsm_writer.write_float_cell(0, r, vals);
+        tsm_writer.write_float_cell(0, vals, r);
     }
 
     full.storage_managers[0].data_blob = tsm_writer.make_blob();

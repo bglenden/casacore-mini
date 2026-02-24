@@ -362,8 +362,8 @@ void IsmWriter::setup(const std::vector<ColumnDesc>& columns, const std::uint64_
     is_setup_ = true;
 }
 
-void IsmWriter::write_cell(const std::size_t col_index, const std::uint64_t row,
-                           const CellValue& value) {
+void IsmWriter::write_cell(const std::size_t col_index, const CellValue& value,
+                           const std::uint64_t row) {
     if (!is_setup_) {
         throw std::runtime_error("IsmWriter not setup");
     }

@@ -63,7 +63,7 @@ class IsmWriter {
                std::string_view dm_name = "ISMData");
 
     /// Write a scalar cell value.
-    void write_cell(std::size_t col_index, std::uint64_t row, const CellValue& value);
+    void write_cell(std::size_t col_index, const CellValue& value, std::uint64_t row);
 
     /// Produce the complete .f0 file bytes.
     [[nodiscard]] std::vector<std::uint8_t> flush() const;

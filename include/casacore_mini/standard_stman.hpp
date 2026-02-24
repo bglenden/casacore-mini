@@ -142,10 +142,10 @@ class SsmWriter {
     /// Write a scalar cell value.
     ///
     /// @param col_index Column index (0-based, in setup order).
-    /// @param row Row number (0-based).
     /// @param value The cell value to write.
+    /// @param row Row number (0-based).
     /// @throws std::runtime_error if col_index or row out of range.
-    void write_cell(std::size_t col_index, std::uint64_t row, const CellValue& value);
+    void write_cell(std::size_t col_index, const CellValue& value, std::uint64_t row);
 
     /// Produce the complete .f0 file bytes (header + buckets).
     ///

@@ -901,8 +901,8 @@ void SsmWriter::setup(const std::vector<ColumnDesc>& columns, const std::uint64_
     is_setup_ = true;
 }
 
-void SsmWriter::write_cell(const std::size_t col_index, const std::uint64_t row,
-                           const CellValue& value) {
+void SsmWriter::write_cell(const std::size_t col_index, const CellValue& value,
+                           const std::uint64_t row) {
     if (!is_setup_) {
         throw std::runtime_error("SsmWriter not setup");
     }

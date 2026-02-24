@@ -71,9 +71,9 @@ void test_single_bucket_roundtrip() {
     writer.setup(full.table_desc.columns, kRows, false, "ISMData");
 
     for (std::uint64_t r = 0; r < kRows; ++r) {
-        writer.write_cell(0, r, casacore_mini::CellValue{1000.0 + static_cast<double>(r)});
-        writer.write_cell(1, r, casacore_mini::CellValue{static_cast<std::int32_t>(r * 10)});
-        writer.write_cell(2, r, casacore_mini::CellValue{(r % 2) == 0});
+        writer.write_cell(0, casacore_mini::CellValue{1000.0 + static_cast<double>(r)}, r);
+        writer.write_cell(1, casacore_mini::CellValue{static_cast<std::int32_t>(r * 10)}, r);
+        writer.write_cell(2, casacore_mini::CellValue{(r % 2) == 0}, r);
     }
 
     auto dir = write_ism_test("single_bucket", writer, 0);
@@ -113,9 +113,9 @@ void test_multi_bucket_roundtrip() {
 
     // Unique values per row to force many entries.
     for (std::uint64_t r = 0; r < kRows; ++r) {
-        writer.write_cell(0, r, casacore_mini::CellValue{static_cast<double>(r) * 1.1});
-        writer.write_cell(1, r, casacore_mini::CellValue{static_cast<std::int32_t>(r)});
-        writer.write_cell(2, r, casacore_mini::CellValue{(r % 3) == 0});
+        writer.write_cell(0, casacore_mini::CellValue{static_cast<double>(r) * 1.1}, r);
+        writer.write_cell(1, casacore_mini::CellValue{static_cast<std::int32_t>(r)}, r);
+        writer.write_cell(2, casacore_mini::CellValue{(r % 3) == 0}, r);
     }
 
     auto dir = write_ism_test("multi_bucket", writer, 0);
@@ -159,12 +159,12 @@ void test_multi_bucket_value_continuity() {
 
     for (std::uint64_t r = 0; r < kRows; ++r) {
         // time: unique per row to force multi-bucket.
-        writer.write_cell(0, r, casacore_mini::CellValue{static_cast<double>(r)});
+        writer.write_cell(0, casacore_mini::CellValue{static_cast<double>(r)}, r);
         // antenna: unique per row.
-        writer.write_cell(1, r, casacore_mini::CellValue{static_cast<std::int32_t>(r)});
+        writer.write_cell(1, casacore_mini::CellValue{static_cast<std::int32_t>(r)}, r);
         // flag: changes only at specific rows.
         const bool flag_val = (r < 500) || (r >= 900);
-        writer.write_cell(2, r, casacore_mini::CellValue{flag_val});
+        writer.write_cell(2, casacore_mini::CellValue{flag_val}, r);
     }
 
     auto dir = write_ism_test("value_continuity", writer, 0);

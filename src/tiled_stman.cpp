@@ -594,10 +594,9 @@ TiledStManReader::find_column(const std::string_view col_name, std::size_t& orig
     return nullptr;
 }
 
-std::uint64_t TiledStManReader::cell_byte_offset(std::size_t original_col_index,
-                                                 std::uint32_t pixel_size,
-                                                 const std::vector<std::int64_t>& cell_shape,
-                                                 std::uint64_t row) const {
+std::uint64_t TiledStManReader::cell_byte_offset(const std::size_t original_col_index,
+                                                 const TsmColumnInfo& column,
+                                                 const std::uint64_t row) const {
 
     // Find the sorted position of this column.
     std::size_t sorted_pos = 0;
@@ -612,8 +611,7 @@ std::uint64_t TiledStManReader::cell_byte_offset(std::size_t original_col_index,
     const auto tile_index = row / tile_rows_u64;
     const auto row_in_tile = row % tile_rows_u64;
 
-    const auto cell_elements = shape_product(cell_shape);
-    const auto cell_bytes = cell_elements * static_cast<std::uint64_t>(pixel_size);
+    const auto cell_bytes = column.cell_elements * static_cast<std::uint64_t>(column.element_size);
 
     return tile_index * tile_layout_.bucket_size + tile_layout_.col_tile_offsets[sorted_pos] +
            row_in_tile * cell_bytes;
@@ -638,7 +636,7 @@ std::vector<float> TiledStManReader::read_float_cell(const std::string_view col_
     }
 
     const auto cell_bytes = col->cell_elements * col->element_size;
-    const auto byte_offset = cell_byte_offset(col_idx, col->element_size, col->shape, row);
+    const auto byte_offset = cell_byte_offset(col_idx, *col, row);
 
     if (byte_offset + cell_bytes > tsm_data_.size()) {
         throw std::runtime_error("TSM0 read beyond file end");
@@ -668,7 +666,7 @@ std::vector<std::int32_t> TiledStManReader::read_int_cell(const std::string_view
     }
 
     const auto cell_bytes = col->cell_elements * col->element_size;
-    const auto byte_offset = cell_byte_offset(col_idx, col->element_size, col->shape, row);
+    const auto byte_offset = cell_byte_offset(col_idx, *col, row);
 
     if (byte_offset + cell_bytes > tsm_data_.size()) {
         throw std::runtime_error("TSM0 read beyond file end");
@@ -695,7 +693,7 @@ std::vector<std::uint8_t> TiledStManReader::read_raw_cell(const std::string_view
     }
 
     const auto cell_bytes = col->cell_elements * col->element_size;
-    const auto byte_offset = cell_byte_offset(col_idx, col->element_size, col->shape, row);
+    const auto byte_offset = cell_byte_offset(col_idx, *col, row);
 
     if (byte_offset + cell_bytes > tsm_data_.size()) {
         throw std::runtime_error("TSM0 read beyond file end");
@@ -739,8 +737,8 @@ void TiledStManWriter::setup(const std::string_view sm_type, const std::string_v
     is_setup_ = true;
 }
 
-void TiledStManWriter::write_float_cell(const std::size_t col_index, const std::uint64_t row,
-                                        const std::vector<float>& values) {
+void TiledStManWriter::write_float_cell(const std::size_t col_index,
+                                        const std::vector<float>& values, const std::uint64_t row) {
     if (!is_setup_) {
         throw std::runtime_error("TiledStManWriter not setup");
     }
@@ -763,8 +761,9 @@ void TiledStManWriter::write_float_cell(const std::size_t col_index, const std::
     std::memcpy(col.data.data() + offset, values.data(), cell_bytes);
 }
 
-void TiledStManWriter::write_int_cell(const std::size_t col_index, const std::uint64_t row,
-                                      const std::vector<std::int32_t>& values) {
+void TiledStManWriter::write_int_cell(const std::size_t col_index,
+                                      const std::vector<std::int32_t>& values,
+                                      const std::uint64_t row) {
     if (!is_setup_) {
         throw std::runtime_error("TiledStManWriter not setup");
     }
@@ -787,8 +786,9 @@ void TiledStManWriter::write_int_cell(const std::size_t col_index, const std::ui
     std::memcpy(col.data.data() + offset, values.data(), cell_bytes);
 }
 
-void TiledStManWriter::write_raw_cell(const std::size_t col_index, const std::uint64_t row,
-                                      const std::vector<std::uint8_t>& data) {
+void TiledStManWriter::write_raw_cell(const std::size_t col_index,
+                                      const std::vector<std::uint8_t>& data,
+                                      const std::uint64_t row) {
     if (!is_setup_) {
         throw std::runtime_error("TiledStManWriter not setup");
     }
@@ -922,8 +922,8 @@ struct TsmWriteParams {
 /// Write TSM data file with row-based tile layout.
 void write_tsm_data_file(const std::filesystem::path& path, const std::vector<TsmColData>& col_data,
                          const std::vector<std::size_t>& sorted_indices,
-                         const std::vector<std::uint64_t>& col_offsets,
-                         const TsmWriteParams& params) {
+                         const TsmWriteParams& params,
+                         const std::vector<std::uint64_t>& col_offsets) {
     const auto total_size = params.tiles_along_row * params.bucket_size;
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(total_size), 0);
 
@@ -1008,11 +1008,12 @@ void TiledStManWriter::write_files(const std::string_view table_dir,
         const auto data_path = std::filesystem::path(table_dir) /
                                ("table.f" + std::to_string(sequence_number) + "_TSM0");
         // tile_rows=1 with cell_pixels per tile, tiles_along_row = nrow.
-        write_tsm_data_file(data_path, col_data, sorted_indices, col_offsets,
+        write_tsm_data_file(data_path, col_data, sorted_indices,
                             {.bucket_size = tile_size,
                              .tile_rows = 1,
                              .row_count = row_count_,
-                             .tiles_along_row = row_count_});
+                             .tiles_along_row = row_count_},
+                            col_offsets);
     } else if (is_shape) {
         // TiledShapeStMan: tileShape = [cell_shape..., 1], 1 row per tile.
         // Uses TSM1 (file seqnr 1).
@@ -1037,11 +1038,12 @@ void TiledStManWriter::write_files(const std::string_view table_dir,
 
         const auto data_path = std::filesystem::path(table_dir) /
                                ("table.f" + std::to_string(sequence_number) + "_TSM1");
-        write_tsm_data_file(data_path, col_data, sorted_indices, col_offsets,
+        write_tsm_data_file(data_path, col_data, sorted_indices,
                             {.bucket_size = tile_size,
                              .tile_rows = 1,
                              .row_count = row_count_,
-                             .tiles_along_row = row_count_});
+                             .tiles_along_row = row_count_},
+                            col_offsets);
     } else if (is_data) {
         // TiledDataStMan: tileShape = cubeShape = [cell_shape..., nrow].
         // All data in one tile.
@@ -1062,11 +1064,12 @@ void TiledStManWriter::write_files(const std::string_view table_dir,
 
         const auto data_path = std::filesystem::path(table_dir) /
                                ("table.f" + std::to_string(sequence_number) + "_TSM0");
-        write_tsm_data_file(data_path, col_data, sorted_indices, col_offsets,
+        write_tsm_data_file(data_path, col_data, sorted_indices,
                             {.bucket_size = tile_size,
                              .tile_rows = row_count_,
                              .row_count = row_count_,
-                             .tiles_along_row = 1});
+                             .tiles_along_row = 1},
+                            col_offsets);
     } else {
         // TiledColumnStMan: standard tile layout with deterministic tile_rows.
         const auto layout =
@@ -1081,11 +1084,12 @@ void TiledStManWriter::write_files(const std::string_view table_dir,
 
         const auto data_path = std::filesystem::path(table_dir) /
                                ("table.f" + std::to_string(sequence_number) + "_TSM0");
-        write_tsm_data_file(data_path, col_data, sorted_indices, layout.col_tile_offsets,
+        write_tsm_data_file(data_path, col_data, sorted_indices,
                             {.bucket_size = layout.bucket_size,
                              .tile_rows = static_cast<std::uint64_t>(layout.tile_rows),
                              .row_count = row_count_,
-                             .tiles_along_row = layout.tiles_along_row});
+                             .tiles_along_row = layout.tiles_along_row},
+                            layout.col_tile_offsets);
     }
 
     // ============================================================
