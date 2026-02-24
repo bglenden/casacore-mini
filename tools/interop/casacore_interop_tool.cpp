@@ -9,6 +9,10 @@
 #include <casacore/casa/Utilities/DataType.h>
 #include <casacore/casa/aips.h>
 #include <casacore/tables/Tables/ColumnDesc.h>
+#include <casacore/tables/Tables/ScaColDesc.h>
+#include <casacore/tables/Tables/ScalarColumn.h>
+#include <casacore/tables/Tables/SetupNewTab.h>
+#include <casacore/tables/Tables/Table.h>
 #include <casacore/tables/Tables/TableAttr.h>
 #include <casacore/tables/Tables/TableDesc.h>
 
@@ -666,6 +670,112 @@ void verify_table_dat_full_artifact(const std::filesystem::path& input_path,
     verify_lines_equal(label, expected_patched, actual);
 }
 
+// --- table directory interop ---
+
+/// Create a small SSM table with casacore Table APIs at the given directory.
+/// 5 rows, 4 columns (id:Int, value:Float, label:String, dval:Double).
+void write_table_dir_artifact(const std::filesystem::path& output_dir) {
+    std::filesystem::remove_all(output_dir);
+
+    casacore::TableDesc td("test_ssm", casacore::TableDesc::Scratch);
+    td.addColumn(casacore::ScalarColumnDesc<casacore::Int>("id"));
+    td.addColumn(casacore::ScalarColumnDesc<casacore::Float>("value"));
+    td.addColumn(casacore::ScalarColumnDesc<casacore::String>("label"));
+    td.addColumn(casacore::ScalarColumnDesc<casacore::Double>("dval"));
+
+    casacore::SetupNewTable setup(casacore::String(output_dir.string()), td, casacore::Table::New);
+    casacore::Table table(setup, 5);
+
+    casacore::ScalarColumn<casacore::Int> col_id(table, "id");
+    casacore::ScalarColumn<casacore::Float> col_value(table, "value");
+    casacore::ScalarColumn<casacore::String> col_label(table, "label");
+    casacore::ScalarColumn<casacore::Double> col_dval(table, "dval");
+
+    for (casacore::uInt i = 0; i < 5; ++i) {
+        col_id.put(i, static_cast<casacore::Int>(i * 10));
+        col_value.put(i, static_cast<casacore::Float>(i) * 1.5F);
+        col_label.put(i, casacore::String("row_") + casacore::String::toString(i));
+        col_dval.put(i, static_cast<casacore::Double>(i) * 3.14);
+    }
+    table.flush(true);
+}
+
+/// Canonical lines for a table directory using casacore Table APIs.
+[[nodiscard]] std::vector<std::string>
+read_table_dir_canonical(const std::filesystem::path& input_dir) {
+    casacore::Table table(casacore::String(input_dir.string()), casacore::Table::Old);
+    const auto& td = table.tableDesc();
+
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=" + std::to_string(table.nrow()));
+    lines.emplace_back("ncol=" + std::to_string(td.ncolumn()));
+    for (casacore::uInt i = 0; i < td.ncolumn(); ++i) {
+        const auto& col = td.columnDesc(i);
+        const auto prefix = "col[" + std::to_string(i) + "]";
+        lines.emplace_back(prefix + ".name_b64=" + base64_encode(col.name()));
+        lines.emplace_back(prefix + ".dtype=" + datatype_name(col.dataType()));
+    }
+    // SM file count from directory listing.
+    std::uint32_t sm_file_count = 0;
+    for (std::uint32_t seq = 0; seq < 100U; ++seq) {
+        const auto fpath = input_dir / ("table.f" + std::to_string(seq));
+        if (std::filesystem::exists(fpath)) {
+            ++sm_file_count;
+        }
+    }
+    lines.emplace_back("sm_file_count=" + std::to_string(sm_file_count));
+    for (std::uint32_t seq = 0; seq < 100U; ++seq) {
+        const auto fpath = input_dir / ("table.f" + std::to_string(seq));
+        if (std::filesystem::exists(fpath)) {
+            const auto prefix = "sm[" + std::to_string(seq) + "]";
+            lines.emplace_back(prefix + ".filename=table.f" + std::to_string(seq));
+            lines.emplace_back(prefix + ".size=" +
+                               std::to_string(std::filesystem::file_size(fpath)));
+        }
+    }
+    return lines;
+}
+
+void verify_table_dir_artifact(const std::filesystem::path& input_dir,
+                                const std::string_view label) {
+    // Just verify casacore can open it and the structure matches expectations.
+    auto actual_lines = read_table_dir_canonical(input_dir);
+    // Build expected (without SM file details, since mini doesn't write data files).
+    std::vector<std::string> expected_meta;
+    expected_meta.emplace_back("kind=table_dir");
+    expected_meta.emplace_back("row_count=5");
+    expected_meta.emplace_back("ncol=4");
+    expected_meta.emplace_back("col[0].name_b64=" + base64_encode("id"));
+    expected_meta.emplace_back("col[0].dtype=TpInt");
+    expected_meta.emplace_back("col[1].name_b64=" + base64_encode("value"));
+    expected_meta.emplace_back("col[1].dtype=TpFloat");
+    expected_meta.emplace_back("col[2].name_b64=" + base64_encode("label"));
+    expected_meta.emplace_back("col[2].dtype=TpString");
+    expected_meta.emplace_back("col[3].name_b64=" + base64_encode("dval"));
+    expected_meta.emplace_back("col[3].dtype=TpDouble");
+    expected_meta.emplace_back("sm_file_count=*");
+
+    // Strip SM file lines from actual.
+    std::vector<std::string> actual_meta;
+    for (const auto& line : actual_lines) {
+        if (line.rfind("sm[", 0) == 0) {
+            continue;
+        }
+        if (line.rfind("sm_file_count=", 0) == 0) {
+            actual_meta.emplace_back("sm_file_count=*");
+            continue;
+        }
+        actual_meta.push_back(line);
+    }
+    verify_lines_equal(label, expected_meta, actual_meta);
+}
+
+void dump_table_dir_artifact(const std::filesystem::path& input_dir,
+                              const std::filesystem::path& output_path) {
+    write_text(output_path, read_table_dir_canonical(input_dir));
+}
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  casacore_interop_tool write-record-basic --output <path>\n"
@@ -676,6 +786,7 @@ void verify_table_dat_full_artifact(const std::filesystem::path& input_path,
            "  casacore_interop_tool write-record-fixture-pagedimage-table --output <path>\n"
            "  casacore_interop_tool write-table-dat-header --output <path>\n"
            "  casacore_interop_tool write-table-dat-full --output <path>\n"
+           "  casacore_interop_tool write-table-dir --output <dir>\n"
            "  casacore_interop_tool verify-record-basic --input <path>\n"
            "  casacore_interop_tool verify-record-nested --input <path>\n"
            "  casacore_interop_tool verify-record-fixture-logtable-time --input <path>\n"
@@ -684,9 +795,11 @@ void verify_table_dat_full_artifact(const std::filesystem::path& input_path,
            "  casacore_interop_tool verify-record-fixture-pagedimage-table --input <path>\n"
            "  casacore_interop_tool verify-table-dat-header --input <path>\n"
            "  casacore_interop_tool verify-table-dat-full --input <path>\n"
+           "  casacore_interop_tool verify-table-dir --input <dir>\n"
            "  casacore_interop_tool dump-record --input <path> --output <path>\n"
            "  casacore_interop_tool dump-table-dat-header --input <path> --output <path>\n"
-           "  casacore_interop_tool dump-table-dat-full --input <path> --output <path>\n";
+           "  casacore_interop_tool dump-table-dat-full --input <path> --output <path>\n"
+           "  casacore_interop_tool dump-table-dir --input <dir> --output <path>\n";
 }
 
 } // namespace
@@ -852,6 +965,31 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("missing required --input/--output");
             }
             dump_table_dat_full_artifact(*input, *output);
+            return 0;
+        }
+        if (subcommand == "write-table-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_table_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "verify-table-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_table_dir_artifact(*input, "table-dir");
+            return 0;
+        }
+        if (subcommand == "dump-table-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            const auto output = arg_value(argc, argv, "--output");
+            if (!input.has_value() || !output.has_value()) {
+                throw std::runtime_error("missing required --input/--output");
+            }
+            dump_table_dir_artifact(*input, *output);
             return 0;
         }
 

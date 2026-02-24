@@ -139,7 +139,7 @@ void write_table_desc(AipsIoWriter& writer, const TableDesc& desc) {
     const auto length_offset = begin_object(writer, "TableDesc", desc.version);
 
     if (desc.version >= 2U) {
-        writer.write_u32(0U); // extra field
+        writer.write_string(""); // userType string (empty)
     }
 
     writer.write_string(desc.name);

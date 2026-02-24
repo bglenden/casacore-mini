@@ -153,7 +153,7 @@ void skip_scalar_default(AipsIoReader& reader, DataType dtype) {
     desc.version = header.object_version;
 
     if (desc.version >= 2U) {
-        static_cast<void>(reader.read_u32()); // extra field
+        static_cast<void>(reader.read_string()); // userType string
     }
 
     desc.name = reader.read_string();

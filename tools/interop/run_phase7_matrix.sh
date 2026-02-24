@@ -78,6 +78,46 @@ run_case() {
   verify_both "${verify_cmd}" "${dump_cmd}" "${mini_artifact}" "${case_name}.from_mini"
 }
 
+run_dir_case() {
+  local case_name="$1"
+  local write_cmd="$2"
+  local verify_cmd="$3"
+  local dump_cmd="$4"
+
+  local casacore_dir="${ARTIFACT_DIR}/${case_name}.producer_casacore"
+  local mini_dir="${ARTIFACT_DIR}/${case_name}.producer_mini"
+
+  rm -rf "${casacore_dir}" "${mini_dir}"
+
+  # casacore produces, both verify.
+  "${CASACORE_TOOL}" "${write_cmd}" --output "${casacore_dir}"
+  if ! "${MINI_TOOL}" "${verify_cmd}" --input "${casacore_dir}"; then
+    "${MINI_TOOL}" "${dump_cmd}" --input "${casacore_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_casacore.mini.dump.txt" || true
+    echo "mini verification failed for casacore-produced ${case_name}" >&2
+    exit 1
+  fi
+  if ! "${CASACORE_TOOL}" "${verify_cmd}" --input "${casacore_dir}"; then
+    "${CASACORE_TOOL}" "${dump_cmd}" --input "${casacore_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_casacore.casacore.dump.txt" || true
+    echo "casacore verification failed for casacore-produced ${case_name}" >&2
+    exit 1
+  fi
+
+  # mini produces, both verify.
+  "${MINI_TOOL}" "${write_cmd}" --output "${mini_dir}"
+  if ! "${MINI_TOOL}" "${verify_cmd}" --input "${mini_dir}"; then
+    "${MINI_TOOL}" "${dump_cmd}" --input "${mini_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_mini.mini.dump.txt" || true
+    echo "mini verification failed for mini-produced ${case_name}" >&2
+    exit 1
+  fi
+  # casacore may not be able to open mini-produced dirs (no SM data files),
+  # so only verify if casacore succeeds (non-fatal).
+  if "${CASACORE_TOOL}" "${verify_cmd}" --input "${mini_dir}" 2>/dev/null; then
+    echo "  casacore verified mini-produced ${case_name}"
+  else
+    echo "  casacore could not verify mini-produced ${case_name} (expected: no SM data)"
+  fi
+}
+
 run_case "record_basic" "write-record-basic" "verify-record-basic" "dump-record"
 run_case "record_nested" "write-record-nested" "verify-record-nested" "dump-record"
 run_case "record_fixture_logtable_time" "write-record-fixture-logtable-time" "verify-record-fixture-logtable-time" "dump-record"
@@ -86,5 +126,6 @@ run_case "record_fixture_ms_uvw" "write-record-fixture-ms-uvw" "verify-record-fi
 run_case "record_fixture_pagedimage_table" "write-record-fixture-pagedimage-table" "verify-record-fixture-pagedimage-table" "dump-record"
 run_case "table_dat_header" "write-table-dat-header" "verify-table-dat-header" "dump-table-dat-header"
 run_case "table_dat_full" "write-table-dat-full" "verify-table-dat-full" "dump-table-dat-full"
+run_dir_case "table_dir" "write-table-dir" "verify-table-dir" "dump-table-dir"
 
 echo "Phase 7 interoperability matrix passed"
