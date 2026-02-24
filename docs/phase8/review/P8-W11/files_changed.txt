@@ -1,0 +1,6 @@
+tests/measure_malformed_test.cpp
+tests/coordinate_malformed_test.cpp
+tests/reference_data_absence_test.cpp
+docs/phase8/known_differences.md
+CMakeLists.txt
+tools/check_phase8_w11.sh

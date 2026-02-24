@@ -1,0 +1,4 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w10.sh -> PASS
+bash tools/interop/run_phase8_matrix.sh -> PASS (24/24 cells)
+All W10 gate checks pass.

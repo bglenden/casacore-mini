@@ -1,0 +1,3 @@
+docs/phase8/exit_report.md
+docs/phase8/plan.md
+docs/phase8/review/P8-W2/ through P8-W12/ (review packets)

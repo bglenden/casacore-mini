@@ -1,0 +1,3 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w3.sh -> PASS
+All W3 gate checks pass (erfa_bridge_test, measure_convert_test).

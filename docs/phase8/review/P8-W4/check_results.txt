@@ -1,0 +1,3 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w4.sh -> PASS
+All W4 gate checks pass (velocity_machine_test, measure_convert_full_test).

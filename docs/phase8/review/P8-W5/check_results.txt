@@ -1,0 +1,3 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w5.sh -> PASS
+All W5 gate checks pass (table_measure_desc_test, table_measure_column_test).

@@ -1,0 +1,49 @@
+upstream_module,upstream_class,casacore_mini_file,casacore_mini_type,scope,notes
+measures/Measures,Measure,include/casacore_mini/measure_types.hpp,Measure,W2,Variant-based struct (not abstract base class)
+measures/Measures,MeasRef,include/casacore_mini/measure_types.hpp,MeasureRef,W2,Struct with variant ref_type + optional offset
+measures/Measures,MeasFrame,include/casacore_mini/measure_convert.hpp,MeasureFrame,W3,Struct with optional epoch/position/direction
+measures/Measures,MeasureHolder,include/casacore_mini/measure_record.hpp,"measure_to_record, measure_from_record",W2,Free functions instead of class
+measures/Measures,MeasValue,include/casacore_mini/measure_types.hpp,MeasureValue,W2,Variant of per-type value structs
+measures/Measures,MeasConvert,include/casacore_mini/measure_convert.hpp,convert_measure,W3,Free function dispatch
+measures/Measures,MEpoch,include/casacore_mini/measure_types.hpp,EpochRef + EpochValue,W3,Enum + value struct
+measures/Measures,MDirection,include/casacore_mini/measure_types.hpp,DirectionRef + DirectionValue,W3,Enum + value struct
+measures/Measures,MPosition,include/casacore_mini/measure_types.hpp,PositionRef + PositionValue,W3,Enum + value struct
+measures/Measures,MFrequency,include/casacore_mini/measure_types.hpp,FrequencyRef + FrequencyValue,W4,Enum + value struct
+measures/Measures,MDoppler,include/casacore_mini/measure_types.hpp,DopplerRef + DopplerValue,W4,Enum + value struct
+measures/Measures,MRadialVelocity,include/casacore_mini/measure_types.hpp,RadialVelocityRef + RadialVelocityValue,W4,Enum + value struct
+measures/Measures,MBaseline,include/casacore_mini/measure_types.hpp,BaselineRef + BaselineValue,W4,Enum + value struct
+measures/Measures,Muvw,include/casacore_mini/measure_types.hpp,UvwRef + UvwValue,W4,Enum + value struct
+measures/Measures,MEarthMagnetic,include/casacore_mini/measure_types.hpp,EarthMagneticRef + EarthMagneticValue,W4,Serialization-only if IGRF too complex
+measures/Measures,VelocityMachine,include/casacore_mini/velocity_machine.hpp,VelocityMachine,W4,Frequency/velocity/doppler interconversion
+measures/Measures,UVWMachine,include/casacore_mini/uvw_machine.hpp,UvwMachine,W4,UVW baseline rotation between phase centers
+measures/Measures,ParAngleMachine,include/casacore_mini/uvw_machine.hpp,ParAngleMachine,W4,Parallactic angle computation
+measures/Measures,EarthMagneticMachine,include/casacore_mini/uvw_machine.hpp,EarthMagneticMachine,W4,Earth magnetic field wrapper
+measures/Measures,Stokes,include/casacore_mini/stokes_coordinate.hpp,StokesType enum,W7,Stokes parameter enum (I/Q/U/V/RR/LL etc.)
+measures/Measures,Quality,include/casacore_mini/quality_coordinate.hpp,QualityType enum,W7,Quality axis enum
+measures/TableMeasures,TableMeasDesc,include/casacore_mini/table_measure_desc.hpp,TableMeasDesc,W5,Descriptor struct
+measures/TableMeasures,TableMeasDescBase,include/casacore_mini/table_measure_desc.hpp,TableMeasDesc,W5,Merged into single struct
+measures/TableMeasures,TableMeasRefDesc,include/casacore_mini/table_measure_desc.hpp,TableMeasDesc,W5,Ref info embedded in descriptor
+measures/TableMeasures,TableMeasValueDesc,include/casacore_mini/table_measure_desc.hpp,TableMeasDesc,W5,Value info embedded in descriptor
+measures/TableMeasures,TableMeasOffsetDesc,include/casacore_mini/table_measure_desc.hpp,TableMeasDesc,W5,Offset info embedded in descriptor
+measures/TableMeasures,TableMeasType,include/casacore_mini/table_measure_desc.hpp,MeasureType enum,W5,Reuses W2 enum
+measures/TableMeasures,TableMeasColumn,include/casacore_mini/table_measure_column.hpp,read_scalar_measure / read_array_measures,W5,Free functions
+measures/TableMeasures,ScalarMeasColumn,include/casacore_mini/table_measure_column.hpp,read_scalar_measure / write_scalar_measure,W5,Free functions
+measures/TableMeasures,ArrayMeasColumn,include/casacore_mini/table_measure_column.hpp,read_array_measures / write_array_measures,W5,Free functions
+measures/TableMeasures,TableQuantumDesc,include/casacore_mini/table_measure_desc.hpp,TableQuantumDesc,W5,Unit descriptor struct
+measures/TableMeasures,ScalarQuantColumn,include/casacore_mini/table_measure_column.hpp,read_scalar_quantity / write_scalar_quantity,W5,Free functions
+measures/TableMeasures,ArrayQuantColumn,include/casacore_mini/table_measure_column.hpp,read_array_quantities / write_array_quantities,W5,Free functions
+coordinates/Coordinates,Coordinate,include/casacore_mini/coordinate.hpp,Coordinate,W6,Abstract base class with unique_ptr ownership
+coordinates/Coordinates,Projection,include/casacore_mini/projection.hpp,Projection,W6,Struct with ProjectionType enum + parameters
+coordinates/Coordinates,LinearXform,include/casacore_mini/linear_xform.hpp,LinearXform,W6,Matrix transform struct
+coordinates/Coordinates,ObsInfo,include/casacore_mini/obs_info.hpp,ObsInfo,W6,Struct with Record codec
+coordinates/Coordinates,DirectionCoordinate,include/casacore_mini/direction_coordinate.hpp,DirectionCoordinate,W7,WCSLIB-backed sky projection
+coordinates/Coordinates,SpectralCoordinate,include/casacore_mini/spectral_coordinate.hpp,SpectralCoordinate,W7,Linear/tabular frequency mapping
+coordinates/Coordinates,StokesCoordinate,include/casacore_mini/stokes_coordinate.hpp,StokesCoordinate,W7,Discrete Stokes parameter mapping
+coordinates/Coordinates,LinearCoordinate,include/casacore_mini/linear_coordinate.hpp,LinearCoordinate,W7,General N-D linear coordinate
+coordinates/Coordinates,TabularCoordinate,include/casacore_mini/tabular_coordinate.hpp,TabularCoordinate,W7,Lookup-table interpolation
+coordinates/Coordinates,QualityCoordinate,include/casacore_mini/quality_coordinate.hpp,QualityCoordinate,W7,Discrete quality axis
+coordinates/Coordinates,CoordinateSystem,include/casacore_mini/coordinate_system.hpp,CoordinateSystem,W8,Composition of coordinates with axis mapping
+coordinates/Coordinates,CoordinateUtil,include/casacore_mini/coordinate_util.hpp,Factory/finder helpers,W9,Free functions
+coordinates/Coordinates,FITSCoordinateUtil,include/casacore_mini/fits_coordinate_util.hpp,FITS header codec,W9,Free functions
+coordinates/Coordinates,GaussianConvert,include/casacore_mini/gaussian_convert.hpp,convert_gaussian,W9,Jacobian-based shape conversion
+measures/Measures,Quantity (casa),include/casacore_mini/quantity.hpp,Quantity,W2,Thin struct {double value; string unit}

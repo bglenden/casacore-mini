@@ -1,0 +1,4 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w7.sh -> PASS
+All W7 gate checks pass (direction_coordinate_test, spectral_coordinate_test,
+stokes_coordinate_test, coordinate_record_test).

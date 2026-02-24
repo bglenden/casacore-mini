@@ -1,0 +1,11 @@
+include/casacore_mini/quantity.hpp
+include/casacore_mini/measure_types.hpp
+include/casacore_mini/measure_record.hpp
+src/quantity.cpp
+src/measure_types.cpp
+src/measure_record.cpp
+tests/quantity_test.cpp
+tests/measure_types_test.cpp
+tests/measure_record_test.cpp
+CMakeLists.txt
+tools/check_phase8_w2.sh

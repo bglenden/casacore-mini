@@ -1,0 +1,4 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w11.sh -> PASS
+All W11 gate checks pass (measure_malformed_test, coordinate_malformed_test,
+reference_data_absence_test).

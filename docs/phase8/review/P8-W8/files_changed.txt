@@ -1,0 +1,5 @@
+include/casacore_mini/coordinate_system.hpp
+src/coordinate_system.cpp
+tests/coordinate_system_test.cpp
+CMakeLists.txt
+tools/check_phase8_w8.sh

@@ -1,0 +1,4 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w9.sh -> PASS
+All W9 gate checks pass (coordinate_util_test, fits_coordinate_util_test,
+gaussian_convert_test).

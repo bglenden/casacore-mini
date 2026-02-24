@@ -1,0 +1,8 @@
+include/casacore_mini/erfa_bridge.hpp
+include/casacore_mini/measure_convert.hpp
+src/erfa_bridge.cpp
+src/measure_convert.cpp
+tests/erfa_bridge_test.cpp
+tests/measure_convert_test.cpp
+CMakeLists.txt
+tools/check_phase8_w3.sh

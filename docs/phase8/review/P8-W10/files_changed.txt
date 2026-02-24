@@ -1,0 +1,4 @@
+src/interop_mini_tool.cpp
+tools/interop/casacore_interop_tool.cpp
+tools/interop/run_phase8_matrix.sh
+tools/check_phase8_w10.sh

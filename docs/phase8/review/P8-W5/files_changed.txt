@@ -1,0 +1,8 @@
+include/casacore_mini/table_measure_desc.hpp
+include/casacore_mini/table_measure_column.hpp
+src/table_measure_desc.cpp
+src/table_measure_column.cpp
+tests/table_measure_desc_test.cpp
+tests/table_measure_column_test.cpp
+CMakeLists.txt
+tools/check_phase8_w5.sh

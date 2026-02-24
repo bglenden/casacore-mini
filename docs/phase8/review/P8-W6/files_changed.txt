@@ -1,0 +1,13 @@
+include/casacore_mini/coordinate.hpp
+include/casacore_mini/projection.hpp
+include/casacore_mini/linear_xform.hpp
+include/casacore_mini/obs_info.hpp
+src/coordinate.cpp
+src/projection.cpp
+src/linear_xform.cpp
+src/obs_info.cpp
+tests/projection_test.cpp
+tests/linear_xform_test.cpp
+tests/obs_info_test.cpp
+CMakeLists.txt
+tools/check_phase8_w6.sh

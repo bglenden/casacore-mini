@@ -1,0 +1,7 @@
+include/casacore_mini/velocity_machine.hpp
+src/velocity_machine.cpp
+src/measure_convert.cpp
+tests/velocity_machine_test.cpp
+tests/measure_convert_full_test.cpp
+CMakeLists.txt
+tools/check_phase8_w4.sh

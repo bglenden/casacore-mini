@@ -1,0 +1,3 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w2.sh -> PASS
+All W2 gate checks pass (quantity_test, measure_types_test, measure_record_test).

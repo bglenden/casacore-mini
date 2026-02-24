@@ -1,7 +1,7 @@
 # Phase 8 Plan (Full Measures + Coordinates + CoordinateSystems)
 
 Date: 2026-02-24
-Status: Pending (`Not Started`, queued behind final Phase-7 closeout)
+Status: Complete (remediated 2026-02-24)
 
 ## Objective
 
@@ -181,18 +181,18 @@ Gate rules:
 
 | ID | Status | Scope | Required deliverables |
 |---|---|---|---|
-| `P8-W1` | Pending | API/dependency/fixture contract | API target map, dependency decisions, fixture inventory, phase check scaffolding |
-| `P8-W2` | Pending | Measure core model + serialization | core measure/ref/frame types, Record/AipsIO representation, parser/writer guards |
-| `P8-W3` | Pending | Primary measure types | `MEpoch`, `MPosition`, `MDirection` read/write + conversion parity tests |
-| `P8-W4` | Pending | Remaining measure types + machines | `MFrequency`, `MDoppler`, `MRadialVelocity`, `MBaseline`, `Muvw`, `MEarthMagnetic`, machine helpers |
-| `P8-W5` | Pending | TableMeasures integration | descriptor classes + scalar/array measure/quantum column adapters integrated with table stack |
-| `P8-W6` | Pending | Coordinate primitives | `Coordinate`, `Projection`, `LinearXform`, `ObsInfo` persistence and transform primitives |
-| `P8-W7` | Pending | Concrete coordinate classes | Direction/Spectral/Stokes/Linear/Tabular/Quality coordinate implementations |
-| `P8-W8` | Pending | CoordinateSystem | coordinate composition, axis mapping, world/pixel path parity, record serialization |
-| `P8-W9` | Pending | Coordinate utility layer | `CoordinateUtil`, `FITSCoordinateUtil`, `GaussianConvert` behavior needed by interoperability |
-| `P8-W10` | Pending | Interop matrix | strict 2x2 producer/consumer matrix for all required Phase-8 artifacts |
-| `P8-W11` | Pending | Hardening + coverage | malformed/corrupt-input tests, corpus-backed stress cases, docs/API alignment checks |
-| `P8-W12` | Pending | Closeout + handoff | exit report, misses/carry-forward updates, Phase-9 entry gate declaration |
+| `P8-W1` | Done | API/dependency/fixture contract | API target map, dependency decisions, fixture inventory, phase check scaffolding |
+| `P8-W2` | Done | Measure core model + serialization | core measure/ref/frame types, Record/AipsIO representation, parser/writer guards |
+| `P8-W3` | Done | Primary measure types | `MEpoch`, `MPosition`, `MDirection` read/write + conversion parity tests |
+| `P8-W4` | Done | Remaining measure types + machines | `MFrequency`, `MDoppler`, `MRadialVelocity`, `MBaseline`, `Muvw`, `MEarthMagnetic`, machine helpers |
+| `P8-W5` | Done | TableMeasures integration | descriptor classes + scalar/array measure/quantum column adapters integrated with table stack |
+| `P8-W6` | Done | Coordinate primitives | `Coordinate`, `Projection`, `LinearXform`, `ObsInfo` persistence and transform primitives |
+| `P8-W7` | Done | Concrete coordinate classes | Direction/Spectral/Stokes/Linear/Tabular/Quality coordinate implementations |
+| `P8-W8` | Done | CoordinateSystem | coordinate composition, axis mapping, world/pixel path parity, record serialization |
+| `P8-W9` | Done | Coordinate utility layer | `CoordinateUtil`, `FITSCoordinateUtil`, `GaussianConvert` behavior needed by interoperability |
+| `P8-W10` | Done | Interop matrix | strict 2x2 producer/consumer matrix for all required Phase-8 artifacts |
+| `P8-W11` | Done | Hardening + coverage | malformed/corrupt-input tests, corpus-backed stress cases, docs/API alignment checks |
+| `P8-W12` | Done | Closeout + handoff | exit report, misses/carry-forward updates, Phase-9 entry gate declaration |
 
 ## Wave details (implementation-ready)
 

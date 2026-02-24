@@ -1,0 +1,4 @@
+bash tools/check_phase8_w1.sh build-p8-test -> PASS
+cmake configure (ERFA 2.0.1 + WCSLIB 8.5 via pkg-config) -> PASS
+cmake --build build-p8-test -> PASS (68/68 targets)
+ctest --test-dir build-p8-test -> PASS (20/20 tests)

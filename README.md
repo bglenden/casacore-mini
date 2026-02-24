@@ -56,6 +56,95 @@ Key local check scripts:
 - `tools/pre_push_quality.sh` (intended for pre-push use)
 - `tools/install_git_hooks.sh` (installs a `pre-push` hook that runs `tools/pre_push_quality.sh`)
 
+## Build Prerequisites
+
+### Core (all phases)
+
+- C++20 compiler (clang++ 15+ or g++ 12+)
+- CMake 3.27+
+- Ninja (recommended) or Make
+- pkg-config
+- clang-format, clang-tidy (for quality gates)
+- Doxygen (for API documentation)
+
+### Phase 8+: ERFA and WCSLIB
+
+Phase 8 (Measures + Coordinates) requires two external C libraries:
+
+**ERFA** (Essential Routines for Fundamental Astronomy, BSD license) provides
+validated implementations of IAU standard astronomical transforms: time scale
+conversions (UTC/TAI/TT/UT1/TDB), precession/nutation (IAU 2006/2000A),
+geodetic transforms (WGS84), and frame rotations. It is the BSD-licensed C
+fork of the IAU SOFA library. Original casacore uses equivalent SOFA routines
+internally; using ERFA ensures numeric parity.
+
+**WCSLIB** (LGPL-3.0) implements the FITS World Coordinate System standard
+(Papers I-VII) and provides ~30 sky projection types (SIN, TAN, ARC, ZEA,
+etc.). Used by `DirectionCoordinate` for pixel/world transforms.
+
+Both are detected via `pkg-config`. CMake will fail at configure time if
+either is missing.
+
+#### WCSLIB installation
+
+```bash
+# macOS (Homebrew)
+brew install wcslib
+
+# Debian/Ubuntu
+apt install wcslib-dev
+
+# Fedora/RHEL
+dnf install wcslib-devel
+```
+
+#### ERFA installation
+
+ERFA is not in Homebrew. Choose one of these options:
+
+**Option A: Build from source with meson (recommended)**
+
+```bash
+git clone https://github.com/liberfa/erfa.git
+cd erfa
+git checkout v2.0.1
+meson setup builddir
+ninja -C builddir
+meson test -C builddir            # optional: run tests
+sudo meson install -C builddir    # installs to /usr/local by default
+```
+
+Requires `meson` and `ninja` (`brew install meson ninja` on macOS,
+`apt install meson ninja-build` on Debian/Ubuntu).
+
+After install, verify: `pkg-config --modversion erfa` should print `2.0.1`.
+
+**Option B: Vendor the flattened source**
+
+ERFA provides a single-file build option. Place `erfa.c` and `erfa.h` in
+`third_party/erfa/` and CMake will compile them automatically:
+
+```bash
+mkdir -p third_party/erfa
+# Obtain erfa.c and erfa.h from erfa-fetch source_flattener.py
+# or from a release tarball, then copy here.
+```
+
+See https://github.com/liberfa/erfa for the `source_flattener.py` tool.
+
+**Option C: Linux package managers**
+
+```bash
+# Debian/Ubuntu
+apt install liberfa-dev
+
+# Fedora/RHEL
+dnf install erfa-devel
+
+# Arch Linux
+pacman -S erfa
+```
+
 ## Endianness Policy
 
 - Host architecture support is currently limited to little-endian systems.

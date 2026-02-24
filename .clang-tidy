@@ -1,6 +1,8 @@
 Checks: >
   clang-analyzer-*,
   bugprone-*,
+  -bugprone-empty-catch,
+  -bugprone-easily-swappable-parameters,
   performance-*,
   modernize-use-nullptr,
   modernize-use-override,

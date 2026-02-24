@@ -1,0 +1,3 @@
+Retrospective packet — check results captured at phase closeout.
+bash tools/check_phase8_w6.sh -> PASS
+All W6 gate checks pass (projection_test, linear_xform_test, obs_info_test).

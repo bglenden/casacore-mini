@@ -1,0 +1,11 @@
+include/casacore_mini/coordinate_util.hpp
+include/casacore_mini/fits_coordinate_util.hpp
+include/casacore_mini/gaussian_convert.hpp
+src/coordinate_util.cpp
+src/fits_coordinate_util.cpp
+src/gaussian_convert.cpp
+tests/coordinate_util_test.cpp
+tests/fits_coordinate_util_test.cpp
+tests/gaussian_convert_test.cpp
+CMakeLists.txt
+tools/check_phase8_w9.sh

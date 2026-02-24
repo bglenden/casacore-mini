@@ -2,9 +2,18 @@
 #include "casacore_mini/aipsio_record_reader.hpp"
 #include "casacore_mini/aipsio_record_writer.hpp"
 #include "casacore_mini/aipsio_writer.hpp"
+#include "casacore_mini/coordinate_system.hpp"
+#include "casacore_mini/coordinate_util.hpp"
+#include "casacore_mini/direction_coordinate.hpp"
 #include "casacore_mini/incremental_stman.hpp"
+#include "casacore_mini/linear_coordinate.hpp"
+#include "casacore_mini/measure_convert.hpp"
+#include "casacore_mini/measure_record.hpp"
+#include "casacore_mini/measure_types.hpp"
 #include "casacore_mini/record.hpp"
+#include "casacore_mini/spectral_coordinate.hpp"
 #include "casacore_mini/standard_stman.hpp"
+#include "casacore_mini/stokes_coordinate.hpp"
 #include "casacore_mini/table_dat.hpp"
 #include "casacore_mini/table_dat_writer.hpp"
 #include "casacore_mini/table_desc.hpp"
@@ -1719,6 +1728,441 @@ void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
     tsm_writer.write_files(output_dir.string(), 0);
 }
 
+// ---------------------------------------------------------------------------
+// Phase 8 measure/coordinate interop artifacts
+// ---------------------------------------------------------------------------
+
+/// Artifact 1: Scalar measure-column table keywords (MEpoch, TIME column).
+[[nodiscard]] casacore_mini::Record build_measure_scalar_record() {
+    // MEASINFO sub-record
+    casacore_mini::Record measinfo;
+    measinfo.set("type", casacore_mini::RecordValue(std::string("epoch")));
+    measinfo.set("Ref", casacore_mini::RecordValue(std::string("UTC")));
+
+    casacore_mini::Record record;
+    record.set("MEASINFO", casacore_mini::RecordValue::from_record(std::move(measinfo)));
+
+    // QuantumUnits
+    casacore_mini::RecordValue::string_array units;
+    units.shape = {1};
+    units.elements = {"s"};
+    record.set("QuantumUnits", casacore_mini::RecordValue(std::move(units)));
+
+    return record;
+}
+
+/// Artifact 2: Array measure-column table keywords (MDirection, UVW-like).
+[[nodiscard]] casacore_mini::Record build_measure_array_record() {
+    casacore_mini::Record measinfo;
+    measinfo.set("type", casacore_mini::RecordValue(std::string("direction")));
+    measinfo.set("Ref", casacore_mini::RecordValue(std::string("J2000")));
+
+    casacore_mini::Record record;
+    record.set("MEASINFO", casacore_mini::RecordValue::from_record(std::move(measinfo)));
+
+    casacore_mini::RecordValue::string_array units;
+    units.shape = {2};
+    units.elements = {"rad", "rad"};
+    record.set("QuantumUnits", casacore_mini::RecordValue(std::move(units)));
+
+    return record;
+}
+
+/// Artifact 3: Rich measure-keyword table (multiple MeasureHolder records).
+[[nodiscard]] casacore_mini::Record build_measure_rich_record() {
+    // Epoch measure in MeasureHolder format
+    casacore_mini::Record epoch_rec;
+    epoch_rec.set("type", casacore_mini::RecordValue(std::string("epoch")));
+    epoch_rec.set("refer", casacore_mini::RecordValue(std::string("UTC")));
+    casacore_mini::Record m0;
+    m0.set("value", casacore_mini::RecordValue(double{59000.5})); // MJD
+    m0.set("unit", casacore_mini::RecordValue(std::string("d")));
+    epoch_rec.set("m0", casacore_mini::RecordValue::from_record(std::move(m0)));
+
+    // Direction measure
+    casacore_mini::Record dir_rec;
+    dir_rec.set("type", casacore_mini::RecordValue(std::string("direction")));
+    dir_rec.set("refer", casacore_mini::RecordValue(std::string("J2000")));
+    casacore_mini::Record d0;
+    d0.set("value", casacore_mini::RecordValue(double{M_PI})); // pi rad = 180 deg RA
+    d0.set("unit", casacore_mini::RecordValue(std::string("rad")));
+    dir_rec.set("m0", casacore_mini::RecordValue::from_record(std::move(d0)));
+    casacore_mini::Record d1;
+    d1.set("value", casacore_mini::RecordValue(double{M_PI / 4.0})); // pi/4 rad = 45 deg Dec
+    d1.set("unit", casacore_mini::RecordValue(std::string("rad")));
+    dir_rec.set("m1", casacore_mini::RecordValue::from_record(std::move(d1)));
+
+    // Position measure
+    casacore_mini::Record pos_rec;
+    pos_rec.set("type", casacore_mini::RecordValue(std::string("position")));
+    pos_rec.set("refer", casacore_mini::RecordValue(std::string("WGS84")));
+    casacore_mini::Record p0;
+    p0.set("value",
+           casacore_mini::RecordValue(double{-118.0 * M_PI / 180.0})); // lon rad (-118 deg)
+    p0.set("unit", casacore_mini::RecordValue(std::string("rad")));
+    pos_rec.set("m0", casacore_mini::RecordValue::from_record(std::move(p0)));
+    casacore_mini::Record p1;
+    p1.set("value", casacore_mini::RecordValue(double{34.0 * M_PI / 180.0})); // lat rad (34 deg)
+    p1.set("unit", casacore_mini::RecordValue(std::string("rad")));
+    pos_rec.set("m1", casacore_mini::RecordValue::from_record(std::move(p1)));
+    casacore_mini::Record p2;
+    p2.set("value", casacore_mini::RecordValue(double{100.0})); // height m
+    p2.set("unit", casacore_mini::RecordValue(std::string("m")));
+    pos_rec.set("m2", casacore_mini::RecordValue::from_record(std::move(p2)));
+
+    casacore_mini::Record record;
+    record.set("obsdate", casacore_mini::RecordValue::from_record(std::move(epoch_rec)));
+    record.set("pointingcenter", casacore_mini::RecordValue::from_record(std::move(dir_rec)));
+    record.set("telescopeposition", casacore_mini::RecordValue::from_record(std::move(pos_rec)));
+    record.set("telescope", casacore_mini::RecordValue(std::string("VLA")));
+    record.set("observer", casacore_mini::RecordValue(std::string("TestObserver")));
+
+    return record;
+}
+
+/// Artifact 4: Coordinate-rich image metadata (Direction + Spectral + Stokes).
+[[nodiscard]] casacore_mini::Record build_coord_keywords_record() {
+    using namespace casacore_mini;
+    constexpr double kDeg2Rad = M_PI / 180.0;
+
+    CoordinateSystem cs;
+    cs.add_coordinate(std::make_unique<DirectionCoordinate>(
+        DirectionRef::j2000, Projection{ProjectionType::sin, {0.0, 0.0}},
+        180.0 * kDeg2Rad,      // ref lon = 180 deg
+        45.0 * kDeg2Rad,       // ref lat = 45 deg
+        -kDeg2Rad / 3600.0,    // -1 arcsec/pixel
+        kDeg2Rad / 3600.0,     // 1 arcsec/pixel
+        std::vector<double>{}, // identity PC
+        128.0, 128.0));        // crpix
+
+    cs.add_coordinate(std::make_unique<SpectralCoordinate>(FrequencyRef::lsrk, 1.42e9, 1e6, 0.0));
+
+    cs.add_coordinate(std::make_unique<StokesCoordinate>(std::vector<std::int32_t>{1, 2, 3, 4}));
+
+    return cs.save();
+}
+
+/// Artifact 5: Mixed coordinate system (Direction + Spectral + Stokes + Linear + ObsInfo).
+[[nodiscard]] casacore_mini::Record build_mixed_coords_record() {
+    using namespace casacore_mini;
+    constexpr double kDeg2Rad = M_PI / 180.0;
+
+    CoordinateSystem cs;
+    cs.add_coordinate(std::make_unique<DirectionCoordinate>(
+        DirectionRef::j2000, Projection{ProjectionType::tan, {0.0, 0.0}}, 0.0, 0.0,
+        -kDeg2Rad / 3600.0, kDeg2Rad / 3600.0, std::vector<double>{}, 64.0, 64.0));
+
+    cs.add_coordinate(std::make_unique<SpectralCoordinate>(FrequencyRef::lsrk, 1.42e9, 1e6, 0.0));
+
+    cs.add_coordinate(std::make_unique<StokesCoordinate>(std::vector<std::int32_t>{1, 2, 3, 4}));
+
+    LinearXform xform;
+    xform.crval = {0.0};
+    xform.cdelt = {1.0};
+    xform.crpix = {0.0};
+    xform.pc = {1.0};
+    cs.add_coordinate(
+        std::make_unique<LinearCoordinate>(std::vector<std::string>{"Deconvolver Iteration"},
+                                           std::vector<std::string>{""}, std::move(xform)));
+
+    ObsInfo obs;
+    obs.telescope = "ALMA";
+    obs.observer = "TestUser";
+    cs.set_obs_info(obs);
+
+    return cs.save();
+}
+
+/// Artifact 6: Conversion vectors Record (pre-computed measure conversion results).
+[[nodiscard]] casacore_mini::Record build_conversion_vectors_record() {
+    casacore_mini::Record record;
+
+    // Epoch conversions: MJD 59000.5 UTC -> TAI
+    // UTC->TAI adds leap seconds (37s as of 2020)
+    record.set("epoch_utc_mjd", casacore_mini::RecordValue(double{59000.5}));
+    record.set("epoch_tai_mjd", casacore_mini::RecordValue(double{59000.5 + 37.0 / 86400.0}));
+
+    // Direction: RA=180deg Dec=45deg J2000 -> Galactic
+    // Known values: l~123.932 deg, b~+62.871 deg (approximate)
+    casacore_mini::RecordValue::double_array j2000_dir;
+    j2000_dir.shape = {2};
+    j2000_dir.elements = {M_PI, M_PI / 4.0}; // 180 deg, 45 deg in rad
+    record.set("direction_j2000_rad", casacore_mini::RecordValue(std::move(j2000_dir)));
+
+    // Doppler conversions (purely mathematical, deterministic)
+    // Optical doppler: v/c = z = 0.1
+    record.set("doppler_z", casacore_mini::RecordValue(double{0.1}));
+    // Radio doppler from z: v_radio/c = 1 - 1/(1+z) = 1 - 1/1.1 = 0.09090909...
+    record.set("doppler_radio", casacore_mini::RecordValue(double{1.0 - 1.0 / 1.1}));
+    // Relativistic beta from z: beta = ((1+z)^2-1)/((1+z)^2+1)
+    constexpr double kZ = 0.1;
+    const double beta = ((1.0 + kZ) * (1.0 + kZ) - 1.0) / ((1.0 + kZ) * (1.0 + kZ) + 1.0);
+    record.set("doppler_beta", casacore_mini::RecordValue(beta));
+
+    // Frequency: rest=1.42e9 Hz, optical z=0.1 -> observed = rest/(1+z)
+    record.set("freq_rest_hz", casacore_mini::RecordValue(double{1.42e9}));
+    record.set("freq_observed_hz", casacore_mini::RecordValue(double{1.42e9 / 1.1}));
+
+    return record;
+}
+
+// --- Semantic verification helpers for cross-tool interop ---
+
+// Get a sub-record from a Record, or nullptr if not present/not a record.
+[[nodiscard]] const casacore_mini::Record* get_subrecord(const casacore_mini::Record& record,
+                                                         std::string_view key) {
+    const auto* val = record.find(key);
+    if (val == nullptr) {
+        return nullptr;
+    }
+    const auto* rp = std::get_if<casacore_mini::RecordValue::record_ptr>(&val->storage());
+    if (rp == nullptr || *rp == nullptr) {
+        return nullptr;
+    }
+    return rp->get();
+}
+
+// Get a double scalar from a Record, or nullopt.
+[[nodiscard]] std::optional<double> get_double(const casacore_mini::Record& record,
+                                               std::string_view key) {
+    const auto* val = record.find(key);
+    if (val == nullptr) {
+        return std::nullopt;
+    }
+    if (const auto* d = std::get_if<double>(&val->storage())) {
+        return *d;
+    }
+    return std::nullopt;
+}
+
+// Get a string scalar from a Record, or nullopt.
+[[nodiscard]] std::optional<std::string> get_string(const casacore_mini::Record& record,
+                                                    std::string_view key) {
+    const auto* val = record.find(key);
+    if (val == nullptr) {
+        return std::nullopt;
+    }
+    if (const auto* s = std::get_if<std::string>(&val->storage())) {
+        return *s;
+    }
+    return std::nullopt;
+}
+
+// Get a double array from a Record.
+[[nodiscard]] std::vector<double> get_double_array(const casacore_mini::Record& record,
+                                                   std::string_view key) {
+    const auto* val = record.find(key);
+    if (val == nullptr) {
+        return {};
+    }
+    if (const auto* arr = std::get_if<casacore_mini::RecordValue::double_array>(&val->storage())) {
+        return arr->elements;
+    }
+    return {};
+}
+
+// Get an int32 or int64 array from a Record as int64 values.
+[[nodiscard]] std::vector<std::int64_t> get_int_array(const casacore_mini::Record& record,
+                                                      std::string_view key) {
+    const auto* val = record.find(key);
+    if (val == nullptr) {
+        return {};
+    }
+    if (const auto* arr = std::get_if<casacore_mini::RecordValue::int32_array>(&val->storage())) {
+        std::vector<std::int64_t> result;
+        result.reserve(arr->elements.size());
+        for (auto v : arr->elements) {
+            result.push_back(static_cast<std::int64_t>(v));
+        }
+        return result;
+    }
+    if (const auto* arr = std::get_if<casacore_mini::RecordValue::int64_array>(&val->storage())) {
+        return arr->elements;
+    }
+    return {};
+}
+
+// Find a sub-record by trying multiple candidate field names.
+[[nodiscard]] const casacore_mini::Record*
+find_subrecord_any(const casacore_mini::Record& record,
+                   const std::vector<std::string>& candidates) {
+    for (const auto& name : candidates) {
+        const auto* sub = get_subrecord(record, name);
+        if (sub != nullptr) {
+            return sub;
+        }
+    }
+    return nullptr;
+}
+
+void verify_semantic_string(const casacore_mini::Record& record, std::string_view key,
+                            std::string_view expected, std::string_view label) {
+    auto val = get_string(record, key);
+    if (!val.has_value()) {
+        throw std::runtime_error(std::string(label) + ": missing string field '" +
+                                 std::string(key) + "'");
+    }
+    if (*val != expected) {
+        throw std::runtime_error(std::string(label) + ": field '" + std::string(key) +
+                                 "' expected '" + std::string(expected) + "' got '" + *val + "'");
+    }
+}
+
+void verify_semantic_double(const casacore_mini::Record& record, std::string_view key,
+                            double expected, std::string_view label) {
+    auto val = get_double(record, key);
+    if (!val.has_value()) {
+        throw std::runtime_error(std::string(label) + ": missing double field '" +
+                                 std::string(key) + "'");
+    }
+    if (std::fabs(*val - expected) > kFloat64Tolerance) {
+        throw std::runtime_error(std::string(label) + ": field '" + std::string(key) +
+                                 "' expected " + std::to_string(expected) + " got " +
+                                 std::to_string(*val));
+    }
+}
+
+void verify_semantic_double_array(const casacore_mini::Record& record, std::string_view key,
+                                  std::size_t expected_size, double expected_first,
+                                  double expected_last, std::string_view label) {
+    auto arr = get_double_array(record, key);
+    if (arr.size() < expected_size) {
+        throw std::runtime_error(std::string(label) + ": field '" + std::string(key) +
+                                 "' expected at least " + std::to_string(expected_size) +
+                                 " elements, got " + std::to_string(arr.size()));
+    }
+    if (std::fabs(arr.front() - expected_first) > kFloat64Tolerance) {
+        throw std::runtime_error(std::string(label) + ": field '" + std::string(key) +
+                                 "[0]' expected " + std::to_string(expected_first) + " got " +
+                                 std::to_string(arr.front()));
+    }
+    if (std::fabs(arr.back() - expected_last) > kFloat64Tolerance) {
+        throw std::runtime_error(std::string(label) + ": field '" + std::string(key) +
+                                 "[last]' expected " + std::to_string(expected_last) + " got " +
+                                 std::to_string(arr.back()));
+    }
+}
+
+// Semantic verification for coord-keywords (artifact 4).
+// Accepts both mini format (CoordinateSystem::save) and casacore format (manual Record).
+void verify_coord_keywords_semantic(const casacore_mini::Record& record, std::string_view label) {
+    // direction0 must exist.
+    const auto* dir0 = get_subrecord(record, "direction0");
+    if (dir0 == nullptr) {
+        throw std::runtime_error(std::string(label) + ": missing direction0 sub-record");
+    }
+    verify_semantic_string(*dir0, "system", "J2000", label);
+
+    // Projection may be "projection" or "projection_type".
+    auto proj = get_string(*dir0, "projection");
+    if (!proj.has_value()) {
+        proj = get_string(*dir0, "projection_type");
+    }
+    if (proj.has_value() && *proj != "SIN") {
+        throw std::runtime_error(std::string(label) + ": direction0 projection expected SIN, got " +
+                                 *proj);
+    }
+
+    verify_semantic_double_array(*dir0, "crval", 2, M_PI, M_PI / 4.0, label);
+    verify_semantic_double_array(*dir0, "crpix", 2, 128.0, 128.0, label);
+
+    // Find spectral sub-record.
+    const auto* spec = find_subrecord_any(record, {"spectral1", "spectral2"});
+    if (spec == nullptr) {
+        throw std::runtime_error(std::string(label) + ": missing spectral sub-record");
+    }
+    verify_semantic_string(*spec, "system", "LSRK", label);
+    verify_semantic_double(*spec, "crval", 1.42e9, label);
+    verify_semantic_double(*spec, "cdelt", 1e6, label);
+
+    // Find stokes sub-record.
+    const auto* stk = find_subrecord_any(record, {"stokes2", "stokes1"});
+    if (stk == nullptr) {
+        throw std::runtime_error(std::string(label) + ": missing stokes sub-record");
+    }
+    auto stokes_vals = get_int_array(*stk, "stokes");
+    if (stokes_vals.size() != 4) {
+        throw std::runtime_error(std::string(label) + ": stokes expected 4 elements, got " +
+                                 std::to_string(stokes_vals.size()));
+    }
+    if (stokes_vals[0] != 1) {
+        throw std::runtime_error(std::string(label) + ": stokes[0] expected 1 (I)");
+    }
+
+    std::cout << "  " << label << ": [PASS] semantic (J2000-SIN, LSRK, IQUV)\n";
+}
+
+// Semantic verification for mixed-coords (artifact 5).
+// Accepts both mini format (J2000/TAN + LSRK + Stokes + Linear) and
+// casacore format (GALACTIC/SIN + Linear + TOPO).
+void verify_mixed_coords_semantic(const casacore_mini::Record& record, std::string_view label) {
+    const auto* dir0 = get_subrecord(record, "direction0");
+    if (dir0 == nullptr) {
+        throw std::runtime_error(std::string(label) + ": missing direction0 sub-record");
+    }
+
+    auto system_val = get_string(*dir0, "system");
+    if (!system_val.has_value()) {
+        throw std::runtime_error(std::string(label) + ": direction0 missing 'system' field");
+    }
+
+    if (*system_val == "GALACTIC") {
+        // Casacore format: GALACTIC-SIN + linear1 + spectral2 (TOPO).
+        const auto* lin = get_subrecord(record, "linear1");
+        if (lin == nullptr) {
+            throw std::runtime_error(std::string(label) + ": missing linear1 sub-record");
+        }
+        verify_semantic_double_array(*lin, "crval", 1, 0.0, 0.0, label);
+
+        const auto* spec = get_subrecord(record, "spectral2");
+        if (spec == nullptr) {
+            throw std::runtime_error(std::string(label) + ": missing spectral2 sub-record");
+        }
+        verify_semantic_string(*spec, "system", "TOPO", label);
+        verify_semantic_double(*spec, "crval", 1.0e9, label);
+
+        std::cout << "  " << label << ": [PASS] semantic (GALACTIC-SIN, Linear, TOPO)\n";
+    } else if (*system_val == "J2000") {
+        // Mini format: J2000-TAN + spectral1 (LSRK) + stokes2 + linear3.
+        const auto* spec = find_subrecord_any(record, {"spectral1", "spectral2"});
+        if (spec == nullptr) {
+            throw std::runtime_error(std::string(label) + ": missing spectral sub-record");
+        }
+        verify_semantic_string(*spec, "system", "LSRK", label);
+        verify_semantic_double(*spec, "crval", 1.42e9, label);
+
+        if (find_subrecord_any(record, {"stokes2", "stokes1", "stokes3"}) == nullptr) {
+            throw std::runtime_error(std::string(label) + ": missing stokes sub-record");
+        }
+        if (find_subrecord_any(record, {"linear1", "linear2", "linear3"}) == nullptr) {
+            throw std::runtime_error(std::string(label) + ": missing linear sub-record");
+        }
+
+        std::cout << "  " << label << ": [PASS] semantic (J2000-TAN, LSRK, Stokes, Linear)\n";
+    } else {
+        throw std::runtime_error(std::string(label) + ": unexpected direction system '" +
+                                 *system_val + "'");
+    }
+}
+
+// Semantic verification for conversion-vectors (artifact 6).
+void verify_conversion_vectors_semantic(const casacore_mini::Record& record,
+                                        std::string_view label) {
+    verify_semantic_double(record, "epoch_utc_mjd", 59000.5, label);
+    verify_semantic_double(record, "epoch_tai_mjd", 59000.5 + 37.0 / 86400.0, label);
+    verify_semantic_double(record, "doppler_z", 0.1, label);
+    verify_semantic_double(record, "doppler_radio", 1.0 - 1.0 / 1.1, label);
+    constexpr double kZ = 0.1;
+    const double expected_beta = ((1.0 + kZ) * (1.0 + kZ) - 1.0) / ((1.0 + kZ) * (1.0 + kZ) + 1.0);
+    verify_semantic_double(record, "doppler_beta", expected_beta, label);
+    verify_semantic_double(record, "freq_rest_hz", 1.42e9, label);
+    verify_semantic_double(record, "freq_observed_hz", 1.42e9 / 1.1, label);
+
+    verify_semantic_double_array(record, "direction_j2000_rad", 2, M_PI, M_PI / 4.0, label);
+
+    std::cout << "  " << label << ": [PASS] semantic (epoch, doppler, freq conversions)\n";
+}
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  interop_mini_tool write-record-basic --output <path>\n"
@@ -1749,6 +2193,18 @@ void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
            "  interop_mini_tool verify-tiled-cell-dir --input <dir>\n"
            "  interop_mini_tool verify-tiled-shape-dir --input <dir>\n"
            "  interop_mini_tool verify-tiled-data-dir --input <dir>\n"
+           "  interop_mini_tool produce-measure-scalar --output <path>\n"
+           "  interop_mini_tool produce-measure-array --output <path>\n"
+           "  interop_mini_tool produce-measure-rich --output <path>\n"
+           "  interop_mini_tool produce-coord-keywords --output <path>\n"
+           "  interop_mini_tool produce-mixed-coords --output <path>\n"
+           "  interop_mini_tool produce-conversion-vectors --output <path>\n"
+           "  interop_mini_tool verify-measure-scalar --input <path>\n"
+           "  interop_mini_tool verify-measure-array --input <path>\n"
+           "  interop_mini_tool verify-measure-rich --input <path>\n"
+           "  interop_mini_tool verify-coord-keywords --input <path>\n"
+           "  interop_mini_tool verify-mixed-coords --input <path>\n"
+           "  interop_mini_tool verify-conversion-vectors --input <path>\n"
            "  interop_mini_tool dump-record --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-header --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-full --input <path> --output <path>\n"
@@ -2026,6 +2482,135 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --input");
             }
             verify_tiled_dir_artifact(*input, expected_tiled_data_meta(), "tiled-data-dir");
+            return 0;
+        }
+
+        // --- Phase 8: measure/coordinate record commands ---
+        if (subcommand == "produce-measure-scalar") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_record_artifact(*output, build_measure_scalar_record());
+            return 0;
+        }
+        if (subcommand == "produce-measure-array") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_record_artifact(*output, build_measure_array_record());
+            return 0;
+        }
+        if (subcommand == "produce-measure-rich") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_record_artifact(*output, build_measure_rich_record());
+            return 0;
+        }
+        if (subcommand == "produce-coord-keywords") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_record_artifact(*output, build_coord_keywords_record());
+            return 0;
+        }
+        if (subcommand == "produce-mixed-coords") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_record_artifact(*output, build_mixed_coords_record());
+            return 0;
+        }
+        if (subcommand == "produce-conversion-vectors") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_record_artifact(*output, build_conversion_vectors_record());
+            return 0;
+        }
+        if (subcommand == "verify-measure-scalar") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_record_artifact(*input, build_measure_scalar_record(), "measure-scalar");
+            return 0;
+        }
+        if (subcommand == "verify-measure-array") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_record_artifact(*input, build_measure_array_record(), "measure-array");
+            return 0;
+        }
+        if (subcommand == "verify-measure-rich") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_record_artifact(*input, build_measure_rich_record(), "measure-rich");
+            return 0;
+        }
+        if (subcommand == "verify-coord-keywords") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            // Try exact match first; fall back to semantic verification.
+            const auto bytes = read_binary(*input);
+            casacore_mini::AipsIoReader reader(bytes);
+            const auto actual_record = casacore_mini::read_aipsio_record(reader);
+            try {
+                verify_lines_equal("coord-keywords",
+                                   canonical_record_lines(build_coord_keywords_record()),
+                                   canonical_record_lines(actual_record));
+                std::cout << "  coord-keywords: [PASS] exact match\n";
+            } catch (const std::runtime_error&) {
+                verify_coord_keywords_semantic(actual_record, "coord-keywords");
+            }
+            return 0;
+        }
+        if (subcommand == "verify-mixed-coords") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            const auto bytes = read_binary(*input);
+            casacore_mini::AipsIoReader reader(bytes);
+            const auto actual_record = casacore_mini::read_aipsio_record(reader);
+            try {
+                verify_lines_equal("mixed-coords",
+                                   canonical_record_lines(build_mixed_coords_record()),
+                                   canonical_record_lines(actual_record));
+                std::cout << "  mixed-coords: [PASS] exact match\n";
+            } catch (const std::runtime_error&) {
+                verify_mixed_coords_semantic(actual_record, "mixed-coords");
+            }
+            return 0;
+        }
+        if (subcommand == "verify-conversion-vectors") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            const auto bytes = read_binary(*input);
+            casacore_mini::AipsIoReader reader(bytes);
+            const auto actual_record = casacore_mini::read_aipsio_record(reader);
+            try {
+                verify_lines_equal("conversion-vectors",
+                                   canonical_record_lines(build_conversion_vectors_record()),
+                                   canonical_record_lines(actual_record));
+                std::cout << "  conversion-vectors: [PASS] exact match\n";
+            } catch (const std::runtime_error&) {
+                verify_conversion_vectors_semantic(actual_record, "conversion-vectors");
+            }
             return 0;
         }
 

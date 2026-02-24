@@ -209,9 +209,13 @@ Required feature coverage:
   (StandardStMan, IncrementalStMan, TiledColumnStMan, TiledCellStMan,
   TiledShapeStMan, TiledDataStMan) implemented with strict 2x2 matrix
   interoperability. See `docs/phase7/exit_report.md`.
-- Phase 8 (redefined 2026-02-24): full Measures + Coordinates +
-  CoordinateSystems implementation (starts only after Phase 7 completion gate
-  is satisfied).
+- Phase 8 (complete 2026-02-24): full Measures + Coordinates +
+  CoordinateSystems implementation. All 9 measure types with frame-aware
+  conversions (ERFA), 6 coordinate types with WCSLIB projections,
+  CoordinateSystem composition, TableMeasures column integration, and
+  utility layer (CoordinateUtil, FITSCoordinateUtil, GaussianConvert).
+  24/24 interop matrix cells pass. 43 unit tests, 3 hardening test suites.
+  See `docs/phase8/exit_report.md`.
 - Phase 9 (redefined 2026-02-24): full MeasurementSet implementation.
 - Phase 10 (redefined 2026-02-24): full Lattices + Images implementation,
   including lattice expression language compatibility.
@@ -232,8 +236,9 @@ Phase-5 completion summary lives in `docs/phase5/exit_report.md`.
 Phase-6 detailed execution tracking lives in `docs/phase6/plan.md`.
 Phase-7 detailed execution tracking lives in `docs/phase7/plan.md`.
 Phase-8 detailed execution tracking lives in `docs/phase8/plan.md`.
-Phase-9+ detailed plans are created at kickoff and tracked under
-`docs/phase9/`, `docs/phase10/`, and `docs/phase11/`.
+Phase-9 detailed execution tracking lives in `docs/phase9/plan.md`.
+Phase-10+ detailed plans are created at kickoff and tracked under
+`docs/phase10/` and `docs/phase11/`.
 
 ### Mandatory structure for all future phase plans
 
@@ -261,10 +266,18 @@ Minimum required sections:
 10. wave-gate design rules:
    - behavior-based checks that execute real code paths
    - no grep/string-only proxies for functional claims
+   - command exit status is the pass/fail source of truth
    - explicit fail-fast handling for verifier crashes/segfaults
 11. closeout evidence protocol:
    - required clean reruns for final phase gates
+   - use fresh build directories for closeout aggregate reruns
    - command outputs in review packets must be from current branch state
+12. lint profile policy:
+   - lock active lint-check profile at phase kickoff
+   - lint-profile changes require explicit plan update and rationale
+13. API conformance policy:
+   - compatibility-facing API maps must be enforced with
+     symbol-level and exercising-test evidence per required row
 
 Mandatory review artifacts per wave:
 
@@ -359,6 +372,10 @@ When another AI agent contributes implementation, review at least:
    - reported pass/fail counts match current reruns
    - compatibility matrix includes producer self-check validity
      (`casacore->casacore`, `mini->mini`) and cross-check validity
+9. lint and API-surface contract discipline:
+   - lint profile changes are explicit and documented, not ad-hoc
+   - required API-map entries are backed by concrete symbols and
+     exercising tests
 
 ## 9. Phase-Closeout Learning Loop
 
@@ -392,6 +409,10 @@ Carry-forward guardrails (minimum):
 9. require closeout evidence regeneration from clean reruns before marking
    phase complete
 10. forbid completion claims while any required matrix cell fails
+11. lock lint profile at phase start and document any required mid-phase changes
+12. require API-map row-to-symbol and row-to-test traceability for
+    compatibility-facing phases
+13. use fresh build directories for final aggregate reruns
 
 ## 10. Quantitative snapshot
 

@@ -1,0 +1,8 @@
+Phase 8 closeout evidence — regenerated 2026-02-24 on current code.
+
+cmake --build build-phase8 -> SUCCESS (with -Werror)
+ctest --test-dir build-phase8 -> 44/44 pass, 0 fail
+bash tools/check_phase8.sh build-phase8 -> ALL W1-W12 gates PASS
+bash tools/interop/run_phase8_matrix.sh build-phase8 -> 24/24 PASS
+
+Review packet directories: 12/12 present, each with 6 required artifacts.
