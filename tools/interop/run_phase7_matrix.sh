@@ -80,6 +80,10 @@ run_case() {
 
 run_case "record_basic" "write-record-basic" "verify-record-basic" "dump-record"
 run_case "record_nested" "write-record-nested" "verify-record-nested" "dump-record"
+run_case "record_fixture_logtable_time" "write-record-fixture-logtable-time" "verify-record-fixture-logtable-time" "dump-record"
+run_case "record_fixture_ms_table" "write-record-fixture-ms-table" "verify-record-fixture-ms-table" "dump-record"
+run_case "record_fixture_ms_uvw" "write-record-fixture-ms-uvw" "verify-record-fixture-ms-uvw" "dump-record"
+run_case "record_fixture_pagedimage_table" "write-record-fixture-pagedimage-table" "verify-record-fixture-pagedimage-table" "dump-record"
 run_case "table_dat_header" "write-table-dat-header" "verify-table-dat-header" "dump-table-dat-header"
 
 echo "Phase 7 interoperability matrix passed"

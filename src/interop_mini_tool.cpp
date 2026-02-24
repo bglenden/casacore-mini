@@ -389,6 +389,34 @@ void verify_lines_equal(const std::string_view label,
     return metadata;
 }
 
+[[nodiscard]] std::filesystem::path fixture_record_path(const std::string_view fixture_id) {
+    if (fixture_id == "logtable_time") {
+        return std::filesystem::path(
+            "data/corpus/fixtures/logtable_stdstman_keywords/column_TIME_keywords.bin");
+    }
+    if (fixture_id == "ms_table") {
+        return std::filesystem::path("data/corpus/fixtures/ms_tree/table_keywords.bin");
+    }
+    if (fixture_id == "ms_uvw") {
+        return std::filesystem::path("data/corpus/fixtures/ms_tree/column_UVW_keywords.bin");
+    }
+    if (fixture_id == "pagedimage_table") {
+        return std::filesystem::path("data/corpus/fixtures/pagedimage_coords/table_keywords.bin");
+    }
+
+    throw std::runtime_error("unknown fixture record id: " + std::string(fixture_id));
+}
+
+[[nodiscard]] casacore_mini::Record read_fixture_record(const std::string_view fixture_id) {
+    const auto fixture_bytes = read_binary(fixture_record_path(fixture_id));
+    casacore_mini::AipsIoReader fixture_reader(fixture_bytes);
+    auto fixture_record = casacore_mini::read_aipsio_record(fixture_reader);
+    if (!fixture_reader.empty()) {
+        throw std::runtime_error("fixture record has trailing bytes: " + std::string(fixture_id));
+    }
+    return fixture_record;
+}
+
 struct DumpPaths {
     std::filesystem::path input_path;
     std::filesystem::path output_path;
@@ -452,13 +480,42 @@ void verify_table_dat_header_artifact(const std::filesystem::path& input_path,
                        canonical_table_dat_lines(metadata));
 }
 
+void write_fixture_record_artifact(const std::filesystem::path& output_path,
+                                   const std::string_view fixture_id) {
+    casacore_mini::AipsIoWriter writer;
+    casacore_mini::write_aipsio_record(writer, read_fixture_record(fixture_id));
+    write_binary(output_path, writer.take_bytes());
+}
+
+void verify_fixture_record_artifact(const std::filesystem::path& input_path,
+                                    const std::string_view fixture_id, const char* label) {
+    const auto input_bytes = read_binary(input_path);
+    casacore_mini::AipsIoReader input_reader(input_bytes);
+    const auto input_record = casacore_mini::read_aipsio_record(input_reader);
+    if (!input_reader.empty()) {
+        throw std::runtime_error(std::string(label) + " has trailing bytes after Record decode");
+    }
+
+    const auto expected_record = read_fixture_record(fixture_id);
+    verify_lines_equal(label, canonical_record_lines(expected_record),
+                       canonical_record_lines(input_record));
+}
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  interop_mini_tool write-record-basic --output <path>\n"
            "  interop_mini_tool write-record-nested --output <path>\n"
+           "  interop_mini_tool write-record-fixture-logtable-time --output <path>\n"
+           "  interop_mini_tool write-record-fixture-ms-table --output <path>\n"
+           "  interop_mini_tool write-record-fixture-ms-uvw --output <path>\n"
+           "  interop_mini_tool write-record-fixture-pagedimage-table --output <path>\n"
            "  interop_mini_tool write-table-dat-header --output <path>\n"
            "  interop_mini_tool verify-record-basic --input <path>\n"
            "  interop_mini_tool verify-record-nested --input <path>\n"
+           "  interop_mini_tool verify-record-fixture-logtable-time --input <path>\n"
+           "  interop_mini_tool verify-record-fixture-ms-table --input <path>\n"
+           "  interop_mini_tool verify-record-fixture-ms-uvw --input <path>\n"
+           "  interop_mini_tool verify-record-fixture-pagedimage-table --input <path>\n"
            "  interop_mini_tool verify-table-dat-header --input <path>\n"
            "  interop_mini_tool dump-record --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-header --input <path> --output <path>\n";
@@ -488,6 +545,38 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --output");
             }
             write_record_artifact(*output, build_record_nested());
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-logtable-time") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "logtable_time");
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-ms-table") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "ms_table");
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-ms-uvw") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "ms_uvw");
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-pagedimage-table") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "pagedimage_table");
             return 0;
         }
         if (subcommand == "write-table-dat-header") {
@@ -530,6 +619,39 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --input");
             }
             verify_record_artifact(*input, build_record_nested(), "record-nested");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-logtable-time") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "logtable_time", "record-fixture-logtable-time");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-ms-table") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "ms_table", "record-fixture-ms-table");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-ms-uvw") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "ms_uvw", "record-fixture-ms-uvw");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-pagedimage-table") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "pagedimage_table",
+                                           "record-fixture-pagedimage-table");
             return 0;
         }
         if (subcommand == "verify-table-dat-header") {

@@ -389,6 +389,31 @@ void verify_lines_equal(const std::string_view label,
     return casacore::String("PlainTable");
 }
 
+[[nodiscard]] std::filesystem::path fixture_record_path(const std::string_view fixture_id) {
+    if (fixture_id == "logtable_time") {
+        return std::filesystem::path(
+            "data/corpus/fixtures/logtable_stdstman_keywords/column_TIME_keywords.bin");
+    }
+    if (fixture_id == "ms_table") {
+        return std::filesystem::path("data/corpus/fixtures/ms_tree/table_keywords.bin");
+    }
+    if (fixture_id == "ms_uvw") {
+        return std::filesystem::path("data/corpus/fixtures/ms_tree/column_UVW_keywords.bin");
+    }
+    if (fixture_id == "pagedimage_table") {
+        return std::filesystem::path("data/corpus/fixtures/pagedimage_coords/table_keywords.bin");
+    }
+    throw std::runtime_error("unknown fixture record id: " + std::string(fixture_id));
+}
+
+[[nodiscard]] casacore::Record read_fixture_record(const std::string_view fixture_id) {
+    const auto fixture_path = fixture_record_path(fixture_id);
+    casacore::AipsIO input(casacore::String(fixture_path.string()));
+    casacore::Record record;
+    input >> record;
+    return record;
+}
+
 void write_record_artifact(const std::filesystem::path& output_path,
                            const casacore::Record& record) {
     std::filesystem::create_directories(output_path.parent_path());
@@ -486,13 +511,37 @@ void verify_table_dat_header_artifact(const std::filesystem::path& input_path,
         canonical_table_dat_lines(table_version, row_count, endian_flag == 0U, table_type));
 }
 
+void write_fixture_record_artifact(const std::filesystem::path& output_path,
+                                   const std::string_view fixture_id) {
+    write_record_artifact(output_path, read_fixture_record(fixture_id));
+}
+
+void verify_fixture_record_artifact(const std::filesystem::path& input_path,
+                                    const std::string_view fixture_id, const char* label) {
+    casacore::AipsIO input(casacore::String(input_path.string()));
+    casacore::Record actual_record;
+    input >> actual_record;
+
+    const auto expected_record = read_fixture_record(fixture_id);
+    verify_lines_equal(label, canonical_record_lines(expected_record),
+                       canonical_record_lines(actual_record));
+}
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  casacore_interop_tool write-record-basic --output <path>\n"
            "  casacore_interop_tool write-record-nested --output <path>\n"
+           "  casacore_interop_tool write-record-fixture-logtable-time --output <path>\n"
+           "  casacore_interop_tool write-record-fixture-ms-table --output <path>\n"
+           "  casacore_interop_tool write-record-fixture-ms-uvw --output <path>\n"
+           "  casacore_interop_tool write-record-fixture-pagedimage-table --output <path>\n"
            "  casacore_interop_tool write-table-dat-header --output <path>\n"
            "  casacore_interop_tool verify-record-basic --input <path>\n"
            "  casacore_interop_tool verify-record-nested --input <path>\n"
+           "  casacore_interop_tool verify-record-fixture-logtable-time --input <path>\n"
+           "  casacore_interop_tool verify-record-fixture-ms-table --input <path>\n"
+           "  casacore_interop_tool verify-record-fixture-ms-uvw --input <path>\n"
+           "  casacore_interop_tool verify-record-fixture-pagedimage-table --input <path>\n"
            "  casacore_interop_tool verify-table-dat-header --input <path>\n"
            "  casacore_interop_tool dump-record --input <path> --output <path>\n"
            "  casacore_interop_tool dump-table-dat-header --input <path> --output <path>\n";
@@ -521,6 +570,38 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("missing required --output");
             }
             write_record_artifact(*output, build_record_nested());
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-logtable-time") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "logtable_time");
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-ms-table") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "ms_table");
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-ms-uvw") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "ms_uvw");
+            return 0;
+        }
+        if (subcommand == "write-record-fixture-pagedimage-table") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_fixture_record_artifact(*output, "pagedimage_table");
             return 0;
         }
         if (subcommand == "write-table-dat-header") {
@@ -563,6 +644,39 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("missing required --input");
             }
             verify_record_artifact(*input, build_record_nested(), "record-nested");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-logtable-time") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "logtable_time", "record-fixture-logtable-time");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-ms-table") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "ms_table", "record-fixture-ms-table");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-ms-uvw") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "ms_uvw", "record-fixture-ms-uvw");
+            return 0;
+        }
+        if (subcommand == "verify-record-fixture-pagedimage-table") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_fixture_record_artifact(*input, "pagedimage_table",
+                                           "record-fixture-pagedimage-table");
             return 0;
         }
         if (subcommand == "verify-table-dat-header") {

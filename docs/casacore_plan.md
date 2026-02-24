@@ -128,7 +128,9 @@ Decision:
 
 Plan precision policy:
 - Phase 0 is fully specified below.
-- Phases 1+ are intentionally coarse and will be replanned at phase boundaries.
+- Phases 1-6 are historical and remain summarized at roadmap level.
+- Phases 7-11 have explicit scope definitions and are refined at wave
+  boundaries without changing their core objective boundaries unless approved.
 
 ### Phase 0 (detailed): interoperability contract, corpus, and oracle harness
 
@@ -196,9 +198,19 @@ Required feature coverage:
 - Phase 4: image/lattice core capabilities.
 - Phase 5: write-path parity and expanded MS operations.
 - Phase 6: integrated binary keyword/record interoperability and metadata-first table write bootstrap.
-- Phase 7 (final interoperability prove-out): generate rich artifacts in both
-  casacore and casacore-mini, then verify bidirectional full interpretation.
-- Phase 8: optional capabilities (`Dysco`, UDFs, conversion extras, Python bindings).
+- Phase 7 (redefined 2026-02-24): full Tables implementation and
+  interoperability, including full `table.dat` metadata/body handling,
+  directory-level compatibility, and major persistent storage-manager coverage
+  (with explicit, documented autonomy-policy deferrals only for less-used
+  managers).
+- Phase 8 (redefined 2026-02-24): full Measures + Coordinates +
+  CoordinateSystems implementation.
+- Phase 9 (redefined 2026-02-24): full MeasurementSet implementation.
+- Phase 10 (redefined 2026-02-24): full Lattices + Images implementation,
+  including lattice expression language compatibility.
+- Phase 11 (redefined 2026-02-24): remaining capabilities closure; first wave
+  is a full missing-capabilities audit with explicit include/exclude decisions,
+  followed by implementation of accepted remainder.
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
 Phase-1 completion summary lives in `docs/phase1/exit_report.md`.
@@ -212,30 +224,81 @@ Phase-5 detailed execution tracking lives in `docs/phase5/plan.md`.
 Phase-5 completion summary lives in `docs/phase5/exit_report.md`.
 Phase-6 detailed execution tracking lives in `docs/phase6/plan.md`.
 Phase-7 detailed execution tracking lives in `docs/phase7/plan.md`.
+Phase-8+ detailed plans are created at kickoff and tracked under
+`docs/phase8/`, `docs/phase9/`, `docs/phase10/`, and `docs/phase11/`.
 
-### Phase 7 interoperability matrix (concrete workflow)
+### Mandatory structure for all future phase plans
 
-Phase 7 interoperability verification is executed as a producer/consumer matrix:
+Every new `docs/phaseN/plan.md` (N >= 7) must be implementation-ready for a
+delegate AI agent and review-efficient for a separate reviewer.
 
-1. producers:
-   - `casacore` helper tool writes scoped interoperability artifacts
-   - `casacore-mini` helper tool writes the same logical artifacts
-2. consumers:
-   - `casacore` helper tool reads + canonical-dumps artifacts
-   - `casacore-mini` helper tool reads + canonical-dumps artifacts
-3. matrix:
+Minimum required sections:
+
+1. objective + explicit definition of done
+2. scope boundaries (`In scope` / `Out of scope`)
+3. execution order/dependencies between waves
+4. required quality/documentation gate commands
+5. workstream table with:
+   - wave ID
+   - status (`Pending/Done/Deferred`)
+   - concrete deliverables
+6. per-wave implementation details containing:
+   - implementation tasks
+   - expected file/module touchpoints
+   - wave-specific check script(s) and acceptance gates
+7. interoperability/evaluation contract (if phase is compatibility-facing)
+8. immediate next step
+9. autonomy policy that allows complete wave execution without waiting for user
+   input during normal implementation flow
+
+Mandatory review artifacts per wave:
+
+1. `docs/phaseN/review/PN-WX/summary.md`
+2. `docs/phaseN/review/PN-WX/files_changed.txt`
+3. `docs/phaseN/review/PN-WX/check_results.txt`
+4. `docs/phaseN/review/PN-WX/matrix_results.json` (or analogous structured
+   result file for non-matrix phases)
+5. `docs/phaseN/review/PN-WX/open_issues.md`
+6. `docs/phaseN/review/PN-WX/decisions.md`
+
+Closure rule:
+
+1. no wave is marked `Done` until required review artifacts exist and are
+   internally consistent with plan claims.
+
+### Phase 7 full-Tables workflow (concrete)
+
+Phase 7 now targets complete Tables functionality (except explicitly deferred,
+less-used storage managers). Verification is still producer/consumer matrix
+based, but at full table scope:
+
+1. table surfaces covered:
+   - full `table.dat` read/write (`TableDesc`, column descriptors, manager metadata)
+   - table directory semantics and sidecar files for supported managers
+   - table and column keywords/records
+   - scalar/array cell and row-level data operations in supported managers
+2. producers:
+   - `casacore` creates reference table artifacts
+   - `casacore-mini` creates equivalent table artifacts
+3. consumers:
+   - both toolchains must open, interpret, and semantically validate both
+     producer outputs
+4. matrix (required):
    - casacore -> casacore
    - casacore -> casacore-mini
    - casacore-mini -> casacore
    - casacore-mini -> casacore-mini
-4. validation:
-   - each matrix cell must pass semantic read/verify checks by both consumers
-   - canonical text dumps are diagnostic artifacts on failure, not the primary
-     pass/fail criterion
-   - no writer is considered compatible unless both readers validate the
-     decoded structure/value content
-5. execution entry point:
-   - `tools/interop/run_phase7_matrix.sh`
+5. validation rules:
+   - semantic structure/value checks are the primary pass/fail gate
+   - canonical dumps are diagnostic artifacts on failure only
+   - no writer is considered compatible unless both readers validate output
+6. storage-manager coverage policy:
+   - target set: `StandardStMan`, `IncrementalStMan`, `TiledShapeStMan`,
+     `TiledDataStMan`, `TiledColumnStMan`, `TiledCellStMan`
+   - any deferral requires explicit rationale, corpus impact assessment, and a
+     concrete carry-forward plan in phase docs
+7. execution entry point:
+   - `tools/interop/run_phase7_matrix.sh` (to be expanded for full-table scope)
 
 Local prerequisite for `casacore` tooling on macOS (from upstream README):
 
@@ -269,6 +332,9 @@ When another AI agent contributes implementation, review at least:
 6. phase accounting accuracy:
    - plan status fields (`Pending/Done/Deferred`) match implementation reality
    - deferred items are explicit and referenced in exit reports
+7. review packet completeness:
+   - required `docs/phaseN/review/PN-WX/*` artifacts exist for claimed-complete
+     waves and contain runnable command/evidence details
 
 ## 9. Phase-Closeout Learning Loop
 
@@ -296,6 +362,8 @@ Carry-forward guardrails (minimum):
 5. ensure phase checks verify critical new capabilities directly
 6. before marking a workstream done, cross-check plan claims against provenance
    and active integration points (not only standalone tests)
+7. enforce the mandatory phase-plan structure and per-wave review artifacts for
+   every new phase kickoff
 
 ## 10. Quantitative snapshot
 
