@@ -9,6 +9,7 @@
 #include <casacore/casa/Utilities/DataType.h>
 #include <casacore/casa/aips.h>
 #include <casacore/tables/Tables/ColumnDesc.h>
+#include <casacore/tables/DataMan/IncrementalStMan.h>
 #include <casacore/tables/DataMan/TiledCellStMan.h>
 #include <casacore/tables/DataMan/TiledColumnStMan.h>
 #include <casacore/tables/DataMan/TiledDataStMan.h>
@@ -783,6 +784,51 @@ void dump_table_dir_artifact(const std::filesystem::path& input_dir,
     write_text(output_path, read_table_dir_canonical(input_dir));
 }
 
+// --- ISM table directory interop ---
+
+/// Create a table with IncrementalStMan: 3 scalar columns, 10 rows.
+/// Col "time" is Double, col "antenna" is Int, col "flag" is Bool.
+void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
+    std::filesystem::remove_all(output_dir);
+
+    casacore::TableDesc td("test_ism", casacore::TableDesc::Scratch);
+    td.addColumn(casacore::ScalarColumnDesc<casacore::Double>("time"));
+    td.addColumn(casacore::ScalarColumnDesc<casacore::Int>("antenna"));
+    td.addColumn(casacore::ScalarColumnDesc<casacore::Bool>("flag"));
+
+    casacore::IncrementalStMan ism("ISMData");
+    casacore::SetupNewTable setup(casacore::String(output_dir.string()), td, casacore::Table::New);
+    setup.bindAll(ism);
+    casacore::Table table(setup, 10);
+
+    casacore::ScalarColumn<casacore::Double> col_time(table, "time");
+    casacore::ScalarColumn<casacore::Int> col_antenna(table, "antenna");
+    casacore::ScalarColumn<casacore::Bool> col_flag(table, "flag");
+
+    for (casacore::uInt i = 0; i < 10; ++i) {
+        col_time.put(i, 4.8e9 + static_cast<casacore::Double>(i) * 10.0);
+        col_antenna.put(i, static_cast<casacore::Int>(i % 3));
+        col_flag.put(i, (i % 2) == 0);
+    }
+    table.flush(true);
+}
+
+/// Expected canonical lines for ISM table.
+[[nodiscard]] std::vector<std::string> expected_ism_meta() {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=10");
+    lines.emplace_back("ncol=3");
+    lines.emplace_back("col[0].name_b64=" + base64_encode("time"));
+    lines.emplace_back("col[0].dtype=TpDouble");
+    lines.emplace_back("col[1].name_b64=" + base64_encode("antenna"));
+    lines.emplace_back("col[1].dtype=TpInt");
+    lines.emplace_back("col[2].name_b64=" + base64_encode("flag"));
+    lines.emplace_back("col[2].dtype=TpBool");
+    lines.emplace_back("sm_file_count=*");
+    return lines;
+}
+
 // --- tiled table directory interop ---
 
 /// Create a table with TiledColumnStMan: 2 array columns, 10 rows.
@@ -1003,6 +1049,8 @@ void verify_tiled_dir_artifact(const std::filesystem::path& input_dir,
            "  casacore_interop_tool dump-record --input <path> --output <path>\n"
            "  casacore_interop_tool dump-table-dat-header --input <path> --output <path>\n"
            "  casacore_interop_tool dump-table-dat-full --input <path> --output <path>\n"
+           "  casacore_interop_tool write-ism-dir --output <dir>\n"
+           "  casacore_interop_tool verify-ism-dir --input <dir>\n"
            "  casacore_interop_tool dump-table-dir --input <dir> --output <path>\n";
 }
 
@@ -1194,6 +1242,23 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("missing required --input/--output");
             }
             dump_table_dir_artifact(*input, *output);
+            return 0;
+        }
+        // --- ISM directory commands ---
+        if (subcommand == "write-ism-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_ism_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ism-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_tiled_dir_artifact(*input, expected_ism_meta(), "ism-dir");
             return 0;
         }
         // --- tiled directory commands ---

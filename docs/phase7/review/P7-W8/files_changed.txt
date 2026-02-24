@@ -1,0 +1,11 @@
+tools/interop/casacore_interop_tool.cpp
+src/interop_mini_tool.cpp
+tools/interop/run_phase7_matrix.sh
+tools/check_phase7_w8.sh
+tools/check_ci_build_lint_test_coverage.sh
+docs/phase7/review/P7-W8/summary.md
+docs/phase7/review/P7-W8/files_changed.txt
+docs/phase7/review/P7-W8/check_results.txt
+docs/phase7/review/P7-W8/matrix_results.json
+docs/phase7/review/P7-W8/open_issues.md
+docs/phase7/review/P7-W8/decisions.md

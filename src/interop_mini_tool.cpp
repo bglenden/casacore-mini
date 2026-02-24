@@ -812,6 +812,75 @@ void verify_tiled_dir_artifact(const std::filesystem::path& input_dir,
     verify_lines_equal(label, expected_meta, actual_meta);
 }
 
+/// Build expected metadata lines for the IncrementalStMan test table.
+[[nodiscard]] std::vector<std::string> expected_ism_meta() {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=10");
+    lines.emplace_back("ncol=3");
+    lines.emplace_back("col[0].name_b64=" + base64_encode("time"));
+    lines.emplace_back("col[0].dtype=TpDouble");
+    lines.emplace_back("col[1].name_b64=" + base64_encode("antenna"));
+    lines.emplace_back("col[1].dtype=TpInt");
+    lines.emplace_back("col[2].name_b64=" + base64_encode("flag"));
+    lines.emplace_back("col[2].dtype=TpBool");
+    lines.emplace_back("sm_file_count=*");
+    return lines;
+}
+
+/// Build a TableDatFull for an IncrementalStMan table.
+[[nodiscard]] casacore_mini::TableDatFull build_ism_table_dat() {
+    casacore_mini::TableDatFull full;
+    full.table_version = 2;
+    full.row_count = 10;
+    full.big_endian = true;
+    full.table_type = "PlainTable";
+    full.table_desc.version = 2;
+    full.table_desc.name = "test_ism";
+
+    auto make_col = [](const std::string& name, casacore_mini::DataType dtype) {
+        casacore_mini::ColumnDesc col;
+        col.kind = casacore_mini::ColumnKind::scalar;
+        col.name = name;
+        col.data_type = dtype;
+        col.dm_type = "IncrementalStMan";
+        col.dm_group = "ISMData";
+        col.type_string = "ScalarColumnDesc<Int     >";
+        col.version = 1;
+        return col;
+    };
+
+    full.table_desc.columns.push_back(make_col("time", casacore_mini::DataType::tp_double));
+    full.table_desc.columns.push_back(make_col("antenna", casacore_mini::DataType::tp_int));
+    full.table_desc.columns.push_back(make_col("flag", casacore_mini::DataType::tp_bool));
+
+    casacore_mini::StorageManagerSetup sm;
+    sm.type_name = "IncrementalStMan";
+    sm.sequence_number = 0;
+    full.storage_managers.push_back(sm);
+
+    for (const auto& col : full.table_desc.columns) {
+        casacore_mini::ColumnManagerSetup cms;
+        cms.column_name = col.name;
+        cms.sequence_number = 0;
+        full.column_setups.push_back(cms);
+    }
+
+    full.post_td_row_count = 10;
+    return full;
+}
+
+void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
+    casacore_mini::write_table_directory(output_dir.string(), build_ism_table_dat());
+}
+
+void verify_ism_dir_artifact(const std::filesystem::path& input_dir, const std::string_view label) {
+    const auto td = casacore_mini::read_table_directory(input_dir.string());
+    const auto actual_lines = canonical_table_dir_lines(td);
+    const auto actual_meta = strip_sm_file_lines(actual_lines);
+    verify_lines_equal(label, expected_ism_meta(), actual_meta);
+}
+
 /// Build a TableDatFull for a TiledColumnStMan table (mini can only write table.dat).
 [[nodiscard]] casacore_mini::TableDatFull build_tiled_col_table_dat() {
     casacore_mini::TableDatFull full;
@@ -1000,6 +1069,7 @@ void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
            "  interop_mini_tool write-table-dat-header --output <path>\n"
            "  interop_mini_tool write-table-dat-full --output <path>\n"
            "  interop_mini_tool write-table-dir --output <dir>\n"
+           "  interop_mini_tool write-ism-dir --output <dir>\n"
            "  interop_mini_tool write-tiled-col-dir --output <dir>\n"
            "  interop_mini_tool write-tiled-cell-dir --output <dir>\n"
            "  interop_mini_tool write-tiled-shape-dir --output <dir>\n"
@@ -1013,6 +1083,7 @@ void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
            "  interop_mini_tool verify-table-dat-header --input <path>\n"
            "  interop_mini_tool verify-table-dat-full --input <path>\n"
            "  interop_mini_tool verify-table-dir --input <dir>\n"
+           "  interop_mini_tool verify-ism-dir --input <dir>\n"
            "  interop_mini_tool verify-tiled-col-dir --input <dir>\n"
            "  interop_mini_tool verify-tiled-cell-dir --input <dir>\n"
            "  interop_mini_tool verify-tiled-shape-dir --input <dir>\n"
@@ -1212,6 +1283,23 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --input/--output");
             }
             dump_table_dir_artifact(*input, *output);
+            return 0;
+        }
+        // --- ISM directory commands ---
+        if (subcommand == "write-ism-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_ism_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ism-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ism_dir_artifact(*input, "ism-dir");
             return 0;
         }
         // --- tiled directory commands ---
