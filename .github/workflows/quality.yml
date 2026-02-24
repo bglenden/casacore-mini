@@ -78,6 +78,8 @@ jobs:
         run: bash tools/check_phase4.sh
       - name: Phase 5 checks
         run: bash tools/check_phase5.sh build
+      - name: Phase 6 checks
+        run: bash tools/check_phase6.sh build
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - name: Coverage gate

@@ -253,6 +253,8 @@ Carry-forward guardrails (minimum):
 3. require malformed-input and boundary tests for all new binary parsers/writers
 4. keep API docs and behavior aligned (especially throws and fidelity semantics)
 5. ensure phase checks verify critical new capabilities directly
+6. before marking a workstream done, cross-check plan claims against provenance
+   and active integration points (not only standalone tests)
 
 ## 10. Quantitative snapshot
 

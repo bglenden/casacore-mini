@@ -67,6 +67,13 @@ class AipsIoWriter {
     void write_object_header(std::uint32_t object_length, std::string_view object_type,
                              std::uint32_t object_version);
 
+    /// Overwrite 4 bytes at @p position with big-endian @p value.
+    ///
+    /// Used to back-patch object-length fields after the body is written.
+    ///
+    /// @throws std::out_of_range if @p position + 4 exceeds current buffer size.
+    void patch_u32(std::size_t position, std::uint32_t value);
+
   private:
     void write_bytes(const std::uint8_t* data, std::size_t count);
 

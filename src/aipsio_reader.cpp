@@ -108,6 +108,9 @@ std::string AipsIoReader::read_string() {
         throw std::runtime_error("AipsIO string size does not fit size_t");
     }
     const auto size = static_cast<std::size_t>(size_u32);
+    if (size > remaining()) {
+        throw std::runtime_error("AipsIO string length exceeds remaining bytes");
+    }
     const auto bytes = read_bytes(size);
     return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
 }

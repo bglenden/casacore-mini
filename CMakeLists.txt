@@ -104,7 +104,10 @@ add_library(
   src/aipsio_reader.cpp
   src/aipsio_writer.cpp
   src/aipsio_record_reader.cpp
+  src/aipsio_record_writer.cpp
+  src/record_metadata.cpp
   src/table_dat.cpp
+  src/table_dat_writer.cpp
   src/table_schema.cpp
   src/measure_coord_metadata.cpp
   src/keyword_record.cpp)
@@ -169,6 +172,36 @@ target_compile_definitions(
   keyword_record_test
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME keyword_record_test COMMAND keyword_record_test)
+
+add_executable(aipsio_record_writer_test tests/aipsio_record_writer_test.cpp)
+target_link_libraries(
+  aipsio_record_writer_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME aipsio_record_writer_test COMMAND aipsio_record_writer_test)
+
+add_executable(record_metadata_test tests/record_metadata_test.cpp)
+target_link_libraries(
+  record_metadata_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  record_metadata_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME record_metadata_test COMMAND record_metadata_test)
+
+add_executable(table_dat_writer_test tests/table_dat_writer_test.cpp)
+target_link_libraries(
+  table_dat_writer_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  table_dat_writer_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME table_dat_writer_test COMMAND table_dat_writer_test)
+
+add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
+target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  aipsio_fixture_gen
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 add_executable(table_schema_cli src/table_schema_cli.cpp)
 target_link_libraries(table_schema_cli PRIVATE casacore_mini_core casacore_mini_project_options)

@@ -3,6 +3,7 @@
 #include "casacore_mini/aipsio_reader.hpp"
 
 #include <bit>
+#include <stdexcept>
 #include <type_traits>
 
 namespace casacore_mini {
@@ -100,6 +101,16 @@ void AipsIoWriter::write_object_header(const std::uint32_t object_length,
     write_u32(object_length);
     write_string(object_type);
     write_u32(object_version);
+}
+
+void AipsIoWriter::patch_u32(const std::size_t position, const std::uint32_t value) {
+    if (position + sizeof(std::uint32_t) > buffer_.size()) {
+        throw std::out_of_range("patch_u32 position exceeds buffer size");
+    }
+    for (std::size_t index = 0; index < sizeof(std::uint32_t); ++index) {
+        const auto shift = static_cast<unsigned int>((sizeof(std::uint32_t) - 1U - index) * 8U);
+        buffer_[position + index] = static_cast<std::uint8_t>((value >> shift) & 0xFFU);
+    }
 }
 
 } // namespace casacore_mini

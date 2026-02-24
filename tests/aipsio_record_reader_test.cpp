@@ -377,6 +377,94 @@ bool test_string_array_field() {
                        "string array values mismatch");
 }
 
+bool test_rejects_huge_array_count() {
+    // Stream claims millions of elements but only has a few bytes of data.
+    constexpr std::int32_t kTpArrayDouble = 21;
+
+    RecordBuilder builder;
+    builder.begin_record({{"data", kTpArrayDouble}});
+    // Array header with shape [1000000], claiming 1000000 elements, but no actual data.
+    builder.begin_array("Array<double>", {1000000}, 1000000);
+
+    auto bytes = builder.take_bytes();
+    casacore_mini::AipsIoReader reader(bytes);
+
+    try {
+        static_cast<void>(casacore_mini::read_aipsio_record(reader));
+    } catch (const std::runtime_error&) {
+        return true;
+    }
+    std::cerr << "reader accepted implausible array element count\n";
+    return false;
+}
+
+bool test_rejects_insufficient_bytes_for_fixed_width_array() {
+    constexpr std::int32_t kTpArrayDouble = 21;
+
+    RecordBuilder builder;
+    builder.begin_record({{"data", kTpArrayDouble}});
+    // Claims 10 elements but only writes 2 doubles of payload.
+    builder.begin_array("Array<double>", {10}, 10);
+    builder.write_f64(1.0);
+    builder.write_f64(2.0);
+
+    auto bytes = builder.take_bytes();
+    casacore_mini::AipsIoReader reader(bytes);
+
+    try {
+        static_cast<void>(casacore_mini::read_aipsio_record(reader));
+    } catch (const std::runtime_error& error) {
+        const std::string message = error.what();
+        return expect_true(message.find("plausible stream size") != std::string::npos,
+                           "unexpected error for fixed-width array plausibility guard");
+    }
+    std::cerr << "reader accepted array with impossible fixed-width payload\n";
+    return false;
+}
+
+bool test_rejects_huge_field_count() {
+    // Manually craft a stream with a RecordDesc claiming huge nfields.
+    casacore_mini::AipsIoWriter writer;
+    writer.write_object_header(0U, "Record", 1U);
+    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_i32(999999); // nfields — way more than remaining bytes can support
+    // No actual field data follows.
+
+    auto bytes = writer.take_bytes();
+    casacore_mini::AipsIoReader reader(bytes);
+
+    try {
+        static_cast<void>(casacore_mini::read_aipsio_record(reader));
+    } catch (const std::runtime_error&) {
+        return true;
+    }
+    std::cerr << "reader accepted implausible field count\n";
+    return false;
+}
+
+bool test_rejects_negative_field_type() {
+    // Field type code out of known range should throw.
+    casacore_mini::AipsIoWriter writer;
+    writer.write_object_header(0U, "Record", 1U);
+    writer.write_object_header(0U, "RecordDesc", 2U);
+    writer.write_i32(1); // nfields = 1
+    writer.write_string("bad_field");
+    writer.write_i32(99);    // invalid type code
+    writer.write_string(""); // comment
+    writer.write_i32(1);     // recordType
+
+    auto bytes = writer.take_bytes();
+    casacore_mini::AipsIoReader reader(bytes);
+
+    try {
+        static_cast<void>(casacore_mini::read_aipsio_record(reader));
+    } catch (const std::runtime_error&) {
+        return true;
+    }
+    std::cerr << "reader accepted invalid field type code\n";
+    return false;
+}
+
 } // namespace
 
 int main() noexcept {
@@ -397,6 +485,18 @@ int main() noexcept {
             return 1;
         }
         if (!test_string_array_field()) {
+            return 1;
+        }
+        if (!test_rejects_huge_array_count()) {
+            return 1;
+        }
+        if (!test_rejects_insufficient_bytes_for_fixed_width_array()) {
+            return 1;
+        }
+        if (!test_rejects_huge_field_count()) {
+            return 1;
+        }
+        if (!test_rejects_negative_field_type()) {
             return 1;
         }
     } catch (const std::exception& error) {

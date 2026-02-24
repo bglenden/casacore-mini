@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace casacore_mini {
@@ -62,6 +63,11 @@ std::vector<std::uint64_t> read_iposition(AipsIoReader& reader) {
     }
 
     const auto nelements = static_cast<std::size_t>(reader.read_u32());
+    // Each dimension is at least 4 bytes (i32 for v1, i64 for v2).
+    constexpr std::size_t kMinBytesPerDim = 4;
+    if (nelements > reader.remaining() / kMinBytesPerDim) {
+        throw std::runtime_error("IPosition element count exceeds plausible stream size");
+    }
     std::vector<std::uint64_t> values;
     values.reserve(nelements);
     for (std::size_t index = 0; index < nelements; ++index) {
@@ -94,6 +100,11 @@ std::vector<FieldDesc> read_record_desc(AipsIoReader& reader) {
         throw std::runtime_error("RecordDesc field count is negative");
     }
     const auto nfields = static_cast<std::size_t>(nfields_raw);
+    // Each field needs at least 8 bytes (4-byte name length + 4-byte type code).
+    constexpr std::size_t kMinBytesPerField = 8;
+    if (nfields > reader.remaining() / kMinBytesPerField) {
+        throw std::runtime_error("RecordDesc field count exceeds plausible stream size");
+    }
     std::vector<FieldDesc> fields;
     fields.reserve(nfields);
     for (std::size_t index = 0; index < nfields; ++index) {
@@ -154,6 +165,21 @@ RecordArray<element_t> read_aipsio_array(AipsIoReader& reader, reader_fn&& read_
     }
 
     const auto nelements = static_cast<std::size_t>(reader.read_u32());
+    // Guard allocations using an element-type-aware minimum encoded width.
+    constexpr std::size_t kMinBytesPerElement = []() {
+        if constexpr (std::is_same_v<element_t, std::string>) {
+            return sizeof(std::uint32_t); // String length prefix only; payload may be empty.
+        } else if constexpr (std::is_same_v<element_t, std::complex<float>>) {
+            return sizeof(std::uint32_t) * 2U;
+        } else if constexpr (std::is_same_v<element_t, std::complex<double>>) {
+            return sizeof(std::uint64_t) * 2U;
+        } else {
+            return sizeof(element_t);
+        }
+    }();
+    if (nelements > reader.remaining() / kMinBytesPerElement) {
+        throw std::runtime_error("Array element count exceeds plausible stream size");
+    }
     result.elements.reserve(nelements);
     for (std::size_t index = 0; index < nelements; ++index) {
         result.elements.push_back(read_element(reader));
@@ -183,6 +209,9 @@ RecordArray<std::int32_t> read_aipsio_bool_array(AipsIoReader& reader) {
 
     const auto nelements = static_cast<std::size_t>(reader.read_u32());
     const auto packed_bytes = (nelements + 7U) / 8U;
+    if (packed_bytes > reader.remaining()) {
+        throw std::runtime_error("Bool array packed size exceeds remaining bytes");
+    }
     result.elements.reserve(nelements);
     std::size_t decoded = 0;
     for (std::size_t byte_index = 0; byte_index < packed_bytes; ++byte_index) {
