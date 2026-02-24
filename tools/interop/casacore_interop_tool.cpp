@@ -19,12 +19,14 @@
 #include <casacore/tables/Tables/ArrayColumn.h>
 #include <casacore/tables/Tables/ScaColDesc.h>
 #include <casacore/tables/Tables/ScalarColumn.h>
+#include <casacore/tables/Tables/TableColumn.h>
 #include <casacore/tables/Tables/SetupNewTab.h>
 #include <casacore/tables/Tables/Table.h>
 #include <casacore/tables/Tables/TableAttr.h>
 #include <casacore/tables/Tables/TableDesc.h>
 
 #include <algorithm>
+#include <cmath>
 #include <complex>
 #include <cstdint>
 #include <filesystem>
@@ -40,6 +42,9 @@
 #include <vector>
 
 namespace {
+
+constexpr float kFloat32Tolerance = 1e-6F;
+constexpr double kFloat64Tolerance = 1e-10;
 
 [[nodiscard]] std::string base64_encode(const std::string_view input) {
     static constexpr char kAlphabet[] =
@@ -705,6 +710,16 @@ void write_table_dir_artifact(const std::filesystem::path& output_dir) {
         col_label.put(i, casacore::String("row_") + casacore::String::toString(i));
         col_dval.put(i, static_cast<casacore::Double>(i) * 3.14);
     }
+
+    // Table keywords: observer, telescope, version.
+    table.rwKeywordSet().define("observer", casacore::String("test_user"));
+    table.rwKeywordSet().define("telescope", casacore::String("VLA"));
+    table.rwKeywordSet().define("version", static_cast<casacore::Int>(2));
+
+    // Column keyword on "value": UNIT = "Jy".
+    casacore::TableColumn tc_value(table, "value");
+    tc_value.rwKeywordSet().define("UNIT", casacore::String("Jy"));
+
     table.flush(true);
 }
 
@@ -712,7 +727,7 @@ void write_table_dir_artifact(const std::filesystem::path& output_dir) {
 [[nodiscard]] std::vector<std::string>
 read_table_dir_canonical(const std::filesystem::path& input_dir) {
     casacore::Table table(casacore::String(input_dir.string()), casacore::Table::Old);
-    const auto& td = table.tableDesc();
+    const auto td = table.actualTableDesc();
 
     std::vector<std::string> lines;
     lines.emplace_back("kind=table_dir");
@@ -777,6 +792,115 @@ void verify_table_dir_artifact(const std::filesystem::path& input_dir,
         actual_meta.push_back(line);
     }
     verify_lines_equal(label, expected_meta, actual_meta);
+
+    // Open table for semantic checks.
+    casacore::Table table(casacore::String(input_dir.string()),
+                          casacore::Table::Old);
+    const auto td = table.actualTableDesc();
+
+    std::cout << "  " << label << ": [PASS] structure ("
+              << table.nrow() << " rows, " << td.ncolumn() << " cols)\n";
+
+    // Table keywords (content verification).
+    {
+        casacore::Record expected_tkw;
+        expected_tkw.define("observer", casacore::String("test_user"));
+        expected_tkw.define("telescope", casacore::String("VLA"));
+        expected_tkw.define("version", static_cast<casacore::Int>(2));
+        verify_lines_equal(std::string(label) + ":table_keywords",
+            canonical_record_lines(expected_tkw),
+            canonical_record_lines(table.keywordSet()));
+    }
+    std::cout << "  " << label << ": [PASS] table_keywords ("
+              << table.keywordSet().nfields() << " fields, content verified)\n";
+
+    // Per-column keywords (content verification).
+    {
+        // "value" column should have UNIT="Jy"; others should be empty.
+        for (casacore::uInt ci = 0; ci < td.ncolumn(); ++ci) {
+            casacore::Record expected_ckw;
+            if (td.columnDesc(ci).name() == "value") {
+                expected_ckw.define("UNIT", casacore::String("Jy"));
+            }
+            verify_lines_equal(
+                std::string(label) + ":col[" + std::to_string(ci) + "]_keywords",
+                canonical_record_lines(expected_ckw),
+                canonical_record_lines(td.columnDesc(ci).keywordSet()));
+        }
+    }
+    {
+        std::size_t total_col_kw = 0;
+        for (casacore::uInt ci = 0; ci < td.ncolumn(); ++ci) {
+            total_col_kw += td.columnDesc(ci).keywordSet().nfields();
+        }
+        std::cout << "  " << label << ": [PASS] col_keywords ("
+                  << td.ncolumn() << " cols, " << total_col_kw
+                  << " fields total, content verified)\n";
+    }
+
+    // SM mapping: all columns should use StandardStMan.
+    for (casacore::uInt ci = 0; ci < td.ncolumn(); ++ci) {
+        const auto dm_type = td.columnDesc(ci).dataManagerType();
+        if (dm_type != "StandardStMan" && dm_type != "SSM") {
+            throw std::runtime_error(
+                std::string(label) + ": col " + std::string(td.columnDesc(ci).name().c_str()) +
+                " has dm_type=" + std::string(dm_type.c_str()) +
+                " expected StandardStMan");
+        }
+    }
+    std::cout << "  " << label << ": [PASS] sm_mapping ("
+              << td.ncolumn() << " cols -> StandardStMan)\n";
+
+    // --- Cell-value verification using casacore ScalarColumn ---
+    const auto f0_path = input_dir / "table.f0";
+    if (std::filesystem::exists(f0_path)) {
+        if (table.nrow() != 5) {
+            throw std::runtime_error(std::string(label) +
+                                     ": expected 5 rows, got " +
+                                     std::to_string(table.nrow()));
+        }
+
+        casacore::ScalarColumn<casacore::Int> col_id(table, "id");
+        casacore::ScalarColumn<casacore::Float> col_value(table, "value");
+        casacore::ScalarColumn<casacore::String> col_label(table, "label");
+        casacore::ScalarColumn<casacore::Double> col_dval(table, "dval");
+
+        const casacore::Int expected_id[] = {0, 10, 20, 30, 40};
+        const casacore::Float expected_val[] = {0.0F, 1.5F, 3.0F, 4.5F, 6.0F};
+        const casacore::String expected_lbl[] = {"row_0", "row_1", "row_2",
+                                                  "row_3", "row_4"};
+        const casacore::Double expected_dv[] = {0.0, 3.14, 6.28, 9.42, 12.56};
+
+        for (casacore::uInt r = 0; r < 5; ++r) {
+            if (col_id(r) != expected_id[r]) {
+                throw std::runtime_error(
+                    std::string(label) + ": id[" + std::to_string(r) +
+                    "] mismatch: expected " + std::to_string(expected_id[r]) +
+                    " got " + std::to_string(col_id(r)));
+            }
+            if (std::fabs(col_value(r) - expected_val[r]) > kFloat32Tolerance) {
+                throw std::runtime_error(
+                    std::string(label) + ": value[" + std::to_string(r) +
+                    "] mismatch");
+            }
+            if (col_label(r) != expected_lbl[r]) {
+                throw std::runtime_error(
+                    std::string(label) + ": label[" + std::to_string(r) +
+                    "] mismatch: expected '" +
+                    std::string(expected_lbl[r].c_str()) + "'");
+            }
+            if (std::fabs(col_dval(r) - expected_dv[r]) > kFloat64Tolerance) {
+                throw std::runtime_error(
+                    std::string(label) + ": dval[" + std::to_string(r) +
+                    "] mismatch");
+            }
+        }
+        std::cout << "  " << label
+                  << ": [PASS] cell_values (20 cells, float tol=1e-6, double tol=1e-10)\n";
+    } else {
+        std::cout << "  " << label
+                  << ": SSM data file not present; cell verification skipped\n";
+    }
 }
 
 void dump_table_dir_artifact(const std::filesystem::path& input_dir,
@@ -810,6 +934,24 @@ void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
         col_antenna.put(i, static_cast<casacore::Int>(i % 3));
         col_flag.put(i, (i % 2) == 0);
     }
+
+    // Table keywords: instrument, epoch.
+    table.rwKeywordSet().define("instrument", casacore::String("ALMA"));
+    table.rwKeywordSet().define("epoch", static_cast<casacore::Double>(4.8e9));
+
+    // Column keywords on "time": MEASINFO (sub-Record) and QuantumUnits (string_array).
+    {
+        casacore::TableColumn tc_time(table, "time");
+        casacore::Record measinfo;
+        measinfo.define("type", casacore::String("epoch"));
+        measinfo.define("Ref", casacore::String("UTC"));
+        tc_time.rwKeywordSet().defineRecord("MEASINFO", measinfo);
+
+        casacore::Array<casacore::String> qu_arr(casacore::IPosition(1, 1));
+        qu_arr(casacore::IPosition(1, 0)) = casacore::String("s");
+        tc_time.rwKeywordSet().define("QuantumUnits", qu_arr);
+    }
+
     table.flush(true);
 }
 
@@ -1010,12 +1152,228 @@ strip_sm_file_lines(const std::vector<std::string>& lines) {
     return result;
 }
 
-void verify_tiled_dir_artifact(const std::filesystem::path& input_dir,
-                                const std::vector<std::string>& expected_meta,
-                                const std::string_view label) {
+/// Shared verification of directory structure and semantics via casacore Table.
+/// Checks metadata lines, opens the table, prints structure / keywords / SM mapping.
+/// expected_table_kw: expected table-level keywords (content verified).
+/// expected_col_kw: map of column name -> expected keyword Record (if any).
+void verify_dir_structure_and_semantics(
+    const std::filesystem::path& input_dir,
+    const std::vector<std::string>& expected_meta,
+    const std::string_view label,
+    const std::string& expected_dm,
+    const casacore::Record& expected_table_kw,
+    const std::vector<std::pair<std::string, casacore::Record>>& expected_col_kw) {
     auto actual_lines = read_table_dir_canonical(input_dir);
     auto actual_meta = strip_sm_file_lines(actual_lines);
     verify_lines_equal(label, expected_meta, actual_meta);
+
+    casacore::Table table(casacore::String(input_dir.string()));
+    const auto td = table.actualTableDesc();
+
+    std::cout << "  " << label << ": [PASS] structure ("
+              << table.nrow() << " rows, " << td.ncolumn() << " cols)\n";
+
+    // Table keywords (content verification).
+    verify_lines_equal(std::string(label) + ":table_keywords",
+        canonical_record_lines(expected_table_kw),
+        canonical_record_lines(table.keywordSet()));
+    std::cout << "  " << label << ": [PASS] table_keywords ("
+              << table.keywordSet().nfields() << " fields, content verified)\n";
+
+    // Per-column keywords (content verification).
+    for (casacore::uInt ci = 0; ci < td.ncolumn(); ++ci) {
+        casacore::Record expected_ckw;
+        for (const auto& [col_name, kw] : expected_col_kw) {
+            if (std::string(td.columnDesc(ci).name().c_str()) == col_name) {
+                expected_ckw = kw;
+                break;
+            }
+        }
+        verify_lines_equal(
+            std::string(label) + ":col[" + std::to_string(ci) + "]_keywords",
+            canonical_record_lines(expected_ckw),
+            canonical_record_lines(td.columnDesc(ci).keywordSet()));
+    }
+    {
+        std::size_t total_col_kw_count = 0;
+        for (casacore::uInt ci = 0; ci < td.ncolumn(); ++ci) {
+            total_col_kw_count += td.columnDesc(ci).keywordSet().nfields();
+        }
+        std::cout << "  " << label << ": [PASS] col_keywords ("
+                  << td.ncolumn() << " cols, " << total_col_kw_count
+                  << " fields total, content verified)\n";
+    }
+
+    // SM mapping: strict check via dataManagerGroup(), with a fallback to
+    // dataManagerType() for casacore-authored artifacts where group can be
+    // canonicalized to StandardStMan in TableDesc.
+    if (!expected_dm.empty() && td.ncolumn() > 0) {
+        std::string expected_dm_type;
+        if (expected_dm == "ISMData") {
+            expected_dm_type = "IncrementalStMan";
+        } else if (expected_dm == "TiledCol") {
+            expected_dm_type = "TiledColumnStMan";
+        } else if (expected_dm == "TiledCell") {
+            expected_dm_type = "TiledCellStMan";
+        } else if (expected_dm == "TiledShape") {
+            expected_dm_type = "TiledShapeStMan";
+        } else if (expected_dm == "TiledData") {
+            expected_dm_type = "TiledDataStMan";
+        } else {
+            expected_dm_type = expected_dm;
+        }
+
+        std::size_t matched_type_fallback_count = 0;
+        for (casacore::uInt ci = 0; ci < td.ncolumn(); ++ci) {
+            const auto dm_group = std::string(
+                td.columnDesc(ci).dataManagerGroup().c_str());
+            if (dm_group == expected_dm) {
+                continue;
+            }
+
+            const auto dm_type = std::string(
+                td.columnDesc(ci).dataManagerType().c_str());
+            if (dm_type == expected_dm_type) {
+                ++matched_type_fallback_count;
+                continue;
+            }
+
+            if (dm_group != expected_dm) {
+                throw std::runtime_error(
+                    std::string(label) + ": sm_mapping mismatch for col " +
+                    std::string(td.columnDesc(ci).name().c_str()) +
+                    ": expected dm_group=" + expected_dm +
+                    " or dm_type=" + expected_dm_type +
+                    " got dm_group=" + dm_group +
+                    " dm_type=" + dm_type);
+            }
+        }
+        std::cout << "  " << label << ": [PASS] sm_mapping (strict, "
+                  << td.ncolumn() << " cols, dm_group=" << expected_dm;
+        if (matched_type_fallback_count > 0) {
+            std::cout << ", dm_type fallback=" << matched_type_fallback_count;
+        }
+        std::cout << ")\n";
+    }
+}
+
+void verify_tiled_dir_artifact(const std::filesystem::path& input_dir,
+                                const std::vector<std::string>& expected_meta,
+                                const std::string_view label) {
+    // Determine expected DM group from label (matches mini tool's dm_group field).
+    std::string expected_dm;
+    if (label == "tiled-col-dir") {
+        expected_dm = "TiledCol";
+    } else if (label == "tiled-cell-dir") {
+        expected_dm = "TiledCell";
+    } else if (label == "tiled-shape-dir") {
+        expected_dm = "TiledShape";
+    } else if (label == "tiled-data-dir") {
+        expected_dm = "TiledData";
+    }
+
+    // Tiled tables have empty keywords.
+    casacore::Record empty_table_kw;
+    std::vector<std::pair<std::string, casacore::Record>> empty_col_kw;
+    verify_dir_structure_and_semantics(input_dir, expected_meta, label,
+        expected_dm, empty_table_kw, empty_col_kw);
+
+    // TSM-specific: probe for TSM data files.
+    const auto tsm0_path = input_dir / "table.f0_TSM0";
+    const auto tsm1_path = input_dir / "table.f0_TSM1";
+    if (!std::filesystem::exists(tsm0_path) && !std::filesystem::exists(tsm1_path)) {
+        throw std::runtime_error(
+            std::string(label) +
+            ": neither table.f0_TSM0 nor table.f0_TSM1 found; "
+            "cannot verify cell values");
+    }
+
+    casacore::Table table(casacore::String(input_dir.string()));
+
+    std::size_t cells_verified = 0;
+
+    if (label == "tiled-col-dir") {
+        // data[r] = all elements r*0.1F, flags[r] = all elements r.
+        casacore::ArrayColumn<casacore::Float> col_data(table, "data");
+        casacore::ArrayColumn<casacore::Int> col_flags(table, "flags");
+        for (casacore::uInt r = 0; r < 10; ++r) {
+            auto d = col_data.get(r);
+            const auto exp_d = static_cast<casacore::Float>(r) * 0.1F;
+            auto d_iter = d.begin();
+            for (; d_iter != d.end(); ++d_iter) {
+                if (std::fabs(*d_iter - exp_d) > kFloat32Tolerance) {
+                    throw std::runtime_error(
+                        std::string(label) + ": data[" + std::to_string(r) +
+                        "] mismatch: got " + std::to_string(*d_iter) +
+                        " expected " + std::to_string(exp_d));
+                }
+            }
+            auto f = col_flags.get(r);
+            const auto exp_f = static_cast<casacore::Int>(r);
+            auto f_iter = f.begin();
+            for (; f_iter != f.end(); ++f_iter) {
+                if (*f_iter != exp_f) {
+                    throw std::runtime_error(
+                        std::string(label) + ": flags[" + std::to_string(r) +
+                        "] mismatch");
+                }
+            }
+            cells_verified += 2;
+        }
+    } else if (label == "tiled-cell-dir") {
+        // map[r] = all elements r*1.5F.
+        casacore::ArrayColumn<casacore::Float> col_map(table, "map");
+        for (casacore::uInt r = 0; r < 5; ++r) {
+            auto m = col_map.get(r);
+            const auto exp_v = static_cast<casacore::Float>(r) * 1.5F;
+            auto m_iter = m.begin();
+            for (; m_iter != m.end(); ++m_iter) {
+                if (std::fabs(*m_iter - exp_v) > kFloat32Tolerance) {
+                    throw std::runtime_error(
+                        std::string(label) + ": map[" + std::to_string(r) +
+                        "] mismatch");
+                }
+            }
+            ++cells_verified;
+        }
+    } else if (label == "tiled-shape-dir") {
+        // vis[r] = all elements Complex(r, 0.0).
+        casacore::ArrayColumn<casacore::Complex> col_vis(table, "vis");
+        for (casacore::uInt r = 0; r < 5; ++r) {
+            auto v = col_vis.get(r);
+            const auto exp_c = casacore::Complex(static_cast<float>(r), 0.0F);
+            auto v_iter = v.begin();
+            for (; v_iter != v.end(); ++v_iter) {
+                if (std::abs(*v_iter - exp_c) > kFloat32Tolerance) {
+                    throw std::runtime_error(
+                        std::string(label) + ": vis[" + std::to_string(r) +
+                        "] mismatch");
+                }
+            }
+            ++cells_verified;
+        }
+    } else if (label == "tiled-data-dir") {
+        // spectrum[r] = all elements r*0.01F.
+        casacore::ArrayColumn<casacore::Float> col_spec(table, "spectrum");
+        for (casacore::uInt r = 0; r < 5; ++r) {
+            auto s = col_spec.get(r);
+            const auto exp_v = static_cast<casacore::Float>(r) * 0.01F;
+            auto s_iter = s.begin();
+            for (; s_iter != s.end(); ++s_iter) {
+                if (std::fabs(*s_iter - exp_v) > kFloat32Tolerance) {
+                    throw std::runtime_error(
+                        std::string(label) + ": spectrum[" +
+                        std::to_string(r) + "] mismatch");
+                }
+            }
+            ++cells_verified;
+        }
+    }
+
+    if (cells_verified > 0) {
+        std::cout << "  " << label << ": [PASS] cell_values ("
+                  << cells_verified << " cells, float tol=1e-6)\n";
+    }
 }
 
 [[nodiscard]] std::string usage() {
@@ -1258,7 +1616,57 @@ int main(int argc, char** argv) {
             if (!input.has_value()) {
                 throw std::runtime_error("missing required --input");
             }
-            verify_tiled_dir_artifact(*input, expected_ism_meta(), "ism-dir");
+            // Metadata + structure check (no TSM file probe).
+            // Build expected ISM keywords.
+            casacore::Record ism_table_kw;
+            ism_table_kw.define("instrument", casacore::String("ALMA"));
+            ism_table_kw.define("epoch", static_cast<casacore::Double>(4.8e9));
+
+            casacore::Record time_kw;
+            {
+                casacore::Record measinfo;
+                measinfo.define("type", casacore::String("epoch"));
+                measinfo.define("Ref", casacore::String("UTC"));
+                time_kw.defineRecord("MEASINFO", measinfo);
+                casacore::Array<casacore::String> qu_arr(casacore::IPosition(1, 1));
+                qu_arr(casacore::IPosition(1, 0)) = casacore::String("s");
+                time_kw.define("QuantumUnits", qu_arr);
+            }
+            std::vector<std::pair<std::string, casacore::Record>> ism_col_kw;
+            ism_col_kw.emplace_back("time", time_kw);
+
+            verify_dir_structure_and_semantics(
+                *input, expected_ism_meta(), "ism-dir", "ISMData",
+                ism_table_kw, ism_col_kw);
+            // Cell-value check if the table can be opened.
+            const auto f0_path = std::filesystem::path(*input) / "table.f0";
+            if (std::filesystem::exists(f0_path)) {
+                casacore::Table table(casacore::String(input->data()),
+                                      casacore::Table::Old);
+                casacore::ScalarColumn<casacore::Double> col_time(table, "time");
+                casacore::ScalarColumn<casacore::Int> col_antenna(table, "antenna");
+                casacore::ScalarColumn<casacore::Bool> col_flag(table, "flag");
+                for (casacore::uInt i = 0; i < 10; ++i) {
+                    const auto exp_time = 4.8e9 + static_cast<double>(i) * 10.0;
+                    if (std::fabs(col_time(i) - exp_time) > kFloat64Tolerance) {
+                        throw std::runtime_error(
+                            "ism-dir: time[" + std::to_string(i) + "] mismatch");
+                    }
+                    if (col_antenna(i) != static_cast<casacore::Int>(i % 3)) {
+                        throw std::runtime_error(
+                            "ism-dir: antenna[" + std::to_string(i) + "] mismatch");
+                    }
+                    const auto exp_flag = (i % 2) == 0;
+                    if (col_flag(i) != exp_flag) {
+                        throw std::runtime_error(
+                            "ism-dir: flag[" + std::to_string(i) + "] mismatch");
+                    }
+                }
+                std::cout << "  ism-dir: [PASS] cell_values (30 cells, double tol=1e-10)\n";
+            } else {
+                throw std::runtime_error(
+                    "ism-dir: no .f0 file; cannot verify cell values");
+            }
             return 0;
         }
         // --- tiled directory commands ---
