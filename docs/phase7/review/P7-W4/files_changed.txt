@@ -1,0 +1,23 @@
+=== Modified ===
+ CMakeLists.txt                                 |  11 ++
+ include/casacore_mini/aipsio_record_reader.hpp |  17 +++
+ include/casacore_mini/aipsio_record_writer.hpp |  15 +++
+ src/aipsio_record_reader.cpp                   |  11 ++
+ src/aipsio_record_writer.cpp                   |  13 ++
+ src/interop_mini_tool.cpp                      | 146 ++++++++++++++++++++-
+ tools/check_ci_build_lint_test_coverage.sh     |   1 +
+ tools/interop/casacore_interop_tool.cpp        | 171 ++++++++++++++++++++++++-
+ tools/interop/run_phase7_matrix.sh             |   1 +
+ 9 files changed, 383 insertions(+), 3 deletions(-)
+
+=== New ===
+docs/phase7/review/P7-W4/decisions.md
+docs/phase7/review/P7-W4/files_changed.txt
+docs/phase7/review/P7-W4/open_issues.md
+docs/phase7/review/P7-W4/summary.md
+include/casacore_mini/table_desc.hpp
+include/casacore_mini/table_desc_writer.hpp
+src/table_desc.cpp
+src/table_desc_writer.cpp
+tests/table_desc_test.cpp
+tools/check_phase7_w4.sh

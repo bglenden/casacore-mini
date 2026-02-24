@@ -362,4 +362,15 @@ Record read_aipsio_record(AipsIoReader& reader) {
     return read_aipsio_record_impl(reader, true);
 }
 
+Record read_aipsio_embedded_record(AipsIoReader& reader) {
+    return read_aipsio_record_impl(reader, false);
+}
+
+Record read_aipsio_record_body(AipsIoReader& reader) {
+    // Read RecordDesc + recordType + field values directly (no Record header).
+    const auto fields = read_record_desc(reader);
+    static_cast<void>(reader.read_i32()); // recordType
+    return read_record_fields(reader, fields, 0U);
+}
+
 } // namespace casacore_mini

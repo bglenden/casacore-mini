@@ -1,0 +1,5 @@
+check_format.sh: PASS (clang-format check passed for 50 files)
+check_ci_build_lint_test_coverage.sh: PASS (87% line coverage)
+check_docs.sh: PASS
+check_phase7_w4.sh: PASS (table_desc_test passes)
+run_phase7_matrix.sh: PASS (all table_dat_full matrix cells pass)

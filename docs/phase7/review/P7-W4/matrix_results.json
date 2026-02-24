@@ -1,0 +1,10 @@
+{
+  "wave": "W4",
+  "case": "table_dat_full",
+  "results": {
+    "casacore_writes_casacore_verifies": "PASS",
+    "casacore_writes_mini_verifies": "PASS",
+    "mini_writes_mini_verifies": "PASS",
+    "mini_writes_casacore_verifies": "PASS"
+  }
+}

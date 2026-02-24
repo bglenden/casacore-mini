@@ -85,5 +85,6 @@ run_case "record_fixture_ms_table" "write-record-fixture-ms-table" "verify-recor
 run_case "record_fixture_ms_uvw" "write-record-fixture-ms-uvw" "verify-record-fixture-ms-uvw" "dump-record"
 run_case "record_fixture_pagedimage_table" "write-record-fixture-pagedimage-table" "verify-record-fixture-pagedimage-table" "dump-record"
 run_case "table_dat_header" "write-table-dat-header" "verify-table-dat-header" "dump-table-dat-header"
+run_case "table_dat_full" "write-table-dat-full" "verify-table-dat-full" "dump-table-dat-full"
 
 echo "Phase 7 interoperability matrix passed"

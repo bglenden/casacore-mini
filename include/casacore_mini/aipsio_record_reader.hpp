@@ -22,4 +22,21 @@ namespace casacore_mini {
 /// truncated data, negative size fields, or nesting depth limit exceeded.
 [[nodiscard]] Record read_aipsio_record(AipsIoReader& reader);
 
+/// Read an embedded `Record` object from an `AipsIO` byte stream.
+///
+/// Same as `read_aipsio_record` but expects no leading `0xBEBEBEBE` magic
+/// prefix. Use this for Records nested inside other AipsIO objects.
+///
+/// @throws std::runtime_error on malformed input.
+[[nodiscard]] Record read_aipsio_embedded_record(AipsIoReader& reader);
+
+/// Read a `Record` body (RecordDesc + recordType + field values) without
+/// any wrapping `Record` object header.
+///
+/// Use this for the inner body of casacore `TableRecord` objects where the
+/// TableRecord header wraps the Record contents directly.
+///
+/// @throws std::runtime_error on malformed input.
+[[nodiscard]] Record read_aipsio_record_body(AipsIoReader& reader);
+
 } // namespace casacore_mini

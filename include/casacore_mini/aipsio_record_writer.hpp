@@ -26,4 +26,19 @@ namespace casacore_mini {
 /// wire ranges (`uInt`/`Int`).
 void write_aipsio_record(AipsIoWriter& writer, const Record& record);
 
+/// Write an embedded `Record` object (no leading magic prefix).
+///
+/// Use this for Records nested inside other AipsIO objects (e.g. TableRecord).
+///
+/// @throws std::runtime_error on unsupported value types or nesting depth exceeded.
+void write_aipsio_embedded_record(AipsIoWriter& writer, const Record& record);
+
+/// Write a `Record` body (RecordDesc + recordType + field values) without
+/// any wrapping `Record` object header.
+///
+/// Use this for the inner body of casacore `TableRecord` objects.
+///
+/// @throws std::runtime_error on unsupported value types or nesting depth exceeded.
+void write_aipsio_record_body(AipsIoWriter& writer, const Record& record);
+
 } // namespace casacore_mini

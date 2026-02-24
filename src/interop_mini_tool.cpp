@@ -5,6 +5,8 @@
 #include "casacore_mini/record.hpp"
 #include "casacore_mini/table_dat.hpp"
 #include "casacore_mini/table_dat_writer.hpp"
+#include "casacore_mini/table_desc.hpp"
+#include "casacore_mini/table_desc_writer.hpp"
 
 #include <algorithm>
 #include <complex>
@@ -501,6 +503,120 @@ void verify_fixture_record_artifact(const std::filesystem::path& input_path,
                        canonical_record_lines(input_record));
 }
 
+// --- table_dat_full interop ---
+
+[[nodiscard]] std::string datatype_name(casacore_mini::DataType dtype) {
+    switch (dtype) {
+    case casacore_mini::DataType::tp_bool:
+        return "TpBool";
+    case casacore_mini::DataType::tp_char:
+        return "TpChar";
+    case casacore_mini::DataType::tp_uchar:
+        return "TpUChar";
+    case casacore_mini::DataType::tp_short:
+        return "TpShort";
+    case casacore_mini::DataType::tp_ushort:
+        return "TpUShort";
+    case casacore_mini::DataType::tp_int:
+        return "TpInt";
+    case casacore_mini::DataType::tp_uint:
+        return "TpUInt";
+    case casacore_mini::DataType::tp_float:
+        return "TpFloat";
+    case casacore_mini::DataType::tp_double:
+        return "TpDouble";
+    case casacore_mini::DataType::tp_complex:
+        return "TpComplex";
+    case casacore_mini::DataType::tp_dcomplex:
+        return "TpDComplex";
+    case casacore_mini::DataType::tp_string:
+        return "TpString";
+    case casacore_mini::DataType::tp_table:
+        return "TpTable";
+    case casacore_mini::DataType::tp_int64:
+        return "TpInt64";
+    }
+    return "Unknown(" + std::to_string(static_cast<int>(dtype)) + ")";
+}
+
+[[nodiscard]] std::string join_i64_shape(const std::vector<std::int64_t>& shape) {
+    std::ostringstream output;
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0U) {
+            output << ',';
+        }
+        output << shape[i];
+    }
+    return output.str();
+}
+
+/// Canonical lines for table_dat_full interop comparison.
+/// Uses a simplified format (no SM/setup lines) to allow cross-version comparison
+/// since the mini serializer always writes v2 while fixtures may be v1.
+[[nodiscard]] std::vector<std::string>
+canonical_table_dat_full_lines(const casacore_mini::TableDatFull& full) {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dat_full");
+    lines.emplace_back("table_version=" + std::to_string(full.table_version));
+    lines.emplace_back("row_count=" + std::to_string(full.row_count));
+    lines.emplace_back("td_name_b64=" + base64_encode(full.table_desc.name));
+    lines.emplace_back("td_ncol=" + std::to_string(full.table_desc.columns.size()));
+
+    for (std::size_t i = 0; i < full.table_desc.columns.size(); ++i) {
+        const auto& col = full.table_desc.columns[i];
+        const auto prefix = "col[" + std::to_string(i) + "]";
+        lines.emplace_back(prefix + ".name_b64=" + base64_encode(col.name));
+        lines.emplace_back(prefix + ".kind=" +
+                           (col.kind == casacore_mini::ColumnKind::scalar ? "scalar" : "array"));
+        lines.emplace_back(prefix + ".dtype=" + datatype_name(col.data_type));
+        lines.emplace_back(prefix + ".ndim=" + std::to_string(col.ndim));
+        if (!col.shape.empty()) {
+            lines.emplace_back(prefix + ".shape=" + join_i64_shape(col.shape));
+        }
+        lines.emplace_back(prefix + ".max_length=" + std::to_string(col.max_length));
+        lines.emplace_back(prefix + ".dm_type_b64=" + base64_encode(col.dm_type));
+        lines.emplace_back(prefix + ".dm_group_b64=" + base64_encode(col.dm_group));
+    }
+
+    return lines;
+}
+
+/// Read the ttable2_v1 fixture and produce a TableDatFull for interop.
+/// Assumes CWD is the project root (the matrix runner ensures this).
+[[nodiscard]] casacore_mini::TableDatFull read_fixture_table_dat_full() {
+    const auto bytes = read_binary("data/corpus/fixtures/table_dat_ttable2_v1/table.dat");
+    return casacore_mini::parse_table_dat_full(bytes);
+}
+
+void write_table_dat_full_artifact(const std::filesystem::path& output_path) {
+    // Parse the v1 fixture, then re-serialize (always writes v2 format).
+    const auto full = read_fixture_table_dat_full();
+    write_binary(output_path, casacore_mini::serialize_table_dat_full(full));
+}
+
+void dump_table_dat_full_artifact(const DumpPaths& paths) {
+    const auto bytes = read_binary(paths.input_path);
+    const auto full = casacore_mini::parse_table_dat_full(bytes);
+    write_text(paths.output_path, canonical_table_dat_full_lines(full));
+}
+
+void verify_table_dat_full_artifact(const std::filesystem::path& input_path,
+                                    const std::string_view label) {
+    const auto bytes = read_binary(input_path);
+    const auto actual = casacore_mini::parse_table_dat_full(bytes);
+    const auto expected = read_fixture_table_dat_full();
+    // Compare using canonical lines (version may differ: we always write v2).
+    auto expected_lines = canonical_table_dat_full_lines(expected);
+    const auto actual_lines = canonical_table_dat_full_lines(actual);
+    // Patch expected version to 2 since serialize always writes v2.
+    for (auto& line : expected_lines) {
+        if (line == "table_version=1") {
+            line = "table_version=2";
+        }
+    }
+    verify_lines_equal(label, expected_lines, actual_lines);
+}
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  interop_mini_tool write-record-basic --output <path>\n"
@@ -510,6 +626,7 @@ void verify_fixture_record_artifact(const std::filesystem::path& input_path,
            "  interop_mini_tool write-record-fixture-ms-uvw --output <path>\n"
            "  interop_mini_tool write-record-fixture-pagedimage-table --output <path>\n"
            "  interop_mini_tool write-table-dat-header --output <path>\n"
+           "  interop_mini_tool write-table-dat-full --output <path>\n"
            "  interop_mini_tool verify-record-basic --input <path>\n"
            "  interop_mini_tool verify-record-nested --input <path>\n"
            "  interop_mini_tool verify-record-fixture-logtable-time --input <path>\n"
@@ -517,8 +634,10 @@ void verify_fixture_record_artifact(const std::filesystem::path& input_path,
            "  interop_mini_tool verify-record-fixture-ms-uvw --input <path>\n"
            "  interop_mini_tool verify-record-fixture-pagedimage-table --input <path>\n"
            "  interop_mini_tool verify-table-dat-header --input <path>\n"
+           "  interop_mini_tool verify-table-dat-full --input <path>\n"
            "  interop_mini_tool dump-record --input <path> --output <path>\n"
-           "  interop_mini_tool dump-table-dat-header --input <path> --output <path>\n";
+           "  interop_mini_tool dump-table-dat-header --input <path> --output <path>\n"
+           "  interop_mini_tool dump-table-dat-full --input <path> --output <path>\n";
 }
 
 } // namespace
@@ -660,6 +779,31 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --input");
             }
             verify_table_dat_header_artifact(*input, "table-dat-header");
+            return 0;
+        }
+        if (subcommand == "write-table-dat-full") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_table_dat_full_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "verify-table-dat-full") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_table_dat_full_artifact(*input, "table-dat-full");
+            return 0;
+        }
+        if (subcommand == "dump-table-dat-full") {
+            const auto input = arg_value(argc, argv, "--input");
+            const auto output = arg_value(argc, argv, "--output");
+            if (!input.has_value() || !output.has_value()) {
+                throw std::runtime_error("missing required --input/--output");
+            }
+            dump_table_dat_full_artifact(DumpPaths{*input, *output});
             return 0;
         }
 

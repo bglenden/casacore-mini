@@ -380,4 +380,17 @@ void write_aipsio_record(AipsIoWriter& writer, const Record& record) {
     write_record_impl(writer, record, 0U, true);
 }
 
+void write_aipsio_embedded_record(AipsIoWriter& writer, const Record& record) {
+    write_record_impl(writer, record, 0U, false);
+}
+
+void write_aipsio_record_body(AipsIoWriter& writer, const Record& record) {
+    // Write RecordDesc + recordType + field values directly (no Record header).
+    write_record_desc(writer, record, 0U);
+    writer.write_i32(1); // recordType = Variable
+    for (const auto& [name, value] : record.entries()) {
+        write_field_value(writer, value, 0U);
+    }
+}
+
 } // namespace casacore_mini
