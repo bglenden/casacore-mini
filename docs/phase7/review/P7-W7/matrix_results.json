@@ -1,0 +1,33 @@
+{
+  "wave": "P7-W7",
+  "cases": [
+    {
+      "name": "tiled_col_dir",
+      "casacore_to_casacore": "PASS",
+      "casacore_to_mini": "PASS",
+      "mini_to_mini": "PASS",
+      "mini_to_casacore": "EXPECTED_FAIL (no SM data files)"
+    },
+    {
+      "name": "tiled_cell_dir",
+      "casacore_to_casacore": "PASS",
+      "casacore_to_mini": "PASS",
+      "mini_to_mini": "PASS",
+      "mini_to_casacore": "EXPECTED_FAIL (no SM data files)"
+    },
+    {
+      "name": "tiled_shape_dir",
+      "casacore_to_casacore": "PASS",
+      "casacore_to_mini": "PASS",
+      "mini_to_mini": "PASS",
+      "mini_to_casacore": "EXPECTED_FAIL (no SM data files)"
+    },
+    {
+      "name": "tiled_data_dir",
+      "casacore_to_casacore": "PASS",
+      "casacore_to_mini": "PASS",
+      "mini_to_mini": "PASS",
+      "mini_to_casacore": "EXPECTED_FAIL (no SM data files)"
+    }
+  ]
+}

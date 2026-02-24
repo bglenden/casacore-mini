@@ -346,7 +346,10 @@ Record read_record_fields(AipsIoReader& reader, const std::vector<FieldDesc>& fi
 Record read_aipsio_record_impl(AipsIoReader& reader, const bool expect_magic_header) {
     const auto header =
         expect_magic_header ? reader.read_object_header() : read_embedded_object_header(reader);
-    if (header.object_type != "Record") {
+    // Accept both Record and TableRecord -- a TableRecord is just a Record
+    // with its own AipsIO header. The body (RecordDesc + recordType + fields)
+    // is identical for both types.
+    if (header.object_type != "Record" && header.object_type != "TableRecord") {
         throw std::runtime_error("expected Record object, got: " + header.object_type);
     }
 

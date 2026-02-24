@@ -127,5 +127,9 @@ run_case "record_fixture_pagedimage_table" "write-record-fixture-pagedimage-tabl
 run_case "table_dat_header" "write-table-dat-header" "verify-table-dat-header" "dump-table-dat-header"
 run_case "table_dat_full" "write-table-dat-full" "verify-table-dat-full" "dump-table-dat-full"
 run_dir_case "table_dir" "write-table-dir" "verify-table-dir" "dump-table-dir"
+run_dir_case "tiled_col_dir" "write-tiled-col-dir" "verify-tiled-col-dir" "dump-table-dir"
+run_dir_case "tiled_cell_dir" "write-tiled-cell-dir" "verify-tiled-cell-dir" "dump-table-dir"
+run_dir_case "tiled_shape_dir" "write-tiled-shape-dir" "verify-tiled-shape-dir" "dump-table-dir"
+run_dir_case "tiled_data_dir" "write-tiled-data-dir" "verify-tiled-data-dir" "dump-table-dir"
 
 echo "Phase 7 interoperability matrix passed"

@@ -734,6 +734,261 @@ void dump_table_dir_artifact(const std::filesystem::path& input_dir,
     write_text(output_path, canonical_table_dir_lines(td));
 }
 
+// --- tiled table directory interop (mini side: read-only structural verification) ---
+
+/// Strip SM file detail lines and replace sm_file_count with wildcard.
+[[nodiscard]] std::vector<std::string> strip_sm_file_lines(const std::vector<std::string>& lines) {
+    std::vector<std::string> result;
+    for (const auto& line : lines) {
+        if (line.rfind("sm[", 0) == 0) {
+            continue;
+        }
+        if (line.rfind("sm_file_count=", 0) == 0) {
+            result.emplace_back("sm_file_count=*");
+            continue;
+        }
+        result.push_back(line);
+    }
+    return result;
+}
+
+/// Build expected metadata lines for the TiledColumnStMan test table.
+[[nodiscard]] std::vector<std::string> expected_tiled_col_meta() {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=10");
+    lines.emplace_back("ncol=2");
+    lines.emplace_back("col[0].name_b64=" + base64_encode("data"));
+    lines.emplace_back("col[0].dtype=TpFloat");
+    lines.emplace_back("col[1].name_b64=" + base64_encode("flags"));
+    lines.emplace_back("col[1].dtype=TpInt");
+    lines.emplace_back("sm_file_count=*");
+    return lines;
+}
+
+/// Build expected metadata lines for the TiledCellStMan test table.
+[[nodiscard]] std::vector<std::string> expected_tiled_cell_meta() {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=5");
+    lines.emplace_back("ncol=1");
+    lines.emplace_back("col[0].name_b64=" + base64_encode("map"));
+    lines.emplace_back("col[0].dtype=TpFloat");
+    lines.emplace_back("sm_file_count=*");
+    return lines;
+}
+
+/// Build expected metadata lines for the TiledShapeStMan test table.
+[[nodiscard]] std::vector<std::string> expected_tiled_shape_meta() {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=5");
+    lines.emplace_back("ncol=1");
+    lines.emplace_back("col[0].name_b64=" + base64_encode("vis"));
+    lines.emplace_back("col[0].dtype=TpComplex");
+    lines.emplace_back("sm_file_count=*");
+    return lines;
+}
+
+/// Build expected metadata lines for the TiledDataStMan test table.
+[[nodiscard]] std::vector<std::string> expected_tiled_data_meta() {
+    std::vector<std::string> lines;
+    lines.emplace_back("kind=table_dir");
+    lines.emplace_back("row_count=5");
+    lines.emplace_back("ncol=1");
+    lines.emplace_back("col[0].name_b64=" + base64_encode("spectrum"));
+    lines.emplace_back("col[0].dtype=TpFloat");
+    lines.emplace_back("sm_file_count=*");
+    return lines;
+}
+
+/// Verify a tiled table directory against expected metadata (structural only).
+void verify_tiled_dir_artifact(const std::filesystem::path& input_dir,
+                               const std::vector<std::string>& expected_meta,
+                               const std::string_view label) {
+    const auto td = casacore_mini::read_table_directory(input_dir.string());
+    const auto actual_lines = canonical_table_dir_lines(td);
+    const auto actual_meta = strip_sm_file_lines(actual_lines);
+    verify_lines_equal(label, expected_meta, actual_meta);
+}
+
+/// Build a TableDatFull for a TiledColumnStMan table (mini can only write table.dat).
+[[nodiscard]] casacore_mini::TableDatFull build_tiled_col_table_dat() {
+    casacore_mini::TableDatFull full;
+    full.table_version = 2;
+    full.row_count = 10;
+    full.big_endian = true;
+    full.table_type = "PlainTable";
+    full.table_desc.version = 2;
+    full.table_desc.name = "test_tiledcol";
+
+    auto make_arr_col = [](const std::string& name, casacore_mini::DataType dtype) {
+        casacore_mini::ColumnDesc col;
+        col.kind = casacore_mini::ColumnKind::array;
+        col.name = name;
+        col.data_type = dtype;
+        col.dm_type = "TiledColumnStMan";
+        col.dm_group = "TiledCol";
+        col.type_string = "ArrayColumnDesc<Float    >";
+        col.version = 1;
+        col.ndim = 2;
+        col.shape = {4, 8};
+        col.options = 4; // FixedShape
+        return col;
+    };
+
+    full.table_desc.columns.push_back(make_arr_col("data", casacore_mini::DataType::tp_float));
+    auto flags_col = make_arr_col("flags", casacore_mini::DataType::tp_int);
+    flags_col.type_string = "ArrayColumnDesc<Int      >";
+    full.table_desc.columns.push_back(flags_col);
+
+    casacore_mini::StorageManagerSetup sm;
+    sm.type_name = "TiledColumnStMan";
+    sm.sequence_number = 0;
+    full.storage_managers.push_back(sm);
+
+    for (const auto& col : full.table_desc.columns) {
+        casacore_mini::ColumnManagerSetup cms;
+        cms.column_name = col.name;
+        cms.sequence_number = 0;
+        cms.has_shape = true;
+        cms.shape = col.shape;
+        full.column_setups.push_back(cms);
+    }
+
+    full.post_td_row_count = 10;
+    return full;
+}
+
+/// Build a TableDatFull for a TiledCellStMan table.
+[[nodiscard]] casacore_mini::TableDatFull build_tiled_cell_table_dat() {
+    casacore_mini::TableDatFull full;
+    full.table_version = 2;
+    full.row_count = 5;
+    full.big_endian = true;
+    full.table_type = "PlainTable";
+    full.table_desc.version = 2;
+    full.table_desc.name = "test_tiledcell";
+
+    casacore_mini::ColumnDesc col;
+    col.kind = casacore_mini::ColumnKind::array;
+    col.name = "map";
+    col.data_type = casacore_mini::DataType::tp_float;
+    col.dm_type = "TiledCellStMan";
+    col.dm_group = "TiledCell";
+    col.type_string = "ArrayColumnDesc<Float    >";
+    col.version = 1;
+    col.ndim = 2;
+    col.shape = {32, 8};
+    col.options = 4; // FixedShape
+    full.table_desc.columns.push_back(col);
+
+    casacore_mini::StorageManagerSetup sm;
+    sm.type_name = "TiledCellStMan";
+    sm.sequence_number = 0;
+    full.storage_managers.push_back(sm);
+
+    casacore_mini::ColumnManagerSetup cms;
+    cms.column_name = "map";
+    cms.sequence_number = 0;
+    cms.has_shape = true;
+    cms.shape = {32, 8};
+    full.column_setups.push_back(cms);
+
+    full.post_td_row_count = 5;
+    return full;
+}
+
+/// Build a TableDatFull for a TiledShapeStMan table.
+[[nodiscard]] casacore_mini::TableDatFull build_tiled_shape_table_dat() {
+    casacore_mini::TableDatFull full;
+    full.table_version = 2;
+    full.row_count = 5;
+    full.big_endian = true;
+    full.table_type = "PlainTable";
+    full.table_desc.version = 2;
+    full.table_desc.name = "test_tiledshape";
+
+    casacore_mini::ColumnDesc col;
+    col.kind = casacore_mini::ColumnKind::array;
+    col.name = "vis";
+    col.data_type = casacore_mini::DataType::tp_complex;
+    col.dm_type = "TiledShapeStMan";
+    col.dm_group = "TiledShape";
+    col.type_string = "ArrayColumnDesc<Complex  >";
+    col.version = 1;
+    col.ndim = 2;
+    full.table_desc.columns.push_back(col);
+
+    casacore_mini::StorageManagerSetup sm;
+    sm.type_name = "TiledShapeStMan";
+    sm.sequence_number = 0;
+    full.storage_managers.push_back(sm);
+
+    casacore_mini::ColumnManagerSetup cms;
+    cms.column_name = "vis";
+    cms.sequence_number = 0;
+    full.column_setups.push_back(cms);
+
+    full.post_td_row_count = 5;
+    return full;
+}
+
+/// Build a TableDatFull for a TiledDataStMan table.
+[[nodiscard]] casacore_mini::TableDatFull build_tiled_data_table_dat() {
+    casacore_mini::TableDatFull full;
+    full.table_version = 2;
+    full.row_count = 5;
+    full.big_endian = true;
+    full.table_type = "PlainTable";
+    full.table_desc.version = 2;
+    full.table_desc.name = "test_tileddata";
+
+    casacore_mini::ColumnDesc col;
+    col.kind = casacore_mini::ColumnKind::array;
+    col.name = "spectrum";
+    col.data_type = casacore_mini::DataType::tp_float;
+    col.dm_type = "TiledDataStMan";
+    col.dm_group = "TiledData";
+    col.type_string = "ArrayColumnDesc<Float    >";
+    col.version = 1;
+    col.ndim = 1;
+    col.shape = {256};
+    col.options = 4; // FixedShape
+    full.table_desc.columns.push_back(col);
+
+    casacore_mini::StorageManagerSetup sm;
+    sm.type_name = "TiledDataStMan";
+    sm.sequence_number = 0;
+    full.storage_managers.push_back(sm);
+
+    casacore_mini::ColumnManagerSetup cms;
+    cms.column_name = "spectrum";
+    cms.sequence_number = 0;
+    cms.has_shape = true;
+    cms.shape = {256};
+    full.column_setups.push_back(cms);
+
+    full.post_td_row_count = 5;
+    return full;
+}
+
+void write_tiled_col_dir_artifact(const std::filesystem::path& output_dir) {
+    casacore_mini::write_table_directory(output_dir.string(), build_tiled_col_table_dat());
+}
+
+void write_tiled_cell_dir_artifact(const std::filesystem::path& output_dir) {
+    casacore_mini::write_table_directory(output_dir.string(), build_tiled_cell_table_dat());
+}
+
+void write_tiled_shape_dir_artifact(const std::filesystem::path& output_dir) {
+    casacore_mini::write_table_directory(output_dir.string(), build_tiled_shape_table_dat());
+}
+
+void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
+    casacore_mini::write_table_directory(output_dir.string(), build_tiled_data_table_dat());
+}
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  interop_mini_tool write-record-basic --output <path>\n"
@@ -745,6 +1000,10 @@ void dump_table_dir_artifact(const std::filesystem::path& input_dir,
            "  interop_mini_tool write-table-dat-header --output <path>\n"
            "  interop_mini_tool write-table-dat-full --output <path>\n"
            "  interop_mini_tool write-table-dir --output <dir>\n"
+           "  interop_mini_tool write-tiled-col-dir --output <dir>\n"
+           "  interop_mini_tool write-tiled-cell-dir --output <dir>\n"
+           "  interop_mini_tool write-tiled-shape-dir --output <dir>\n"
+           "  interop_mini_tool write-tiled-data-dir --output <dir>\n"
            "  interop_mini_tool verify-record-basic --input <path>\n"
            "  interop_mini_tool verify-record-nested --input <path>\n"
            "  interop_mini_tool verify-record-fixture-logtable-time --input <path>\n"
@@ -754,6 +1013,10 @@ void dump_table_dir_artifact(const std::filesystem::path& input_dir,
            "  interop_mini_tool verify-table-dat-header --input <path>\n"
            "  interop_mini_tool verify-table-dat-full --input <path>\n"
            "  interop_mini_tool verify-table-dir --input <dir>\n"
+           "  interop_mini_tool verify-tiled-col-dir --input <dir>\n"
+           "  interop_mini_tool verify-tiled-cell-dir --input <dir>\n"
+           "  interop_mini_tool verify-tiled-shape-dir --input <dir>\n"
+           "  interop_mini_tool verify-tiled-data-dir --input <dir>\n"
            "  interop_mini_tool dump-record --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-header --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-full --input <path> --output <path>\n"
@@ -949,6 +1212,71 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --input/--output");
             }
             dump_table_dir_artifact(*input, *output);
+            return 0;
+        }
+        // --- tiled directory commands ---
+        if (subcommand == "write-tiled-col-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_tiled_col_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "write-tiled-cell-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_tiled_cell_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "write-tiled-shape-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_tiled_shape_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "write-tiled-data-dir") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            write_tiled_data_dir_artifact(*output);
+            return 0;
+        }
+        if (subcommand == "verify-tiled-col-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_tiled_dir_artifact(*input, expected_tiled_col_meta(), "tiled-col-dir");
+            return 0;
+        }
+        if (subcommand == "verify-tiled-cell-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_tiled_dir_artifact(*input, expected_tiled_cell_meta(), "tiled-cell-dir");
+            return 0;
+        }
+        if (subcommand == "verify-tiled-shape-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_tiled_dir_artifact(*input, expected_tiled_shape_meta(), "tiled-shape-dir");
+            return 0;
+        }
+        if (subcommand == "verify-tiled-data-dir") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_tiled_dir_artifact(*input, expected_tiled_data_meta(), "tiled-data-dir");
             return 0;
         }
 

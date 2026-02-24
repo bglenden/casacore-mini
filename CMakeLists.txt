@@ -235,6 +235,15 @@ target_compile_definitions(
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME table_directory_test COMMAND table_directory_test)
 
+add_executable(tiled_directory_test tests/tiled_directory_test.cpp)
+target_link_libraries(
+  tiled_directory_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  tiled_directory_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME tiled_directory_test COMMAND tiled_directory_test)
+
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)
 target_compile_definitions(
