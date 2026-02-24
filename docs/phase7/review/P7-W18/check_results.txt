@@ -1,0 +1,3 @@
+ctest --test-dir build-p7-closeout -> 19/19 pass
+bash tools/check_phase7.sh build-p7-closeout -> all wave gates PASS (W3-W18)
+bash tools/interop/run_phase7_matrix.sh build-p7-matrix -> 24 PASS, 0 FAIL

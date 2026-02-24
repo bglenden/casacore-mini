@@ -1,0 +1,4 @@
+docs/phase7/exit_report.md
+docs/phase7/plan.md
+docs/casacore_plan.md
+tools/check_phase7_w18.sh

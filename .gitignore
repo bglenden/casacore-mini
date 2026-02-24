@@ -59,5 +59,12 @@ venv/
 __pycache__/
 *.pyc
 
+# Reference casacore source (for reverse-engineering SM formats)
+casacore-original/
+
+# Casacore-generated fixture byproducts
+tests/fixtures/**/table.lock
+tests/fixtures/**/table.info
+
 # Personal workspace files
 .obsidian/

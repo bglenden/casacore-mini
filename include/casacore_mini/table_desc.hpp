@@ -78,6 +78,9 @@ struct StorageManagerSetup {
     std::string type_name;
     /// Sequence number.
     std::uint32_t sequence_number = 0;
+    /// Raw data blob for this SM (from AipsIO getnew in table.dat).
+    /// Parsed by the individual SM reader (e.g. SSM reader).
+    std::vector<std::uint8_t> data_blob;
 
     [[nodiscard]] bool operator==(const StorageManagerSetup& other) const = default;
 };
@@ -88,8 +91,6 @@ struct ColumnManagerSetup {
     std::string column_name;
     /// SM sequence number this column belongs to.
     std::uint32_t sequence_number = 0;
-    /// Flags.
-    std::uint32_t flags = 0;
     /// True if column has a fixed shape (array columns only).
     bool has_shape = false;
     /// Fixed shape (only meaningful when has_shape is true).

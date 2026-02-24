@@ -1,0 +1,4 @@
+bash tools/check_format.sh -> PASS
+bash tools/check_phase7_w14.sh build-ci-local -> PASS
+bash tools/check_phase7.sh build-ci-local -> PASS
+bash tools/interop/run_phase7_matrix.sh build-ci-local -> 22 PASS, 2 FAIL

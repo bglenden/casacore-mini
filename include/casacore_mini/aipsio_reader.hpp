@@ -85,7 +85,7 @@ class AipsIoReader {
     /// @throws std::runtime_error if size does not fit host `size_t` or input is truncated.
     [[nodiscard]] std::string read_string();
 
-    /// Read an `AipsIO` object header.
+    /// Read a root-level `AipsIO` object header (expects magic prefix).
     ///
     /// Header layout:
     /// - `uInt` magic (`0xBEBEBEBE`)
@@ -95,6 +95,21 @@ class AipsIoReader {
     ///
     /// @throws std::runtime_error if magic is invalid or input is truncated.
     [[nodiscard]] AipsIoObjectHeader read_object_header();
+
+    /// Read a nested `AipsIO` sub-object header (no magic prefix).
+    ///
+    /// Header layout:
+    /// - `uInt` object length
+    /// - `String` object type
+    /// - `uInt` object version
+    ///
+    /// @throws std::runtime_error on truncated input.
+    [[nodiscard]] AipsIoObjectHeader read_nested_object_header();
+
+    /// Read an object header, auto-detecting whether magic is present.
+    /// Peeks at the next 4 bytes: if they match kAipsIoMagic, reads a
+    /// root-level header; otherwise reads a nested header.
+    [[nodiscard]] AipsIoObjectHeader read_object_header_auto();
 
   private:
     [[nodiscard]] std::span<const std::uint8_t> read_bytes(std::size_t byte_count);

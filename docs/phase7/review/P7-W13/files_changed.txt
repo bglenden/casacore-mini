@@ -1,0 +1,4 @@
+include/casacore_mini/standard_stman.hpp
+src/standard_stman.cpp
+src/interop_mini_tool.cpp
+tools/check_phase7_w13.sh

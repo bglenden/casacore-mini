@@ -41,6 +41,21 @@ ARTIFACT_DIR="${BUILD_DIR}/phase7_artifacts"
 rm -rf "${ARTIFACT_DIR}"
 mkdir -p "${ARTIFACT_DIR}"
 
+PASS_COUNT=0
+FAIL_COUNT=0
+
+record_pass() {
+  local label="$1"
+  echo "  PASS: ${label}"
+  PASS_COUNT=$((PASS_COUNT + 1))
+}
+
+record_fail() {
+  local label="$1"
+  echo "  FAIL: ${label}" >&2
+  FAIL_COUNT=$((FAIL_COUNT + 1))
+}
+
 verify_both() {
   local verify_cmd="$1"
   local dump_cmd="$2"
@@ -89,32 +104,40 @@ run_dir_case() {
 
   rm -rf "${casacore_dir}" "${mini_dir}"
 
-  # casacore produces, both verify.
+  echo "--- ${case_name} ---"
+
+  # Cell 1: casacore produces, casacore verifies.
   "${CASACORE_TOOL}" "${write_cmd}" --output "${casacore_dir}"
-  if ! "${MINI_TOOL}" "${verify_cmd}" --input "${casacore_dir}"; then
-    "${MINI_TOOL}" "${dump_cmd}" --input "${casacore_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_casacore.mini.dump.txt" || true
-    echo "mini verification failed for casacore-produced ${case_name}" >&2
-    exit 1
-  fi
-  if ! "${CASACORE_TOOL}" "${verify_cmd}" --input "${casacore_dir}"; then
+  if "${CASACORE_TOOL}" "${verify_cmd}" --input "${casacore_dir}"; then
+    record_pass "${case_name}: casacore->casacore"
+  else
     "${CASACORE_TOOL}" "${dump_cmd}" --input "${casacore_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_casacore.casacore.dump.txt" || true
-    echo "casacore verification failed for casacore-produced ${case_name}" >&2
-    exit 1
+    record_fail "${case_name}: casacore->casacore"
   fi
 
-  # mini produces, both verify.
-  "${MINI_TOOL}" "${write_cmd}" --output "${mini_dir}"
-  if ! "${MINI_TOOL}" "${verify_cmd}" --input "${mini_dir}"; then
-    "${MINI_TOOL}" "${dump_cmd}" --input "${mini_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_mini.mini.dump.txt" || true
-    echo "mini verification failed for mini-produced ${case_name}" >&2
-    exit 1
-  fi
-  # casacore may not be able to open mini-produced dirs (no SM data files),
-  # so only verify if casacore succeeds (non-fatal).
-  if "${CASACORE_TOOL}" "${verify_cmd}" --input "${mini_dir}" 2>/dev/null; then
-    echo "  casacore verified mini-produced ${case_name}"
+  # Cell 2: casacore produces, mini verifies.
+  if "${MINI_TOOL}" "${verify_cmd}" --input "${casacore_dir}"; then
+    record_pass "${case_name}: casacore->mini"
   else
-    echo "  casacore could not verify mini-produced ${case_name} (expected: no SM data)"
+    "${MINI_TOOL}" "${dump_cmd}" --input "${casacore_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_casacore.mini.dump.txt" || true
+    record_fail "${case_name}: casacore->mini"
+  fi
+
+  # Cell 3: mini produces, mini verifies.
+  "${MINI_TOOL}" "${write_cmd}" --output "${mini_dir}"
+  if "${MINI_TOOL}" "${verify_cmd}" --input "${mini_dir}"; then
+    record_pass "${case_name}: mini->mini"
+  else
+    "${MINI_TOOL}" "${dump_cmd}" --input "${mini_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_mini.mini.dump.txt" || true
+    record_fail "${case_name}: mini->mini"
+  fi
+
+  # Cell 4: mini produces, casacore verifies (strict — no non-fatal bypass).
+  if "${CASACORE_TOOL}" "${verify_cmd}" --input "${mini_dir}"; then
+    record_pass "${case_name}: mini->casacore"
+  else
+    "${CASACORE_TOOL}" "${dump_cmd}" --input "${mini_dir}" --output "${ARTIFACT_DIR}/${case_name}.from_mini.casacore.dump.txt" || true
+    record_fail "${case_name}: mini->casacore"
   fi
 }
 
@@ -132,5 +155,15 @@ run_dir_case "tiled_col_dir" "write-tiled-col-dir" "verify-tiled-col-dir" "dump-
 run_dir_case "tiled_cell_dir" "write-tiled-cell-dir" "verify-tiled-cell-dir" "dump-table-dir"
 run_dir_case "tiled_shape_dir" "write-tiled-shape-dir" "verify-tiled-shape-dir" "dump-table-dir"
 run_dir_case "tiled_data_dir" "write-tiled-data-dir" "verify-tiled-data-dir" "dump-table-dir"
+
+echo ""
+echo "=== Phase 7 interoperability matrix summary ==="
+echo "PASS: ${PASS_COUNT}"
+echo "FAIL: ${FAIL_COUNT}"
+
+if [ "${FAIL_COUNT}" -gt 0 ]; then
+  echo "Phase 7 interoperability matrix FAILED (${FAIL_COUNT} failures)" >&2
+  exit 1
+fi
 
 echo "Phase 7 interoperability matrix passed"

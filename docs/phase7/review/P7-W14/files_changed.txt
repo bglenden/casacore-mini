@@ -1,0 +1,5 @@
+include/casacore_mini/incremental_stman.hpp
+src/incremental_stman.cpp
+src/interop_mini_tool.cpp
+tools/check_phase7_w14.sh
+CMakeLists.txt

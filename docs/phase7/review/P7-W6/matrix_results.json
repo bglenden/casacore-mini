@@ -1,0 +1,19 @@
+{
+  "wave": "P7-W6",
+  "cases": [
+    {
+      "artifact": "table_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    }
+  ],
+  "summary": {
+    "pass": 3,
+    "fail": 1,
+    "note": "mini->casacore fails because mini does not yet produce SM data files. Non-fatal in matrix at W6."
+  }
+}

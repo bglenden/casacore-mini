@@ -103,6 +103,14 @@ void AipsIoWriter::write_object_header(const std::uint32_t object_length,
     write_u32(object_version);
 }
 
+void AipsIoWriter::write_nested_object_header(const std::uint32_t object_length,
+                                              const std::string_view object_type,
+                                              const std::uint32_t object_version) {
+    write_u32(object_length);
+    write_string(object_type);
+    write_u32(object_version);
+}
+
 void AipsIoWriter::patch_u32(const std::size_t position, const std::uint32_t value) {
     if (position + sizeof(std::uint32_t) > buffer_.size()) {
         throw std::out_of_range("patch_u32 position exceeds buffer size");

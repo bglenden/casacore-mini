@@ -1,0 +1,11 @@
+include/casacore_mini/table_directory.hpp
+src/table_directory.cpp
+tests/table_directory_test.cpp
+tools/check_phase7_w6.sh
+src/table_desc.cpp
+src/table_desc_writer.cpp
+src/interop_mini_tool.cpp
+tools/interop/casacore_interop_tool.cpp
+tools/interop/run_phase7_matrix.sh
+CMakeLists.txt
+tools/check_ci_build_lint_test_coverage.sh

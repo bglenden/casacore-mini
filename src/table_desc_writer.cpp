@@ -62,9 +62,10 @@ void write_iposition(AipsIoWriter& writer, const std::vector<std::int64_t>& shap
 }
 
 /// Write a TableRecord (thin wrapper: TableRecord header, then Record body).
+/// Sub-records are also written as "TableRecord" to match casacore's expectation.
 void write_table_record(AipsIoWriter& writer, const Record& record) {
     const auto length_offset = begin_object(writer, "TableRecord", 1U);
-    write_aipsio_record_body(writer, record);
+    write_aipsio_table_record_body(writer, record);
     end_object(writer, length_offset);
 }
 
@@ -156,15 +157,23 @@ void write_table_desc(AipsIoWriter& writer, const TableDesc& desc) {
 }
 
 /// Write per-column SM assignment (version 2 format).
+///
+/// Wire format: PlainColumn version(2) + name + derived class version(1) + seqnr
+/// Array columns also write: shapeColDef_p (Bool) + optional shapeCol_p (IPosition).
+/// casacore's ArrayColumnData::putFileDerived writes shapeColDef_p=true when the
+/// column has a fixed shape defined, followed by the shape IPosition. When casacore
+/// reads this back, if shapeColDef_p is true + FixedShape option is set, it calls
+/// setFixedShapeColumn(shapeCol_p).
 void write_column_setup_v2(AipsIoWriter& writer, const ColumnManagerSetup& setup, bool is_array) {
-    writer.write_u32(2U); // version
+    writer.write_u32(2U); // PlainColumn version
     writer.write_string(setup.column_name);
+    writer.write_u32(1U); // derived class version (ScalarColumnData / ArrayColumnData)
     writer.write_u32(setup.sequence_number);
-    writer.write_u32(setup.flags);
 
     if (is_array) {
-        writer.write_u8(setup.has_shape ? 1U : 0U);
-        if (setup.has_shape) {
+        const bool shape_defined = setup.has_shape && !setup.shape.empty();
+        writer.write_u8(shape_defined ? 1U : 0U); // shapeColDef_p
+        if (shape_defined) {
             write_iposition(writer, setup.shape);
         }
     }
@@ -203,17 +212,22 @@ void write_table_dat_full(AipsIoWriter& writer, const TableDatFull& table) {
         writer.write_u32(sm.sequence_number);
     }
 
-    // Per-column SM assignments.
+    // Per-column SM assignments — written in column insertion order to match
+    // casacore's ColumnSet::putFile which iterates via getColumn(i) using
+    // the TableDesc column sequence (colSeq_p).
     for (std::size_t i = 0; i < table.column_setups.size(); ++i) {
         const bool is_array = i < table.table_desc.columns.size() &&
                               table.table_desc.columns[i].kind == ColumnKind::array;
         write_column_setup_v2(writer, table.column_setups[i], is_array);
     }
 
-    // Trailing zeros (3 x u32).
-    writer.write_u32(0U);
-    writer.write_u32(0U);
-    writer.write_u32(0U);
+    // Per-SM data blobs (u32 length + raw bytes, matching reader's format).
+    for (const auto& sm : table.storage_managers) {
+        writer.write_u32(checked_u32(sm.data_blob.size(), "SM data blob length"));
+        for (const auto b : sm.data_blob) {
+            writer.write_u8(b);
+        }
+    }
 
     // Patch outer object length.
     const auto length = writer.size() - length_offset;

@@ -1,0 +1,5 @@
+include/casacore_mini/tiled_stman.hpp
+src/tiled_stman.cpp
+src/interop_mini_tool.cpp
+tools/check_phase7_w15.sh
+CMakeLists.txt

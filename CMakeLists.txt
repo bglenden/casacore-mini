@@ -115,7 +115,10 @@ add_library(
   src/measure_coord_metadata.cpp
   src/keyword_record.cpp
   src/keyword_record_convert.cpp
-  src/table_directory.cpp)
+  src/table_directory.cpp
+  src/standard_stman.cpp
+  src/incremental_stman.cpp
+  src/tiled_stman.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -235,6 +238,21 @@ target_compile_definitions(
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME table_directory_test COMMAND table_directory_test)
 
+add_executable(standard_stman_test tests/standard_stman_test.cpp)
+target_link_libraries(
+  standard_stman_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  standard_stman_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME standard_stman_test COMMAND standard_stman_test)
+
+add_executable(incremental_stman_test tests/incremental_stman_test.cpp)
+target_link_libraries(
+  incremental_stman_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME incremental_stman_test COMMAND incremental_stman_test)
+
 add_executable(tiled_directory_test tests/tiled_directory_test.cpp)
 target_link_libraries(
   tiled_directory_test
@@ -243,6 +261,15 @@ target_compile_definitions(
   tiled_directory_test
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME tiled_directory_test COMMAND tiled_directory_test)
+
+add_executable(semantic_parity_test tests/semantic_parity_test.cpp)
+target_link_libraries(
+  semantic_parity_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  semantic_parity_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME semantic_parity_test COMMAND semantic_parity_test)
 
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)

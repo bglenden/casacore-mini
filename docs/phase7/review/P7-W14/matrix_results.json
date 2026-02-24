@@ -1,0 +1,64 @@
+{
+  "wave": "P7-W14",
+  "cases": [
+    {
+      "artifact": "table_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "ism_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "tiled_col_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "tiled_cell_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "tiled_shape_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "tiled_data_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    }
+  ],
+  "summary": {
+    "pass": 22,
+    "fail": 2,
+    "note": "2 remaining failures: mini->casacore for tiled_col_dir and tiled_cell_dir."
+  }
+}

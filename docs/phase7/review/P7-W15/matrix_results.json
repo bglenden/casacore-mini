@@ -1,0 +1,64 @@
+{
+  "wave": "P7-W15",
+  "cases": [
+    {
+      "artifact": "table_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "ism_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "tiled_col_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "tiled_cell_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "tiled_shape_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    },
+    {
+      "artifact": "tiled_data_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "PASS"
+      }
+    }
+  ],
+  "summary": {
+    "pass": 24,
+    "fail": 0,
+    "note": "All 24 matrix cells pass. First wave with full matrix green."
+  }
+}

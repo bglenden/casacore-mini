@@ -1,0 +1,64 @@
+{
+  "wave": "P7-W11",
+  "cases": [
+    {
+      "artifact": "table_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "ism_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "tiled_col_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "tiled_cell_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "tiled_shape_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    },
+    {
+      "artifact": "tiled_data_dir",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_mini": "PASS",
+        "mini_to_casacore": "FAIL"
+      }
+    }
+  ],
+  "summary": {
+    "pass": 18,
+    "fail": 6,
+    "note": "All 6 failures are mini->casacore (no SM data files yet). Expected until W12-W16."
+  }
+}

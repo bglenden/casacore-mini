@@ -57,7 +57,7 @@ class AipsIoWriter {
     /// Write a TypeIO-style string (`uInt` length followed by raw bytes).
     void write_string(std::string_view value);
 
-    /// Write an `AipsIO` object header.
+    /// Write an `AipsIO` root-level object header (with magic prefix).
     ///
     /// Header layout:
     /// - `uInt` magic (`0xBEBEBEBE`)
@@ -66,6 +66,18 @@ class AipsIoWriter {
     /// - `uInt` object version
     void write_object_header(std::uint32_t object_length, std::string_view object_type,
                              std::uint32_t object_version);
+
+    /// Write a nested AipsIO sub-object header (no magic prefix).
+    ///
+    /// Header layout:
+    /// - `uInt` object length (caller-supplied)
+    /// - `String` object type
+    /// - `uInt` object version
+    ///
+    /// Use this for objects nested inside a root-level object, matching
+    /// casacore's AipsIO::putstart behavior at level > 0.
+    void write_nested_object_header(std::uint32_t object_length, std::string_view object_type,
+                                    std::uint32_t object_version);
 
     /// Overwrite 4 bytes at @p position with big-endian @p value.
     ///

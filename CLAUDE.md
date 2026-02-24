@@ -16,3 +16,5 @@ are defined in:
    save outputs to files under `docs/phaseN/review/` when evidence is needed.
 3. If a git operation is interrupted and `.git/index.lock` remains, confirm no
    active git process before removing the lock file.
+4. The original casacore headers are available in `../casacore-original/` for
+   reference when working on the casacore interop tool.

@@ -128,4 +128,34 @@ AipsIoObjectHeader AipsIoReader::read_object_header() {
     return header;
 }
 
+AipsIoObjectHeader AipsIoReader::read_nested_object_header() {
+    AipsIoObjectHeader header;
+    header.object_length = read_u32();
+    header.object_type = read_string();
+    header.object_version = read_u32();
+    return header;
+}
+
+AipsIoObjectHeader AipsIoReader::read_object_header_auto() {
+    // Peek at next 4 bytes to check for magic.
+    if (remaining() >= 4) {
+        const auto maybe_magic = read_u32();
+        if (maybe_magic == kAipsIoMagic) {
+            // Root-level header: magic already consumed, read the rest.
+            AipsIoObjectHeader header;
+            header.object_length = read_u32();
+            header.object_type = read_string();
+            header.object_version = read_u32();
+            return header;
+        }
+        // Not magic — the u32 we just read is the object_length.
+        AipsIoObjectHeader header;
+        header.object_length = maybe_magic;
+        header.object_type = read_string();
+        header.object_version = read_u32();
+        return header;
+    }
+    throw std::runtime_error("AipsIO: not enough data for object header");
+}
+
 } // namespace casacore_mini

@@ -241,6 +241,10 @@ void write_iposition(AipsIoWriter& writer, const wire_i_position& shape) {
 // Forward declarations for mutual recursion.
 void write_record_impl(AipsIoWriter& writer, const Record& record, std::size_t depth,
                        bool include_magic);
+void write_field_value_tr(AipsIoWriter& writer, const RecordValue& value, std::size_t depth,
+                          bool as_table_record);
+void write_record_tr(AipsIoWriter& writer, const Record& record, std::size_t depth,
+                     bool as_table_record);
 
 /// Write RecordDesc (version 2 with comments).
 void write_record_desc(AipsIoWriter& writer, const Record& record, const std::size_t depth) {
@@ -374,6 +378,34 @@ void write_record_impl(AipsIoWriter& writer, const Record& record, const std::si
     end_object(writer, length_offset);
 }
 
+/// Write a single field value, optionally wrapping sub-records as TableRecord.
+void write_field_value_tr(AipsIoWriter& writer, const RecordValue& value, const std::size_t depth,
+                          const bool as_table_record) {
+    const auto& storage = value.storage();
+    if (const auto* rec = std::get_if<RecordValue::record_ptr>(&storage)) {
+        if (!*rec) {
+            throw std::runtime_error("null record_ptr in RecordValue");
+        }
+        write_record_tr(writer, **rec, depth + 1U, as_table_record);
+    } else {
+        // Non-record fields are identical.
+        write_field_value(writer, value, depth);
+    }
+}
+
+/// Write a record object header as either "Record" or "TableRecord".
+void write_record_tr(AipsIoWriter& writer, const Record& record, const std::size_t depth,
+                     const bool as_table_record) {
+    const auto type_name = as_table_record ? "TableRecord" : "Record";
+    const auto length_offset = begin_object(writer, type_name, 1U, false);
+    write_record_desc(writer, record, depth);
+    writer.write_i32(1); // recordType = Variable
+    for (const auto& [name, value] : record.entries()) {
+        write_field_value_tr(writer, value, depth, as_table_record);
+    }
+    end_object(writer, length_offset);
+}
+
 } // namespace
 
 void write_aipsio_record(AipsIoWriter& writer, const Record& record) {
@@ -390,6 +422,15 @@ void write_aipsio_record_body(AipsIoWriter& writer, const Record& record) {
     writer.write_i32(1); // recordType = Variable
     for (const auto& [name, value] : record.entries()) {
         write_field_value(writer, value, 0U);
+    }
+}
+
+void write_aipsio_table_record_body(AipsIoWriter& writer, const Record& record) {
+    // Like write_aipsio_record_body but sub-records are written as "TableRecord".
+    write_record_desc(writer, record, 0U);
+    writer.write_i32(1); // recordType = Variable
+    for (const auto& [name, value] : record.entries()) {
+        write_field_value_tr(writer, value, 0U, true);
     }
 }
 

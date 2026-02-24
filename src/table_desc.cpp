@@ -171,13 +171,21 @@ void skip_scalar_default(AipsIoReader& reader, DataType dtype) {
 }
 
 /// Read a per-column SM assignment (tableVer=1 format).
+///
+/// Wire format (PlainColumn::getFile v1 + ScaColData/ArrColData::getFileDerived):
+///   u32  PlainColumn version (1)
+///   TableRecord  per-column keywords (v1 only)
+///   str  original column name
+///   u32  derived class version
+///   u32  SM sequence number
+///   [array only: u8 hasShape + optional IPosition shape]
 [[nodiscard]] ColumnManagerSetup read_column_setup_v1(AipsIoReader& reader, bool is_array) {
     ColumnManagerSetup setup;
-    static_cast<void>(reader.read_u32());         // preamble (always 1)
-    static_cast<void>(read_table_record(reader)); // per-column keywords (discard)
+    static_cast<void>(reader.read_u32());         // PlainColumn version (1)
+    static_cast<void>(read_table_record(reader)); // per-column keywords (v1 only)
     setup.column_name = reader.read_string();
+    static_cast<void>(reader.read_u32()); // derived class version
     setup.sequence_number = reader.read_u32();
-    setup.flags = reader.read_u32();
 
     if (is_array) {
         const auto has_shape_byte = reader.read_u8();
@@ -191,12 +199,19 @@ void skip_scalar_default(AipsIoReader& reader, DataType dtype) {
 }
 
 /// Read a per-column SM assignment (tableVer=2 format).
+///
+/// Wire format (PlainColumn::getFile + ScaColData/ArrColData::getFileDerived):
+///   u32  PlainColumn version (2)
+///   str  original column name
+///   u32  derived class version (1 for ScalarColumnData, 1 for ArrayColumnData)
+///   u32  SM sequence number
+///   [array only: u8 hasShape + optional IPosition shape]
 [[nodiscard]] ColumnManagerSetup read_column_setup_v2(AipsIoReader& reader, bool is_array) {
     ColumnManagerSetup setup;
-    static_cast<void>(reader.read_u32()); // version (always 2)
+    static_cast<void>(reader.read_u32()); // PlainColumn version (always 2)
     setup.column_name = reader.read_string();
+    static_cast<void>(reader.read_u32()); // derived class version
     setup.sequence_number = reader.read_u32();
-    setup.flags = reader.read_u32();
 
     if (is_array) {
         const auto has_shape_byte = reader.read_u8();
@@ -279,6 +294,22 @@ TableDatFull parse_table_dat_full(const std::span<const std::uint8_t> bytes) {
             result.column_setups.push_back(read_column_setup_v1(reader, is_array));
         } else {
             result.column_setups.push_back(read_column_setup_v2(reader, is_array));
+        }
+    }
+
+    // Per-SM data blobs (AipsIO getnew: u32 length + raw bytes).
+    // Each SM has a length-prefixed byte blob that the SM's open64() interprets.
+    for (auto& sm : result.storage_managers) {
+        if (reader.remaining() < 4U) {
+            break; // No more data — older format or truncated
+        }
+        const auto blob_len = reader.read_u32();
+        if (blob_len > reader.remaining()) {
+            throw std::runtime_error("SM data blob length exceeds remaining bytes");
+        }
+        sm.data_blob.resize(blob_len);
+        for (std::uint32_t j = 0; j < blob_len; ++j) {
+            sm.data_blob[j] = reader.read_u8();
         }
     }
 

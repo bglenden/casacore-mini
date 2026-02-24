@@ -1,0 +1,4 @@
+bash tools/check_format.sh -> PASS
+bash tools/check_phase7_w11.sh build-ci-local -> PASS
+bash tools/check_phase7.sh build-ci-local -> PASS (matrix informational: 18 PASS, 6 FAIL)
+bash tools/interop/run_phase7_matrix.sh build-ci-local -> FAIL (expected: 6 mini->casacore failures)
