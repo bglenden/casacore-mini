@@ -32,7 +32,15 @@ check "W16 gate passes" bash tools/check_phase7_w16.sh "${BUILD_DIR}"
 echo "--- Build and test ---"
 if [ -d "${BUILD_DIR}" ]; then
   check "Full build passes" cmake --build "${BUILD_DIR}" --target all
-  check "All ctest tests pass" ctest --test-dir "${BUILD_DIR}" --output-on-failure
+  ctest_log="${BUILD_DIR}/phase7_w17_ctest.log"
+  if ctest --test-dir "${BUILD_DIR}" --output-on-failure >"${ctest_log}" 2>&1; then
+    echo "  PASS  All ctest tests pass"; PASS=$((PASS + 1))
+  else
+    echo "  FAIL  All ctest tests pass"; FAIL=$((FAIL + 1))
+    echo "  ---- ctest output (phase7_w17) ----"
+    cat "${ctest_log}"
+    echo "  ---- end ctest output ----"
+  fi
 fi
 
 # 3. Interop matrix script is available and has all 6 SM directory cases
