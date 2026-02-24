@@ -51,12 +51,6 @@ constexpr double kSpeedOfLight = 299792458.0;
 /// Convert optical velocity to frequency given rest frequency.
 [[nodiscard]] double optical_velocity_to_freq(double velocity, double rest_freq_hz);
 
-/// Convert between Doppler types: radio ↔ Z ↔ beta ↔ gamma.
-/// @param value    The Doppler value in the source convention.
-/// @param from     Source Doppler convention (as DopplerRef enum underlying value).
-/// @param to       Target Doppler convention.
-/// @return The Doppler value in the target convention.
-
 /// Convert radio Doppler to Z Doppler.
 [[nodiscard]] double radio_to_z(double radio_val);
 
@@ -70,6 +64,10 @@ constexpr double kSpeedOfLight = 299792458.0;
 [[nodiscard]] double beta_to_radio(double beta);
 
 /// Convert Doppler values between conventions.
+/// @param value Doppler value in the source convention.
+/// @param from Source Doppler convention.
+/// @param to Target Doppler convention.
+/// @return Doppler value in the target convention.
 /// @throws std::invalid_argument for unsupported/invalid values.
 [[nodiscard]] double convert_doppler(double value, DopplerRef from, DopplerRef to);
 
