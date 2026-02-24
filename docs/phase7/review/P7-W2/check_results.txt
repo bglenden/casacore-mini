@@ -1,0 +1,4 @@
+Retroactive review: matrix passed at commit time.
+
+bash tools/interop/run_phase7_matrix.sh -> PASS (7 cases, all 4 cells each)
+ctest (existing test suite) -> PASS

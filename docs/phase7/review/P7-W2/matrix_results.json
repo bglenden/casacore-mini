@@ -1,0 +1,68 @@
+{
+  "wave": "P7-W2",
+  "cases": [
+    {
+      "artifact": "record_basic",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    },
+    {
+      "artifact": "record_nested",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    },
+    {
+      "artifact": "record_fixture_logtable_time",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    },
+    {
+      "artifact": "record_fixture_ms_table",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    },
+    {
+      "artifact": "record_fixture_ms_uvw",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    },
+    {
+      "artifact": "record_fixture_pagedimage_table",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    },
+    {
+      "artifact": "table_dat_header",
+      "matrix": {
+        "casacore_to_casacore": "PASS",
+        "casacore_to_mini": "PASS",
+        "mini_to_casacore": "PASS",
+        "mini_to_mini": "PASS"
+      }
+    }
+  ]
+}

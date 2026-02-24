@@ -109,6 +109,7 @@ add_library(
   src/table_dat.cpp
   src/table_dat_writer.cpp
   src/table_schema.cpp
+  src/table_binary_schema.cpp
   src/measure_coord_metadata.cpp
   src/keyword_record.cpp)
 target_include_directories(
@@ -196,6 +197,15 @@ target_compile_definitions(
   table_dat_writer_test
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME table_dat_writer_test COMMAND table_dat_writer_test)
+
+add_executable(table_binary_schema_test tests/table_binary_schema_test.cpp)
+target_link_libraries(
+  table_binary_schema_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  table_binary_schema_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME table_binary_schema_test COMMAND table_binary_schema_test)
 
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)

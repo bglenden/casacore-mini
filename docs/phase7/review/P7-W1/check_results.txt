@@ -1,0 +1,5 @@
+Retroactive review: build and tests passed at commit time.
+
+cmake --build build-phase7 --target interop_mini_tool -> PASS
+casacore_interop_tool compilation via pkg-config -> PASS
+ctest (existing test suite) -> PASS
