@@ -28,12 +28,7 @@ bash tools/check_phase3.sh
 bash tools/check_phase4.sh
 bash tools/check_phase5.sh "${BUILD_DIR}"
 bash tools/check_phase6.sh "${BUILD_DIR}"
-bash tools/check_phase7_w3.sh "${BUILD_DIR}"
-bash tools/check_phase7_w4.sh "${BUILD_DIR}"
-bash tools/check_phase7_w5.sh "${BUILD_DIR}"
-bash tools/check_phase7_w6.sh "${BUILD_DIR}"
-bash tools/check_phase7_w7.sh "${BUILD_DIR}"
-bash tools/check_phase7_w8.sh "${BUILD_DIR}"
+bash tools/check_phase7.sh "${BUILD_DIR}"
 ctest --test-dir "${BUILD_DIR}" --output-on-failure
 bash tools/check_coverage.sh "${BUILD_DIR}" 70
 
