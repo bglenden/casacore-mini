@@ -1,0 +1,49 @@
+name: quality-full
+
+on:
+  schedule:
+    - cron: "30 09 * * *"
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install formatting tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: bash tools/check_format.sh
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install documentation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang doxygen graphviz
+      - name: Docs quality checks
+        run: bash tools/check_docs.sh build-doc
+
+  build-lint-test-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release tag version match
+        if: startsWith(github.ref, 'refs/tags/')
+        run: bash tools/check_release_tag.sh "${GITHUB_REF_NAME}"
+      - name: Install build and analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ clang clang-tidy llvm gcovr python3-yaml
+      - name: Build/lint/test/coverage quality checks
+        run: bash tools/check_ci_build_lint_test_coverage.sh build

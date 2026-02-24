@@ -3,7 +3,6 @@ name: quality
 on:
   push:
     branches: ["main"]
-    tags: ["v*"]
   pull_request:
 
 concurrency:
@@ -22,27 +21,13 @@ jobs:
       - name: Check formatting
         run: bash tools/check_format.sh
 
-  docs:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install documentation tools
+      - name: Install build and test tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang doxygen graphviz
-      - name: Docs quality checks
-        run: bash tools/check_docs.sh build-doc
-
-  build-lint-test-coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate release tag version match
-        if: startsWith(github.ref, 'refs/tags/')
-        run: bash tools/check_release_tag.sh "${GITHUB_REF_NAME}"
-      - name: Install build and analysis tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ clang clang-tidy llvm gcovr python3-yaml
-      - name: Build/lint/test/coverage quality checks
-        run: bash tools/check_ci_build_lint_test_coverage.sh build
+          sudo apt-get install -y cmake ninja-build g++ clang python3-yaml
+      - name: Fast build/test quality checks
+        run: bash tools/check_ci_fast_build_test.sh build

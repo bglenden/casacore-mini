@@ -66,15 +66,24 @@ in the same phase. At minimum, document:
 
 Phase completion should not be declared until this documentation is updated.
 
-## CI-equivalent local workflow
+## CI-equivalent local workflows
 
 From the repository root, run:
+
+```bash
+bash tools/check_format.sh
+bash tools/check_ci_fast_build_test.sh build-fast
+```
+
+This mirrors fast CI on push/PR (`.github/workflows/quality.yml`).
+
+For full-quality parity (nightly/manual CI), run:
 
 ```bash
 bash tools/run_quality.sh
 ```
 
-This performs:
+This performs full checks:
 
 1. `clang-format` check (`tools/check_format.sh`)
 2. CI-equivalent build/lint/test/coverage checks (`tools/check_ci_build_lint_test_coverage.sh build-quality`)
@@ -84,10 +93,11 @@ This performs:
 
 These scripts are the source of truth for CI/local parity:
 
+- `tools/check_ci_fast_build_test.sh`: fast configure/build/ctest path used on push/PR
 - `tools/check_ci_build_lint_test_coverage.sh`: phase checks + configure/build + `ctest` + coverage gate
 - `tools/check_docs.sh`: docs configure + Doxygen build + output verification
 
-`quality.yml` calls these scripts directly.
+`quality.yml` and `quality-full.yml` call these scripts directly.
 
 ## Pre-push hook (recommended)
 

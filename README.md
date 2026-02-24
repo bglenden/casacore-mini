@@ -40,12 +40,16 @@ The repository enforces quality from the start:
 - API documentation: Doxygen HTML generation required in CI
 - Coverage: line coverage gate on `src/` (currently `>= 70%`)
 
-CI workflow: `.github/workflows/quality.yml`.
+CI workflows:
+
+- Fast (`push`/`pull_request`): `.github/workflows/quality.yml`
+- Full (`nightly`/`manual`/`release tag`): `.github/workflows/quality-full.yml`
 
 Local developer workflow: `CONTRIBUTING.md`.
 
 Key local check scripts:
 
+- `tools/check_ci_fast_build_test.sh` (matches CI fast `build-test` job)
 - `tools/check_ci_build_lint_test_coverage.sh` (matches CI `build-lint-test-coverage` job)
 - `tools/check_docs.sh` (matches CI `docs` job)
 - `tools/run_quality.sh` (format + build/lint/test/coverage + docs)
@@ -74,7 +78,8 @@ cmake -S . -B build -G Ninja
 cmake --build build --target doc
 ```
 
-The `quality` CI workflow also validates Doxygen HTML generation on each push/PR.
+The `quality-full` CI workflow validates Doxygen HTML generation in nightly,
+manual, and release-tag runs.
 
 ## Pre-push guardrail (recommended)
 
@@ -85,7 +90,8 @@ bash tools/install_git_hooks.sh
 ```
 
 This runs `tools/pre_push_quality.sh` before every push, which executes the
-same core checks as CI (`format`, `build-lint-test-coverage`, and `docs`).
+full-quality checks (`format`, `build-lint-test-coverage`, and `docs`) locally
+before upload.
 
 ## Phase 0 Interop Tooling
 
