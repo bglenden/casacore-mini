@@ -44,6 +44,14 @@ CI workflow: `.github/workflows/quality.yml`.
 
 Local developer workflow: `CONTRIBUTING.md`.
 
+Key local check scripts:
+
+- `tools/check_ci_build_lint_test_coverage.sh` (matches CI `build-lint-test-coverage` job)
+- `tools/check_docs.sh` (matches CI `docs` job)
+- `tools/run_quality.sh` (format + build/lint/test/coverage + docs)
+- `tools/pre_push_quality.sh` (intended for pre-push use)
+- `tools/install_git_hooks.sh` (installs a `pre-push` hook that runs `tools/pre_push_quality.sh`)
+
 ## Endianness Policy
 
 - Host architecture support is currently limited to little-endian systems.
@@ -67,6 +75,17 @@ cmake --build build --target doc
 ```
 
 The `quality` CI workflow also validates Doxygen HTML generation on each push/PR.
+
+## Pre-push guardrail (recommended)
+
+To reduce CI churn and failure emails, install the repository pre-push hook:
+
+```bash
+bash tools/install_git_hooks.sh
+```
+
+This runs `tools/pre_push_quality.sh` before every push, which executes the
+same core checks as CI (`format`, `build-lint-test-coverage`, and `docs`).
 
 ## Phase 0 Interop Tooling
 

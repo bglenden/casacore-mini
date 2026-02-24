@@ -30,19 +30,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build clang doxygen graphviz
-      - name: Configure docs build
-        run: |
-          cmake -S . -B build-doc -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
-            -DCASACORE_MINI_ENABLE_CLANG_TIDY=OFF \
-            -DCASACORE_MINI_ENABLE_COVERAGE=OFF \
-            -DCASACORE_MINI_ENABLE_DOXYGEN=ON
-      - name: Generate Doxygen HTML
-        run: cmake --build build-doc --target doc
-      - name: Verify documentation output
-        run: test -f build-doc/docs/doxygen/html/index.html
+      - name: Docs quality checks
+        run: bash tools/check_docs.sh build-doc
 
   build-lint-test-coverage:
     runs-on: ubuntu-latest
@@ -55,32 +44,5 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build g++ clang clang-tidy llvm gcovr python3-yaml
-      - name: Phase 0 manifest and oracle determinism checks
-        run: bash tools/check_phase0.sh build
-      - name: Configure
-        run: |
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
-            -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
-            -DCASACORE_MINI_ENABLE_COVERAGE=ON \
-            -DCASACORE_MINI_ENABLE_DOXYGEN=OFF
-      - name: Build
-        run: cmake --build build
-      - name: Phase 1 schema hook check
-        run: bash tools/check_phase1.sh build
-      - name: Phase 2 checks
-        run: bash tools/check_phase2.sh build
-      - name: Phase 3 checks
-        run: bash tools/check_phase3.sh
-      - name: Phase 4 checks
-        run: bash tools/check_phase4.sh
-      - name: Phase 5 checks
-        run: bash tools/check_phase5.sh build
-      - name: Phase 6 checks
-        run: bash tools/check_phase6.sh build
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-      - name: Coverage gate
-        run: bash tools/check_coverage.sh build 70
+      - name: Build/lint/test/coverage quality checks
+        run: bash tools/check_ci_build_lint_test_coverage.sh build

@@ -26,7 +26,8 @@ using wire_i_position = std::vector<std::int64_t>;
     return static_cast<std::uint32_t>(value);
 }
 
-[[nodiscard]] std::uint32_t checked_u32(const std::uint64_t value, std::string_view field_name) {
+[[nodiscard]] std::uint32_t checked_u32_from_u64(const std::uint64_t value,
+                                                 std::string_view field_name) {
     if (value > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max())) {
         throw std::runtime_error(std::string(field_name) + " exceeds uint32 range");
     }
@@ -281,7 +282,7 @@ void write_aipsio_array(AipsIoWriter& writer, std::string_view type_name,
 
     writer.write_u32(checked_u32(array.shape.size(), "Array rank"));
     for (const auto dim : array.shape) {
-        writer.write_u32(checked_u32(dim, "Array dimension"));
+        writer.write_u32(checked_u32_from_u64(dim, "Array dimension"));
     }
     writer.write_u32(checked_u32(array.elements.size(), "Array element count"));
 

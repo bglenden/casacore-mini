@@ -77,43 +77,40 @@ bash tools/run_quality.sh
 This performs:
 
 1. `clang-format` check (`tools/check_format.sh`)
-2. Phase 0 manifest + oracle determinism checks (`tools/check_phase0.sh build-quality`)
-3. CMake configure with strict flags and lint enabled
-4. Build
-5. Phase 1 schema hook check (`tools/check_phase1.sh build-quality`)
-6. Phase 2 compatibility checks (`tools/check_phase2.sh build-quality`)
-7. Phase 3 keyword/metadata checks (`tools/check_phase3.sh`)
-8. Doxygen docs generation (`doc` target)
-9. `ctest`
-10. Coverage gate (`tools/check_coverage.sh build-quality 70`)
+2. CI-equivalent build/lint/test/coverage checks (`tools/check_ci_build_lint_test_coverage.sh build-quality`)
+3. CI-equivalent docs checks (`tools/check_docs.sh build-quality-doc`)
+
+## CI job parity scripts
+
+These scripts are the source of truth for CI/local parity:
+
+- `tools/check_ci_build_lint_test_coverage.sh`: phase checks + configure/build + `ctest` + coverage gate
+- `tools/check_docs.sh`: docs configure + Doxygen build + output verification
+
+`quality.yml` calls these scripts directly.
+
+## Pre-push hook (recommended)
+
+Install:
+
+```bash
+bash tools/install_git_hooks.sh
+```
+
+This creates `.git/hooks/pre-push` that runs:
+
+```bash
+bash tools/pre_push_quality.sh
+```
+
+The hook is intentionally strict to catch regressions before upload.
 
 ## Manual commands (equivalent)
 
 ```bash
 bash tools/check_format.sh
-bash tools/check_phase0.sh build-quality
-
-cmake -S . -B build-quality -G Ninja \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
-  -DCASACORE_MINI_ENABLE_CLANG_TIDY=ON \
-  -DCASACORE_MINI_ENABLE_COVERAGE=ON
-
-cmake --build build-quality
-bash tools/check_phase1.sh build-quality
-bash tools/check_phase2.sh build-quality
-bash tools/check_phase3.sh
-cmake -S . -B build-docs -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON \
-  -DCASACORE_MINI_ENABLE_CLANG_TIDY=OFF \
-  -DCASACORE_MINI_ENABLE_COVERAGE=OFF \
-  -DCASACORE_MINI_ENABLE_DOXYGEN=ON
-cmake --build build-docs --target doc
-ctest --test-dir build-quality --output-on-failure
-bash tools/check_coverage.sh build-quality 70
+bash tools/check_ci_build_lint_test_coverage.sh build-quality
+bash tools/check_docs.sh build-docs
 ```
 
 ## Optional: apply formatting

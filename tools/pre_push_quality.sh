@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${1:-build-quality}"
-DOC_BUILD_DIR="${2:-${BUILD_DIR}-doc}"
+BUILD_DIR="${1:-build-prepush}"
+DOC_BUILD_DIR="${2:-build-prepush-doc}"
 
 cd "${ROOT_DIR}"
 
@@ -11,4 +11,4 @@ bash tools/check_format.sh
 bash tools/check_ci_build_lint_test_coverage.sh "${BUILD_DIR}"
 bash tools/check_docs.sh "${DOC_BUILD_DIR}"
 
-echo "All quality checks passed"
+echo "pre-push quality checks passed"
