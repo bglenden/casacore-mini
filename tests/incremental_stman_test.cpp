@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -11,7 +12,16 @@
 
 namespace {
 
-constexpr auto kTestDir = "/private/tmp/claude-501/ism_test";
+const std::filesystem::path& test_root_dir() {
+    static const auto k_root = []() {
+        const auto* runner_temp = std::getenv("RUNNER_TEMP");
+        if (runner_temp != nullptr && runner_temp[0] != '\0') {
+            return std::filesystem::path(runner_temp) / "casacore_mini_ism_test";
+        }
+        return std::filesystem::temp_directory_path() / "casacore_mini_ism_test";
+    }();
+    return k_root;
+}
 
 /// Helper: build a 3-column ISM table (time:Double, antenna:Int, flag:Bool).
 casacore_mini::TableDatFull make_test_table_dat(std::uint64_t row_count) {
@@ -57,7 +67,7 @@ casacore_mini::TableDatFull make_test_table_dat(std::uint64_t row_count) {
 /// Write ISM file and return its path.
 std::string write_ism_test(const std::string& subdir, casacore_mini::IsmWriter& writer,
                            std::uint32_t seq_nr) {
-    auto dir = std::filesystem::path(kTestDir) / subdir;
+    auto dir = test_root_dir() / subdir;
     std::filesystem::create_directories(dir);
     writer.write_file(dir.string(), seq_nr);
     return dir.string();
@@ -191,7 +201,7 @@ void test_multi_bucket_value_continuity() {
 int main() {
     try {
         // Clean up test directory.
-        std::filesystem::remove_all(kTestDir);
+        std::filesystem::remove_all(test_root_dir());
 
         test_single_bucket_roundtrip();
         test_multi_bucket_roundtrip();
@@ -200,7 +210,7 @@ int main() {
         std::cout << "All ISM tests passed.\n";
 
         // Cleanup.
-        std::filesystem::remove_all(kTestDir);
+        std::filesystem::remove_all(test_root_dir());
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "ISM test failed: " << e.what() << '\n';
