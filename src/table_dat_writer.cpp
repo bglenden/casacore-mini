@@ -19,7 +19,8 @@ namespace {
     return static_cast<std::uint32_t>(value);
 }
 
-[[nodiscard]] std::uint32_t checked_u32(const std::size_t value, std::string_view field_name) {
+[[nodiscard]] std::uint32_t checked_u32_from_size(const std::size_t value,
+                                                  std::string_view field_name) {
     if (value > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
         throw std::runtime_error(std::string(field_name) + " exceeds uint32 range");
     }
@@ -49,7 +50,7 @@ void write_table_dat_header(AipsIoWriter& writer, const TableDatMetadata& metada
     // Patch object length using casacore AipsIO semantics:
     // object bytes excluding only the leading magic value.
     const auto length = writer.size() - length_offset;
-    writer.patch_u32(length_offset, checked_u32(length, "table.dat object length"));
+    writer.patch_u32(length_offset, checked_u32_from_size(length, "table.dat object length"));
 }
 
 std::vector<std::uint8_t> serialize_table_dat_header(const TableDatMetadata& metadata) {
