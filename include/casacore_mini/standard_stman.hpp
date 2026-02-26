@@ -111,30 +111,30 @@ class SsmReader {
 
     /// Read an indirect (variable-shape) int32 array cell from the .f0i file.
     [[nodiscard]] std::vector<std::int32_t> read_indirect_int(std::string_view col_name,
-                                                               std::uint64_t row) const;
+                                                              std::uint64_t row) const;
 
     /// Read an indirect (variable-shape) complex<float> array from the .f0i file.
-    [[nodiscard]] std::vector<std::complex<float>> read_indirect_complex(
-        std::string_view col_name, std::uint64_t row) const;
+    [[nodiscard]] std::vector<std::complex<float>> read_indirect_complex(std::string_view col_name,
+                                                                         std::uint64_t row) const;
 
     /// Read an indirect (variable-shape) complex<double> array from the .f0i file.
-    [[nodiscard]] std::vector<std::complex<double>> read_indirect_dcomplex(
-        std::string_view col_name, std::uint64_t row) const;
+    [[nodiscard]] std::vector<std::complex<double>>
+    read_indirect_dcomplex(std::string_view col_name, std::uint64_t row) const;
 
     /// Read an indirect (variable-shape) string array from the .f0i file.
     [[nodiscard]] std::vector<std::string> read_indirect_string(std::string_view col_name,
-                                                                 std::uint64_t row) const;
+                                                                std::uint64_t row) const;
 
     /// Read the shape of an indirect (variable-shape) array cell.
     [[nodiscard]] std::vector<std::int64_t> read_indirect_shape(std::string_view col_name,
-                                                                  std::uint64_t row) const;
+                                                                std::uint64_t row) const;
 
     /// Check if a column is stored indirectly (variable-shape SSMIndColumn).
     [[nodiscard]] bool is_indirect(std::string_view col_name) const;
 
     /// Read the Int64 file offset for an indirect column at a given row.
     [[nodiscard]] std::int64_t read_indirect_offset(std::string_view col_name,
-                                                     std::uint64_t row) const;
+                                                    std::uint64_t row) const;
 
     /// Check if this SSM instance manages the given column.
     [[nodiscard]] bool has_column(std::string_view col_name) const noexcept;
@@ -175,14 +175,14 @@ class SsmReader {
         std::string name;
         DataType data_type = DataType::tp_int;
         ColumnKind kind = ColumnKind::scalar;
-        std::uint32_t col_offset = 0;    // byte offset in bucket
-        std::uint32_t index_nr = 0;      // which SsmIndex
-        std::uint32_t ext_size = 0;      // external size per element in bytes
-        std::uint64_t n_elements = 1;    // product of shape (1 for scalars)
+        std::uint32_t col_offset = 0;          // byte offset in bucket
+        std::uint32_t index_nr = 0;            // which SsmIndex
+        std::uint32_t ext_size = 0;            // external size per element in bytes
+        std::uint64_t n_elements = 1;          // product of shape (1 for scalars)
         std::vector<std::int64_t> fixed_shape; // fixed array shape, if any
-        std::uint32_t row_size = 0;      // total bytes per row (ext_size * n_elements)
-        bool indirect = false;           // true for variable-shape (SSMIndColumn)
-        bool indirect_string = false;    // true for TpString SSMIndStringColumn
+        std::uint32_t row_size = 0;            // total bytes per row (ext_size * n_elements)
+        bool indirect = false;                 // true for variable-shape (SSMIndColumn)
+        bool indirect_string = false;          // true for TpString SSMIndStringColumn
     };
     std::vector<ColumnInfo> columns_;
 
@@ -290,11 +290,11 @@ class SsmWriter {
         std::string name;
         DataType data_type = DataType::tp_int;
         ColumnKind kind = ColumnKind::scalar;
-        std::uint32_t ext_size = 0;      // per-element size in bytes
-        std::uint32_t col_offset = 0;    // byte offset in bucket
-        std::uint64_t n_elements = 1;    // product of shape (1 for scalars)
-        std::uint32_t row_size = 0;      // bytes per row in bucket
-        bool indirect = false;           // true for variable-shape arrays (SSMIndColumn)
+        std::uint32_t ext_size = 0;   // per-element size in bytes
+        std::uint32_t col_offset = 0; // byte offset in bucket
+        std::uint64_t n_elements = 1; // product of shape (1 for scalars)
+        std::uint32_t row_size = 0;   // bytes per row in bucket
+        bool indirect = false;        // true for variable-shape arrays (SSMIndColumn)
     };
 
     bool is_setup_ = false;

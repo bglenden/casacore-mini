@@ -7,23 +7,23 @@
 #include <vector>
 
 /// Verify column names and types match expected schema for a subtable.
-static void check_schema(const std::string& table_name,
-                          const std::vector<casacore_mini::ColumnDesc>& cols,
-                          const std::vector<std::pair<std::string, casacore_mini::DataType>>& expected) {
+static void
+check_schema(const std::string& table_name, const std::vector<casacore_mini::ColumnDesc>& cols,
+             const std::vector<std::pair<std::string, casacore_mini::DataType>>& expected) {
     if (cols.size() != expected.size()) {
-        std::cerr << "FAIL: " << table_name << " column count " << cols.size()
-                  << " != expected " << expected.size() << "\n";
+        std::cerr << "FAIL: " << table_name << " column count " << cols.size() << " != expected "
+                  << expected.size() << "\n";
         assert(false);
     }
     for (std::size_t i = 0; i < expected.size(); ++i) {
         if (cols[i].name != expected[i].first) {
-            std::cerr << "FAIL: " << table_name << " col[" << i << "] name '"
-                      << cols[i].name << "' != expected '" << expected[i].first << "'\n";
+            std::cerr << "FAIL: " << table_name << " col[" << i << "] name '" << cols[i].name
+                      << "' != expected '" << expected[i].first << "'\n";
             assert(false);
         }
         if (cols[i].data_type != expected[i].second) {
-            std::cerr << "FAIL: " << table_name << " col[" << i << "] '"
-                      << cols[i].name << "' type mismatch\n";
+            std::cerr << "FAIL: " << table_name << " col[" << i << "] '" << cols[i].name
+                      << "' type mismatch\n";
             assert(false);
         }
     }
@@ -32,16 +32,17 @@ static void check_schema(const std::string& table_name,
 static void test_antenna_schema() {
     std::cout << "  ANTENNA schema... ";
     auto cols = casacore_mini::make_antenna_desc();
-    check_schema("ANTENNA", cols, {
-        {"NAME", casacore_mini::DataType::tp_string},
-        {"STATION", casacore_mini::DataType::tp_string},
-        {"TYPE", casacore_mini::DataType::tp_string},
-        {"MOUNT", casacore_mini::DataType::tp_string},
-        {"POSITION", casacore_mini::DataType::tp_double},
-        {"OFFSET", casacore_mini::DataType::tp_double},
-        {"DISH_DIAMETER", casacore_mini::DataType::tp_double},
-        {"FLAG_ROW", casacore_mini::DataType::tp_bool},
-    });
+    check_schema("ANTENNA", cols,
+                 {
+                     {"NAME", casacore_mini::DataType::tp_string},
+                     {"STATION", casacore_mini::DataType::tp_string},
+                     {"TYPE", casacore_mini::DataType::tp_string},
+                     {"MOUNT", casacore_mini::DataType::tp_string},
+                     {"POSITION", casacore_mini::DataType::tp_double},
+                     {"OFFSET", casacore_mini::DataType::tp_double},
+                     {"DISH_DIAMETER", casacore_mini::DataType::tp_double},
+                     {"FLAG_ROW", casacore_mini::DataType::tp_bool},
+                 });
     // POSITION is array with shape [3].
     assert(cols[4].kind == casacore_mini::ColumnKind::array);
     assert(cols[4].ndim == 1);
@@ -52,23 +53,25 @@ static void test_antenna_schema() {
 static void test_data_description_schema() {
     std::cout << "  DATA_DESCRIPTION schema... ";
     auto cols = casacore_mini::make_data_description_desc();
-    check_schema("DATA_DESCRIPTION", cols, {
-        {"SPECTRAL_WINDOW_ID", casacore_mini::DataType::tp_int},
-        {"POLARIZATION_ID", casacore_mini::DataType::tp_int},
-        {"FLAG_ROW", casacore_mini::DataType::tp_bool},
-    });
+    check_schema("DATA_DESCRIPTION", cols,
+                 {
+                     {"SPECTRAL_WINDOW_ID", casacore_mini::DataType::tp_int},
+                     {"POLARIZATION_ID", casacore_mini::DataType::tp_int},
+                     {"FLAG_ROW", casacore_mini::DataType::tp_bool},
+                 });
     std::cout << "PASS\n";
 }
 
 static void test_polarization_schema() {
     std::cout << "  POLARIZATION schema... ";
     auto cols = casacore_mini::make_polarization_desc();
-    check_schema("POLARIZATION", cols, {
-        {"NUM_CORR", casacore_mini::DataType::tp_int},
-        {"CORR_TYPE", casacore_mini::DataType::tp_int},
-        {"CORR_PRODUCT", casacore_mini::DataType::tp_int},
-        {"FLAG_ROW", casacore_mini::DataType::tp_bool},
-    });
+    check_schema("POLARIZATION", cols,
+                 {
+                     {"NUM_CORR", casacore_mini::DataType::tp_int},
+                     {"CORR_TYPE", casacore_mini::DataType::tp_int},
+                     {"CORR_PRODUCT", casacore_mini::DataType::tp_int},
+                     {"FLAG_ROW", casacore_mini::DataType::tp_bool},
+                 });
     assert(cols[1].kind == casacore_mini::ColumnKind::array);
     assert(cols[2].kind == casacore_mini::ColumnKind::array);
     assert(cols[2].ndim == 2);
@@ -112,10 +115,12 @@ static void test_observation_schema() {
 static void test_all_17_factories() {
     std::cout << "  all 17 subtable factories produce non-empty schemas... ";
     std::vector<std::string> all_names = {
-        "ANTENNA", "DATA_DESCRIPTION", "FEED", "FIELD", "FLAG_CMD",
-        "HISTORY", "OBSERVATION", "POINTING", "POLARIZATION", "PROCESSOR",
-        "SPECTRAL_WINDOW", "STATE",
-        "DOPPLER", "FREQ_OFFSET", "SOURCE", "SYSCAL", "WEATHER",
+        "ANTENNA",     "DATA_DESCRIPTION", "FEED",
+        "FIELD",       "FLAG_CMD",         "HISTORY",
+        "OBSERVATION", "POINTING",         "POLARIZATION",
+        "PROCESSOR",   "SPECTRAL_WINDOW",  "STATE",
+        "DOPPLER",     "FREQ_OFFSET",      "SOURCE",
+        "SYSCAL",      "WEATHER",
     };
     for (const auto& name : all_names) {
         auto cols = casacore_mini::make_subtable_desc_by_name(name);
@@ -137,13 +142,19 @@ static void test_all_17_factories() {
 static void test_column_name_lookups() {
     std::cout << "  column name enum lookups... ";
     assert(casacore_mini::ms_antenna_column_name(casacore_mini::MsAntennaColumn::name) == "NAME");
-    assert(casacore_mini::ms_antenna_column_name(casacore_mini::MsAntennaColumn::position) == "POSITION");
-    assert(casacore_mini::ms_spw_column_name(casacore_mini::MsSpWindowColumn::chan_freq) == "CHAN_FREQ");
-    assert(casacore_mini::ms_polarization_column_name(casacore_mini::MsPolarizationColumn::num_corr) == "NUM_CORR");
-    assert(casacore_mini::ms_state_column_name(casacore_mini::MsStateColumn::obs_mode) == "OBS_MODE");
-    assert(casacore_mini::ms_weather_column_name(casacore_mini::MsWeatherColumn::temperature) == "TEMPERATURE");
+    assert(casacore_mini::ms_antenna_column_name(casacore_mini::MsAntennaColumn::position) ==
+           "POSITION");
+    assert(casacore_mini::ms_spw_column_name(casacore_mini::MsSpWindowColumn::chan_freq) ==
+           "CHAN_FREQ");
+    assert(casacore_mini::ms_polarization_column_name(
+               casacore_mini::MsPolarizationColumn::num_corr) == "NUM_CORR");
+    assert(casacore_mini::ms_state_column_name(casacore_mini::MsStateColumn::obs_mode) ==
+           "OBS_MODE");
+    assert(casacore_mini::ms_weather_column_name(casacore_mini::MsWeatherColumn::temperature) ==
+           "TEMPERATURE");
     assert(casacore_mini::ms_source_column_name(casacore_mini::MsSourceColumn::name) == "NAME");
-    assert(casacore_mini::ms_doppler_column_name(casacore_mini::MsDopplerColumn::veldef) == "VELDEF");
+    assert(casacore_mini::ms_doppler_column_name(casacore_mini::MsDopplerColumn::veldef) ==
+           "VELDEF");
     std::cout << "PASS\n";
 }
 
@@ -177,19 +188,19 @@ static void test_optional_subtable_schemas() {
 
 int main() {
     try {
-    std::cout << "ms_subtables_test\n";
+        std::cout << "ms_subtables_test\n";
 
-    test_antenna_schema();
-    test_data_description_schema();
-    test_polarization_schema();
-    test_spectral_window_schema();
-    test_field_schema();
-    test_observation_schema();
-    test_all_17_factories();
-    test_column_name_lookups();
-    test_optional_subtable_schemas();
+        test_antenna_schema();
+        test_data_description_schema();
+        test_polarization_schema();
+        test_spectral_window_schema();
+        test_field_schema();
+        test_observation_schema();
+        test_all_17_factories();
+        test_column_name_lookups();
+        test_optional_subtable_schemas();
 
-    std::cout << "all ms_subtables tests passed\n";
+        std::cout << "all ms_subtables tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

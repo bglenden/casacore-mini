@@ -58,28 +58,28 @@ StokesConverter::convert(const std::vector<std::complex<float>>& in_data) const 
         auto ll = find_in(8);
 
         if (out_code == 1 && rr >= 0 && ll >= 0) { // I from circular
-            result[oi] = (in_data[static_cast<std::size_t>(rr)] +
-                          in_data[static_cast<std::size_t>(ll)]) *
-                         0.5F;
+            result[oi] =
+                (in_data[static_cast<std::size_t>(rr)] + in_data[static_cast<std::size_t>(ll)]) *
+                0.5F;
             continue;
         }
         if (out_code == 2 && rl >= 0 && lr >= 0) { // Q from circular
-            result[oi] = (in_data[static_cast<std::size_t>(rl)] +
-                          in_data[static_cast<std::size_t>(lr)]) *
-                         0.5F;
+            result[oi] =
+                (in_data[static_cast<std::size_t>(rl)] + in_data[static_cast<std::size_t>(lr)]) *
+                0.5F;
             continue;
         }
         if (out_code == 3 && rl >= 0 && lr >= 0) { // U from circular
-            result[oi] = std::complex<float>(0.0F, 1.0F) *
-                         (in_data[static_cast<std::size_t>(lr)] -
-                          in_data[static_cast<std::size_t>(rl)]) *
-                         0.5F;
+            result[oi] =
+                std::complex<float>(0.0F, 1.0F) *
+                (in_data[static_cast<std::size_t>(lr)] - in_data[static_cast<std::size_t>(rl)]) *
+                0.5F;
             continue;
         }
         if (out_code == 4 && rr >= 0 && ll >= 0) { // V from circular
-            result[oi] = (in_data[static_cast<std::size_t>(rr)] -
-                          in_data[static_cast<std::size_t>(ll)]) *
-                         0.5F;
+            result[oi] =
+                (in_data[static_cast<std::size_t>(rr)] - in_data[static_cast<std::size_t>(ll)]) *
+                0.5F;
             continue;
         }
 
@@ -94,28 +94,28 @@ StokesConverter::convert(const std::vector<std::complex<float>>& in_data) const 
         auto yy = find_in(12);
 
         if (out_code == 1 && xx >= 0 && yy >= 0) { // I from linear
-            result[oi] = (in_data[static_cast<std::size_t>(xx)] +
-                          in_data[static_cast<std::size_t>(yy)]) *
-                         0.5F;
+            result[oi] =
+                (in_data[static_cast<std::size_t>(xx)] + in_data[static_cast<std::size_t>(yy)]) *
+                0.5F;
             continue;
         }
         if (out_code == 2 && xx >= 0 && yy >= 0) { // Q from linear
-            result[oi] = (in_data[static_cast<std::size_t>(xx)] -
-                          in_data[static_cast<std::size_t>(yy)]) *
-                         0.5F;
+            result[oi] =
+                (in_data[static_cast<std::size_t>(xx)] - in_data[static_cast<std::size_t>(yy)]) *
+                0.5F;
             continue;
         }
         if (out_code == 3 && xy >= 0 && yx >= 0) { // U from linear
-            result[oi] = (in_data[static_cast<std::size_t>(xy)] +
-                          in_data[static_cast<std::size_t>(yx)]) *
-                         0.5F;
+            result[oi] =
+                (in_data[static_cast<std::size_t>(xy)] + in_data[static_cast<std::size_t>(yx)]) *
+                0.5F;
             continue;
         }
         if (out_code == 4 && xy >= 0 && yx >= 0) { // V from linear
-            result[oi] = std::complex<float>(0.0F, 1.0F) *
-                         (in_data[static_cast<std::size_t>(yx)] -
-                          in_data[static_cast<std::size_t>(xy)]) *
-                         0.5F;
+            result[oi] =
+                std::complex<float>(0.0F, 1.0F) *
+                (in_data[static_cast<std::size_t>(yx)] - in_data[static_cast<std::size_t>(xy)]) *
+                0.5F;
             continue;
         }
 
@@ -144,7 +144,7 @@ double MsDopplerUtil::frequency_to_velocity(double freq_hz, double rest_freq_hz)
 MsHistoryHandler::MsHistoryHandler(MeasurementSet& ms) : ms_(ms) {}
 
 void MsHistoryHandler::add_entry(const std::string& message, const std::string& priority,
-                                  const std::string& origin, double time_s) {
+                                 const std::string& origin, double time_s) {
     HistoryEntry entry;
     if (time_s == 0.0) {
         // Current time as MJD seconds.
@@ -195,16 +195,27 @@ void MsHistoryHandler::flush() {
                 continue;
             }
             CellValue val;
-            if (col.name == "TIME") { val = e.time; }
-            else if (col.name == "OBSERVATION_ID") { val = e.observation_id; }
-            else if (col.name == "MESSAGE") { val = e.message; }
-            else if (col.name == "PRIORITY") { val = e.priority; }
-            else if (col.name == "ORIGIN") { val = e.origin; }
-            else if (col.name == "OBJECT_ID") { val = e.object_id; }
-            else if (col.name == "APPLICATION") { val = e.application; }
-            else if (col.data_type == DataType::tp_double) { val = 0.0; }
-            else if (col.data_type == DataType::tp_string) { val = std::string{}; }
-            else { val = std::int32_t{0}; }
+            if (col.name == "TIME") {
+                val = e.time;
+            } else if (col.name == "OBSERVATION_ID") {
+                val = e.observation_id;
+            } else if (col.name == "MESSAGE") {
+                val = e.message;
+            } else if (col.name == "PRIORITY") {
+                val = e.priority;
+            } else if (col.name == "ORIGIN") {
+                val = e.origin;
+            } else if (col.name == "OBJECT_ID") {
+                val = e.object_id;
+            } else if (col.name == "APPLICATION") {
+                val = e.application;
+            } else if (col.data_type == DataType::tp_double) {
+                val = 0.0;
+            } else if (col.data_type == DataType::tp_string) {
+                val = std::string{};
+            } else {
+                val = std::int32_t{0};
+            }
             table.write_scalar_cell(col.name, r, val);
         }
     }

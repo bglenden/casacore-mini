@@ -48,9 +48,15 @@ class UnitVal {
     /// General: explicit factor and dimension vector.
     UnitVal(double factor, DimArray dims);
 
-    [[nodiscard]] double factor() const { return factor_; }
-    [[nodiscard]] int8_t dim(Dim d) const { return dims_[static_cast<std::size_t>(d)]; }
-    [[nodiscard]] const DimArray& dims() const { return dims_; }
+    [[nodiscard]] double factor() const {
+        return factor_;
+    }
+    [[nodiscard]] int8_t dim(Dim d) const {
+        return dims_[static_cast<std::size_t>(d)];
+    }
+    [[nodiscard]] const DimArray& dims() const {
+        return dims_;
+    }
 
     /// Multiply: factors multiply, dimension exponents add.
     [[nodiscard]] UnitVal operator*(const UnitVal& rhs) const;
@@ -104,13 +110,21 @@ class Unit {
     /// Parse from C string literal.
     explicit Unit(const char* name); // NOLINT(google-explicit-constructor)
 
-    [[nodiscard]] const std::string& name() const { return name_; }
-    [[nodiscard]] const UnitVal& value() const { return val_; }
+    [[nodiscard]] const std::string& name() const {
+        return name_;
+    }
+    [[nodiscard]] const UnitVal& value() const {
+        return val_;
+    }
 
-    [[nodiscard]] bool empty() const { return name_.empty(); }
+    [[nodiscard]] bool empty() const {
+        return name_.empty();
+    }
 
     /// True if the unit string was successfully parsed.
-    [[nodiscard]] bool defined() const { return defined_; }
+    [[nodiscard]] bool defined() const {
+        return defined_;
+    }
 
     /// Dimension conformance check (delegates to UnitVal::conforms).
     [[nodiscard]] bool conforms(const Unit& other) const;

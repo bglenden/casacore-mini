@@ -83,8 +83,7 @@ std::optional<double> try_parse_double(std::string_view sv) {
 
 /// Parse an integer list or range expression like "1,3,5" or "1~5".
 /// Returns the set of selected integers.
-std::set<std::int32_t> parse_int_list_or_range(std::string_view expr,
-                                                std::string_view category) {
+std::set<std::int32_t> parse_int_list_or_range(std::string_view expr, std::string_view category) {
     std::set<std::int32_t> result;
     auto tokens = split(expr, ',');
     for (const auto& tok : tokens) {
@@ -94,8 +93,7 @@ std::set<std::int32_t> parse_int_list_or_range(std::string_view expr,
             auto lo = try_parse_int(std::string_view(tok).substr(0, tilde));
             auto hi = try_parse_int(std::string_view(tok).substr(tilde + 1));
             if (!lo || !hi) {
-                throw std::runtime_error(
-                    std::string(category) + ": invalid range '" + tok + "'");
+                throw std::runtime_error(std::string(category) + ": invalid range '" + tok + "'");
             }
             for (std::int32_t i = *lo; i <= *hi; ++i) {
                 result.insert(i);
@@ -103,8 +101,7 @@ std::set<std::int32_t> parse_int_list_or_range(std::string_view expr,
         } else {
             auto val = try_parse_int(tok);
             if (!val) {
-                throw std::runtime_error(
-                    std::string(category) + ": invalid ID '" + tok + "'");
+                throw std::runtime_error(std::string(category) + ": invalid ID '" + tok + "'");
             }
             result.insert(*val);
         }
@@ -180,8 +177,8 @@ void MsSelection::set_state_expr(std::string_view expr) {
 }
 
 bool MsSelection::has_selection() const noexcept {
-    return antenna_expr_ || field_expr_ || spw_expr_ || scan_expr_ ||
-           time_expr_ || uvdist_expr_ || corr_expr_ || state_expr_;
+    return antenna_expr_ || field_expr_ || spw_expr_ || scan_expr_ || time_expr_ || uvdist_expr_ ||
+           corr_expr_ || state_expr_;
 }
 
 // ---------------------------------------------------------------------------
@@ -222,8 +219,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
 
             auto lhs = try_parse_int(lhs_sv);
             if (!lhs) {
-                throw std::runtime_error(
-                    "Antenna: invalid antenna ID '" + std::string(lhs_sv) + "'");
+                throw std::runtime_error("Antenna: invalid antenna ID '" + std::string(lhs_sv) +
+                                         "'");
             }
 
             bool rhs_wildcard = (rhs_sv == "*");
@@ -234,8 +231,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 }
                 rhs = try_parse_int(rhs_sv);
                 if (!rhs) {
-                    throw std::runtime_error(
-                        "Antenna: invalid antenna ID '" + std::string(rhs_sv) + "'");
+                    throw std::runtime_error("Antenna: invalid antenna ID '" + std::string(rhs_sv) +
+                                             "'");
                 }
             }
 
@@ -251,8 +248,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 if (rhs_wildcard) {
                     match = (a1 == *lhs || a2 == *lhs);
                 } else {
-                    match = (a1 == *lhs && a2 == *rhs) ||
-                            (a1 == *rhs && a2 == *lhs);
+                    match = (a1 == *lhs && a2 == *rhs) || (a1 == *rhs && a2 == *lhs);
                 }
                 if (!match) {
                     selected[r] = false;
@@ -272,8 +268,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                     auto lo = try_parse_int(std::string_view(tok).substr(0, tilde));
                     auto hi = try_parse_int(std::string_view(tok).substr(tilde + 1));
                     if (!lo || !hi) {
-                        throw std::runtime_error(
-                            "Antenna: invalid range '" + tok + "'");
+                        throw std::runtime_error("Antenna: invalid range '" + tok + "'");
                     }
                     for (std::int32_t i = *lo; i <= *hi; ++i) {
                         ant_ids.insert(i);
@@ -282,8 +277,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                     auto val = try_parse_int(tok);
                     if (val) {
                         if (*val < 0) {
-                            throw std::runtime_error(
-                                "Antenna: negative antenna ID '" + tok + "'");
+                            throw std::runtime_error("Antenna: negative antenna ID '" + tok + "'");
                         }
                         ant_ids.insert(*val);
                     } else {
@@ -306,8 +300,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                         }
                     }
                     if (!found) {
-                        throw std::runtime_error(
-                            "Antenna: name '" + tok + "' not found in ANTENNA subtable");
+                        throw std::runtime_error("Antenna: name '" + tok +
+                                                 "' not found in ANTENNA subtable");
                     }
                 }
             }
@@ -355,8 +349,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             field_ids.clear();
             MsFieldColumns fld_cols(ms);
             for (const auto& tok : tokens) {
-                bool has_wildcard = tok.find('*') != std::string::npos ||
-                                    tok.find('?') != std::string::npos;
+                bool has_wildcard =
+                    tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
                 bool found = false;
                 for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
                     auto fname = fld_cols.name(fi);
@@ -367,8 +361,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                     }
                 }
                 if (!found) {
-                    throw std::runtime_error(
-                        "Field: name '" + tok + "' not found in FIELD subtable");
+                    throw std::runtime_error("Field: name '" + tok +
+                                             "' not found in FIELD subtable");
                 }
             }
         }
@@ -408,15 +402,14 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 spw_part = std::string_view(tok).substr(0, colon);
                 auto chan_part = std::string_view(tok).substr(colon + 1);
                 if (chan_part.empty()) {
-                    throw std::runtime_error(
-                        "SPW: missing channel specification after ':' in '" + tok + "'");
+                    throw std::runtime_error("SPW: missing channel specification after ':' in '" +
+                                             tok + "'");
                 }
                 // Parse channel ranges (store in result but don't filter rows by channel).
                 auto chan_ranges = split(chan_part, ';');
                 auto spw_val = try_parse_int(spw_part);
                 if (!spw_val) {
-                    throw std::runtime_error(
-                        "SPW: invalid SPW ID '" + std::string(spw_part) + "'");
+                    throw std::runtime_error("SPW: invalid SPW ID '" + std::string(spw_part) + "'");
                 }
                 for (const auto& cr : chan_ranges) {
                     auto tilde = cr.find('~');
@@ -424,8 +417,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                         auto lo = try_parse_int(std::string_view(cr).substr(0, tilde));
                         auto hi = try_parse_int(std::string_view(cr).substr(tilde + 1));
                         if (!lo || !hi) {
-                            throw std::runtime_error(
-                                "SPW: invalid channel range '" + cr + "'");
+                            throw std::runtime_error("SPW: invalid channel range '" + cr + "'");
                         }
                         result.channel_ranges.push_back(*spw_val);
                         result.channel_ranges.push_back(*lo);
@@ -433,8 +425,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                     } else {
                         auto ch = try_parse_int(cr);
                         if (!ch) {
-                            throw std::runtime_error(
-                                "SPW: invalid channel '" + cr + "'");
+                            throw std::runtime_error("SPW: invalid channel '" + cr + "'");
                         }
                         result.channel_ranges.push_back(*spw_val);
                         result.channel_ranges.push_back(*ch);
@@ -451,8 +442,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             } else {
                 auto val = try_parse_int(tok);
                 if (!val) {
-                    throw std::runtime_error(
-                        "SPW: invalid SPW ID '" + tok + "'");
+                    throw std::runtime_error("SPW: invalid SPW ID '" + tok + "'");
                 }
                 spw_ids.insert(*val);
             }
@@ -516,15 +506,15 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
         if (expr.front() == '>') {
             auto val = try_parse_double(expr.substr(1));
             if (!val) {
-                throw std::runtime_error(
-                    "Time: invalid value '" + std::string(expr.substr(1)) + "'");
+                throw std::runtime_error("Time: invalid value '" + std::string(expr.substr(1)) +
+                                         "'");
             }
             lo_mjd = *val;
         } else if (expr.front() == '<') {
             auto val = try_parse_double(expr.substr(1));
             if (!val) {
-                throw std::runtime_error(
-                    "Time: invalid value '" + std::string(expr.substr(1)) + "'");
+                throw std::runtime_error("Time: invalid value '" + std::string(expr.substr(1)) +
+                                         "'");
             }
             hi_mjd = *val;
         } else {
@@ -533,15 +523,13 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 auto lo_val = try_parse_double(expr.substr(0, tilde));
                 auto hi_val = try_parse_double(expr.substr(tilde + 1));
                 if (!lo_val || !hi_val) {
-                    throw std::runtime_error(
-                        "Time: invalid range '" + std::string(expr) + "'");
+                    throw std::runtime_error("Time: invalid range '" + std::string(expr) + "'");
                 }
                 lo_mjd = *lo_val;
                 hi_mjd = *hi_val;
             } else {
-                throw std::runtime_error(
-                    "Time: expression must use >, <, or lo~hi range: '"
-                    + std::string(expr) + "'");
+                throw std::runtime_error("Time: expression must use >, <, or lo~hi range: '" +
+                                         std::string(expr) + "'");
             }
         }
 
@@ -578,15 +566,15 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
         if (expr.front() == '>') {
             auto val = try_parse_double(expr.substr(1));
             if (!val) {
-                throw std::runtime_error(
-                    "UVdist: invalid value '" + std::string(expr.substr(1)) + "'");
+                throw std::runtime_error("UVdist: invalid value '" + std::string(expr.substr(1)) +
+                                         "'");
             }
             lo_uv = *val;
         } else if (expr.front() == '<') {
             auto val = try_parse_double(expr.substr(1));
             if (!val) {
-                throw std::runtime_error(
-                    "UVdist: invalid value '" + std::string(expr.substr(1)) + "'");
+                throw std::runtime_error("UVdist: invalid value '" + std::string(expr.substr(1)) +
+                                         "'");
             }
             hi_uv = *val;
         } else {
@@ -595,15 +583,13 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 auto lo_val = try_parse_double(expr.substr(0, tilde));
                 auto hi_val = try_parse_double(expr.substr(tilde + 1));
                 if (!lo_val || !hi_val) {
-                    throw std::runtime_error(
-                        "UVdist: invalid range '" + std::string(expr) + "'");
+                    throw std::runtime_error("UVdist: invalid range '" + std::string(expr) + "'");
                 }
                 lo_uv = *lo_val;
                 hi_uv = *hi_val;
             } else {
-                throw std::runtime_error(
-                    "UVdist: expression must use >, <, or lo~hi range: '"
-                    + std::string(expr) + "'");
+                throw std::runtime_error("UVdist: expression must use >, <, or lo~hi range: '" +
+                                         std::string(expr) + "'");
             }
         }
 
@@ -650,8 +636,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
         std::set<std::int32_t> state_ids;
 
         // Check if it's a pattern match (contains '*' or '?').
-        bool is_pattern = expr.find('*') != std::string_view::npos ||
-                          expr.find('?') != std::string_view::npos;
+        bool is_pattern =
+            expr.find('*') != std::string_view::npos || expr.find('?') != std::string_view::npos;
 
         if (is_pattern) {
             // Match against OBS_MODE in STATE subtable.

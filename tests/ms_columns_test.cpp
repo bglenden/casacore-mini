@@ -1,5 +1,5 @@
-#include "casacore_mini/ms_columns.hpp"
 #include "casacore_mini/measurement_set.hpp"
+#include "casacore_mini/ms_columns.hpp"
 #include "casacore_mini/ms_writer.hpp"
 
 #include <cassert>
@@ -32,16 +32,23 @@ static MeasurementSet create_populated_ms(const fs::path& path) {
     auto ms = MeasurementSet::create(path, true);
     MsWriter writer(ms);
 
-    writer.add_antenna({.name = "ANT0", .station = "STN0",
-                        .position = {0, 0, 0}, .offset = {0, 0, 0},
+    writer.add_antenna({.name = "ANT0",
+                        .station = "STN0",
+                        .position = {0, 0, 0},
+                        .offset = {0, 0, 0},
                         .dish_diameter = 25.0});
-    writer.add_antenna({.name = "ANT1", .station = "STN1",
-                        .position = {1, 0, 0}, .offset = {0, 0, 0},
+    writer.add_antenna({.name = "ANT1",
+                        .station = "STN1",
+                        .position = {1, 0, 0},
+                        .offset = {0, 0, 0},
                         .dish_diameter = 26.0});
-    writer.add_spectral_window({.num_chan = 1, .ref_frequency = 1e9,
-                                 .chan_freq = {1e9}, .chan_width = {1e6},
-                                 .effective_bw = {1e6}, .resolution = {1e6},
-                                 .total_bandwidth = 1e6});
+    writer.add_spectral_window({.num_chan = 1,
+                                .ref_frequency = 1e9,
+                                .chan_freq = {1e9},
+                                .chan_width = {1e6},
+                                .effective_bw = {1e6},
+                                .resolution = {1e6},
+                                .total_bandwidth = 1e6});
     writer.add_polarization({.num_corr = 1, .corr_type = {5}});
     writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0});
     writer.add_observation({.telescope_name = "TEST"});
@@ -49,30 +56,50 @@ static MeasurementSet create_populated_ms(const fs::path& path) {
     writer.add_field({.name = "SRC"});
 
     // Row 0: ant1=0, ant2=1, time=4.8e9, exposure=1.0, flag_row=true.
-    writer.add_row({.antenna1 = 0, .antenna2 = 1,
-                     .array_id = 0, .data_desc_id = 0,
-                     .exposure = 1.0, .feed1 = 0, .feed2 = 0,
-                     .field_id = 0, .flag_row = true,
-                     .interval = 1.0, .observation_id = 0,
-                     .processor_id = 0, .scan_number = 1,
-                     .state_id = 0,
-                     .time = 4.8e9, .time_centroid = 4.8e9,
-                     .uvw = {100.0, 101.0, 102.0},
-                     .sigma = {0.5F}, .weight = {0.5F},
-                     .data = {{1.0F, 0.0F}}, .flag = {false}});
+    writer.add_row({.antenna1 = 0,
+                    .antenna2 = 1,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 1.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 0,
+                    .flag_row = true,
+                    .interval = 1.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 1,
+                    .state_id = 0,
+                    .time = 4.8e9,
+                    .time_centroid = 4.8e9,
+                    .uvw = {100.0, 101.0, 102.0},
+                    .sigma = {0.5F},
+                    .weight = {0.5F},
+                    .data = {{1.0F, 0.0F}},
+                    .flag = {false}});
 
     // Row 1: ant1=1, ant2=0, time=4.8e9+10, exposure=1.5, flag_row=false.
-    writer.add_row({.antenna1 = 1, .antenna2 = 0,
-                     .array_id = 0, .data_desc_id = 0,
-                     .exposure = 1.5, .feed1 = 0, .feed2 = 0,
-                     .field_id = 0, .flag_row = false,
-                     .interval = 1.5, .observation_id = 0,
-                     .processor_id = 0, .scan_number = 2,
-                     .state_id = 0,
-                     .time = 4.8e9 + 10.0, .time_centroid = 4.8e9 + 10.0,
-                     .uvw = {200.0, 201.0, 202.0},
-                     .sigma = {1.0F}, .weight = {1.0F},
-                     .data = {{2.0F, 0.0F}}, .flag = {true}});
+    writer.add_row({.antenna1 = 1,
+                    .antenna2 = 0,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 1.5,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 0,
+                    .flag_row = false,
+                    .interval = 1.5,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 2,
+                    .state_id = 0,
+                    .time = 4.8e9 + 10.0,
+                    .time_centroid = 4.8e9 + 10.0,
+                    .uvw = {200.0, 201.0, 202.0},
+                    .sigma = {1.0F},
+                    .weight = {1.0F},
+                    .data = {{2.0F, 0.0F}},
+                    .flag = {true}});
 
     writer.flush();
     return MeasurementSet::open(path);
@@ -254,16 +281,16 @@ static void test_empty_ms_columns() {
 
 int main() {
     try {
-    std::cout << "ms_columns_test\n";
+        std::cout << "ms_columns_test\n";
 
-    test_main_scalar_columns();
-    test_main_array_columns();
-    test_main_measure_columns();
-    test_antenna_columns();
-    test_lazy_open();
-    test_empty_ms_columns();
+        test_main_scalar_columns();
+        test_main_array_columns();
+        test_main_measure_columns();
+        test_antenna_columns();
+        test_lazy_open();
+        test_empty_ms_columns();
 
-    std::cout << "all ms_columns tests passed\n";
+        std::cout << "all ms_columns tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

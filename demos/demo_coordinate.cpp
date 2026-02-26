@@ -57,30 +57,25 @@ static void demo_direction_coordinate() {
     Quantity inc_ra(-1.0, "deg");
     Quantity inc_dec(1.0, "deg");
 
-    DirectionCoordinate dc(DirectionRef::j2000,
-                           Projection{ProjectionType::sin, {0.0, 0.0}},
-                           ref_ra.get_value("rad"),     // ref RA
-                           ref_dec.get_value("rad"),    // ref Dec
-                           inc_ra.get_value("rad"),     // RA increment (-1 deg/px)
-                           inc_dec.get_value("rad"),    // Dec increment (1 deg/px)
-                           std::vector<double>{},       // identity PC matrix
-                           128.0, 128.0);               // crpix
+    DirectionCoordinate dc(DirectionRef::j2000, Projection{ProjectionType::sin, {0.0, 0.0}},
+                           ref_ra.get_value("rad"),  // ref RA
+                           ref_dec.get_value("rad"), // ref Dec
+                           inc_ra.get_value("rad"),  // RA increment (-1 deg/px)
+                           inc_dec.get_value("rad"), // Dec increment (1 deg/px)
+                           std::vector<double>{},    // identity PC matrix
+                           128.0, 128.0);            // crpix
 
     // Reference pixel -> reference world.
     auto w_ref = dc.to_world({128.0, 128.0});
-    std::cout << "  pixel(128,128) -> world: RA="
-              << Quantity(w_ref[0], "rad").get_value("deg")
-              << " deg, Dec="
-              << Quantity(w_ref[1], "rad").get_value("deg") << " deg\n";
+    std::cout << "  pixel(128,128) -> world: RA=" << Quantity(w_ref[0], "rad").get_value("deg")
+              << " deg, Dec=" << Quantity(w_ref[1], "rad").get_value("deg") << " deg\n";
     assert(near(w_ref[0], ref_ra.get_value("rad"), 1e-4));
     assert(near(w_ref[1], ref_dec.get_value("rad"), 1e-4));
 
     // Offset pixel -> world -> round-trip.
     auto w138 = dc.to_world({138.0, 138.0});
-    std::cout << "  pixel(138,138) -> world: RA="
-              << Quantity(w138[0], "rad").get_value("deg")
-              << " deg, Dec="
-              << Quantity(w138[1], "rad").get_value("deg") << " deg\n";
+    std::cout << "  pixel(138,138) -> world: RA=" << Quantity(w138[0], "rad").get_value("deg")
+              << " deg, Dec=" << Quantity(w138[1], "rad").get_value("deg") << " deg\n";
 
     auto p_back = dc.to_pixel(w138);
     std::cout << "  world -> pixel round-trip: (" << p_back[0] << ", " << p_back[1] << ")\n";
@@ -128,9 +123,9 @@ static void demo_spectral_coordinate() {
     std::cout << "\n=== SpectralCoordinate ===\n";
 
     SpectralCoordinate sc(FrequencyRef::topo,
-                          1400.0e6,   // ref frequency = 1400 MHz
-                          20.0e3,     // cdelt = 20 kHz channel width
-                          0.0);       // crpix = channel 0
+                          1400.0e6, // ref frequency = 1400 MHz
+                          20.0e3,   // cdelt = 20 kHz channel width
+                          0.0);     // crpix = channel 0
 
     // Channel 0 -> 1400 MHz
     auto w0 = sc.to_world({0.0});
@@ -161,23 +156,19 @@ static void demo_coordinate_system() {
     // Add direction coordinate.
     cs.add_coordinate(std::make_unique<DirectionCoordinate>(
         DirectionRef::j2000, Projection{ProjectionType::sin, {0.0, 0.0}},
-        Quantity(135.0, "deg").get_value("rad"),
-        Quantity(60.0, "deg").get_value("rad"),
-        Quantity(-1.0, "deg").get_value("rad"),
-        Quantity(1.0, "deg").get_value("rad"),
+        Quantity(135.0, "deg").get_value("rad"), Quantity(60.0, "deg").get_value("rad"),
+        Quantity(-1.0, "deg").get_value("rad"), Quantity(1.0, "deg").get_value("rad"),
         std::vector<double>{}, 128.0, 128.0));
 
     // Add spectral coordinate.
-    cs.add_coordinate(std::make_unique<SpectralCoordinate>(
-        FrequencyRef::topo, 1400.0e6, 20.0e3, 0.0));
+    cs.add_coordinate(
+        std::make_unique<SpectralCoordinate>(FrequencyRef::topo, 1400.0e6, 20.0e3, 0.0));
 
     // Add stokes coordinate.
-    cs.add_coordinate(std::make_unique<StokesCoordinate>(
-        std::vector<std::int32_t>{1, 2, 3, 4}));
+    cs.add_coordinate(std::make_unique<StokesCoordinate>(std::vector<std::int32_t>{1, 2, 3, 4}));
 
     std::cout << "  Coordinates: " << cs.n_coordinates() << "\n";
-    std::cout << "  Pixel axes:  " << cs.n_pixel_axes()
-              << " (2 dir + 1 spec + 1 stokes)\n";
+    std::cout << "  Pixel axes:  " << cs.n_pixel_axes() << " (2 dir + 1 spec + 1 stokes)\n";
     std::cout << "  World axes:  " << cs.n_world_axes() << "\n";
     assert(cs.n_coordinates() == 3);
     assert(cs.n_pixel_axes() == 4);
@@ -186,22 +177,18 @@ static void demo_coordinate_system() {
     // Axis mapping.
     auto dir_axis = cs.find_world_axis(0);
     assert(dir_axis.has_value());
-    std::cout << "  World axis 0 -> coordinate " << dir_axis->first
-              << " (direction)\n";
+    std::cout << "  World axis 0 -> coordinate " << dir_axis->first << " (direction)\n";
     assert(dir_axis->first == 0);
 
     auto spec_axis = cs.find_world_axis(2);
     assert(spec_axis.has_value());
-    std::cout << "  World axis 2 -> coordinate " << spec_axis->first
-              << " (spectral)\n";
+    std::cout << "  World axis 2 -> coordinate " << spec_axis->first << " (spectral)\n";
     assert(spec_axis->first == 1);
 
     // Per-coordinate transforms work.
     auto w_dir = cs.coordinate(0).to_world({128.0, 128.0});
-    std::cout << "  Direction at crpix: RA="
-              << Quantity(w_dir[0], "rad").get_value("deg")
-              << " deg, Dec="
-              << Quantity(w_dir[1], "rad").get_value("deg") << " deg\n";
+    std::cout << "  Direction at crpix: RA=" << Quantity(w_dir[0], "rad").get_value("deg")
+              << " deg, Dec=" << Quantity(w_dir[1], "rad").get_value("deg") << " deg\n";
     assert(near(w_dir[0], Quantity(135.0, "deg").get_value("rad"), 1e-4));
 
     auto w_spec = cs.coordinate(1).to_world({50.0});

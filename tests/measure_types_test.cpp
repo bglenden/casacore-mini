@@ -31,9 +31,10 @@ bool test_measure_type_strings() {
     assert(string_to_measure_type("RadialVelocity") == MeasureType::radial_velocity);
 
     // to_string round-trip.
-    for ([[maybe_unused]] auto t : {MeasureType::epoch, MeasureType::direction, MeasureType::position,
-                   MeasureType::frequency, MeasureType::doppler, MeasureType::radial_velocity,
-                   MeasureType::baseline, MeasureType::uvw, MeasureType::earth_magnetic}) {
+    for ([[maybe_unused]] auto t :
+         {MeasureType::epoch, MeasureType::direction, MeasureType::position, MeasureType::frequency,
+          MeasureType::doppler, MeasureType::radial_velocity, MeasureType::baseline,
+          MeasureType::uvw, MeasureType::earth_magnetic}) {
         assert(string_to_measure_type(measure_type_to_string(t)) == t);
     }
 
@@ -54,9 +55,9 @@ bool test_measure_type_strings() {
 bool test_epoch_ref() {
     using namespace casacore_mini;
     // Canonical round-trips.
-    for ([[maybe_unused]] auto r : {EpochRef::last, EpochRef::lmst, EpochRef::gmst1, EpochRef::gast, EpochRef::ut1,
-                   EpochRef::ut2, EpochRef::utc, EpochRef::tai, EpochRef::tdt, EpochRef::tcg,
-                   EpochRef::tdb, EpochRef::tcb}) {
+    for ([[maybe_unused]] auto r : {EpochRef::last, EpochRef::lmst, EpochRef::gmst1, EpochRef::gast,
+                                    EpochRef::ut1, EpochRef::ut2, EpochRef::utc, EpochRef::tai,
+                                    EpochRef::tdt, EpochRef::tcg, EpochRef::tdb, EpochRef::tcb}) {
         assert(string_to_epoch_ref(epoch_ref_to_string(r)) == r);
     }
 
@@ -87,14 +88,15 @@ bool test_epoch_ref() {
 
 bool test_direction_ref() {
     using namespace casacore_mini;
-    for ([[maybe_unused]] auto r : {DirectionRef::j2000,    DirectionRef::jmean,     DirectionRef::jtrue,
-                   DirectionRef::app,      DirectionRef::b1950,     DirectionRef::b1950_vla,
-                   DirectionRef::bmean,    DirectionRef::btrue,     DirectionRef::galactic,
-                   DirectionRef::hadec,    DirectionRef::azel,      DirectionRef::azelsw,
-                   DirectionRef::azelgeo,  DirectionRef::azelswgeo, DirectionRef::jnat,
-                   DirectionRef::ecliptic, DirectionRef::mecliptic, DirectionRef::tecliptic,
-                   DirectionRef::supergal, DirectionRef::itrf,      DirectionRef::topo,
-                   DirectionRef::icrs}) {
+    for ([[maybe_unused]] auto r :
+         {DirectionRef::j2000,    DirectionRef::jmean,     DirectionRef::jtrue,
+          DirectionRef::app,      DirectionRef::b1950,     DirectionRef::b1950_vla,
+          DirectionRef::bmean,    DirectionRef::btrue,     DirectionRef::galactic,
+          DirectionRef::hadec,    DirectionRef::azel,      DirectionRef::azelsw,
+          DirectionRef::azelgeo,  DirectionRef::azelswgeo, DirectionRef::jnat,
+          DirectionRef::ecliptic, DirectionRef::mecliptic, DirectionRef::tecliptic,
+          DirectionRef::supergal, DirectionRef::itrf,      DirectionRef::topo,
+          DirectionRef::icrs}) {
         assert(string_to_direction_ref(direction_ref_to_string(r)) == r);
     }
 
@@ -125,9 +127,10 @@ bool test_position_ref() {
 
 bool test_frequency_ref() {
     using namespace casacore_mini;
-    for ([[maybe_unused]] auto r : {FrequencyRef::rest, FrequencyRef::lsrk, FrequencyRef::lsrd, FrequencyRef::bary,
-                   FrequencyRef::geo, FrequencyRef::topo, FrequencyRef::galacto,
-                   FrequencyRef::lgroup, FrequencyRef::cmb}) {
+    for ([[maybe_unused]] auto r :
+         {FrequencyRef::rest, FrequencyRef::lsrk, FrequencyRef::lsrd, FrequencyRef::bary,
+          FrequencyRef::geo, FrequencyRef::topo, FrequencyRef::galacto, FrequencyRef::lgroup,
+          FrequencyRef::cmb}) {
         assert(string_to_frequency_ref(frequency_ref_to_string(r)) == r);
     }
     // LSR synonym.
@@ -141,8 +144,8 @@ bool test_frequency_ref() {
 
 bool test_doppler_ref() {
     using namespace casacore_mini;
-    for ([[maybe_unused]] auto r : {DopplerRef::radio, DopplerRef::z, DopplerRef::ratio, DopplerRef::beta,
-                   DopplerRef::gamma}) {
+    for ([[maybe_unused]] auto r : {DopplerRef::radio, DopplerRef::z, DopplerRef::ratio,
+                                    DopplerRef::beta, DopplerRef::gamma}) {
         assert(string_to_doppler_ref(doppler_ref_to_string(r)) == r);
     }
     // Synonyms.
@@ -157,9 +160,10 @@ bool test_doppler_ref() {
 
 bool test_radial_velocity_ref() {
     using namespace casacore_mini;
-    for ([[maybe_unused]] auto r : {RadialVelocityRef::lsrk, RadialVelocityRef::lsrd, RadialVelocityRef::bary,
-                   RadialVelocityRef::geo, RadialVelocityRef::topo, RadialVelocityRef::galacto,
-                   RadialVelocityRef::lgroup, RadialVelocityRef::cmb}) {
+    for ([[maybe_unused]] auto r :
+         {RadialVelocityRef::lsrk, RadialVelocityRef::lsrd, RadialVelocityRef::bary,
+          RadialVelocityRef::geo, RadialVelocityRef::topo, RadialVelocityRef::galacto,
+          RadialVelocityRef::lgroup, RadialVelocityRef::cmb}) {
         assert(string_to_radial_velocity_ref(radial_velocity_ref_to_string(r)) == r);
     }
     assert(string_to_radial_velocity_ref("LSR") == RadialVelocityRef::lsrk);

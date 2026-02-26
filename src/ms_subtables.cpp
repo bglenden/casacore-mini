@@ -11,28 +11,55 @@ namespace {
 [[nodiscard]] std::string col_type_string(ColumnKind kind, DataType dtype) {
     const char* type_id = nullptr;
     switch (dtype) {
-    case DataType::tp_bool: type_id = "Bool    "; break;
-    case DataType::tp_char: type_id = "Char    "; break;
-    case DataType::tp_uchar: type_id = "uChar   "; break;
-    case DataType::tp_short: type_id = "Short   "; break;
-    case DataType::tp_ushort: type_id = "uShort  "; break;
-    case DataType::tp_int: type_id = "Int     "; break;
-    case DataType::tp_uint: type_id = "uInt    "; break;
-    case DataType::tp_int64: type_id = "Int64   "; break;
-    case DataType::tp_float: type_id = "float   "; break;
-    case DataType::tp_double: type_id = "double  "; break;
-    case DataType::tp_complex: type_id = "Complex "; break;
-    case DataType::tp_dcomplex: type_id = "DComplex"; break;
-    case DataType::tp_string: type_id = "String  "; break;
-    default: type_id = "unknown "; break;
+    case DataType::tp_bool:
+        type_id = "Bool    ";
+        break;
+    case DataType::tp_char:
+        type_id = "Char    ";
+        break;
+    case DataType::tp_uchar:
+        type_id = "uChar   ";
+        break;
+    case DataType::tp_short:
+        type_id = "Short   ";
+        break;
+    case DataType::tp_ushort:
+        type_id = "uShort  ";
+        break;
+    case DataType::tp_int:
+        type_id = "Int     ";
+        break;
+    case DataType::tp_uint:
+        type_id = "uInt    ";
+        break;
+    case DataType::tp_int64:
+        type_id = "Int64   ";
+        break;
+    case DataType::tp_float:
+        type_id = "float   ";
+        break;
+    case DataType::tp_double:
+        type_id = "double  ";
+        break;
+    case DataType::tp_complex:
+        type_id = "Complex ";
+        break;
+    case DataType::tp_dcomplex:
+        type_id = "DComplex";
+        break;
+    case DataType::tp_string:
+        type_id = "String  ";
+        break;
+    default:
+        type_id = "unknown ";
+        break;
     }
-    std::string prefix =
-        (kind == ColumnKind::scalar) ? "ScalarColumnDesc<" : "ArrayColumnDesc<";
+    std::string prefix = (kind == ColumnKind::scalar) ? "ScalarColumnDesc<" : "ArrayColumnDesc<";
     return prefix + type_id;
 }
 
 [[nodiscard]] ColumnDesc make_scalar(const std::string& col_name, DataType dt,
-                                      const std::string& comment = "") {
+                                     const std::string& comment = "") {
     ColumnDesc col;
     col.kind = ColumnKind::scalar;
     col.name = col_name;
@@ -45,10 +72,9 @@ namespace {
     return col;
 }
 
-[[nodiscard]] ColumnDesc make_array(const std::string& col_name, DataType dt,
-                                     std::int32_t ndim,
-                                     std::vector<std::int64_t> shape = {},
-                                     const std::string& comment = "") {
+[[nodiscard]] ColumnDesc make_array(const std::string& col_name, DataType dt, std::int32_t ndim,
+                                    std::vector<std::int64_t> shape = {},
+                                    const std::string& comment = "") {
     ColumnDesc col;
     col.kind = ColumnKind::array;
     col.name = col_name;
@@ -74,118 +100,116 @@ namespace {
 
 std::string_view ms_antenna_column_name(MsAntennaColumn col) {
     static constexpr std::array<const char*, 8> kNames = {
-        "NAME", "STATION", "TYPE", "MOUNT", "POSITION", "OFFSET",
-        "DISH_DIAMETER", "FLAG_ROW"};
+        "NAME", "STATION", "TYPE", "MOUNT", "POSITION", "OFFSET", "DISH_DIAMETER", "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_data_desc_column_name(MsDataDescColumn col) {
-    static constexpr std::array<const char*, 3> kNames = {
-        "SPECTRAL_WINDOW_ID", "POLARIZATION_ID", "FLAG_ROW"};
+    static constexpr std::array<const char*, 3> kNames = {"SPECTRAL_WINDOW_ID", "POLARIZATION_ID",
+                                                          "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_feed_column_name(MsFeedColumn col) {
     static constexpr std::array<const char*, 12> kNames = {
-        "ANTENNA_ID", "FEED_ID", "SPECTRAL_WINDOW_ID", "TIME", "INTERVAL",
-        "NUM_RECEPTORS", "BEAM_ID", "BEAM_OFFSET", "POLARIZATION_TYPE",
-        "POL_RESPONSE", "POSITION", "RECEPTOR_ANGLE"};
+        "ANTENNA_ID",   "FEED_ID",     "SPECTRAL_WINDOW_ID",
+        "TIME",         "INTERVAL",    "NUM_RECEPTORS",
+        "BEAM_ID",      "BEAM_OFFSET", "POLARIZATION_TYPE",
+        "POL_RESPONSE", "POSITION",    "RECEPTOR_ANGLE"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_field_column_name(MsFieldColumn col) {
-    static constexpr std::array<const char*, 9> kNames = {
-        "NAME", "CODE", "TIME", "NUM_POLY", "DELAY_DIR", "PHASE_DIR",
-        "REFERENCE_DIR", "SOURCE_ID", "FLAG_ROW"};
+    static constexpr std::array<const char*, 9> kNames = {"NAME",          "CODE",      "TIME",
+                                                          "NUM_POLY",      "DELAY_DIR", "PHASE_DIR",
+                                                          "REFERENCE_DIR", "SOURCE_ID", "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_flag_cmd_column_name(MsFlagCmdColumn col) {
     static constexpr std::array<const char*, 8> kNames = {
-        "TIME", "INTERVAL", "TYPE", "REASON", "LEVEL", "SEVERITY",
-        "APPLIED", "COMMAND"};
+        "TIME", "INTERVAL", "TYPE", "REASON", "LEVEL", "SEVERITY", "APPLIED", "COMMAND"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_history_column_name(MsHistoryColumn col) {
     static constexpr std::array<const char*, 9> kNames = {
-        "TIME", "OBSERVATION_ID", "MESSAGE", "PRIORITY", "ORIGIN",
-        "OBJECT_ID", "APPLICATION", "CLI_COMMAND", "APP_PARAMS"};
+        "TIME",      "OBSERVATION_ID", "MESSAGE",     "PRIORITY",  "ORIGIN",
+        "OBJECT_ID", "APPLICATION",    "CLI_COMMAND", "APP_PARAMS"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_observation_column_name(MsObservationColumn col) {
     static constexpr std::array<const char*, 9> kNames = {
-        "TELESCOPE_NAME", "TIME_RANGE", "OBSERVER", "LOG", "SCHEDULE_TYPE",
-        "SCHEDULE", "PROJECT", "RELEASE_DATE", "FLAG_ROW"};
+        "TELESCOPE_NAME", "TIME_RANGE", "OBSERVER",     "LOG",     "SCHEDULE_TYPE",
+        "SCHEDULE",       "PROJECT",    "RELEASE_DATE", "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_pointing_column_name(MsPointingColumn col) {
-    static constexpr std::array<const char*, 9> kNames = {
-        "ANTENNA_ID", "TIME", "INTERVAL", "NAME", "NUM_POLY",
-        "TIME_ORIGIN", "DIRECTION", "TARGET", "TRACKING"};
+    static constexpr std::array<const char*, 9> kNames = {"ANTENNA_ID", "TIME",     "INTERVAL",
+                                                          "NAME",       "NUM_POLY", "TIME_ORIGIN",
+                                                          "DIRECTION",  "TARGET",   "TRACKING"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_polarization_column_name(MsPolarizationColumn col) {
-    static constexpr std::array<const char*, 4> kNames = {
-        "NUM_CORR", "CORR_TYPE", "CORR_PRODUCT", "FLAG_ROW"};
+    static constexpr std::array<const char*, 4> kNames = {"NUM_CORR", "CORR_TYPE", "CORR_PRODUCT",
+                                                          "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_processor_column_name(MsProcessorColumn col) {
-    static constexpr std::array<const char*, 5> kNames = {
-        "TYPE", "SUB_TYPE", "TYPE_ID", "MODE_ID", "FLAG_ROW"};
+    static constexpr std::array<const char*, 5> kNames = {"TYPE", "SUB_TYPE", "TYPE_ID", "MODE_ID",
+                                                          "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_spw_column_name(MsSpWindowColumn col) {
     static constexpr std::array<const char*, 14> kNames = {
-        "NUM_CHAN", "NAME", "REF_FREQUENCY", "CHAN_FREQ", "CHAN_WIDTH",
-        "EFFECTIVE_BW", "RESOLUTION", "MEAS_FREQ_REF", "TOTAL_BANDWIDTH",
-        "NET_SIDEBAND", "IF_CONV_CHAIN", "FREQ_GROUP", "FREQ_GROUP_NAME",
-        "FLAG_ROW"};
+        "NUM_CHAN",      "NAME",       "REF_FREQUENCY",   "CHAN_FREQ",       "CHAN_WIDTH",
+        "EFFECTIVE_BW",  "RESOLUTION", "MEAS_FREQ_REF",   "TOTAL_BANDWIDTH", "NET_SIDEBAND",
+        "IF_CONV_CHAIN", "FREQ_GROUP", "FREQ_GROUP_NAME", "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_state_column_name(MsStateColumn col) {
-    static constexpr std::array<const char*, 7> kNames = {
-        "SIG", "REF", "CAL", "LOAD", "SUB_SCAN", "OBS_MODE", "FLAG_ROW"};
+    static constexpr std::array<const char*, 7> kNames = {"SIG",      "REF",      "CAL",     "LOAD",
+                                                          "SUB_SCAN", "OBS_MODE", "FLAG_ROW"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_doppler_column_name(MsDopplerColumn col) {
-    static constexpr std::array<const char*, 4> kNames = {
-        "DOPPLER_ID", "SOURCE_ID", "TRANSITION_ID", "VELDEF"};
+    static constexpr std::array<const char*, 4> kNames = {"DOPPLER_ID", "SOURCE_ID",
+                                                          "TRANSITION_ID", "VELDEF"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_freq_offset_column_name(MsFreqOffsetColumn col) {
     static constexpr std::array<const char*, 7> kNames = {
-        "ANTENNA1", "ANTENNA2", "FEED_ID", "SPECTRAL_WINDOW_ID",
-        "TIME", "INTERVAL", "OFFSET"};
+        "ANTENNA1", "ANTENNA2", "FEED_ID", "SPECTRAL_WINDOW_ID", "TIME", "INTERVAL", "OFFSET"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_source_column_name(MsSourceColumn col) {
     static constexpr std::array<const char*, 14> kNames = {
-        "SOURCE_ID", "TIME", "INTERVAL", "SPECTRAL_WINDOW_ID", "NUM_LINES",
-        "NAME", "CALIBRATION_GROUP", "CODE", "DIRECTION", "POSITION",
-        "PROPER_MOTION", "TRANSITION", "REST_FREQUENCY", "SYSVEL"};
+        "SOURCE_ID",      "TIME",     "INTERVAL",          "SPECTRAL_WINDOW_ID",
+        "NUM_LINES",      "NAME",     "CALIBRATION_GROUP", "CODE",
+        "DIRECTION",      "POSITION", "PROPER_MOTION",     "TRANSITION",
+        "REST_FREQUENCY", "SYSVEL"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_syscal_column_name(MsSysCalColumn col) {
     static constexpr std::array<const char*, 9> kNames = {
-        "ANTENNA_ID", "FEED_ID", "SPECTRAL_WINDOW_ID", "TIME", "INTERVAL",
-        "TSYS", "TRX", "TSKY", "PHASE_DIFF"};
+        "ANTENNA_ID", "FEED_ID", "SPECTRAL_WINDOW_ID", "TIME", "INTERVAL", "TSYS",
+        "TRX",        "TSKY",    "PHASE_DIFF"};
     return kNames.at(static_cast<std::size_t>(col));
 }
 
 std::string_view ms_weather_column_name(MsWeatherColumn col) {
     static constexpr std::array<const char*, 9> kNames = {
-        "ANTENNA_ID", "TIME", "INTERVAL", "TEMPERATURE", "PRESSURE",
+        "ANTENNA_ID",   "TIME",      "INTERVAL",       "TEMPERATURE", "PRESSURE",
         "REL_HUMIDITY", "DEW_POINT", "WIND_DIRECTION", "WIND_SPEED"};
     return kNames.at(static_cast<std::size_t>(col));
 }
@@ -420,23 +444,57 @@ std::vector<ColumnDesc> make_weather_desc() {
 }
 
 std::vector<ColumnDesc> make_subtable_desc_by_name(std::string_view name) {
-    if (name == "ANTENNA") { return make_antenna_desc(); }
-    if (name == "DATA_DESCRIPTION") { return make_data_description_desc(); }
-    if (name == "FEED") { return make_feed_desc(); }
-    if (name == "FIELD") { return make_field_desc(); }
-    if (name == "FLAG_CMD") { return make_flag_cmd_desc(); }
-    if (name == "HISTORY") { return make_history_desc(); }
-    if (name == "OBSERVATION") { return make_observation_desc(); }
-    if (name == "POINTING") { return make_pointing_desc(); }
-    if (name == "POLARIZATION") { return make_polarization_desc(); }
-    if (name == "PROCESSOR") { return make_processor_desc(); }
-    if (name == "SPECTRAL_WINDOW") { return make_spectral_window_desc(); }
-    if (name == "STATE") { return make_state_desc(); }
-    if (name == "DOPPLER") { return make_doppler_desc(); }
-    if (name == "FREQ_OFFSET") { return make_freq_offset_desc(); }
-    if (name == "SOURCE") { return make_source_desc(); }
-    if (name == "SYSCAL") { return make_syscal_desc(); }
-    if (name == "WEATHER") { return make_weather_desc(); }
+    if (name == "ANTENNA") {
+        return make_antenna_desc();
+    }
+    if (name == "DATA_DESCRIPTION") {
+        return make_data_description_desc();
+    }
+    if (name == "FEED") {
+        return make_feed_desc();
+    }
+    if (name == "FIELD") {
+        return make_field_desc();
+    }
+    if (name == "FLAG_CMD") {
+        return make_flag_cmd_desc();
+    }
+    if (name == "HISTORY") {
+        return make_history_desc();
+    }
+    if (name == "OBSERVATION") {
+        return make_observation_desc();
+    }
+    if (name == "POINTING") {
+        return make_pointing_desc();
+    }
+    if (name == "POLARIZATION") {
+        return make_polarization_desc();
+    }
+    if (name == "PROCESSOR") {
+        return make_processor_desc();
+    }
+    if (name == "SPECTRAL_WINDOW") {
+        return make_spectral_window_desc();
+    }
+    if (name == "STATE") {
+        return make_state_desc();
+    }
+    if (name == "DOPPLER") {
+        return make_doppler_desc();
+    }
+    if (name == "FREQ_OFFSET") {
+        return make_freq_offset_desc();
+    }
+    if (name == "SOURCE") {
+        return make_source_desc();
+    }
+    if (name == "SYSCAL") {
+        return make_syscal_desc();
+    }
+    if (name == "WEATHER") {
+        return make_weather_desc();
+    }
     return {};
 }
 

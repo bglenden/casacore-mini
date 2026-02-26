@@ -44,32 +44,47 @@ int main() {
 
         // 2. Add 3 VLA-like antennas.
         std::cout << "  Adding 3 antennas (VLA-like)...\n";
-        writer.add_antenna({.name = "ANT0", .station = "W01",
-                            .type = "GROUND-BASED", .mount = "ALT-AZ",
+        writer.add_antenna({.name = "ANT0",
+                            .station = "W01",
+                            .type = "GROUND-BASED",
+                            .mount = "ALT-AZ",
                             .position = {-1601185.0, -5041978.0, 3554876.0},
                             .offset = {0.0, 0.0, 0.0},
-                            .dish_diameter = 25.0, .flag_row = false});
-        writer.add_antenna({.name = "ANT1", .station = "W02",
-                            .type = "GROUND-BASED", .mount = "ALT-AZ",
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_antenna({.name = "ANT1",
+                            .station = "W02",
+                            .type = "GROUND-BASED",
+                            .mount = "ALT-AZ",
                             .position = {-1601192.0, -5041981.0, 3554871.0},
                             .offset = {0.0, 0.0, 0.0},
-                            .dish_diameter = 25.0, .flag_row = false});
-        writer.add_antenna({.name = "ANT2", .station = "W03",
-                            .type = "GROUND-BASED", .mount = "ALT-AZ",
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_antenna({.name = "ANT2",
+                            .station = "W03",
+                            .type = "GROUND-BASED",
+                            .mount = "ALT-AZ",
                             .position = {-1601200.0, -5041985.0, 3554866.0},
                             .offset = {0.0, 0.0, 0.0},
-                            .dish_diameter = 25.0, .flag_row = false});
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
 
         // 3. Spectral window: 64 channels at 1.4 GHz L-band.
         std::cout << "  Adding spectral window (64 channels, 1.4 GHz)...\n";
-        writer.add_spectral_window({.num_chan = 64, .name = "L-band",
-                                     .ref_frequency = 1.4e9,
-                                     .chan_freq = {}, .chan_width = {},
-                                     .effective_bw = {}, .resolution = {},
-                                     .meas_freq_ref = 5, // TOPO
-                                     .total_bandwidth = 2.0e6, .net_sideband = 0,
-                                     .if_conv_chain = 0, .freq_group = 0,
-                                     .freq_group_name = {}, .flag_row = false});
+        writer.add_spectral_window({.num_chan = 64,
+                                    .name = "L-band",
+                                    .ref_frequency = 1.4e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 5, // TOPO
+                                    .total_bandwidth = 2.0e6,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
 
         // 4. RR/LL polarization.
         std::cout << "  Adding polarization (RR/LL)...\n";
@@ -77,16 +92,23 @@ int main() {
 
         // 5. Field: 3C286.
         std::cout << "  Adding field (3C286)...\n";
-        writer.add_field({.name = "3C286", .code = "C", .time = 0.0, .num_poly = 0,
-                           .source_id = -1, .flag_row = false});
+        writer.add_field({.name = "3C286",
+                          .code = "C",
+                          .time = 0.0,
+                          .num_poly = 0,
+                          .source_id = -1,
+                          .flag_row = false});
 
         // 6. Data description.
-        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                      .flag_row = false});
+        writer.add_data_description(
+            {.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
 
         // 7. Observation.
-        writer.add_observation({.telescope_name = "VLA", .observer = "demo",
-                                .project = {}, .release_date = 0.0, .flag_row = false});
+        writer.add_observation({.telescope_name = "VLA",
+                                .observer = "demo",
+                                .project = {},
+                                .release_date = 0.0,
+                                .flag_row = false});
 
         // 8. State.
         writer.add_state({.obs_mode = "OBSERVE_TARGET.ON_SOURCE"});
@@ -98,33 +120,32 @@ int main() {
 
         // Baselines: 0-1, 0-2, 1-2
         int baselines[][2] = {{0, 1}, {0, 2}, {1, 2}};
-        double uvws[][3] = {
-            {100.0, 200.0, 50.0},
-            {150.0, -100.0, 75.0},
-            {-50.0, 300.0, -25.0}};
+        double uvws[][3] = {{100.0, 200.0, 50.0}, {150.0, -100.0, 75.0}, {-50.0, 300.0, -25.0}};
 
         for (int ti = 0; ti < 2; ++ti) {
             for (int bi = 0; bi < 3; ++bi) {
                 double sign = (ti == 0) ? 1.0 : -1.0;
                 writer.add_row({.antenna1 = baselines[bi][0],
-                                 .antenna2 = baselines[bi][1],
-                                 .array_id = 0,
-                                 .data_desc_id = 0,
-                                 .exposure = dt,
-                                 .feed1 = 0, .feed2 = 0,
-                                 .field_id = 0,
-                                 .flag_row = false,
-                                 .interval = dt,
-                                 .observation_id = 0,
-                                 .processor_id = 0,
-                                 .scan_number = ti + 1,
-                                 .state_id = 0,
-                                 .time = t0 + static_cast<double>(ti) * dt,
-                                 .time_centroid = t0 + static_cast<double>(ti) * dt,
-                                 .uvw = {sign * uvws[bi][0], sign * uvws[bi][1], sign * uvws[bi][2]},
-                                 .sigma = {1.0F, 1.0F},
-                                 .weight = {1.0F, 1.0F},
-                                 .data = {}, .flag = {}});
+                                .antenna2 = baselines[bi][1],
+                                .array_id = 0,
+                                .data_desc_id = 0,
+                                .exposure = dt,
+                                .feed1 = 0,
+                                .feed2 = 0,
+                                .field_id = 0,
+                                .flag_row = false,
+                                .interval = dt,
+                                .observation_id = 0,
+                                .processor_id = 0,
+                                .scan_number = ti + 1,
+                                .state_id = 0,
+                                .time = t0 + static_cast<double>(ti) * dt,
+                                .time_centroid = t0 + static_cast<double>(ti) * dt,
+                                .uvw = {sign * uvws[bi][0], sign * uvws[bi][1], sign * uvws[bi][2]},
+                                .sigma = {1.0F, 1.0F},
+                                .weight = {1.0F, 1.0F},
+                                .data = {},
+                                .flag = {}});
             }
         }
 

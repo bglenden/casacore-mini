@@ -42,10 +42,8 @@ int main() {
 
         std::cout << "\n  Column details:\n";
         for (const auto& col : table.columns()) {
-            std::cout << "    " << col.name
-                      << " type=" << static_cast<int>(col.data_type)
-                      << " kind=" << (col.kind == ColumnKind::scalar ? "scalar" : "array")
-                      << "\n";
+            std::cout << "    " << col.name << " type=" << static_cast<int>(col.data_type)
+                      << " kind=" << (col.kind == ColumnKind::scalar ? "scalar" : "array") << "\n";
         }
 
         // 2. Typed column access via ScalarColumn<T>.
@@ -56,8 +54,7 @@ int main() {
         ScalarColumn<double> dval_col(table, "dval");
 
         for (std::uint64_t r = 0; r < table.nrow(); ++r) {
-            std::cout << "  row " << r << ": id=" << id_col.get(r)
-                      << " value=" << val_col.get(r)
+            std::cout << "  row " << r << ": id=" << id_col.get(r) << " value=" << val_col.get(r)
                       << " label=\"" << label_col.get(r) << "\""
                       << " dval=" << dval_col.get(r) << "\n";
         }
@@ -81,7 +78,8 @@ int main() {
             std::cout << "  row " << r << ": {";
             bool first = true;
             for (const auto& [key, value] : rec.entries()) {
-                if (!first) std::cout << ", ";
+                if (!first)
+                    std::cout << ", ";
                 first = false;
                 std::cout << key << "=";
                 const auto& s = value.storage();

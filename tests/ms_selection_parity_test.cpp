@@ -1,6 +1,6 @@
+#include "casacore_mini/measurement_set.hpp"
 #include "casacore_mini/ms_selection.hpp"
 #include "casacore_mini/ms_writer.hpp"
-#include "casacore_mini/measurement_set.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -42,59 +42,102 @@ static MeasurementSet make_stress_ms(const fs::path& path) {
                             .flag_row = false});
     }
 
-    writer.add_field({.name = "3C273", .code = "T", .time = 0.0, .num_poly = 0,
-                       .source_id = -1, .flag_row = false});
-    writer.add_field({.name = "M31", .code = "T", .time = 0.0, .num_poly = 0,
-                       .source_id = -1, .flag_row = false});
-    writer.add_field({.name = "CasA", .code = "C", .time = 0.0, .num_poly = 0,
-                       .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "3C273",
+                      .code = "T",
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
+    writer.add_field({.name = "M31",
+                      .code = "T",
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
+    writer.add_field({.name = "CasA",
+                      .code = "C",
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
 
-    writer.add_spectral_window({.num_chan = 64, .name = "L-band",
-                                 .ref_frequency = 1.4e9, .chan_freq = {},
-                                 .chan_width = {}, .effective_bw = {},
-                                 .resolution = {}, .meas_freq_ref = 0,
-                                 .total_bandwidth = 0.0, .net_sideband = 0,
-                                 .if_conv_chain = 0, .freq_group = 0,
-                                 .freq_group_name = {}, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 128, .name = "S-band",
-                                 .ref_frequency = 3.0e9, .chan_freq = {},
-                                 .chan_width = {}, .effective_bw = {},
-                                 .resolution = {}, .meas_freq_ref = 0,
-                                 .total_bandwidth = 0.0, .net_sideband = 0,
-                                 .if_conv_chain = 0, .freq_group = 0,
-                                 .freq_group_name = {}, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 256, .name = "C-band",
-                                 .ref_frequency = 6.0e9, .chan_freq = {},
-                                 .chan_width = {}, .effective_bw = {},
-                                 .resolution = {}, .meas_freq_ref = 0,
-                                 .total_bandwidth = 0.0, .net_sideband = 0,
-                                 .if_conv_chain = 0, .freq_group = 0,
-                                 .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64,
+                                .name = "L-band",
+                                .ref_frequency = 1.4e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_spectral_window({.num_chan = 128,
+                                .name = "S-band",
+                                .ref_frequency = 3.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_spectral_window({.num_chan = 256,
+                                .name = "C-band",
+                                .ref_frequency = 6.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
 
     // DD0→SPW0, DD1→SPW1, DD2→SPW2
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                  .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0,
-                                  .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 2, .polarization_id = 0,
-                                  .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 2, .polarization_id = 0, .flag_row = false});
 
-    writer.add_polarization({.num_corr = 4, .corr_type = {5, 6, 7, 8},
-                              .flag_row = false});
+    writer.add_polarization({.num_corr = 4, .corr_type = {5, 6, 7, 8}, .flag_row = false});
 
-    writer.add_observation({.telescope_name = "VLA", .observer = "test",
-                             .project = {}, .release_date = 0.0,
-                             .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA",
+                            .observer = "test",
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
 
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                       .sub_scan = 0, .obs_mode = "OBSERVE_TARGET.ON_SOURCE",
-                       .flag_row = false});
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                       .sub_scan = 0, .obs_mode = "CALIBRATE_BANDPASS.ON_SOURCE",
-                       .flag_row = false});
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                       .sub_scan = 0, .obs_mode = "CALIBRATE_PHASE.ON_SOURCE",
-                       .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "OBSERVE_TARGET.ON_SOURCE",
+                      .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "CALIBRATE_BANDPASS.ON_SOURCE",
+                      .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "CALIBRATE_PHASE.ON_SOURCE",
+                      .flag_row = false});
 
     // 30 rows with systematic variation.
     double base_time = 4.8e9;
@@ -104,7 +147,7 @@ static MeasurementSet make_stress_ms(const fs::path& path) {
             // Two baselines per field per scan, plus one more for variety.
             int ant1_vals[] = {0, 1, 2};
             int ant2_vals[] = {3, 4, 5};
-            int dd_id = field_id;  // field i uses DD i → SPW i
+            int dd_id = field_id; // field i uses DD i → SPW i
             int state_id = scan - 1;
             int array_id = (scan <= 2) ? 0 : 1;
 
@@ -113,29 +156,27 @@ static MeasurementSet make_stress_ms(const fs::path& path) {
                 double u = 100.0 * static_cast<double>(row_count + 1);
                 double v = 50.0 * static_cast<double>(row_count + 1);
 
-                writer.add_row({
-                    .antenna1 = ant1_vals[bi],
-                    .antenna2 = ant2_vals[bi],
-                    .array_id = array_id,
-                    .data_desc_id = dd_id,
-                    .exposure = 0.0,
-                    .feed1 = 0,
-                    .feed2 = 0,
-                    .field_id = field_id,
-                    .flag_row = false,
-                    .interval = 10.0,
-                    .observation_id = 0,
-                    .processor_id = 0,
-                    .scan_number = scan,
-                    .state_id = state_id,
-                    .time = t,
-                    .time_centroid = t,
-                    .uvw = {u, v, 0.0},
-                    .sigma = {1.0F, 1.0F, 1.0F, 1.0F},
-                    .weight = {1.0F, 1.0F, 1.0F, 1.0F},
-                    .data = {},
-                    .flag = {}
-                });
+                writer.add_row({.antenna1 = ant1_vals[bi],
+                                .antenna2 = ant2_vals[bi],
+                                .array_id = array_id,
+                                .data_desc_id = dd_id,
+                                .exposure = 0.0,
+                                .feed1 = 0,
+                                .feed2 = 0,
+                                .field_id = field_id,
+                                .flag_row = false,
+                                .interval = 10.0,
+                                .observation_id = 0,
+                                .processor_id = 0,
+                                .scan_number = scan,
+                                .state_id = state_id,
+                                .time = t,
+                                .time_centroid = t,
+                                .uvw = {u, v, 0.0},
+                                .sigma = {1.0F, 1.0F, 1.0F, 1.0F},
+                                .weight = {1.0F, 1.0F, 1.0F, 1.0F},
+                                .data = {},
+                                .flag = {}});
                 ++row_count;
             }
         }
@@ -531,20 +572,20 @@ static void test_malformed_per_category() {
 
 int main() {
     try {
-    std::cout << "ms_selection_parity_test\n";
+        std::cout << "ms_selection_parity_test\n";
 
-    test_antenna_parity();
-    test_field_parity();
-    test_spw_parity();
-    test_scan_parity();
-    test_time_parity();
-    test_uvdist_parity();
-    test_corr_parity();
-    test_state_parity();
-    test_mixed_expression_and_logic();
-    test_malformed_per_category();
+        test_antenna_parity();
+        test_field_parity();
+        test_spw_parity();
+        test_scan_parity();
+        test_time_parity();
+        test_uvdist_parity();
+        test_corr_parity();
+        test_state_parity();
+        test_mixed_expression_and_logic();
+        test_malformed_per_category();
 
-    std::cout << "all ms_selection_parity tests passed\n";
+        std::cout << "all ms_selection_parity tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

@@ -20,30 +20,56 @@ namespace {
 [[nodiscard]] std::string col_type_string(ColumnKind kind, DataType dtype) {
     const char* type_id = nullptr;
     switch (dtype) {
-    case DataType::tp_bool: type_id = "Bool    "; break;
-    case DataType::tp_char: type_id = "Char    "; break;
-    case DataType::tp_uchar: type_id = "uChar   "; break;
-    case DataType::tp_short: type_id = "Short   "; break;
-    case DataType::tp_ushort: type_id = "uShort  "; break;
-    case DataType::tp_int: type_id = "Int     "; break;
-    case DataType::tp_uint: type_id = "uInt    "; break;
-    case DataType::tp_int64: type_id = "Int64   "; break;
-    case DataType::tp_float: type_id = "float   "; break;
-    case DataType::tp_double: type_id = "double  "; break;
-    case DataType::tp_complex: type_id = "Complex "; break;
-    case DataType::tp_dcomplex: type_id = "DComplex"; break;
-    case DataType::tp_string: type_id = "String  "; break;
-    default: type_id = "unknown "; break;
+    case DataType::tp_bool:
+        type_id = "Bool    ";
+        break;
+    case DataType::tp_char:
+        type_id = "Char    ";
+        break;
+    case DataType::tp_uchar:
+        type_id = "uChar   ";
+        break;
+    case DataType::tp_short:
+        type_id = "Short   ";
+        break;
+    case DataType::tp_ushort:
+        type_id = "uShort  ";
+        break;
+    case DataType::tp_int:
+        type_id = "Int     ";
+        break;
+    case DataType::tp_uint:
+        type_id = "uInt    ";
+        break;
+    case DataType::tp_int64:
+        type_id = "Int64   ";
+        break;
+    case DataType::tp_float:
+        type_id = "float   ";
+        break;
+    case DataType::tp_double:
+        type_id = "double  ";
+        break;
+    case DataType::tp_complex:
+        type_id = "Complex ";
+        break;
+    case DataType::tp_dcomplex:
+        type_id = "DComplex";
+        break;
+    case DataType::tp_string:
+        type_id = "String  ";
+        break;
+    default:
+        type_id = "unknown ";
+        break;
     }
-    std::string prefix =
-        (kind == ColumnKind::scalar) ? "ScalarColumnDesc<" : "ArrayColumnDesc<";
+    std::string prefix = (kind == ColumnKind::scalar) ? "ScalarColumnDesc<" : "ArrayColumnDesc<";
     return prefix + type_id;
 }
 
 /// Convert MsColumnInfo to a ColumnDesc for table.dat.
-[[nodiscard]] ColumnDesc to_column_desc(const MsColumnInfo& info,
-                                         std::string_view dm_type,
-                                         std::string_view dm_group) {
+[[nodiscard]] ColumnDesc to_column_desc(const MsColumnInfo& info, std::string_view dm_type,
+                                        std::string_view dm_group) {
     ColumnDesc col;
     col.kind = info.kind;
     col.name = info.name;
@@ -126,13 +152,12 @@ void write_empty_array_file(const std::filesystem::path& dir, std::uint32_t seq_
     if (!out) {
         throw std::runtime_error("cannot write: " + path.string());
     }
-    out.write(reinterpret_cast<const char*>(buf.data()),
-              static_cast<std::streamsize>(buf.size()));
+    out.write(reinterpret_cast<const char*>(buf.data()), static_cast<std::streamsize>(buf.size()));
 }
 
 /// Create an empty subtable directory with the given columns.
 void create_empty_subtable(const std::filesystem::path& dir,
-                            const std::vector<ColumnDesc>& columns) {
+                           const std::vector<ColumnDesc>& columns) {
     auto table_dat = make_subtable_dat(columns);
 
     std::filesystem::create_directories(dir);
@@ -167,7 +192,7 @@ void create_empty_subtable(const std::filesystem::path& dir,
     // Minimal schemas for each required subtable (key columns only).
     // Full schemas with all columns are defined in Wave 3 (ms_subtables.hpp).
     auto make_scalar = [](const std::string& col_name, DataType dt,
-                           const std::string& comment = "") {
+                          const std::string& comment = "") {
         ColumnDesc col;
         col.kind = ColumnKind::scalar;
         col.name = col_name;
@@ -180,9 +205,8 @@ void create_empty_subtable(const std::filesystem::path& dir,
         return col;
     };
 
-    auto make_array = [](const std::string& col_name, DataType dt,
-                          std::int32_t ndim, std::vector<std::int64_t> shape = {},
-                          const std::string& comment = "") {
+    auto make_array = [](const std::string& col_name, DataType dt, std::int32_t ndim,
+                         std::vector<std::int64_t> shape = {}, const std::string& comment = "") {
         ColumnDesc col;
         col.kind = ColumnKind::array;
         col.name = col_name;
@@ -292,11 +316,17 @@ void create_empty_subtable(const std::filesystem::path& dir,
             make_array("RECEPTOR_ANGLE", DataType::tp_double, 1, {}, "Receptor angle"),
         };
         for (auto& col : cols) {
-            if (col.name == "TIME") { add_epoch_keywords(col); }
-            else if (col.name == "INTERVAL") { add_unit_keyword(col, "s"); }
-            else if (col.name == "BEAM_OFFSET") { add_direction_keywords(col); }
-            else if (col.name == "POSITION") { add_position_keywords(col); }
-            else if (col.name == "RECEPTOR_ANGLE") { add_unit_keyword(col, "rad"); }
+            if (col.name == "TIME") {
+                add_epoch_keywords(col);
+            } else if (col.name == "INTERVAL") {
+                add_unit_keyword(col, "s");
+            } else if (col.name == "BEAM_OFFSET") {
+                add_direction_keywords(col);
+            } else if (col.name == "POSITION") {
+                add_position_keywords(col);
+            } else if (col.name == "RECEPTOR_ANGLE") {
+                add_unit_keyword(col, "rad");
+            }
         }
         return cols;
     }
@@ -313,9 +343,12 @@ void create_empty_subtable(const std::filesystem::path& dir,
             make_scalar("FLAG_ROW", DataType::tp_bool, "Row flag"),
         };
         for (auto& col : cols) {
-            if (col.name == "TIME") { add_epoch_keywords(col); }
-            else if (col.name == "DELAY_DIR" || col.name == "PHASE_DIR" ||
-                     col.name == "REFERENCE_DIR") { add_direction_keywords(col); }
+            if (col.name == "TIME") {
+                add_epoch_keywords(col);
+            } else if (col.name == "DELAY_DIR" || col.name == "PHASE_DIR" ||
+                       col.name == "REFERENCE_DIR") {
+                add_direction_keywords(col);
+            }
         }
         return cols;
     }
@@ -331,8 +364,11 @@ void create_empty_subtable(const std::filesystem::path& dir,
             make_scalar("COMMAND", DataType::tp_string, "Flag command"),
         };
         for (auto& col : cols) {
-            if (col.name == "TIME") { add_epoch_keywords(col); }
-            else if (col.name == "INTERVAL") { add_unit_keyword(col, "s"); }
+            if (col.name == "TIME") {
+                add_epoch_keywords(col);
+            } else if (col.name == "INTERVAL") {
+                add_unit_keyword(col, "s");
+            }
         }
         return cols;
     }
@@ -349,7 +385,9 @@ void create_empty_subtable(const std::filesystem::path& dir,
             make_array("APP_PARAMS", DataType::tp_string, 1, {}, "Application parameters"),
         };
         for (auto& col : cols) {
-            if (col.name == "TIME") { add_epoch_keywords(col); }
+            if (col.name == "TIME") {
+                add_epoch_keywords(col);
+            }
         }
         return cols;
     }
@@ -605,8 +643,8 @@ MeasurementSet MeasurementSet::create(const std::filesystem::path& path, bool in
     // Add subtable keyword references to table-level keywords.
     for (const auto& st_name : ms_required_subtable_names()) {
         // Subtable keyword value is "Table: <relative_path>".
-        table_dat.table_desc.keywords.set(
-            st_name, RecordValue(std::string("Table: ././" + st_name)));
+        table_dat.table_desc.keywords.set(st_name,
+                                          RecordValue(std::string("Table: ././" + st_name)));
     }
 
     // Create the SSM writer for an empty table (0 rows) to get the blob.
@@ -696,7 +734,9 @@ MeasurementSet MeasurementSet::create(const std::filesystem::path& path, bool in
     write_table_info(path, "Measurement Set", "");
 
     // Write table.lock (empty).
-    { std::ofstream(path / "table.lock"); }
+    {
+        std::ofstream(path / "table.lock");
+    }
 
     // Create required subtable directories.
     for (const auto& st_name : ms_required_subtable_names()) {

@@ -39,16 +39,36 @@ struct SmLookup {
 [[nodiscard]] std::string make_type_string(DataType dt, ColumnKind kind) {
     const char* base = nullptr;
     switch (dt) {
-    case DataType::tp_bool:     base = "Bool";   break;
-    case DataType::tp_int:      base = "Int     "; break;
-    case DataType::tp_uint:     base = "uInt    "; break;
-    case DataType::tp_int64:    base = "Int64   "; break;
-    case DataType::tp_float:    base = "Float   "; break;
-    case DataType::tp_double:   base = "Double  "; break;
-    case DataType::tp_complex:  base = "Complex "; break;
-    case DataType::tp_dcomplex: base = "DComplex"; break;
-    case DataType::tp_string:   base = "String  "; break;
-    default:                    base = "Unknown "; break;
+    case DataType::tp_bool:
+        base = "Bool";
+        break;
+    case DataType::tp_int:
+        base = "Int     ";
+        break;
+    case DataType::tp_uint:
+        base = "uInt    ";
+        break;
+    case DataType::tp_int64:
+        base = "Int64   ";
+        break;
+    case DataType::tp_float:
+        base = "Float   ";
+        break;
+    case DataType::tp_double:
+        base = "Double  ";
+        break;
+    case DataType::tp_complex:
+        base = "Complex ";
+        break;
+    case DataType::tp_dcomplex:
+        base = "DComplex";
+        break;
+    case DataType::tp_string:
+        base = "String  ";
+        break;
+    default:
+        base = "Unknown ";
+        break;
     }
 
     std::string prefix = (kind == ColumnKind::array) ? "ArrayColumnDesc<" : "ScalarColumnDesc<";
@@ -78,11 +98,12 @@ struct Table::Impl {
     std::optional<SsmWriter> ssm_writer;
     std::optional<IsmWriter> ism_writer;
     std::optional<TiledStManWriter> tsm_writer;
-    std::uint32_t tsm_writer_seq = 0; // SM sequence number for TSM writer
+    std::uint32_t tsm_writer_seq = 0;       // SM sequence number for TSM writer
     std::vector<ColumnDesc> writer_columns; // columns bound to active writer
 
     void ensure_ssm_readers() const {
-        if (ssm_readers_initialized) return;
+        if (ssm_readers_initialized)
+            return;
         ssm_readers_initialized = true;
         for (std::size_t i = 0; i < dir.table_dat.storage_managers.size(); ++i) {
             if (dir.table_dat.storage_managers[i].type_name.find("StandardStMan") !=
@@ -91,12 +112,12 @@ struct Table::Impl {
                     ssm_readers.emplace_back();
                     ssm_readers.back().open(path.string(), i, dir.table_dat);
                 } catch (const std::exception& ex) {
-                    std::cerr << "warning: SSM reader open failed for SM["
-                              << i << "]: " << ex.what() << "\n";
+                    std::cerr << "warning: SSM reader open failed for SM[" << i
+                              << "]: " << ex.what() << "\n";
                     ssm_readers.pop_back();
                 } catch (...) {
-                    std::cerr << "warning: SSM reader open failed for SM["
-                              << i << "] (unknown error)\n";
+                    std::cerr << "warning: SSM reader open failed for SM[" << i
+                              << "] (unknown error)\n";
                     ssm_readers.pop_back();
                 }
             }
@@ -104,7 +125,8 @@ struct Table::Impl {
     }
 
     void ensure_ism_readers() const {
-        if (ism_readers_initialized) return;
+        if (ism_readers_initialized)
+            return;
         ism_readers_initialized = true;
         for (std::size_t i = 0; i < dir.table_dat.storage_managers.size(); ++i) {
             if (dir.table_dat.storage_managers[i].type_name.find("IncrementalStMan") !=
@@ -120,7 +142,8 @@ struct Table::Impl {
     }
 
     void ensure_tsm_readers() const {
-        if (tsm_readers_initialized) return;
+        if (tsm_readers_initialized)
+            return;
         tsm_readers_initialized = true;
         for (std::size_t i = 0; i < dir.table_dat.storage_managers.size(); ++i) {
             if (dir.table_dat.storage_managers[i].type_name.find("Tiled") != std::string::npos) {
@@ -226,7 +249,8 @@ Table Table::open_rw(const std::filesystem::path& path) {
     for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
         const auto& col = ssm_cols[ci];
         auto* reader = t.impl_->find_ssm_for_column(col.name);
-        if (reader == nullptr) continue;
+        if (reader == nullptr)
+            continue;
         for (std::uint64_t r = 0; r < nrow; ++r) {
             if (col.kind == ColumnKind::scalar) {
                 writer.write_cell(ci, reader->read_cell(col.name, r), r);
@@ -247,8 +271,7 @@ Table Table::open_rw(const std::filesystem::path& path) {
     return t;
 }
 
-Table Table::create(const std::filesystem::path& path,
-                    const std::vector<TableColumnSpec>& columns,
+Table Table::create(const std::filesystem::path& path, const std::vector<TableColumnSpec>& columns,
                     std::uint64_t nrows) {
     // Build TableDatFull.
     TableDatFull td;
@@ -329,10 +352,8 @@ Table Table::create(const std::filesystem::path& path,
     return t;
 }
 
-Table Table::create(const std::filesystem::path& path,
-                    const std::vector<TableColumnSpec>& columns,
-                    std::uint64_t nrows,
-                    const TableCreateOptions& options) {
+Table Table::create(const std::filesystem::path& path, const std::vector<TableColumnSpec>& columns,
+                    std::uint64_t nrows, const TableCreateOptions& options) {
     // Build TableDatFull.
     TableDatFull td;
     td.table_version = 2;
@@ -531,7 +552,8 @@ bool Table::is_writable() const {
 }
 
 void Table::flush() {
-    if (!impl_->writable) return;
+    if (!impl_->writable)
+        return;
 
     if (impl_->ssm_writer.has_value()) {
         impl_->ssm_writer->write_file(impl_->path.string(), 0);
@@ -573,7 +595,8 @@ void Table::flush() {
 
 const ColumnDesc* Table::find_column_desc(std::string_view name) const {
     for (const auto& cd : impl_->dir.table_dat.table_desc.columns) {
-        if (cd.name == name) return &cd;
+        if (cd.name == name)
+            return &cd;
     }
     return nullptr;
 }
@@ -581,7 +604,8 @@ const ColumnDesc* Table::find_column_desc(std::string_view name) const {
 std::size_t Table::find_column_index(std::string_view name) const {
     const auto& cols = impl_->dir.table_dat.table_desc.columns;
     for (std::size_t i = 0; i < cols.size(); ++i) {
-        if (cols[i].name == name) return i;
+        if (cols[i].name == name)
+            return i;
     }
     throw std::runtime_error("Table: column '" + std::string(name) + "' not found");
 }
@@ -602,7 +626,7 @@ CellValue Table::read_scalar_cell(std::string_view col_name, std::uint64_t row) 
 }
 
 std::vector<double> Table::read_array_double_cell(std::string_view col_name,
-                                                   std::uint64_t row) const {
+                                                  std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_double(col_name, row);
@@ -620,7 +644,7 @@ std::vector<double> Table::read_array_double_cell(std::string_view col_name,
 }
 
 std::vector<float> Table::read_array_float_cell(std::string_view col_name,
-                                                 std::uint64_t row) const {
+                                                std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_float(col_name, row);
@@ -634,8 +658,7 @@ std::vector<float> Table::read_array_float_cell(std::string_view col_name,
                              std::string(col_name) + "'");
 }
 
-std::vector<bool> Table::read_array_bool_cell(std::string_view col_name,
-                                               std::uint64_t row) const {
+std::vector<bool> Table::read_array_bool_cell(std::string_view col_name, std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_bool(col_name, row);
@@ -660,7 +683,7 @@ std::vector<bool> Table::read_array_bool_cell(std::string_view col_name,
 }
 
 std::vector<std::int32_t> Table::read_array_int_cell(std::string_view col_name,
-                                                      std::uint64_t row) const {
+                                                     std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_int(col_name, row);
@@ -688,7 +711,7 @@ std::vector<std::int32_t> Table::read_array_int_cell(std::string_view col_name,
 }
 
 std::vector<std::uint8_t> Table::read_array_raw_cell(std::string_view col_name,
-                                                      std::uint64_t row) const {
+                                                     std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         return ssm->read_array_raw(col_name, row);
     }
@@ -699,8 +722,8 @@ std::vector<std::uint8_t> Table::read_array_raw_cell(std::string_view col_name,
                              std::string(col_name) + "'");
 }
 
-std::vector<std::complex<float>> Table::read_array_complex_cell(
-    std::string_view col_name, std::uint64_t row) const {
+std::vector<std::complex<float>> Table::read_array_complex_cell(std::string_view col_name,
+                                                                std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_complex(col_name, row);
@@ -742,8 +765,8 @@ std::vector<std::complex<float>> Table::read_array_complex_cell(
                              std::string(col_name) + "'");
 }
 
-std::vector<std::complex<double>> Table::read_array_dcomplex_cell(
-    std::string_view col_name, std::uint64_t row) const {
+std::vector<std::complex<double>> Table::read_array_dcomplex_cell(std::string_view col_name,
+                                                                  std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_dcomplex(col_name, row);
@@ -788,7 +811,7 @@ std::vector<std::complex<double>> Table::read_array_dcomplex_cell(
 }
 
 std::vector<std::string> Table::read_array_string_cell(std::string_view col_name,
-                                                        std::uint64_t row) const {
+                                                       std::uint64_t row) const {
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_string(col_name, row);
@@ -798,8 +821,7 @@ std::vector<std::string> Table::read_array_string_cell(std::string_view col_name
                              std::string(col_name) + "'");
 }
 
-std::vector<std::int64_t> Table::cell_shape(std::string_view col_name,
-                                            std::uint64_t row) const {
+std::vector<std::int64_t> Table::cell_shape(std::string_view col_name, std::uint64_t row) const {
     // TSM columns may be variable-shape even if ColumnDesc carries a nominal
     // shape; consult TSM first.
     if (auto* tsm = impl_->find_tsm_for_column(col_name)) {
@@ -831,7 +853,7 @@ bool Table::is_big_endian() const {
 // ---------------------------------------------------------------------------
 
 void Table::write_scalar_cell(std::string_view col_name, std::uint64_t row,
-                               const CellValue& value) {
+                              const CellValue& value) {
     if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
@@ -853,7 +875,7 @@ void Table::write_scalar_cell(std::string_view col_name, std::uint64_t row,
 }
 
 void Table::write_array_float_cell(std::string_view col_name, std::uint64_t row,
-                                    const std::vector<float>& values) {
+                                   const std::vector<float>& values) {
     if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
@@ -873,7 +895,7 @@ void Table::write_array_float_cell(std::string_view col_name, std::uint64_t row,
 }
 
 void Table::write_array_double_cell(std::string_view col_name, std::uint64_t row,
-                                     const std::vector<double>& values) {
+                                    const std::vector<double>& values) {
     if (!impl_->writable || !impl_->ssm_writer.has_value()) {
         throw std::runtime_error("Table: not writable");
     }
@@ -887,8 +909,8 @@ void Table::write_array_double_cell(std::string_view col_name, std::uint64_t row
 }
 
 void Table::write_array_bool_cell(std::string_view col_name, std::uint64_t row,
-                                   const std::vector<bool>& values,
-                                   const std::vector<std::int32_t>& shape) {
+                                  const std::vector<bool>& values,
+                                  const std::vector<std::int32_t>& shape) {
     if (!impl_->writable || !impl_->ssm_writer.has_value()) {
         throw std::runtime_error("Table: not writable");
     }
@@ -907,8 +929,8 @@ void Table::write_array_bool_cell(std::string_view col_name, std::uint64_t row,
 }
 
 void Table::write_array_complex_cell(std::string_view col_name, std::uint64_t row,
-                                      const std::vector<std::complex<float>>& values,
-                                      const std::vector<std::int32_t>& shape) {
+                                     const std::vector<std::complex<float>>& values,
+                                     const std::vector<std::int32_t>& shape) {
     if (!impl_->writable || !impl_->ssm_writer.has_value()) {
         throw std::runtime_error("Table: not writable");
     }
@@ -932,7 +954,7 @@ void Table::write_array_complex_cell(std::string_view col_name, std::uint64_t ro
 }
 
 void Table::write_array_int_cell(std::string_view col_name, std::uint64_t row,
-                                  const std::vector<std::int32_t>& values) {
+                                 const std::vector<std::int32_t>& values) {
     if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
@@ -950,7 +972,7 @@ void Table::write_array_int_cell(std::string_view col_name, std::uint64_t row,
 }
 
 void Table::write_array_raw_cell(std::string_view col_name, std::uint64_t row,
-                                  const std::vector<std::uint8_t>& data) {
+                                 const std::vector<std::uint8_t>& data) {
     if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
@@ -968,8 +990,8 @@ void Table::write_array_raw_cell(std::string_view col_name, std::uint64_t row,
 }
 
 void Table::write_indirect_array(std::string_view col_name, std::uint64_t row,
-                                  const std::vector<std::int32_t>& shape,
-                                  const std::vector<std::uint8_t>& data) {
+                                 const std::vector<std::int32_t>& shape,
+                                 const std::vector<std::uint8_t>& data) {
     if (!impl_->writable || !impl_->ssm_writer.has_value()) {
         throw std::runtime_error("Table: not writable");
     }
@@ -991,30 +1013,75 @@ namespace {
 /// Convert a CellValue to a RecordValue.
 RecordValue cell_to_record_value(const CellValue& cell) {
     struct Converter {
-        RecordValue operator()(bool v) const { return RecordValue(v); }
-        RecordValue operator()(std::int32_t v) const { return RecordValue(v); }
-        RecordValue operator()(std::uint32_t v) const { return RecordValue(v); }
-        RecordValue operator()(std::int64_t v) const { return RecordValue(v); }
-        RecordValue operator()(float v) const { return RecordValue(v); }
-        RecordValue operator()(double v) const { return RecordValue(v); }
-        RecordValue operator()(std::complex<float> v) const { return RecordValue(v); }
-        RecordValue operator()(std::complex<double> v) const { return RecordValue(v); }
-        RecordValue operator()(const std::string& v) const { return RecordValue(v); }
+        RecordValue operator()(bool v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(std::int32_t v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(std::uint32_t v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(std::int64_t v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(float v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(double v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(std::complex<float> v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(std::complex<double> v) const {
+            return RecordValue(v);
+        }
+        RecordValue operator()(const std::string& v) const {
+            return RecordValue(v);
+        }
     };
     return std::visit(Converter{}, cell);
 }
 
 /// Try to convert a RecordValue to a CellValue. Returns true on success.
 bool record_to_cell_value(const RecordValue::storage_type& storage, CellValue& out) {
-    if (const auto* v = std::get_if<bool>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<std::int32_t>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<std::uint32_t>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<std::int64_t>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<float>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<double>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<std::complex<float>>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<std::complex<double>>(&storage)) { out = *v; return true; }
-    if (const auto* v = std::get_if<std::string>(&storage)) { out = *v; return true; }
+    if (const auto* v = std::get_if<bool>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<std::int32_t>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<std::uint32_t>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<std::int64_t>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<float>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<double>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<std::complex<float>>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<std::complex<double>>(&storage)) {
+        out = *v;
+        return true;
+    }
+    if (const auto* v = std::get_if<std::string>(&storage)) {
+        out = *v;
+        return true;
+    }
     return false;
 }
 
@@ -1039,7 +1106,8 @@ Record TableRow::get(std::uint64_t row) const {
     Record rec;
     for (const auto& col_name : column_names_) {
         const auto* cd = table_->find_column_desc(col_name);
-        if (cd == nullptr || cd->kind != ColumnKind::scalar) continue;
+        if (cd == nullptr || cd->kind != ColumnKind::scalar)
+            continue;
 
         auto cell = table_->read_scalar_cell(col_name, row);
         rec.set(col_name, cell_to_record_value(cell));
@@ -1050,7 +1118,8 @@ Record TableRow::get(std::uint64_t row) const {
 void TableRow::put(std::uint64_t row, const Record& values) {
     for (const auto& [key, val] : values.entries()) {
         const auto* cd = table_->find_column_desc(key);
-        if (cd == nullptr || cd->kind != ColumnKind::scalar) continue;
+        if (cd == nullptr || cd->kind != ColumnKind::scalar)
+            continue;
 
         CellValue cv;
         if (record_to_cell_value(val.storage(), cv)) {

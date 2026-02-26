@@ -167,10 +167,10 @@ class MsWriter {
 
   private:
     void flush_main_table();
-    void flush_subtable(std::string_view name,
-                        const std::vector<ColumnDesc>& columns,
-                        std::uint64_t nrows,
-                        const std::function<CellValue(std::size_t col, std::uint64_t row)>& get_cell);
+    void
+    flush_subtable(std::string_view name, const std::vector<ColumnDesc>& columns,
+                   std::uint64_t nrows,
+                   const std::function<CellValue(std::size_t col, std::uint64_t row)>& get_cell);
 
     MeasurementSet& ms_;
     std::vector<MsMainRow> main_rows_;

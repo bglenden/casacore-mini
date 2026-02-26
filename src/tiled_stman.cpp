@@ -80,8 +80,8 @@ struct TsmHeaderInfo {
     std::vector<std::int32_t> col_dtypes; // casacore DataType per column
     std::uint32_t ndim = 0;
     std::uint32_t bucket_size = kDefaultBucketSize;
-    std::uint64_t file_length = 0;    // total length of the TSM data file
-    std::int32_t data_file_seqnr = 0; // sequence number of first present TSMFile
+    std::uint64_t file_length = 0;         // total length of the TSM data file
+    std::int32_t data_file_seqnr = 0;      // sequence number of first present TSMFile
     std::vector<std::int32_t> file_seqnrs; // all present TSM file sequence numbers
 
     /// Per-cube info.
@@ -625,7 +625,8 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
             if (cube.file_nr < 0 || cube.cube_shape.size() < 2) {
                 continue;
             }
-            std::vector<std::int64_t> cell_shape(cube.cube_shape.begin(), cube.cube_shape.end() - 1);
+            std::vector<std::int64_t> cell_shape(cube.cube_shape.begin(),
+                                                 cube.cube_shape.end() - 1);
             if (!first_shape.has_value()) {
                 first_shape = std::move(cell_shape);
             } else if (cell_shape != *first_shape) {
@@ -813,8 +814,7 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
         use_shape_row_map_ = !shape_row_intervals_.empty();
     }
 
-    if (have_header && tsm_header.sm_type == "TiledDataStMan" &&
-        !tsm_header.data_row_map.empty() &&
+    if (have_header && tsm_header.sm_type == "TiledDataStMan" && !tsm_header.data_row_map.empty() &&
         tsm_header.data_row_map.size() == tsm_header.data_cube_map.size() &&
         tsm_header.data_row_map.size() == tsm_header.data_pos_map.size()) {
         data_row_chunks_.reserve(tsm_header.data_row_map.size());
@@ -839,9 +839,9 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
     if (!use_shape_row_map_ && !use_data_row_map_ && !cubes_.empty()) {
         const auto covered_rows = cubes_.back().row_start + cubes_.back().row_count;
         if (covered_rows != row_count_) {
-            throw std::runtime_error("TSM cube coverage mismatch: covered_rows=" +
-                                     std::to_string(covered_rows) +
-                                     " row_count=" + std::to_string(row_count_));
+            throw std::runtime_error(
+                "TSM cube coverage mismatch: covered_rows=" + std::to_string(covered_rows) +
+                " row_count=" + std::to_string(row_count_));
         }
     }
 
@@ -893,8 +893,8 @@ std::uint64_t TiledStManReader::cell_byte_offset(const std::size_t original_col_
            row_in_tile * cell_bytes;
 }
 
-const TiledStManReader::CubeLayout* TiledStManReader::find_cube_for_row(
-    const std::uint64_t row) const {
+const TiledStManReader::CubeLayout*
+TiledStManReader::find_cube_for_row(const std::uint64_t row) const {
     for (const auto& cube : cubes_) {
         if (row >= cube.row_start && row < cube.row_start + cube.row_count) {
             return &cube;
@@ -903,8 +903,8 @@ const TiledStManReader::CubeLayout* TiledStManReader::find_cube_for_row(
     return nullptr;
 }
 
-const TiledStManReader::CubeLayout* TiledStManReader::find_cube_by_index(
-    const std::size_t cube_index) const {
+const TiledStManReader::CubeLayout*
+TiledStManReader::find_cube_by_index(const std::size_t cube_index) const {
     for (const auto& cube : cubes_) {
         if (cube.original_cube_index == cube_index) {
             return &cube;
@@ -913,8 +913,8 @@ const TiledStManReader::CubeLayout* TiledStManReader::find_cube_by_index(
     return nullptr;
 }
 
-std::optional<TiledStManReader::RowLocation> TiledStManReader::locate_row(
-    const std::uint64_t row) const {
+std::optional<TiledStManReader::RowLocation>
+TiledStManReader::locate_row(const std::uint64_t row) const {
     if (row >= row_count_) {
         return std::nullopt;
     }
@@ -986,8 +986,8 @@ std::optional<TiledStManReader::RowLocation> TiledStManReader::locate_row(
     return RowLocation{cube, row_in_cube};
 }
 
-const std::vector<std::uint8_t>* TiledStManReader::find_file_data(
-    const std::int32_t file_nr) const {
+const std::vector<std::uint8_t>*
+TiledStManReader::find_file_data(const std::int32_t file_nr) const {
     for (std::size_t i = 0; i < tsm_file_seqnrs_.size(); ++i) {
         if (tsm_file_seqnrs_[i] == file_nr) {
             return &tsm_file_data_[i];

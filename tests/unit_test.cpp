@@ -56,8 +56,8 @@ bool test_unitval_single_dim() {
 bool test_unitval_multi_dim() {
     // m^2.s^-1 (kinematic viscosity)
     UnitVal::DimArray d{};
-    d[0] = 2;   // LENGTH
-    d[2] = -1;  // TIME
+    d[0] = 2;  // LENGTH
+    d[2] = -1; // TIME
     UnitVal uv(1.0, d);
     assert(uv.dim(UnitVal::LENGTH) == 2);
     assert(uv.dim(UnitVal::TIME) == -1);
@@ -377,24 +377,19 @@ bool test_unit_astronomical() {
 // Test that all predefined simple units parse without error.
 bool test_unit_all_predefined_parse() {
     std::vector<std::string> names = {
-        "m", "kg", "s", "A", "K", "cd", "mol", "rad", "sr",
-        "g", "_", "$", "%", "%%",
-        "Hz", "Bq", "N", "J", "W", "Pa", "C", "V", "F", "Ohm", "S",
-        "Wb", "H", "T", "lm", "lx", "Gy", "Sv",
-        "deg", "arcmin", "arcsec", "as",
-        "min", "h", "d", "a", "yr", "cy",
-        "L", "l", "t",
-        "Jy", "FU", "fu", "WU", "AU", "UA", "AE", "pc", "ly", "S0", "M0",
-        "Angstrom", "in", "ft", "yd", "mile", "n_mile", "fur",
-        "lb", "oz", "cwt", "u", "CM",
-        "atm", "bar", "Torr", "mHg", "ata",
-        "eV", "erg", "cal", "Cal", "Btu",
-        "dyn", "hp", "Gal", "St", "kn",
-        "Ah", "abA", "abC", "abF", "abH", "abOhm", "abV",
-        "statA", "statC", "statF", "statH", "statOhm", "statV", "debye",
-        "G", "Mx", "Oe", "Gb", "sb", "R",
-        "gal", "USgal", "fl_oz", "USfl_oz",
-        "beam", "pixel", "count", "adu", "lambda",
+        "m",     "kg",    "s",        "A",      "K",       "cd",    "mol",    "rad",     "sr",
+        "g",     "_",     "$",        "%",      "%%",      "Hz",    "Bq",     "N",       "J",
+        "W",     "Pa",    "C",        "V",      "F",       "Ohm",   "S",      "Wb",      "H",
+        "T",     "lm",    "lx",       "Gy",     "Sv",      "deg",   "arcmin", "arcsec",  "as",
+        "min",   "h",     "d",        "a",      "yr",      "cy",    "L",      "l",       "t",
+        "Jy",    "FU",    "fu",       "WU",     "AU",      "UA",    "AE",     "pc",      "ly",
+        "S0",    "M0",    "Angstrom", "in",     "ft",      "yd",    "mile",   "n_mile",  "fur",
+        "lb",    "oz",    "cwt",      "u",      "CM",      "atm",   "bar",    "Torr",    "mHg",
+        "ata",   "eV",    "erg",      "cal",    "Cal",     "Btu",   "dyn",    "hp",      "Gal",
+        "St",    "kn",    "Ah",       "abA",    "abC",     "abF",   "abH",    "abOhm",   "abV",
+        "statA", "statC", "statF",    "statH",  "statOhm", "statV", "debye",  "G",       "Mx",
+        "Oe",    "Gb",    "sb",       "R",      "gal",     "USgal", "fl_oz",  "USfl_oz", "beam",
+        "pixel", "count", "adu",      "lambda",
     };
     int ok = 0;
     for (const auto& n : names) {
@@ -412,18 +407,9 @@ bool test_unit_all_predefined_parse() {
 // Test prefixed variants.
 bool test_unit_prefixed_variants() {
     std::vector<std::pair<std::string, double>> cases = {
-        {"km",  1e3},
-        {"cm",  1e-2},
-        {"mm",  1e-3},
-        {"um",  1e-6},
-        {"nm",  1e-9},
-        {"kHz", 1e3},
-        {"MHz", 1e6},
-        {"GHz", 1e9},
-        {"THz", 1e12},
-        {"mJy", 1e-3 * 1e-26},
-        {"uJy", 1e-6 * 1e-26},
-        {"kpc", 1e3},  // factor relative to pc
+        {"km", 1e3},           {"cm", 1e-2}, {"mm", 1e-3}, {"um", 1e-6},  {"nm", 1e-9},
+        {"kHz", 1e3},          {"MHz", 1e6}, {"GHz", 1e9}, {"THz", 1e12}, {"mJy", 1e-3 * 1e-26},
+        {"uJy", 1e-6 * 1e-26}, {"kpc", 1e3}, // factor relative to pc
         {"Mpc", 1e6},
     };
     for (const auto& [name, expected_ratio] : cases) {
@@ -497,21 +483,24 @@ bool test_quantity_conversion_fail() {
     try {
         (void)q.convert("s");
         assert(false && "Should have thrown");
-    } catch (const std::invalid_argument&) { /* expected */ }
+    } catch (const std::invalid_argument&) { /* expected */
+    }
 
     // Unknown source.
     Quantity unknown(1.0, "furlongs");
     try {
         (void)unknown.convert("m");
         assert(false && "Should have thrown");
-    } catch (const std::invalid_argument&) { /* expected */ }
+    } catch (const std::invalid_argument&) { /* expected */
+    }
 
     // Unknown target.
     Quantity good(1.0, "m");
     try {
         (void)good.convert("furlongs");
         assert(false && "Should have thrown");
-    } catch (const std::invalid_argument&) { /* expected */ }
+    } catch (const std::invalid_argument&) { /* expected */
+    }
     return true;
 }
 
@@ -674,7 +663,8 @@ bool test_backward_compat_unknown_unit_convert() {
     try {
         (void)convert_quantity(q, "m");
         assert(false && "Should have thrown");
-    } catch (const std::invalid_argument&) { /* expected */ }
+    } catch (const std::invalid_argument&) { /* expected */
+    }
     return true;
 }
 

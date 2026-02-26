@@ -41,9 +41,15 @@ static constexpr int kArrDim1 = 64;
 static constexpr int kArrSize = kArrDim0 * kArrDim1; // 256
 
 // Deterministic data generators (row-index-based for verifiability)
-static Bool gen_bool(uint64_t row) { return (row % 2) == 0; }
-static Int gen_int(uint64_t row) { return static_cast<Int>(row * 3 - 100000); }
-static uInt gen_uint(uint64_t row) { return static_cast<uInt>(row * 7); }
+static Bool gen_bool(uint64_t row) {
+    return (row % 2) == 0;
+}
+static Int gen_int(uint64_t row) {
+    return static_cast<Int>(row * 3 - 100000);
+}
+static uInt gen_uint(uint64_t row) {
+    return static_cast<uInt>(row * 7);
+}
 static Int64 gen_int64(uint64_t row) {
     return static_cast<Int64>(row) * 100003LL - 25000000000LL;
 }
@@ -54,12 +60,10 @@ static Double gen_double(uint64_t row) {
     return static_cast<Double>(row) * 0.000001 + 3.14159265358979;
 }
 static Complex gen_complex(uint64_t row) {
-    return Complex(static_cast<Float>(row) * 0.01F,
-                   static_cast<Float>(row) * -0.02F);
+    return Complex(static_cast<Float>(row) * 0.01F, static_cast<Float>(row) * -0.02F);
 }
 static DComplex gen_dcomplex(uint64_t row) {
-    return DComplex(static_cast<Double>(row) * 0.001,
-                    static_cast<Double>(row) * -0.003);
+    return DComplex(static_cast<Double>(row) * 0.001, static_cast<Double>(row) * -0.003);
 }
 static String gen_string(uint64_t row) {
     return "row_" + std::to_string(row) + "_value";
@@ -133,9 +137,9 @@ static TableDesc make_table_desc() {
     td.addColumn(ScalarColumnDesc<DComplex>("sc_dcomplex"));
     td.addColumn(ScalarColumnDesc<String>("sc_string"));
     td.addColumn(ArrayColumnDesc<Float>("arr_float", IPosition(2, kArrDim0, kArrDim1),
-                                         ColumnDesc::FixedShape));
+                                        ColumnDesc::FixedShape));
     td.addColumn(ArrayColumnDesc<Double>("arr_double", IPosition(2, kArrDim0, kArrDim1),
-                                          ColumnDesc::FixedShape));
+                                         ColumnDesc::FixedShape));
     return td;
 }
 

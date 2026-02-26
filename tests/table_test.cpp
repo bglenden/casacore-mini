@@ -1,6 +1,6 @@
+#include "casacore_mini/incremental_stman.hpp"
 #include "casacore_mini/table.hpp"
 #include "casacore_mini/table_column.hpp"
-#include "casacore_mini/incremental_stman.hpp"
 #include "casacore_mini/table_directory.hpp"
 #include "casacore_mini/tiled_stman.hpp"
 
@@ -76,14 +76,26 @@ static void test_create_and_write_scalars() {
 
     {
         std::vector<TableColumnSpec> columns = {
-            {.name = "ID",    .data_type = DataType::tp_int,    .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "VALUE", .data_type = DataType::tp_float,  .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "DVAL",  .data_type = DataType::tp_double, .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "LABEL", .data_type = DataType::tp_string, .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
+            {.name = "ID",
+             .data_type = DataType::tp_int,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "VALUE",
+             .data_type = DataType::tp_float,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "DVAL",
+             .data_type = DataType::tp_double,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "LABEL",
+             .data_type = DataType::tp_string,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
         };
 
         auto table = Table::create(path, columns, 5);
@@ -138,12 +150,21 @@ static void test_table_row_round_trip() {
 
     {
         std::vector<TableColumnSpec> columns = {
-            {.name = "X", .data_type = DataType::tp_int,    .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "Y", .data_type = DataType::tp_double, .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "Z", .data_type = DataType::tp_string, .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
+            {.name = "X",
+             .data_type = DataType::tp_int,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "Y",
+             .data_type = DataType::tp_double,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "Z",
+             .data_type = DataType::tp_string,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
         };
 
         auto table = Table::create(path, columns, 3);
@@ -192,12 +213,21 @@ static void test_table_row_subset() {
 
     {
         std::vector<TableColumnSpec> columns = {
-            {.name = "A", .data_type = DataType::tp_int,    .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "B", .data_type = DataType::tp_float,  .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "C", .data_type = DataType::tp_string, .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
+            {.name = "A",
+             .data_type = DataType::tp_int,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "B",
+             .data_type = DataType::tp_float,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "C",
+             .data_type = DataType::tp_string,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
         };
 
         auto table = Table::create(path, columns, 2);
@@ -206,9 +236,12 @@ static void test_table_row_subset() {
         ScalarColumn<float> b(table, "B");
         ScalarColumn<std::string> c(table, "C");
 
-        a.put(0, 1); a.put(1, 2);
-        b.put(0, 3.0F); b.put(1, 4.0F);
-        c.put(0, "hello"); c.put(1, "world");
+        a.put(0, 1);
+        a.put(1, 2);
+        b.put(0, 3.0F);
+        b.put(1, 4.0F);
+        c.put(0, "hello");
+        c.put(1, "world");
         table.flush();
     }
 
@@ -266,8 +299,11 @@ static void test_empty_table() {
     cleanup(path);
 
     std::vector<TableColumnSpec> columns = {
-        {.name = "V", .data_type = DataType::tp_double, .kind = ColumnKind::scalar,
-         .shape = {}, .comment = {}},
+        {.name = "V",
+         .data_type = DataType::tp_double,
+         .kind = ColumnKind::scalar,
+         .shape = {},
+         .comment = {}},
     };
     auto table = Table::create(path, columns, 0);
     assert(table.nrow() == 0);
@@ -347,10 +383,16 @@ static void test_mixed_writes() {
 
     {
         std::vector<TableColumnSpec> columns = {
-            {.name = "K", .data_type = DataType::tp_int,    .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
-            {.name = "V", .data_type = DataType::tp_string, .kind = ColumnKind::scalar,
-             .shape = {}, .comment = {}},
+            {.name = "K",
+             .data_type = DataType::tp_int,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "V",
+             .data_type = DataType::tp_string,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
         };
 
         auto table = Table::create(path, columns, 4);
@@ -358,8 +400,10 @@ static void test_mixed_writes() {
         // Write rows 0-1 via ScalarColumn.
         ScalarColumn<std::int32_t> k(table, "K");
         ScalarColumn<std::string> v(table, "V");
-        k.put(0, 100); v.put(0, "alpha");
-        k.put(1, 200); v.put(1, "beta");
+        k.put(0, 100);
+        v.put(0, "alpha");
+        k.put(1, 200);
+        v.put(1, "beta");
 
         // Write rows 2-3 via TableRow.
         TableRow row(table);
@@ -404,8 +448,11 @@ static void test_path_and_name() {
     cleanup(path);
 
     std::vector<TableColumnSpec> columns = {
-        {.name = "X", .data_type = DataType::tp_int, .kind = ColumnKind::scalar,
-         .shape = {}, .comment = {}},
+        {.name = "X",
+         .data_type = DataType::tp_int,
+         .kind = ColumnKind::scalar,
+         .shape = {},
+         .comment = {}},
     };
     auto table = Table::create(path, columns, 0);
 
@@ -428,8 +475,11 @@ static void test_small_table_7rows() {
     cleanup(path);
 
     std::vector<TableColumnSpec> columns = {
-        {.name = "N", .data_type = DataType::tp_int, .kind = ColumnKind::scalar,
-         .shape = {}, .comment = {}},
+        {.name = "N",
+         .data_type = DataType::tp_int,
+         .kind = ColumnKind::scalar,
+         .shape = {},
+         .comment = {}},
     };
     {
         auto table = Table::create(path, columns, 7);
@@ -460,8 +510,11 @@ static void test_small_table_1row() {
     cleanup(path);
 
     std::vector<TableColumnSpec> columns = {
-        {.name = "N", .data_type = DataType::tp_int, .kind = ColumnKind::scalar,
-         .shape = {}, .comment = {}},
+        {.name = "N",
+         .data_type = DataType::tp_int,
+         .kind = ColumnKind::scalar,
+         .shape = {},
+         .comment = {}},
     };
     {
         auto table = Table::create(path, columns, 1);
@@ -504,7 +557,7 @@ static TableDatFull make_ism_table_dat(std::uint64_t row_count) {
         col.type_string = (dtype == DataType::tp_double)
                               ? "ScalarColumnDesc<Double  >"
                               : (dtype == DataType::tp_int ? "ScalarColumnDesc<Int     >"
-                                                          : "ScalarColumnDesc<Bool>");
+                                                           : "ScalarColumnDesc<Bool>");
         return col;
     };
 
@@ -572,7 +625,7 @@ static void test_ism_via_table_api() {
 // Helper: build a TableDatFull with a TSM float array column.
 // ---------------------------------------------------------------------------
 static TableDatFull make_tsm_table_dat(std::uint64_t row_count,
-                                        const std::vector<std::int32_t>& shape) {
+                                       const std::vector<std::int32_t>& shape) {
     TableDatFull full;
     full.table_version = 2;
     full.row_count = row_count;
@@ -591,7 +644,7 @@ static TableDatFull make_tsm_table_dat(std::uint64_t row_count,
     col.version = 1;
     col.ndim = static_cast<std::int32_t>(shape.size());
     col.shape.assign(shape.begin(), shape.end());
-    col.options = 4;  // ColumnDesc::FixedShape
+    col.options = 4; // ColumnDesc::FixedShape
     full.table_desc.columns.push_back(col);
 
     StorageManagerSetup sm;
@@ -617,7 +670,7 @@ static void test_tsm_via_table_api() {
     std::cout << "  TSM via Table API (ArrayColumn)... ";
 
     constexpr std::uint64_t kRows = 5;
-    const std::vector<std::int32_t> shape = {4, 8};  // 32 floats per cell
+    const std::vector<std::int32_t> shape = {4, 8}; // 32 floats per cell
     constexpr std::uint64_t kCellElements = 32;
 
     auto path = make_temp_dir("tsm_table");
@@ -662,25 +715,25 @@ static void test_tsm_via_table_api() {
 
 int main() {
     try {
-    std::cout << "table_test\n";
+        std::cout << "table_test\n";
 
-    test_open_fixture();
-    test_create_and_write_scalars();
-    test_table_row_round_trip();
-    test_table_row_subset();
-    test_column_not_found();
-    test_empty_table();
-    test_keywords();
-    test_table_structure();
-    test_nrow_consistency();
-    test_mixed_writes();
-    test_path_and_name();
-    test_small_table_7rows();
-    test_small_table_1row();
-    test_ism_via_table_api();
-    test_tsm_via_table_api();
+        test_open_fixture();
+        test_create_and_write_scalars();
+        test_table_row_round_trip();
+        test_table_row_subset();
+        test_column_not_found();
+        test_empty_table();
+        test_keywords();
+        test_table_structure();
+        test_nrow_consistency();
+        test_mixed_writes();
+        test_path_and_name();
+        test_small_table_7rows();
+        test_small_table_1row();
+        test_ism_via_table_api();
+        test_tsm_via_table_api();
 
-    std::cout << "all table tests passed\n";
+        std::cout << "all table tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

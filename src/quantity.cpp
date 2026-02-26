@@ -22,8 +22,8 @@ Quantity Quantity::convert(const Unit& target) const {
         throw std::invalid_argument("Unknown target unit: \"" + target.name() + "\"");
     }
     if (!unit_.value().conforms(target.value())) {
-        throw std::invalid_argument(
-            "Incompatible units: \"" + unit_.name() + "\" -> \"" + target.name() + "\"");
+        throw std::invalid_argument("Incompatible units: \"" + unit_.name() + "\" -> \"" +
+                                    target.name() + "\"");
     }
     double result = value * unit_.value().factor() / target.value().factor();
     return Quantity(result, target);
@@ -44,17 +44,15 @@ bool Quantity::conforms(const Unit& other) const {
 }
 
 bool Quantity::conforms(const Quantity& other) const {
-    return unit_.defined() && other.unit_.defined() &&
-           unit_.value().conforms(other.unit_.value());
+    return unit_.defined() && other.unit_.defined() && unit_.value().conforms(other.unit_.value());
 }
 
 // ===== Arithmetic ==========================================================
 
 Quantity Quantity::operator+(const Quantity& rhs) const {
     if (!conforms(rhs)) {
-        throw std::invalid_argument(
-            "Cannot add non-conformant units: \"" + unit_.name() + "\" + \"" +
-            rhs.unit_.name() + "\"");
+        throw std::invalid_argument("Cannot add non-conformant units: \"" + unit_.name() +
+                                    "\" + \"" + rhs.unit_.name() + "\"");
     }
     double rhs_val = rhs.value * rhs.unit_.value().factor() / unit_.value().factor();
     return Quantity(value + rhs_val, unit_);
@@ -62,9 +60,8 @@ Quantity Quantity::operator+(const Quantity& rhs) const {
 
 Quantity Quantity::operator-(const Quantity& rhs) const {
     if (!conforms(rhs)) {
-        throw std::invalid_argument(
-            "Cannot subtract non-conformant units: \"" + unit_.name() + "\" - \"" +
-            rhs.unit_.name() + "\"");
+        throw std::invalid_argument("Cannot subtract non-conformant units: \"" + unit_.name() +
+                                    "\" - \"" + rhs.unit_.name() + "\"");
     }
     double rhs_val = rhs.value * rhs.unit_.value().factor() / unit_.value().factor();
     return Quantity(value - rhs_val, unit_);
@@ -123,9 +120,8 @@ bool Quantity::operator==(const Quantity& rhs) const {
 
 bool Quantity::operator<(const Quantity& rhs) const {
     if (!conforms(rhs)) {
-        throw std::invalid_argument(
-            "Cannot compare non-conformant units: \"" + unit_.name() + "\" vs \"" +
-            rhs.unit_.name() + "\"");
+        throw std::invalid_argument("Cannot compare non-conformant units: \"" + unit_.name() +
+                                    "\" vs \"" + rhs.unit_.name() + "\"");
     }
     double lhs_si = value * unit_.value().factor();
     double rhs_si = rhs.value * rhs.unit_.value().factor();

@@ -171,8 +171,7 @@ static void demo_record_roundtrip() {
     original.set("float_field", RecordValue(float{2.5F}));
     original.set("double_field", RecordValue(99.99));
     original.set("string_field", RecordValue(std::string{"casacore-mini"}));
-    original.set("complex_field",
-                 RecordValue(std::complex<double>{1.0, -3.0}));
+    original.set("complex_field", RecordValue(std::complex<double>{1.0, -3.0}));
 
     // Add an array field.
     RecordValue::double_array arr;
@@ -230,8 +229,7 @@ static void demo_record_roundtrip() {
     // Verify array field.
     const auto* af = restored.find("array_field");
     assert(af != nullptr);
-    const auto& restored_arr =
-        std::get<RecordValue::double_array>(af->storage());
+    const auto& restored_arr = std::get<RecordValue::double_array>(af->storage());
     assert(restored_arr.shape.size() == 1);
     assert(restored_arr.shape[0] == 3);
     assert(restored_arr.elements.size() == 3);
@@ -242,8 +240,7 @@ static void demo_record_roundtrip() {
     // Verify nested sub-record.
     const auto* sr = restored.find("sub_record");
     assert(sr != nullptr);
-    const auto* sr_ptr =
-        std::get_if<RecordValue::record_ptr>(&sr->storage());
+    const auto* sr_ptr = std::get_if<RecordValue::record_ptr>(&sr->storage());
     assert(sr_ptr != nullptr && *sr_ptr != nullptr);
     const auto* si = (*sr_ptr)->find("sub_int");
     assert(si != nullptr);

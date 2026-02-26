@@ -29,13 +29,19 @@ class Quantity {
     Quantity(double v, const Unit& u);
 
     /// The unit string (e.g. "km/s").
-    [[nodiscard]] const std::string& get_unit() const { return unit_.name(); }
+    [[nodiscard]] const std::string& get_unit() const {
+        return unit_.name();
+    }
 
     /// The parsed Unit object.
-    [[nodiscard]] const Unit& unit() const { return unit_; }
+    [[nodiscard]] const Unit& unit() const {
+        return unit_;
+    }
 
     /// The Unit's UnitVal (factor + dimensions).
-    [[nodiscard]] const UnitVal& unit_value() const { return unit_.value(); }
+    [[nodiscard]] const UnitVal& unit_value() const {
+        return unit_.value();
+    }
 
     // -- Conversion --
 

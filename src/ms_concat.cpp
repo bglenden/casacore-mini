@@ -2,7 +2,6 @@
 #include "casacore_mini/ms_columns.hpp"
 #include "casacore_mini/ms_writer.hpp"
 
-
 namespace casacore_mini {
 
 namespace {
@@ -37,9 +36,8 @@ std::map<std::string, std::int32_t> spw_name_map(MeasurementSet& ms) {
 
 } // anonymous namespace
 
-MsConcatResult ms_concat(MeasurementSet& ms1,
-                          MeasurementSet& ms2,
-                          const std::filesystem::path& output_path) {
+MsConcatResult ms_concat(MeasurementSet& ms1, MeasurementSet& ms2,
+                         const std::filesystem::path& output_path) {
     MsConcatResult result;
 
     // Create the output MS.
@@ -72,12 +70,12 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
             ant_remap[static_cast<std::int32_t>(r)] = it->second;
         } else {
             auto new_id = writer.add_antenna({.name = name,
-                                               .station = ant2.station(r),
-                                               .type = ant2.type(r),
-                                               .mount = ant2.mount(r),
-                                               .position = {},
-                                               .offset = {},
-                                               .dish_diameter = ant2.dish_diameter(r)});
+                                              .station = ant2.station(r),
+                                              .type = ant2.type(r),
+                                              .mount = ant2.mount(r),
+                                              .position = {},
+                                              .offset = {},
+                                              .dish_diameter = ant2.dish_diameter(r)});
             ant_remap[static_cast<std::int32_t>(r)] = static_cast<std::int32_t>(new_id);
         }
     }
@@ -89,8 +87,10 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
 
     std::map<std::int32_t, std::int32_t> field_remap;
     for (std::uint64_t r = 0; r < fld1.row_count(); ++r) {
-        writer.add_field({.name = fld1.name(r), .code = fld1.code(r),
-                          .time = fld1.time(r), .source_id = fld1.source_id(r)});
+        writer.add_field({.name = fld1.name(r),
+                          .code = fld1.code(r),
+                          .time = fld1.time(r),
+                          .source_id = fld1.source_id(r)});
     }
     for (std::uint64_t r = 0; r < fld2.row_count(); ++r) {
         auto name = fld2.name(r);
@@ -98,9 +98,10 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
         if (it != fld1_names.end()) {
             field_remap[static_cast<std::int32_t>(r)] = it->second;
         } else {
-            auto new_id = writer.add_field({.name = name, .code = fld2.code(r),
-                                             .time = fld2.time(r),
-                                             .source_id = fld2.source_id(r)});
+            auto new_id = writer.add_field({.name = name,
+                                            .code = fld2.code(r),
+                                            .time = fld2.time(r),
+                                            .source_id = fld2.source_id(r)});
             field_remap[static_cast<std::int32_t>(r)] = static_cast<std::int32_t>(new_id);
         }
     }
@@ -113,18 +114,18 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
     std::map<std::int32_t, std::int32_t> spw_remap;
     for (std::uint64_t r = 0; r < spw1.row_count(); ++r) {
         writer.add_spectral_window({.num_chan = spw1.num_chan(r),
-                                     .name = spw1.name(r),
-                                     .ref_frequency = spw1.ref_frequency(r),
-                                     .chan_freq = {},
-                                     .chan_width = {},
-                                     .effective_bw = {},
-                                     .resolution = {},
-                                     .meas_freq_ref = 0,
-                                     .total_bandwidth = 0.0,
-                                     .net_sideband = 0,
-                                     .if_conv_chain = 0,
-                                     .freq_group = 0,
-                                     .freq_group_name = {}});
+                                    .name = spw1.name(r),
+                                    .ref_frequency = spw1.ref_frequency(r),
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {}});
     }
     for (std::uint64_t r = 0; r < spw2.row_count(); ++r) {
         auto name = spw2.name(r);
@@ -133,18 +134,18 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
             spw_remap[static_cast<std::int32_t>(r)] = it->second;
         } else {
             auto new_id = writer.add_spectral_window({.num_chan = spw2.num_chan(r),
-                                                       .name = name,
-                                                       .ref_frequency = spw2.ref_frequency(r),
-                                                       .chan_freq = {},
-                                                       .chan_width = {},
-                                                       .effective_bw = {},
-                                                       .resolution = {},
-                                                       .meas_freq_ref = 0,
-                                                       .total_bandwidth = 0.0,
-                                                       .net_sideband = 0,
-                                                       .if_conv_chain = 0,
-                                                       .freq_group = 0,
-                                                       .freq_group_name = {}});
+                                                      .name = name,
+                                                      .ref_frequency = spw2.ref_frequency(r),
+                                                      .chan_freq = {},
+                                                      .chan_width = {},
+                                                      .effective_bw = {},
+                                                      .resolution = {},
+                                                      .meas_freq_ref = 0,
+                                                      .total_bandwidth = 0.0,
+                                                      .net_sideband = 0,
+                                                      .if_conv_chain = 0,
+                                                      .freq_group = 0,
+                                                      .freq_group_name = {}});
             spw_remap[static_cast<std::int32_t>(r)] = static_cast<std::int32_t>(new_id);
         }
     }
@@ -157,7 +158,7 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
     std::map<std::int32_t, std::int32_t> dd_remap;
     for (std::uint64_t r = 0; r < dd1.row_count(); ++r) {
         writer.add_data_description({.spectral_window_id = dd1.spectral_window_id(r),
-                                      .polarization_id = dd1.polarization_id(r)});
+                                     .polarization_id = dd1.polarization_id(r)});
     }
     for (std::uint64_t r = 0; r < dd2.row_count(); ++r) {
         auto old_spw = dd2.spectral_window_id(r);
@@ -174,8 +175,7 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
         }
         if (!found) {
             auto new_id = writer.add_data_description(
-                {.spectral_window_id = new_spw,
-                 .polarization_id = dd2.polarization_id(r)});
+                {.spectral_window_id = new_spw, .polarization_id = dd2.polarization_id(r)});
             dd_remap[static_cast<std::int32_t>(r)] = static_cast<std::int32_t>(new_id);
         }
     }
@@ -207,7 +207,12 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
             auto obs_mode = std::get<std::string>(state1.read_scalar_cell("OBS_MODE", r));
             auto sig_val = std::get<bool>(state1.read_scalar_cell("SIG", r));
             auto ref_val = std::get<bool>(state1.read_scalar_cell("REF", r));
-            writer.add_state({.sig = sig_val, .ref = ref_val, .cal = 0.0, .load = 0.0, .sub_scan = 0, .obs_mode = obs_mode});
+            writer.add_state({.sig = sig_val,
+                              .ref = ref_val,
+                              .cal = 0.0,
+                              .load = 0.0,
+                              .sub_scan = 0,
+                              .obs_mode = obs_mode});
         }
     }
 
@@ -218,7 +223,12 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
             auto obs_mode = std::get<std::string>(state2.read_scalar_cell("OBS_MODE", r));
             auto sig_val = std::get<bool>(state2.read_scalar_cell("SIG", r));
             auto ref_val = std::get<bool>(state2.read_scalar_cell("REF", r));
-            auto new_id = writer.add_state({.sig = sig_val, .ref = ref_val, .cal = 0.0, .load = 0.0, .sub_scan = 0, .obs_mode = obs_mode});
+            auto new_id = writer.add_state({.sig = sig_val,
+                                            .ref = ref_val,
+                                            .cal = 0.0,
+                                            .load = 0.0,
+                                            .sub_scan = 0,
+                                            .obs_mode = obs_mode});
             state_remap[static_cast<std::int32_t>(r)] = static_cast<std::int32_t>(new_id);
         }
     }
@@ -226,29 +236,27 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
     // --- Copy main-table rows ---
     MsMainColumns cols1(ms1);
     for (std::uint64_t r = 0; r < ms1.row_count(); ++r) {
-        writer.add_row({
-            .antenna1 = cols1.antenna1(r),
-            .antenna2 = cols1.antenna2(r),
-            .array_id = cols1.array_id(r),
-            .data_desc_id = cols1.data_desc_id(r),
-            .exposure = cols1.exposure(r),
-            .feed1 = cols1.feed1(r),
-            .feed2 = cols1.feed2(r),
-            .field_id = cols1.field_id(r),
-            .flag_row = cols1.flag_row(r),
-            .interval = cols1.interval(r),
-            .observation_id = cols1.observation_id(r),
-            .processor_id = cols1.processor_id(r),
-            .scan_number = cols1.scan_number(r),
-            .state_id = cols1.state_id(r),
-            .time = cols1.time(r),
-            .time_centroid = cols1.time_centroid(r),
-            .uvw = cols1.uvw(r),
-            .sigma = cols1.sigma(r),
-            .weight = cols1.weight(r),
-            .data = {},
-            .flag = {}
-        });
+        writer.add_row({.antenna1 = cols1.antenna1(r),
+                        .antenna2 = cols1.antenna2(r),
+                        .array_id = cols1.array_id(r),
+                        .data_desc_id = cols1.data_desc_id(r),
+                        .exposure = cols1.exposure(r),
+                        .feed1 = cols1.feed1(r),
+                        .feed2 = cols1.feed2(r),
+                        .field_id = cols1.field_id(r),
+                        .flag_row = cols1.flag_row(r),
+                        .interval = cols1.interval(r),
+                        .observation_id = cols1.observation_id(r),
+                        .processor_id = cols1.processor_id(r),
+                        .scan_number = cols1.scan_number(r),
+                        .state_id = cols1.state_id(r),
+                        .time = cols1.time(r),
+                        .time_centroid = cols1.time_centroid(r),
+                        .uvw = cols1.uvw(r),
+                        .sigma = cols1.sigma(r),
+                        .weight = cols1.weight(r),
+                        .data = {},
+                        .flag = {}});
     }
 
     // ms2 rows with remapped IDs.
@@ -260,29 +268,28 @@ MsConcatResult ms_concat(MeasurementSet& ms1,
         auto old_dd = cols2.data_desc_id(r);
         auto old_state = cols2.state_id(r);
 
-        writer.add_row({
-            .antenna1 = ant_remap.count(old_ant1) > 0 ? ant_remap.at(old_ant1) : old_ant1,
-            .antenna2 = ant_remap.count(old_ant2) > 0 ? ant_remap.at(old_ant2) : old_ant2,
-            .array_id = cols2.array_id(r),
-            .data_desc_id = dd_remap.count(old_dd) > 0 ? dd_remap.at(old_dd) : old_dd,
-            .exposure = cols2.exposure(r),
-            .feed1 = cols2.feed1(r),
-            .feed2 = cols2.feed2(r),
-            .field_id = field_remap.count(old_fld) > 0 ? field_remap.at(old_fld) : old_fld,
-            .flag_row = cols2.flag_row(r),
-            .interval = cols2.interval(r),
-            .observation_id = cols2.observation_id(r),
-            .processor_id = cols2.processor_id(r),
-            .scan_number = cols2.scan_number(r),
-            .state_id = state_remap.count(old_state) > 0 ? state_remap.at(old_state) : old_state,
-            .time = cols2.time(r),
-            .time_centroid = cols2.time_centroid(r),
-            .uvw = cols2.uvw(r),
-            .sigma = cols2.sigma(r),
-            .weight = cols2.weight(r),
-            .data = {},
-            .flag = {}
-        });
+        writer.add_row(
+            {.antenna1 = ant_remap.count(old_ant1) > 0 ? ant_remap.at(old_ant1) : old_ant1,
+             .antenna2 = ant_remap.count(old_ant2) > 0 ? ant_remap.at(old_ant2) : old_ant2,
+             .array_id = cols2.array_id(r),
+             .data_desc_id = dd_remap.count(old_dd) > 0 ? dd_remap.at(old_dd) : old_dd,
+             .exposure = cols2.exposure(r),
+             .feed1 = cols2.feed1(r),
+             .feed2 = cols2.feed2(r),
+             .field_id = field_remap.count(old_fld) > 0 ? field_remap.at(old_fld) : old_fld,
+             .flag_row = cols2.flag_row(r),
+             .interval = cols2.interval(r),
+             .observation_id = cols2.observation_id(r),
+             .processor_id = cols2.processor_id(r),
+             .scan_number = cols2.scan_number(r),
+             .state_id = state_remap.count(old_state) > 0 ? state_remap.at(old_state) : old_state,
+             .time = cols2.time(r),
+             .time_centroid = cols2.time_centroid(r),
+             .uvw = cols2.uvw(r),
+             .sigma = cols2.sigma(r),
+             .weight = cols2.weight(r),
+             .data = {},
+             .flag = {}});
     }
 
     writer.flush();

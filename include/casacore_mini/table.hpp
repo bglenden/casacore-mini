@@ -95,8 +95,7 @@ class Table {
     /// Create a new table with explicit storage manager options.
     [[nodiscard]] static Table create(const std::filesystem::path& path,
                                       const std::vector<TableColumnSpec>& columns,
-                                      std::uint64_t nrows,
-                                      const TableCreateOptions& options);
+                                      std::uint64_t nrows, const TableCreateOptions& options);
 
     /// Number of rows in the table.
     [[nodiscard]] std::uint64_t nrow() const;
@@ -132,39 +131,39 @@ class Table {
 
     /// Read an array cell as doubles from any SM.
     [[nodiscard]] std::vector<double> read_array_double_cell(std::string_view col_name,
-                                                              std::uint64_t row) const;
+                                                             std::uint64_t row) const;
 
     /// Read an array cell as floats from any SM.
     [[nodiscard]] std::vector<float> read_array_float_cell(std::string_view col_name,
-                                                            std::uint64_t row) const;
+                                                           std::uint64_t row) const;
 
     /// Read an array cell as bools from any SM.
     [[nodiscard]] std::vector<bool> read_array_bool_cell(std::string_view col_name,
-                                                          std::uint64_t row) const;
+                                                         std::uint64_t row) const;
 
     /// Read an array cell as int32_t from any SM (SSM or TSM).
     [[nodiscard]] std::vector<std::int32_t> read_array_int_cell(std::string_view col_name,
-                                                                 std::uint64_t row) const;
+                                                                std::uint64_t row) const;
 
     /// Read an array cell as complex<float> from any SM.
-    [[nodiscard]] std::vector<std::complex<float>> read_array_complex_cell(
-        std::string_view col_name, std::uint64_t row) const;
+    [[nodiscard]] std::vector<std::complex<float>>
+    read_array_complex_cell(std::string_view col_name, std::uint64_t row) const;
 
     /// Read an array cell as complex<double> from any SM.
-    [[nodiscard]] std::vector<std::complex<double>> read_array_dcomplex_cell(
-        std::string_view col_name, std::uint64_t row) const;
+    [[nodiscard]] std::vector<std::complex<double>>
+    read_array_dcomplex_cell(std::string_view col_name, std::uint64_t row) const;
 
     /// Read an array cell as strings from SSM indirect storage.
     [[nodiscard]] std::vector<std::string> read_array_string_cell(std::string_view col_name,
-                                                                    std::uint64_t row) const;
+                                                                  std::uint64_t row) const;
 
     /// Read an array cell as raw bytes from any SM.
     [[nodiscard]] std::vector<std::uint8_t> read_array_raw_cell(std::string_view col_name,
-                                                                 std::uint64_t row) const;
+                                                                std::uint64_t row) const;
 
     /// Get the cell shape for a variable-shape array column (from indirect header).
     [[nodiscard]] std::vector<std::int64_t> cell_shape(std::string_view col_name,
-                                                        std::uint64_t row) const;
+                                                       std::uint64_t row) const;
 
     /// Whether the table is big-endian.
     [[nodiscard]] bool is_big_endian() const;

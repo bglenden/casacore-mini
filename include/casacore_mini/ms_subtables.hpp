@@ -17,101 +17,184 @@ namespace casacore_mini {
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsAntennaColumn : std::int32_t {
-    name, station, type, mount, position, offset, dish_diameter, flag_row
+    name,
+    station,
+    type,
+    mount,
+    position,
+    offset,
+    dish_diameter,
+    flag_row
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
-enum class MsDataDescColumn : std::int32_t {
-    spectral_window_id, polarization_id, flag_row
-};
+enum class MsDataDescColumn : std::int32_t { spectral_window_id, polarization_id, flag_row };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsFeedColumn : std::int32_t {
-    antenna_id, feed_id, spectral_window_id, time, interval,
-    num_receptors, beam_id, beam_offset, polarization_type,
-    pol_response, position, receptor_angle
+    antenna_id,
+    feed_id,
+    spectral_window_id,
+    time,
+    interval,
+    num_receptors,
+    beam_id,
+    beam_offset,
+    polarization_type,
+    pol_response,
+    position,
+    receptor_angle
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsFieldColumn : std::int32_t {
-    name, code, time, num_poly, delay_dir, phase_dir, reference_dir,
-    source_id, flag_row
+    name,
+    code,
+    time,
+    num_poly,
+    delay_dir,
+    phase_dir,
+    reference_dir,
+    source_id,
+    flag_row
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsFlagCmdColumn : std::int32_t {
-    time, interval, type, reason, level, severity, applied, command
+    time,
+    interval,
+    type,
+    reason,
+    level,
+    severity,
+    applied,
+    command
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsHistoryColumn : std::int32_t {
-    time, observation_id, message, priority, origin, object_id,
-    application, cli_command, app_params
+    time,
+    observation_id,
+    message,
+    priority,
+    origin,
+    object_id,
+    application,
+    cli_command,
+    app_params
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsObservationColumn : std::int32_t {
-    telescope_name, time_range, observer, log, schedule_type,
-    schedule, project, release_date, flag_row
+    telescope_name,
+    time_range,
+    observer,
+    log,
+    schedule_type,
+    schedule,
+    project,
+    release_date,
+    flag_row
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsPointingColumn : std::int32_t {
-    antenna_id, time, interval, name, num_poly, time_origin,
-    direction, target, tracking
+    antenna_id,
+    time,
+    interval,
+    name,
+    num_poly,
+    time_origin,
+    direction,
+    target,
+    tracking
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
-enum class MsPolarizationColumn : std::int32_t {
-    num_corr, corr_type, corr_product, flag_row
-};
+enum class MsPolarizationColumn : std::int32_t { num_corr, corr_type, corr_product, flag_row };
 
 // NOLINTNEXTLINE(performance-enum-size)
-enum class MsProcessorColumn : std::int32_t {
-    type, sub_type, type_id, mode_id, flag_row
-};
+enum class MsProcessorColumn : std::int32_t { type, sub_type, type_id, mode_id, flag_row };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsSpWindowColumn : std::int32_t {
-    num_chan, name, ref_frequency, chan_freq, chan_width, effective_bw,
-    resolution, meas_freq_ref, total_bandwidth, net_sideband,
-    if_conv_chain, freq_group, freq_group_name, flag_row
+    num_chan,
+    name,
+    ref_frequency,
+    chan_freq,
+    chan_width,
+    effective_bw,
+    resolution,
+    meas_freq_ref,
+    total_bandwidth,
+    net_sideband,
+    if_conv_chain,
+    freq_group,
+    freq_group_name,
+    flag_row
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
-enum class MsStateColumn : std::int32_t {
-    sig, ref, cal, load, sub_scan, obs_mode, flag_row
-};
+enum class MsStateColumn : std::int32_t { sig, ref, cal, load, sub_scan, obs_mode, flag_row };
 
 // --- Optional subtable enums ---
 
 // NOLINTNEXTLINE(performance-enum-size)
-enum class MsDopplerColumn : std::int32_t {
-    doppler_id, source_id, transition_id, veldef
-};
+enum class MsDopplerColumn : std::int32_t { doppler_id, source_id, transition_id, veldef };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsFreqOffsetColumn : std::int32_t {
-    antenna1, antenna2, feed_id, spectral_window_id, time, interval, offset
+    antenna1,
+    antenna2,
+    feed_id,
+    spectral_window_id,
+    time,
+    interval,
+    offset
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsSourceColumn : std::int32_t {
-    source_id, time, interval, spectral_window_id, num_lines,
-    name, calibration_group, code, direction, position,
-    proper_motion, transition, rest_frequency, sysvel
+    source_id,
+    time,
+    interval,
+    spectral_window_id,
+    num_lines,
+    name,
+    calibration_group,
+    code,
+    direction,
+    position,
+    proper_motion,
+    transition,
+    rest_frequency,
+    sysvel
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsSysCalColumn : std::int32_t {
-    antenna_id, feed_id, spectral_window_id, time, interval,
-    tsys, trx, tsky, phase_diff
+    antenna_id,
+    feed_id,
+    spectral_window_id,
+    time,
+    interval,
+    tsys,
+    trx,
+    tsky,
+    phase_diff
 };
 
 // NOLINTNEXTLINE(performance-enum-size)
 enum class MsWeatherColumn : std::int32_t {
-    antenna_id, time, interval, temperature, pressure, rel_humidity,
-    dew_point, wind_direction, wind_speed
+    antenna_id,
+    time,
+    interval,
+    temperature,
+    pressure,
+    rel_humidity,
+    dew_point,
+    wind_direction,
+    wind_speed
 };
 
 // ---------------------------------------------------------------------------

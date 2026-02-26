@@ -82,8 +82,7 @@ bool test_galactic_projection() {
     CoordinateSystem cs = coordinate_system_from_fits_header(fits);
     [[maybe_unused]] auto idx = find_direction_coordinate(cs);
     assert(idx.has_value());
-    [[maybe_unused]] const auto& dc =
-        static_cast<const DirectionCoordinate&>(cs.coordinate(*idx));
+    [[maybe_unused]] const auto& dc = static_cast<const DirectionCoordinate&>(cs.coordinate(*idx));
     assert(dc.ref_frame() == DirectionRef::galactic);
     assert(dc.projection().type == ProjectionType::tan);
     return true;

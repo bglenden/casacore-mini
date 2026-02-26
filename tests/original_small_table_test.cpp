@@ -14,21 +14,21 @@
 //
 // Prints PASS or FAIL for each sub-test and returns 0 only if all pass.
 
-#include <casacore/tables/Tables/TableDesc.h>
-#include <casacore/tables/Tables/SetupNewTab.h>
-#include <casacore/tables/Tables/Table.h>
+#include <casacore/casa/OS/Path.h>
 #include <casacore/tables/Tables/ScaColDesc.h>
 #include <casacore/tables/Tables/ScalarColumn.h>
+#include <casacore/tables/Tables/SetupNewTab.h>
+#include <casacore/tables/Tables/Table.h>
+#include <casacore/tables/Tables/TableDesc.h>
 #include <casacore/tables/Tables/TableUtil.h>
-#include <casacore/casa/OS/Path.h>
 
 #include <casacore/casa/namespace.h>
 
+#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstdlib>
-#include <filesystem>
 
 namespace fs = std::filesystem;
 
@@ -46,8 +46,7 @@ static void removeIfExists(const std::string& path) {
 // Create a table at `path` with a single ScalarColumn<Int>("N") and `nrow`
 // rows, writing the values from `values`.  The table is flushed and closed
 // before this function returns.
-static void createTable(const std::string& path,
-                        const std::vector<Int>& values) {
+static void createTable(const std::string& path, const std::vector<Int>& values) {
     // Build description with one Int scalar column.
     TableDesc td("", "1", TableDesc::Scratch);
     td.addColumn(ScalarColumnDesc<Int>("N", "test column"));
@@ -69,12 +68,11 @@ static void createTable(const std::string& path,
 
 // Reopen `path` read-only and verify that column "N" has exactly `expected`
 // values.  Returns true on success.
-static bool verifyTable(const std::string& path,
-                        const std::vector<Int>& expected) {
+static bool verifyTable(const std::string& path, const std::vector<Int>& expected) {
     Table tab(path, Table::Old);
     if (tab.nrow() != static_cast<rownr_t>(expected.size())) {
-        std::cerr << "  row count mismatch: got " << tab.nrow()
-                  << ", expected " << expected.size() << "\n";
+        std::cerr << "  row count mismatch: got " << tab.nrow() << ", expected " << expected.size()
+                  << "\n";
         return false;
     }
     if (tab.nrow() == 0) {
@@ -85,8 +83,8 @@ static bool verifyTable(const std::string& path,
     for (rownr_t r = 0; r < tab.nrow(); ++r) {
         Int val = col(r);
         if (val != expected[r]) {
-            std::cerr << "  value mismatch at row " << r << ": got " << val
-                      << ", expected " << expected[r] << "\n";
+            std::cerr << "  value mismatch at row " << r << ": got " << val << ", expected "
+                      << expected[r] << "\n";
             return false;
         }
     }
@@ -128,7 +126,7 @@ static bool test_0rows(const std::string& dir) {
     std::string path = dir + "/test_0rows.tab";
     removeIfExists(path);
 
-    std::vector<Int> values;  // empty
+    std::vector<Int> values; // empty
     createTable(path, values);
     bool ok = verifyTable(path, values);
 

@@ -27,8 +27,7 @@ void demo_unit_basics() {
     std::cout << "\n=== Unit Basics ===\n";
 
     Unit kms("km/s");
-    std::cout << "  Unit(\"km/s\") factor=" << kms.value().factor()
-              << ", dims=[";
+    std::cout << "  Unit(\"km/s\") factor=" << kms.value().factor() << ", dims=[";
     for (int i = 0; i < UnitVal::kNDim; ++i) {
         if (i > 0) {
             std::cout << ",";
@@ -41,18 +40,16 @@ void demo_unit_basics() {
     assert(kms.value().dim(UnitVal::TIME) == -1);
 
     Unit jy("Jy");
-    std::cout << "  Unit(\"Jy\") factor=" << jy.value().factor()
-              << " (MASS*TIME^-2)\n";
+    std::cout << "  Unit(\"Jy\") factor=" << jy.value().factor() << " (MASS*TIME^-2)\n";
     assert(near(jy.value().factor(), 1e-26));
 
     Unit ms("m/s");
-    std::cout << "  Conforms check: km/s ~ m/s -> "
-              << (kms.conforms(ms) ? "true" : "false") << "\n";
+    std::cout << "  Conforms check: km/s ~ m/s -> " << (kms.conforms(ms) ? "true" : "false")
+              << "\n";
     assert(kms.conforms(ms));
 
     Unit hz("Hz");
-    std::cout << "  Conforms check: km/s ~ Hz -> "
-              << (kms.conforms(hz) ? "true" : "false") << "\n";
+    std::cout << "  Conforms check: km/s ~ Hz -> " << (kms.conforms(hz) ? "true" : "false") << "\n";
     assert(!kms.conforms(hz));
 
     std::cout << "  [OK] Unit basics verified.\n";
@@ -64,21 +61,20 @@ void demo_quantity_arithmetic() {
     // Angle conversion.
     Quantity deg180(180.0, "deg");
     auto rad = deg180.convert("rad");
-    std::cout << "  Quantity(180, \"deg\") -> convert(\"rad\") = "
-              << rad.value << " rad\n";
+    std::cout << "  Quantity(180, \"deg\") -> convert(\"rad\") = " << rad.value << " rad\n";
     assert(near(rad.value, M_PI));
 
     // Parsec to meters.
     Quantity pc1(1.0, "pc");
     auto pm = pc1.convert("m");
-    std::cout << "  Quantity(1, \"pc\") -> convert(\"m\") = "
-              << std::scientific << pm.value << std::fixed << " m\n";
+    std::cout << "  Quantity(1, \"pc\") -> convert(\"m\") = " << std::scientific << pm.value
+              << std::fixed << " m\n";
     assert(near(pm.value, 3.0857e16, 1e-3));
 
     // Jansky.
     Quantity jy1(1.0, "Jy");
-    std::cout << "  Quantity(1, \"Jy\"): factor=" << std::scientific
-              << jy1.unit_value().factor() << std::fixed << "\n";
+    std::cout << "  Quantity(1, \"Jy\"): factor=" << std::scientific << jy1.unit_value().factor()
+              << std::fixed << "\n";
 
     // Addition with conversion.
     Quantity a(5.0, "km");
@@ -91,8 +87,7 @@ void demo_quantity_arithmetic() {
     Quantity dist(100.0, "km");
     Quantity time(2.0, "h");
     auto speed = dist / time;
-    std::cout << "  100 km / 2 h = " << speed.value << " "
-              << speed.get_unit() << "\n";
+    std::cout << "  100 km / 2 h = " << speed.value << " " << speed.get_unit() << "\n";
     assert(near(speed.value, 50.0));
 
     std::cout << "  [OK] Quantity arithmetic verified.\n";
@@ -108,12 +103,11 @@ void demo_prefix_system() {
     std::cout << "  1 km = " << km.value().factor() << " m\n";
     assert(near(km.value().factor(), 1000.0));
 
-    std::cout << "  1 MHz = " << std::scientific << mhz.value().factor()
-              << std::fixed << " Hz\n";
+    std::cout << "  1 MHz = " << std::scientific << mhz.value().factor() << std::fixed << " Hz\n";
     assert(near(mhz.value().factor(), 1e6));
 
-    std::cout << "  1 uJy = " << std::scientific << ujy.value().factor()
-              << std::fixed << " W.m-2.Hz-1 equivalent\n";
+    std::cout << "  1 uJy = " << std::scientific << ujy.value().factor() << std::fixed
+              << " W.m-2.Hz-1 equivalent\n";
     assert(near(ujy.value().factor(), 1e-32));
 
     std::cout << "  [OK] Prefix system verified.\n";
@@ -124,25 +118,22 @@ void demo_astronomical_units() {
 
     Quantity au1(1.0, "AU");
     auto au_m = au1.convert("m");
-    std::cout << "  1 AU = " << std::scientific << au_m.value << std::fixed
-              << " m\n";
+    std::cout << "  1 AU = " << std::scientific << au_m.value << std::fixed << " m\n";
     assert(near(au_m.value, 299792458.0 * 499.0047837));
 
     Quantity pc1(1.0, "pc");
     auto pc_m = pc1.convert("m");
-    std::cout << "  1 pc = " << std::scientific << pc_m.value << std::fixed
-              << " m\n";
+    std::cout << "  1 pc = " << std::scientific << pc_m.value << std::fixed << " m\n";
     assert(near(pc_m.value, 3.0857e16, 1e-3));
 
     Quantity ly1(1.0, "ly");
     auto ly_m = ly1.convert("m");
-    std::cout << "  1 ly = " << std::scientific << ly_m.value << std::fixed
-              << " m\n";
+    std::cout << "  1 ly = " << std::scientific << ly_m.value << std::fixed << " m\n";
     assert(near(ly_m.value, 9.46073047e+15));
 
     Quantity jy1(1.0, "Jy");
-    std::cout << "  1 Jy = " << std::scientific << jy1.unit_value().factor()
-              << std::fixed << " W/m^2/Hz\n";
+    std::cout << "  1 Jy = " << std::scientific << jy1.unit_value().factor() << std::fixed
+              << " W/m^2/Hz\n";
     assert(near(jy1.unit_value().factor(), 1e-26));
 
     std::cout << "  [OK] Astronomical units verified.\n";

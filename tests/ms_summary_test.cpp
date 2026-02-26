@@ -1,6 +1,6 @@
+#include "casacore_mini/measurement_set.hpp"
 #include "casacore_mini/ms_summary.hpp"
 #include "casacore_mini/ms_writer.hpp"
-#include "casacore_mini/measurement_set.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -34,40 +34,72 @@ static void test_summary_contains_required_sections() {
         auto ms = MeasurementSet::create(path, false);
         MsWriter writer(ms);
 
-        writer.add_antenna({.name = "ANT0", .station = "PAD0",
-                            .type = "GROUND-BASED", .mount = "ALT-AZ",
-                            .position = {}, .offset = {},
+        writer.add_antenna({.name = "ANT0",
+                            .station = "PAD0",
+                            .type = "GROUND-BASED",
+                            .mount = "ALT-AZ",
+                            .position = {},
+                            .offset = {},
                             .dish_diameter = 25.0});
-        writer.add_antenna({.name = "ANT1", .station = "PAD1",
-                            .type = "GROUND-BASED", .mount = "ALT-AZ",
-                            .position = {}, .offset = {},
+        writer.add_antenna({.name = "ANT1",
+                            .station = "PAD1",
+                            .type = "GROUND-BASED",
+                            .mount = "ALT-AZ",
+                            .position = {},
+                            .offset = {},
                             .dish_diameter = 12.0});
         writer.add_field({.name = "3C273", .code = {}});
-        writer.add_spectral_window({.num_chan = 64, .name = "L-band",
-                                     .ref_frequency = 1.4e9, .chan_freq = {},
-                                     .chan_width = {}, .effective_bw = {},
-                                     .resolution = {}, .meas_freq_ref = 0,
-                                     .total_bandwidth = 0.0, .net_sideband = 0,
-                                     .if_conv_chain = 0, .freq_group = 0,
-                                     .freq_group_name = {}, .flag_row = false});
-        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                      .flag_row = false});
+        writer.add_spectral_window({.num_chan = 64,
+                                    .name = "L-band",
+                                    .ref_frequency = 1.4e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
+        writer.add_data_description(
+            {.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
         writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
-        writer.add_observation({.telescope_name = "ALMA", .observer = "Jones", .project = {},
-                                 .release_date = 0.0, .flag_row = false});
-        writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                           .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+        writer.add_observation({.telescope_name = "ALMA",
+                                .observer = "Jones",
+                                .project = {},
+                                .release_date = 0.0,
+                                .flag_row = false});
+        writer.add_state({.sig = true,
+                          .ref = false,
+                          .cal = 0.0,
+                          .load = 0.0,
+                          .sub_scan = 0,
+                          .obs_mode = "OBSERVE",
+                          .flag_row = false});
 
-        writer.add_row({.antenna1 = 0, .antenna2 = 1, .array_id = 0,
-                         .data_desc_id = 0, .exposure = 0.0,
-                         .feed1 = 0, .feed2 = 0, .field_id = 0,
-                         .flag_row = false, .interval = 0.0,
-                         .observation_id = 0, .processor_id = 0,
-                         .scan_number = 1, .state_id = 0,
-                         .time = 4.8e9, .time_centroid = 4.8e9,
-                         .uvw = {100.0, 200.0, 50.0},
-                         .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                         .data = {}, .flag = {}});
+        writer.add_row({.antenna1 = 0,
+                        .antenna2 = 1,
+                        .array_id = 0,
+                        .data_desc_id = 0,
+                        .exposure = 0.0,
+                        .feed1 = 0,
+                        .feed2 = 0,
+                        .field_id = 0,
+                        .flag_row = false,
+                        .interval = 0.0,
+                        .observation_id = 0,
+                        .processor_id = 0,
+                        .scan_number = 1,
+                        .state_id = 0,
+                        .time = 4.8e9,
+                        .time_centroid = 4.8e9,
+                        .uvw = {100.0, 200.0, 50.0},
+                        .sigma = {1.0F, 1.0F},
+                        .weight = {1.0F, 1.0F},
+                        .data = {},
+                        .flag = {}});
         writer.flush();
     }
 
@@ -128,48 +160,75 @@ static void test_summary_multi_field_spw() {
         for (int i = 0; i < 4; ++i) {
             writer.add_antenna({.name = "A" + std::to_string(i),
                                 .station = "P" + std::to_string(i),
-                                .type = "GROUND-BASED", .mount = "ALT-AZ",
-                                .position = {}, .offset = {},
+                                .type = "GROUND-BASED",
+                                .mount = "ALT-AZ",
+                                .position = {},
+                                .offset = {},
                                 .dish_diameter = 25.0});
         }
         writer.add_field({.name = "SRC_A", .code = {}});
         writer.add_field({.name = "SRC_B", .code = {}});
         writer.add_field({.name = "SRC_C", .code = {}});
-        writer.add_spectral_window({.num_chan = 32, .name = "Band3",
-                                     .ref_frequency = 100e9, .chan_freq = {},
-                                     .chan_width = {}, .effective_bw = {},
-                                     .resolution = {}, .meas_freq_ref = 0,
-                                     .total_bandwidth = 0.0, .net_sideband = 0,
-                                     .if_conv_chain = 0, .freq_group = 0,
-                                     .freq_group_name = {}, .flag_row = false});
-        writer.add_spectral_window({.num_chan = 64, .name = "Band6",
-                                     .ref_frequency = 230e9, .chan_freq = {},
-                                     .chan_width = {}, .effective_bw = {},
-                                     .resolution = {}, .meas_freq_ref = 0,
-                                     .total_bandwidth = 0.0, .net_sideband = 0,
-                                     .if_conv_chain = 0, .freq_group = 0,
-                                     .freq_group_name = {}, .flag_row = false});
+        writer.add_spectral_window({.num_chan = 32,
+                                    .name = "Band3",
+                                    .ref_frequency = 100e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
+        writer.add_spectral_window({.num_chan = 64,
+                                    .name = "Band6",
+                                    .ref_frequency = 230e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
         writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0});
         writer.add_polarization({.num_corr = 4, .corr_type = {}});
         writer.add_observation({.telescope_name = "ALMA", .observer = "test", .project = {}});
-        writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                           .sub_scan = 0, .obs_mode = "OBSERVE"});
+        writer.add_state({.sig = true,
+                          .ref = false,
+                          .cal = 0.0,
+                          .load = 0.0,
+                          .sub_scan = 0,
+                          .obs_mode = "OBSERVE"});
 
         for (int r = 0; r < 5; ++r) {
-            writer.add_row({
-                .antenna1 = 0, .antenna2 = 1, .array_id = 0,
-                .data_desc_id = 0, .exposure = 0.0,
-                .feed1 = 0, .feed2 = 0, .field_id = r % 3,
-                .flag_row = false, .interval = 0.0,
-                .observation_id = 0, .processor_id = 0,
-                .scan_number = r + 1, .state_id = 0,
-                .time = 4.8e9 + static_cast<double>(r) * 10.0,
-                .time_centroid = 4.8e9 + static_cast<double>(r) * 10.0,
-                .uvw = {100.0, 200.0, 50.0},
-                .sigma = {1.0F, 1.0F, 1.0F, 1.0F},
-                .weight = {1.0F, 1.0F, 1.0F, 1.0F},
-                .data = {}, .flag = {}
-            });
+            writer.add_row({.antenna1 = 0,
+                            .antenna2 = 1,
+                            .array_id = 0,
+                            .data_desc_id = 0,
+                            .exposure = 0.0,
+                            .feed1 = 0,
+                            .feed2 = 0,
+                            .field_id = r % 3,
+                            .flag_row = false,
+                            .interval = 0.0,
+                            .observation_id = 0,
+                            .processor_id = 0,
+                            .scan_number = r + 1,
+                            .state_id = 0,
+                            .time = 4.8e9 + static_cast<double>(r) * 10.0,
+                            .time_centroid = 4.8e9 + static_cast<double>(r) * 10.0,
+                            .uvw = {100.0, 200.0, 50.0},
+                            .sigma = {1.0F, 1.0F, 1.0F, 1.0F},
+                            .weight = {1.0F, 1.0F, 1.0F, 1.0F},
+                            .data = {},
+                            .flag = {}});
         }
         writer.flush();
     }
@@ -193,13 +252,13 @@ static void test_summary_multi_field_spw() {
 
 int main() {
     try {
-    std::cout << "ms_summary_test\n";
+        std::cout << "ms_summary_test\n";
 
-    test_summary_contains_required_sections();
-    test_summary_empty_ms();
-    test_summary_multi_field_spw();
+        test_summary_contains_required_sections();
+        test_summary_empty_ms();
+        test_summary_multi_field_spw();
 
-    std::cout << "all ms_summary tests passed\n";
+        std::cout << "all ms_summary tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

@@ -364,7 +364,8 @@ CellValue IsmReader::read_cell(const std::string_view col_name, const std::uint6
 
 bool IsmReader::has_column(std::string_view col_name) const noexcept {
     for (const auto& col : columns_) {
-        if (col.name == col_name) return true;
+        if (col.name == col_name)
+            return true;
     }
     return false;
 }

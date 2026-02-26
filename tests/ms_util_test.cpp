@@ -1,5 +1,5 @@
-#include "casacore_mini/ms_util.hpp"
 #include "casacore_mini/measurement_set.hpp"
+#include "casacore_mini/ms_util.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -32,8 +32,7 @@ static void test_stokes_circular_to_iquv() {
     StokesConverter conv({5, 6, 7, 8}, {1, 2, 3, 4});
 
     // RR=1+0i, RL=0+0i, LR=0+0i, LL=1+0i (pure Stokes I).
-    std::vector<std::complex<float>> in = {{1.0F, 0.0F}, {0.0F, 0.0F},
-                                            {0.0F, 0.0F}, {1.0F, 0.0F}};
+    std::vector<std::complex<float>> in = {{1.0F, 0.0F}, {0.0F, 0.0F}, {0.0F, 0.0F}, {1.0F, 0.0F}};
     auto out = conv.convert(in);
     assert(out.size() == 4);
     // I = (RR + LL) / 2 = 1.0
@@ -56,8 +55,7 @@ static void test_stokes_linear_to_iquv() {
     StokesConverter conv({9, 10, 11, 12}, {1, 2, 3, 4});
 
     // XX=3, XY=1, YX=1, YY=1 -> I=(3+1)/2=2, Q=(3-1)/2=1, U=(1+1)/2=1
-    std::vector<std::complex<float>> in = {{3.0F, 0.0F}, {1.0F, 0.0F},
-                                            {1.0F, 0.0F}, {1.0F, 0.0F}};
+    std::vector<std::complex<float>> in = {{3.0F, 0.0F}, {1.0F, 0.0F}, {1.0F, 0.0F}, {1.0F, 0.0F}};
     auto out = conv.convert(in);
     assert(out.size() == 4);
     assert(std::abs(out[0].real() - 2.0F) < 1e-6F); // I
@@ -134,15 +132,15 @@ static void test_history_handler() {
 
 int main() {
     try {
-    std::cout << "ms_util_test\n";
+        std::cout << "ms_util_test\n";
 
-    test_stokes_circular_to_iquv();
-    test_stokes_linear_to_iquv();
-    test_stokes_passthrough();
-    test_doppler_util();
-    test_history_handler();
+        test_stokes_circular_to_iquv();
+        test_stokes_linear_to_iquv();
+        test_stokes_passthrough();
+        test_doppler_util();
+        test_history_handler();
 
-    std::cout << "all ms_util tests passed\n";
+        std::cout << "all ms_util tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

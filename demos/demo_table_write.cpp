@@ -44,10 +44,26 @@ int main() {
         // 1. Create a table with 4 scalar columns and 10 rows.
         std::cout << "\n--- Creating table with 4 columns, 10 rows ---\n";
         std::vector<TableColumnSpec> columns = {
-            {.name = "ID",    .data_type = DataType::tp_int,    .kind = ColumnKind::scalar, .shape = {}, .comment = {}},
-            {.name = "VALUE", .data_type = DataType::tp_float,  .kind = ColumnKind::scalar, .shape = {}, .comment = {}},
-            {.name = "DVAL",  .data_type = DataType::tp_double, .kind = ColumnKind::scalar, .shape = {}, .comment = {}},
-            {.name = "LABEL", .data_type = DataType::tp_string, .kind = ColumnKind::scalar, .shape = {}, .comment = {}},
+            {.name = "ID",
+             .data_type = DataType::tp_int,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "VALUE",
+             .data_type = DataType::tp_float,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "DVAL",
+             .data_type = DataType::tp_double,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
+            {.name = "LABEL",
+             .data_type = DataType::tp_string,
+             .kind = ColumnKind::scalar,
+             .shape = {},
+             .comment = {}},
         };
 
         auto table = Table::create(table_path, columns, 10);
@@ -112,10 +128,8 @@ int main() {
             assert(std::fabs(dval2.get(r) - expected_dval) < 1e-10);
             assert(label2.get(r) == expected_label);
 
-            std::cout << "  row " << r << ": ID=" << id2.get(r)
-                      << " VALUE=" << val2.get(r)
-                      << " DVAL=" << dval2.get(r)
-                      << " LABEL=\"" << label2.get(r) << "\"\n";
+            std::cout << "  row " << r << ": ID=" << id2.get(r) << " VALUE=" << val2.get(r)
+                      << " DVAL=" << dval2.get(r) << " LABEL=\"" << label2.get(r) << "\"\n";
         }
         std::cout << "  [OK] All 10 rows verified (column-oriented read).\n";
 

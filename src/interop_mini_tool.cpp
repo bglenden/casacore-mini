@@ -885,8 +885,8 @@ void verify_tiled_col_dir_artifact(const std::filesystem::path& input_dir,
               << table.ncolumn() << " cols, names+types+shapes verified)\n";
 
     // Keywords: tiled-col has none.
-    std::cout << "  " << label << ": [PASS] table_keywords ("
-              << table.keywords().entries().size() << " fields)\n";
+    std::cout << "  " << label << ": [PASS] table_keywords (" << table.keywords().entries().size()
+              << " fields)\n";
 
     // Cell-value verification.
     ArrayColumn<float> data_col(table, "data");
@@ -902,8 +902,8 @@ void verify_tiled_col_dir_artifact(const std::filesystem::path& input_dir,
         const float exp_d = static_cast<float>(r) * 0.1F;
         for (std::size_t i = 0; i < data_vals.size(); ++i) {
             if (std::fabs(data_vals[i] - exp_d) > kFloat32Tolerance) {
-                throw std::runtime_error(std::string(label) + ": data[" + std::to_string(r) +
-                                         "][" + std::to_string(i) + "] mismatch");
+                throw std::runtime_error(std::string(label) + ": data[" + std::to_string(r) + "][" +
+                                         std::to_string(i) + "] mismatch");
             }
         }
         auto flag_vals = flags_col.get(r);
@@ -967,8 +967,8 @@ void verify_tiled_cell_dir_artifact(const std::filesystem::path& input_dir,
         const float exp_v = static_cast<float>(r) * 1.5F;
         for (std::size_t i = 0; i < vals.size(); ++i) {
             if (std::fabs(vals[i] - exp_v) > kFloat32Tolerance) {
-                throw std::runtime_error(std::string(label) + ": map[" + std::to_string(r) +
-                                         "][" + std::to_string(i) + "] mismatch");
+                throw std::runtime_error(std::string(label) + ": map[" + std::to_string(r) + "][" +
+                                         std::to_string(i) + "] mismatch");
             }
         }
         ++cells_verified;
@@ -1020,8 +1020,8 @@ void verify_tiled_shape_dir_artifact(const std::filesystem::path& input_dir,
             const float exp_r = static_cast<float>(r);
             if (std::fabs(real_val - exp_r) > kFloat32Tolerance ||
                 std::fabs(imag_val) > kFloat32Tolerance) {
-                throw std::runtime_error(std::string(label) + ": vis[" + std::to_string(r) +
-                                         "][" + std::to_string(i) + "] mismatch");
+                throw std::runtime_error(std::string(label) + ": vis[" + std::to_string(r) + "][" +
+                                         std::to_string(i) + "] mismatch");
             }
         }
         ++cells_verified;
@@ -1187,10 +1187,9 @@ void verify_ism_dir_artifact(const std::filesystem::path& input_dir, const std::
         std::size_t total_kw_fields = 0;
         for (std::size_t i = 0; i < table.ncolumn(); ++i) {
             if (!relaxed_keywords) {
-                verify_lines_equal(
-                    std::string(label) + ":col[" + std::to_string(i) + "]_keywords",
-                    canonical_record_lines(expected_col_kw[i]),
-                    canonical_record_lines(table.columns()[i].keywords));
+                verify_lines_equal(std::string(label) + ":col[" + std::to_string(i) + "]_keywords",
+                                   canonical_record_lines(expected_col_kw[i]),
+                                   canonical_record_lines(table.columns()[i].keywords));
             }
             total_kw_fields += table.columns()[i].keywords.entries().size();
         }
@@ -1326,8 +1325,7 @@ void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
         RecordValue::string_array id_arr;
         id_arr.shape = {0};
         hc.set("id", RecordValue(std::move(id_arr)));
-        opts.private_keywords.set("Hypercolumn_TiledData",
-                                  RecordValue::from_record(std::move(hc)));
+        opts.private_keywords.set("Hypercolumn_TiledData", RecordValue::from_record(std::move(hc)));
     }
 
     std::vector<TableColumnSpec> columns = {
@@ -1791,16 +1789,12 @@ void ms_verify_check(bool cond, const std::string& artifact, const std::string& 
 
 // Required subtable names for a valid MS.
 const std::vector<std::string> kRequiredSubtables = {
-    "ANTENNA", "DATA_DESCRIPTION", "FEED", "FIELD", "FLAG_CMD", "HISTORY",
-    "OBSERVATION", "POINTING", "POLARIZATION", "PROCESSOR",
-    "SPECTRAL_WINDOW", "STATE"
-};
+    "ANTENNA",     "DATA_DESCRIPTION", "FEED",         "FIELD",     "FLAG_CMD",        "HISTORY",
+    "OBSERVATION", "POINTING",         "POLARIZATION", "PROCESSOR", "SPECTRAL_WINDOW", "STATE"};
 
-void verify_required_subtables(casacore_mini::MeasurementSet& ms,
-                               const std::string& artifact) {
+void verify_required_subtables(casacore_mini::MeasurementSet& ms, const std::string& artifact) {
     for (const auto& name : kRequiredSubtables) {
-        ms_verify_check(ms.has_subtable(name), artifact,
-                        "missing required subtable: " + name);
+        ms_verify_check(ms.has_subtable(name), artifact, "missing required subtable: " + name);
     }
 }
 
@@ -1813,24 +1807,44 @@ void produce_ms_minimal(const std::string& output) {
     }
     auto ms = casacore_mini::MeasurementSet::create(output, /*include_data=*/false);
     casacore_mini::MsWriter writer(ms);
-    writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
-                         .position = {}, .offset = {}, .dish_diameter = 25.0,
-                         .flag_row = false});
-    writer.add_field({.name = "F0", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.4e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                 .flag_row = false});
+    writer.add_antenna({.name = "ANT0",
+                        .station = {},
+                        .type = {},
+                        .mount = {},
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 25.0,
+                        .flag_row = false});
+    writer.add_field(
+        {.name = "F0", .code = {}, .time = 0.0, .num_poly = 0, .source_id = -1, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 4,
+                                .name = "SPW0",
+                                .ref_frequency = 1.4e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
     writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
-    writer.add_observation({.telescope_name = "MINI", .observer = {}, .project = {},
-                            .release_date = 0.0, .flag_row = false});
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                      .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+    writer.add_observation({.telescope_name = "MINI",
+                            .observer = {},
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "OBSERVE",
+                      .flag_row = false});
     writer.flush();
     std::cout << "  produce-ms-minimal: wrote " << output << '\n';
 }
@@ -1868,42 +1882,75 @@ void produce_ms_representative(const std::string& output) {
     for (int i = 0; i < 6; ++i) {
         writer.add_antenna({.name = "ANT" + std::to_string(i),
                             .station = "PAD" + std::to_string(i),
-                            .type = {}, .mount = {}, .position = {},
-                            .offset = {}, .dish_diameter = 25.0,
+                            .type = {},
+                            .mount = {},
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
                             .flag_row = false});
     }
 
     // 2 fields
-    writer.add_field({.name = "3C273", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
-    writer.add_field({.name = "J1924-2914", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "3C273",
+                      .code = {},
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
+    writer.add_field({.name = "J1924-2914",
+                      .code = {},
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
 
     // 2 SPWs
-    writer.add_spectral_window({.num_chan = 64, .name = "SPW0", .ref_frequency = 1.4e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 128, .name = "SPW1", .ref_frequency = 2.0e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64,
+                                .name = "SPW0",
+                                .ref_frequency = 1.4e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_spectral_window({.num_chan = 128,
+                                .name = "SPW1",
+                                .ref_frequency = 2.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
 
     // 2 data descriptions (one per SPW)
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                 .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0,
-                                 .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0, .flag_row = false});
 
     writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
-    writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
-                            .release_date = 0.0, .flag_row = false});
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                      .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA",
+                            .observer = {},
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "OBSERVE",
+                      .flag_row = false});
 
     // 15 baselines across 2 fields, 2 scans, varying time
     const double base_time = 4.8e9;
@@ -1911,15 +1958,14 @@ void produce_ms_representative(const std::string& output) {
     for (int field = 0; field < 2; ++field) {
         for (int scan = 1; scan <= 2; ++scan) {
             // baselines 0-1, 0-2, 1-2, 2-3 (4 per field/scan combo, ~16 total but we add a few)
-            const std::vector<std::pair<int, int>> baselines = {
-                {0, 1}, {0, 2}, {1, 2}, {2, 3}};
+            const std::vector<std::pair<int, int>> baselines = {{0, 1}, {0, 2}, {1, 2}, {2, 3}};
             for (const auto& [ant1, ant2] : baselines) {
                 const double time_offset = static_cast<double>(row_count) * 10.0;
                 writer.add_row({
                     .antenna1 = ant1,
                     .antenna2 = ant2,
                     .array_id = 0,
-                    .data_desc_id = field,  // alternate SPW per field
+                    .data_desc_id = field, // alternate SPW per field
                     .exposure = 0.0,
                     .feed1 = 0,
                     .feed2 = 0,
@@ -1944,8 +1990,7 @@ void produce_ms_representative(const std::string& output) {
     }
 
     writer.flush();
-    std::cout << "  produce-ms-representative: wrote " << output
-              << " (" << row_count << " rows)\n";
+    std::cout << "  produce-ms-representative: wrote " << output << " (" << row_count << " rows)\n";
 }
 
 void verify_ms_representative(const std::string& input) {
@@ -1991,22 +2036,37 @@ void produce_ms_optional_subtables(const std::string& output) {
     // are present. This confirms correct default schema creation.
     auto ms = casacore_mini::MeasurementSet::create(output, /*include_data=*/false);
     casacore_mini::MsWriter writer(ms);
-    writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
-                         .position = {}, .offset = {}, .dish_diameter = 12.0,
-                         .flag_row = false});
-    writer.add_field({.name = "F0", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.0e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                 .flag_row = false});
+    writer.add_antenna({.name = "ANT0",
+                        .station = {},
+                        .type = {},
+                        .mount = {},
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 12.0,
+                        .flag_row = false});
+    writer.add_field(
+        {.name = "F0", .code = {}, .time = 0.0, .num_poly = 0, .source_id = -1, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 4,
+                                .name = "SPW0",
+                                .ref_frequency = 1.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
     writer.add_polarization({.num_corr = 1, .corr_type = {}, .flag_row = false});
-    writer.add_observation({.telescope_name = "ALMA", .observer = {}, .project = {},
-                            .release_date = 0.0, .flag_row = false});
+    writer.add_observation({.telescope_name = "ALMA",
+                            .observer = {},
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
     writer.flush();
     std::cout << "  produce-ms-optional-subtables: wrote " << output
               << " (required subtables only, no optional subtables)\n";
@@ -2049,27 +2109,57 @@ void produce_ms_concat(const std::string& output) {
     {
         auto ms_a = casacore_mini::MeasurementSet::create(path_a, false);
         casacore_mini::MsWriter writer(ms_a);
-        writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
-                             .position = {}, .offset = {}, .dish_diameter = 25.0,
-                             .flag_row = false});
-        writer.add_antenna({.name = "ANT1", .station = {}, .type = {}, .mount = {},
-                             .position = {}, .offset = {}, .dish_diameter = 25.0,
-                             .flag_row = false});
-        writer.add_field({.name = "SRC_A", .code = {}, .time = 0.0, .num_poly = 0,
-                          .source_id = -1, .flag_row = false});
-        writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.4e9,
-                                    .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                    .resolution = {}, .meas_freq_ref = 0,
-                                    .total_bandwidth = 0.0, .net_sideband = 0,
-                                    .if_conv_chain = 0, .freq_group = 0,
-                                    .freq_group_name = {}, .flag_row = false});
-        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                     .flag_row = false});
+        writer.add_antenna({.name = "ANT0",
+                            .station = {},
+                            .type = {},
+                            .mount = {},
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_antenna({.name = "ANT1",
+                            .station = {},
+                            .type = {},
+                            .mount = {},
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_field({.name = "SRC_A",
+                          .code = {},
+                          .time = 0.0,
+                          .num_poly = 0,
+                          .source_id = -1,
+                          .flag_row = false});
+        writer.add_spectral_window({.num_chan = 4,
+                                    .name = "SPW0",
+                                    .ref_frequency = 1.4e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
+        writer.add_data_description(
+            {.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
         writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
-        writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
-                                .release_date = 0.0, .flag_row = false});
-        writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                          .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+        writer.add_observation({.telescope_name = "VLA",
+                                .observer = {},
+                                .project = {},
+                                .release_date = 0.0,
+                                .flag_row = false});
+        writer.add_state({.sig = true,
+                          .ref = false,
+                          .cal = 0.0,
+                          .load = 0.0,
+                          .sub_scan = 0,
+                          .obs_mode = "OBSERVE",
+                          .flag_row = false});
         for (int i = 0; i < 3; ++i) {
             writer.add_row({.antenna1 = 0,
                             .antenna2 = 1,
@@ -2100,27 +2190,57 @@ void produce_ms_concat(const std::string& output) {
     {
         auto ms_b = casacore_mini::MeasurementSet::create(path_b, false);
         casacore_mini::MsWriter writer(ms_b);
-        writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
-                             .position = {}, .offset = {}, .dish_diameter = 25.0,
-                             .flag_row = false});
-        writer.add_antenna({.name = "ANT1", .station = {}, .type = {}, .mount = {},
-                             .position = {}, .offset = {}, .dish_diameter = 25.0,
-                             .flag_row = false});
-        writer.add_field({.name = "SRC_B", .code = {}, .time = 0.0, .num_poly = 0,
-                          .source_id = -1, .flag_row = false});
-        writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.4e9,
-                                    .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                    .resolution = {}, .meas_freq_ref = 0,
-                                    .total_bandwidth = 0.0, .net_sideband = 0,
-                                    .if_conv_chain = 0, .freq_group = 0,
-                                    .freq_group_name = {}, .flag_row = false});
-        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                     .flag_row = false});
+        writer.add_antenna({.name = "ANT0",
+                            .station = {},
+                            .type = {},
+                            .mount = {},
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_antenna({.name = "ANT1",
+                            .station = {},
+                            .type = {},
+                            .mount = {},
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_field({.name = "SRC_B",
+                          .code = {},
+                          .time = 0.0,
+                          .num_poly = 0,
+                          .source_id = -1,
+                          .flag_row = false});
+        writer.add_spectral_window({.num_chan = 4,
+                                    .name = "SPW0",
+                                    .ref_frequency = 1.4e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
+        writer.add_data_description(
+            {.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
         writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
-        writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
-                                .release_date = 0.0, .flag_row = false});
-        writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                          .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+        writer.add_observation({.telescope_name = "VLA",
+                                .observer = {},
+                                .project = {},
+                                .release_date = 0.0,
+                                .flag_row = false});
+        writer.add_state({.sig = true,
+                          .ref = false,
+                          .cal = 0.0,
+                          .load = 0.0,
+                          .sub_scan = 0,
+                          .obs_mode = "OBSERVE",
+                          .flag_row = false});
         for (int i = 0; i < 2; ++i) {
             writer.add_row({.antenna1 = 0,
                             .antenna2 = 1,
@@ -2152,8 +2272,8 @@ void produce_ms_concat(const std::string& output) {
         auto ms_a = casacore_mini::MeasurementSet::open(path_a);
         auto ms_b = casacore_mini::MeasurementSet::open(path_b);
         const auto result = casacore_mini::ms_concat(ms_a, ms_b, path_out);
-        std::cout << "  produce-ms-concat: wrote " << path_out.string()
-                  << " (" << result.row_count << " rows)\n";
+        std::cout << "  produce-ms-concat: wrote " << path_out.string() << " (" << result.row_count
+                  << " rows)\n";
     }
 }
 
@@ -2195,52 +2315,96 @@ void produce_ms_selection_stress(const std::string& output) {
     for (int i = 0; i < 6; ++i) {
         writer.add_antenna({.name = "ANT" + std::to_string(i),
                             .station = "PAD" + std::to_string(i),
-                            .type = {}, .mount = {}, .position = {},
-                            .offset = {}, .dish_diameter = 25.0,
+                            .type = {},
+                            .mount = {},
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
                             .flag_row = false});
     }
 
     // 3 fields
-    writer.add_field({.name = "3C273", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
-    writer.add_field({.name = "J1924-2914", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
-    writer.add_field({.name = "CygA", .code = {}, .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "3C273",
+                      .code = {},
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
+    writer.add_field({.name = "J1924-2914",
+                      .code = {},
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
+    writer.add_field({.name = "CygA",
+                      .code = {},
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
 
     // 3 SPWs
-    writer.add_spectral_window({.num_chan = 32, .name = "SPW0", .ref_frequency = 1.0e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 64, .name = "SPW1", .ref_frequency = 2.0e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 128, .name = "SPW2", .ref_frequency = 3.0e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0,
-                                .total_bandwidth = 0.0, .net_sideband = 0,
-                                .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 32,
+                                .name = "SPW0",
+                                .ref_frequency = 1.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64,
+                                .name = "SPW1",
+                                .ref_frequency = 2.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_spectral_window({.num_chan = 128,
+                                .name = "SPW2",
+                                .ref_frequency = 3.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
 
     // 3 data descriptions (one per SPW)
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                 .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0,
-                                 .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 2, .polarization_id = 0,
-                                 .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 2, .polarization_id = 0, .flag_row = false});
 
     writer.add_polarization({.num_corr = 4, .corr_type = {}, .flag_row = false});
-    writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
-                            .release_date = 0.0, .flag_row = false});
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
-                      .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA",
+                            .observer = {},
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "OBSERVE",
+                      .flag_row = false});
 
     // 3 fields x 3 scans x 3 SPWs x 1 baseline = 27 rows, with 2 array_ids
     const double base_time = 5.0e9;
@@ -2248,7 +2412,7 @@ void produce_ms_selection_stress(const std::string& output) {
     for (int field = 0; field < 3; ++field) {
         for (int scan = 1; scan <= 3; ++scan) {
             for (int spw = 0; spw < 3; ++spw) {
-                const int array = (row_count < 14) ? 0 : 1;  // split across 2 arrays
+                const int array = (row_count < 14) ? 0 : 1; // split across 2 arrays
                 const double t = base_time + row_count * 10.0;
                 writer.add_row({
                     .antenna1 = 0,
@@ -2279,8 +2443,8 @@ void produce_ms_selection_stress(const std::string& output) {
     }
 
     writer.flush();
-    std::cout << "  produce-ms-selection-stress: wrote " << output
-              << " (" << row_count << " rows)\n";
+    std::cout << "  produce-ms-selection-stress: wrote " << output << " (" << row_count
+              << " rows)\n";
 }
 
 void verify_ms_selection_stress(const std::string& input) {
@@ -2318,33 +2482,31 @@ void verify_ms_selection_stress(const std::string& input) {
 /// base64 decode (needed for oracle dump parsing).
 [[nodiscard]] std::string base64_decode(const std::string_view input) {
     static constexpr int kTable[256] = {
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,
-        52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,
-        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
-        15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
-        -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
-        41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62,
+        -1, -1, -1, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1, 0,
+        1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+        23, 24, 25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+        39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     };
     std::string output;
     auto len = input.size();
-    while (len > 0 && input[len - 1] == '=') --len;
+    while (len > 0 && input[len - 1] == '=')
+        --len;
 
     output.reserve(len * 3 / 4);
     std::uint32_t buf = 0;
     int bits = 0;
     for (std::size_t i = 0; i < len; ++i) {
         const int val = kTable[static_cast<unsigned char>(input[i])];
-        if (val < 0) continue;
+        if (val < 0)
+            continue;
         buf = (buf << 6U) | static_cast<std::uint32_t>(val);
         bits += 6;
         if (bits >= 8) {
@@ -2374,41 +2536,70 @@ void verify_ms_selection_stress(const std::string& input) {
 
 /// Map oracle dtype string to casacore_mini DataType.
 [[nodiscard]] casacore_mini::DataType oracle_dtype_to_mini(const std::string_view s) {
-    if (s == "TpBool") return casacore_mini::DataType::tp_bool;
-    if (s == "TpChar") return casacore_mini::DataType::tp_char;
-    if (s == "TpUChar") return casacore_mini::DataType::tp_uchar;
-    if (s == "TpShort") return casacore_mini::DataType::tp_short;
-    if (s == "TpUShort") return casacore_mini::DataType::tp_ushort;
-    if (s == "TpInt") return casacore_mini::DataType::tp_int;
-    if (s == "TpUInt") return casacore_mini::DataType::tp_uint;
-    if (s == "TpFloat") return casacore_mini::DataType::tp_float;
-    if (s == "TpDouble") return casacore_mini::DataType::tp_double;
-    if (s == "TpComplex") return casacore_mini::DataType::tp_complex;
-    if (s == "TpDComplex") return casacore_mini::DataType::tp_dcomplex;
-    if (s == "TpString") return casacore_mini::DataType::tp_string;
-    if (s == "TpTable") return casacore_mini::DataType::tp_table;
-    if (s == "TpInt64") return casacore_mini::DataType::tp_int64;
+    if (s == "TpBool")
+        return casacore_mini::DataType::tp_bool;
+    if (s == "TpChar")
+        return casacore_mini::DataType::tp_char;
+    if (s == "TpUChar")
+        return casacore_mini::DataType::tp_uchar;
+    if (s == "TpShort")
+        return casacore_mini::DataType::tp_short;
+    if (s == "TpUShort")
+        return casacore_mini::DataType::tp_ushort;
+    if (s == "TpInt")
+        return casacore_mini::DataType::tp_int;
+    if (s == "TpUInt")
+        return casacore_mini::DataType::tp_uint;
+    if (s == "TpFloat")
+        return casacore_mini::DataType::tp_float;
+    if (s == "TpDouble")
+        return casacore_mini::DataType::tp_double;
+    if (s == "TpComplex")
+        return casacore_mini::DataType::tp_complex;
+    if (s == "TpDComplex")
+        return casacore_mini::DataType::tp_dcomplex;
+    if (s == "TpString")
+        return casacore_mini::DataType::tp_string;
+    if (s == "TpTable")
+        return casacore_mini::DataType::tp_table;
+    if (s == "TpInt64")
+        return casacore_mini::DataType::tp_int64;
     throw std::runtime_error("unknown oracle dtype: " + std::string(s));
 }
 
 /// Map casacore_mini DataType to oracle dtype string (for error messages).
 [[nodiscard]] std::string mini_dtype_to_oracle(casacore_mini::DataType dt) {
     switch (dt) {
-    case casacore_mini::DataType::tp_bool: return "TpBool";
-    case casacore_mini::DataType::tp_char: return "TpChar";
-    case casacore_mini::DataType::tp_uchar: return "TpUChar";
-    case casacore_mini::DataType::tp_short: return "TpShort";
-    case casacore_mini::DataType::tp_ushort: return "TpUShort";
-    case casacore_mini::DataType::tp_int: return "TpInt";
-    case casacore_mini::DataType::tp_uint: return "TpUInt";
-    case casacore_mini::DataType::tp_float: return "TpFloat";
-    case casacore_mini::DataType::tp_double: return "TpDouble";
-    case casacore_mini::DataType::tp_complex: return "TpComplex";
-    case casacore_mini::DataType::tp_dcomplex: return "TpDComplex";
-    case casacore_mini::DataType::tp_string: return "TpString";
-    case casacore_mini::DataType::tp_table: return "TpTable";
-    case casacore_mini::DataType::tp_int64: return "TpInt64";
-    default: return "TpOther(" + std::to_string(static_cast<int>(dt)) + ")";
+    case casacore_mini::DataType::tp_bool:
+        return "TpBool";
+    case casacore_mini::DataType::tp_char:
+        return "TpChar";
+    case casacore_mini::DataType::tp_uchar:
+        return "TpUChar";
+    case casacore_mini::DataType::tp_short:
+        return "TpShort";
+    case casacore_mini::DataType::tp_ushort:
+        return "TpUShort";
+    case casacore_mini::DataType::tp_int:
+        return "TpInt";
+    case casacore_mini::DataType::tp_uint:
+        return "TpUInt";
+    case casacore_mini::DataType::tp_float:
+        return "TpFloat";
+    case casacore_mini::DataType::tp_double:
+        return "TpDouble";
+    case casacore_mini::DataType::tp_complex:
+        return "TpComplex";
+    case casacore_mini::DataType::tp_dcomplex:
+        return "TpDComplex";
+    case casacore_mini::DataType::tp_string:
+        return "TpString";
+    case casacore_mini::DataType::tp_table:
+        return "TpTable";
+    case casacore_mini::DataType::tp_int64:
+        return "TpInt64";
+    default:
+        return "TpOther(" + std::to_string(static_cast<int>(dt)) + ")";
     }
 }
 
@@ -2450,8 +2641,8 @@ parse_oracle_dump(const std::filesystem::path& path) {
     std::string line;
 
     while (std::getline(input, line)) {
-        if (line.empty() || line.starts_with("oracle_version=") ||
-            line.starts_with("source_ms=") || line.starts_with("table_count=")) {
+        if (line.empty() || line.starts_with("oracle_version=") || line.starts_with("source_ms=") ||
+            line.starts_with("table_count=")) {
             continue;
         }
 
@@ -2469,11 +2660,9 @@ parse_oracle_dump(const std::filesystem::path& path) {
             const auto suffix = rest.substr(dot_pos + 1);
 
             if (suffix.starts_with("row_count=")) {
-                tables[table_name].row_count =
-                    std::stoull(suffix.substr(10));
+                tables[table_name].row_count = std::stoull(suffix.substr(10));
             } else if (suffix.starts_with("ncol=")) {
-                tables[table_name].ncol =
-                    std::stoull(suffix.substr(5));
+                tables[table_name].ncol = std::stoull(suffix.substr(5));
             } else if (suffix.starts_with("col[")) {
                 // Parse column descriptor line.
                 // Format: col[i].field=value
@@ -2524,8 +2713,8 @@ parse_oracle_dump(const std::filesystem::path& path) {
                 // after_bracket1 = "[row]=value"
                 const auto bracket2_start = after_bracket1.find('[');
                 const auto bracket2_end = after_bracket1.find(']');
-                const auto row_str = after_bracket1.substr(bracket2_start + 1,
-                                                            bracket2_end - bracket2_start - 1);
+                const auto row_str =
+                    after_bracket1.substr(bracket2_start + 1, bracket2_end - bracket2_start - 1);
                 const auto eq_pos = after_bracket1.find('=', bracket2_end);
                 const auto value_str = after_bracket1.substr(eq_pos + 1);
                 const auto col_name = base64_decode(col_b64);
@@ -2572,21 +2761,24 @@ parse_oracle_dump(const std::filesystem::path& path) {
 
 /// Format a raw byte array as oracle array value string.
 template <typename T, typename Formatter>
-[[nodiscard]] std::string format_typed_array_oracle(
-    const std::vector<std::uint8_t>& raw, const std::vector<std::int64_t>& shape,
-    const std::string_view type_name, Formatter formatter, bool big_endian) {
+[[nodiscard]] std::string format_typed_array_oracle(const std::vector<std::uint8_t>& raw,
+                                                    const std::vector<std::int64_t>& shape,
+                                                    const std::string_view type_name,
+                                                    Formatter formatter, bool big_endian) {
     const std::size_t elem_size = sizeof(T);
     const std::size_t n_elems = raw.size() / elem_size;
 
     std::string shape_str;
     for (std::size_t i = 0; i < shape.size(); ++i) {
-        if (i > 0) shape_str += ',';
+        if (i > 0)
+            shape_str += ',';
         shape_str += std::to_string(shape[i]);
     }
 
     std::string values;
     for (std::size_t i = 0; i < n_elems; ++i) {
-        if (i > 0) values += ',';
+        if (i > 0)
+            values += ',';
         T val{};
         std::memcpy(&val, raw.data() + i * elem_size, elem_size);
         // Byte-swap if needed (data is stored in table endianness).
@@ -2606,20 +2798,22 @@ template <typename T, typename Formatter>
 
 /// Compare two oracle value strings with tolerance for floating point.
 /// Returns: 0=exact match, 1=tolerance match, 2=mismatch.
-[[nodiscard]] int compare_oracle_values(const std::string& expected,
-                                         const std::string& actual) {
-    if (expected == actual) return 0;
+[[nodiscard]] int compare_oracle_values(const std::string& expected, const std::string& actual) {
+    if (expected == actual)
+        return 0;
 
     // Try tolerance comparison for float/double scalars.
     if (expected.starts_with("float32|") && actual.starts_with("float32|")) {
         const float exp_val = parse_hex_float_val(expected.substr(8));
         const float act_val = parse_hex_float_val(actual.substr(8));
-        if (std::fabs(exp_val - act_val) < 1e-5F) return 1;
+        if (std::fabs(exp_val - act_val) < 1e-5F)
+            return 1;
     }
     if (expected.starts_with("float64|") && actual.starts_with("float64|")) {
         const double exp_val = parse_hex_double(expected.substr(8));
         const double act_val = parse_hex_double(actual.substr(8));
-        if (std::fabs(exp_val - act_val) < 1e-10) return 1;
+        if (std::fabs(exp_val - act_val) < 1e-10)
+            return 1;
     }
 
     // For arrays, try element-by-element tolerance comparison.
@@ -2627,12 +2821,14 @@ template <typename T, typename Formatter>
         // Extract shapes.
         auto extract_after = [](const std::string& s, const std::string& tag) -> std::string {
             const auto pos = s.find(tag);
-            if (pos == std::string::npos) return "";
+            if (pos == std::string::npos)
+                return "";
             const auto start = pos + tag.size();
             const auto end = s.find('|', start);
             return (end == std::string::npos) ? s.substr(start) : s.substr(start, end - start);
         };
-        if (extract_after(expected, "shape=") != extract_after(actual, "shape=")) return 2;
+        if (extract_after(expected, "shape=") != extract_after(actual, "shape="))
+            return 2;
         // Compare values element by element.
         auto extract_values = [](const std::string& s) -> std::string {
             const auto pos = s.find("values=");
@@ -2649,13 +2845,16 @@ template <typename T, typename Formatter>
         };
         const auto exp_vals = split_csv(extract_values(expected));
         const auto act_vals = split_csv(extract_values(actual));
-        if (exp_vals.size() != act_vals.size()) return 2;
+        if (exp_vals.size() != act_vals.size())
+            return 2;
         bool all_tolerance = true;
         for (std::size_t i = 0; i < exp_vals.size(); ++i) {
-            if (exp_vals[i] == act_vals[i]) continue;
+            if (exp_vals[i] == act_vals[i])
+                continue;
             const float ev = parse_hex_float_val(exp_vals[i]);
             const float av = parse_hex_float_val(act_vals[i]);
-            if (std::fabs(ev - av) >= 1e-5F) return 2;
+            if (std::fabs(ev - av) >= 1e-5F)
+                return 2;
             all_tolerance = true;
         }
         return all_tolerance ? 1 : 0;
@@ -2663,12 +2862,14 @@ template <typename T, typename Formatter>
     if (expected.starts_with("array:float64|") && actual.starts_with("array:float64|")) {
         auto extract_after = [](const std::string& s, const std::string& tag) -> std::string {
             const auto pos = s.find(tag);
-            if (pos == std::string::npos) return "";
+            if (pos == std::string::npos)
+                return "";
             const auto start = pos + tag.size();
             const auto end = s.find('|', start);
             return (end == std::string::npos) ? s.substr(start) : s.substr(start, end - start);
         };
-        if (extract_after(expected, "shape=") != extract_after(actual, "shape=")) return 2;
+        if (extract_after(expected, "shape=") != extract_after(actual, "shape="))
+            return 2;
         auto extract_values = [](const std::string& s) -> std::string {
             const auto pos = s.find("values=");
             return (pos == std::string::npos) ? "" : s.substr(pos + 7);
@@ -2684,13 +2885,16 @@ template <typename T, typename Formatter>
         };
         const auto exp_vals = split_csv(extract_values(expected));
         const auto act_vals = split_csv(extract_values(actual));
-        if (exp_vals.size() != act_vals.size()) return 2;
+        if (exp_vals.size() != act_vals.size())
+            return 2;
         bool all_tolerance = true;
         for (std::size_t i = 0; i < exp_vals.size(); ++i) {
-            if (exp_vals[i] == act_vals[i]) continue;
+            if (exp_vals[i] == act_vals[i])
+                continue;
             const double ev = parse_hex_double(exp_vals[i]);
             const double av = parse_hex_double(act_vals[i]);
-            if (std::fabs(ev - av) >= 1e-10) return 2;
+            if (std::fabs(ev - av) >= 1e-10)
+                return 2;
             all_tolerance = true;
         }
         return all_tolerance ? 1 : 0;
@@ -2702,17 +2906,19 @@ template <typename T, typename Formatter>
 /// Format a typed array read via the Table API as an oracle comparison string.
 /// The Table API returns host-endian data, so no byte-swap is needed.
 template <typename T, typename Formatter>
-[[nodiscard]] std::string format_table_array_oracle(
-    const std::vector<T>& values, const std::vector<std::int64_t>& shape,
-    const std::string_view type_name, Formatter formatter) {
+[[nodiscard]] std::string
+format_table_array_oracle(const std::vector<T>& values, const std::vector<std::int64_t>& shape,
+                          const std::string_view type_name, Formatter formatter) {
     std::string shape_str;
     for (std::size_t i = 0; i < shape.size(); ++i) {
-        if (i > 0) shape_str += ',';
+        if (i > 0)
+            shape_str += ',';
         shape_str += std::to_string(shape[i]);
     }
     std::string vals;
     for (std::size_t i = 0; i < values.size(); ++i) {
-        if (i > 0) vals += ',';
+        if (i > 0)
+            vals += ',';
         vals += formatter(values[i]);
     }
     return "array:" + std::string(type_name) + "|shape=" + shape_str + "|values=" + vals;
@@ -2720,9 +2926,9 @@ template <typename T, typename Formatter>
 
 /// Read a cell value from a Table and format it as an oracle string.
 /// All SM routing is handled internally by the Table abstraction.
-[[nodiscard]] std::string read_and_format_cell(
-    const casacore_mini::Table& table, const std::string& col_name,
-    std::uint64_t row, const casacore_mini::ColumnDesc& cd) {
+[[nodiscard]] std::string read_and_format_cell(const casacore_mini::Table& table,
+                                               const std::string& col_name, std::uint64_t row,
+                                               const casacore_mini::ColumnDesc& cd) {
     using namespace casacore_mini;
 
     if (cd.kind == ColumnKind::scalar) {
@@ -2752,12 +2958,14 @@ template <typename T, typename Formatter>
         auto arr = table.read_array_bool_cell(col_name, row);
         std::string shape_str;
         for (std::size_t i = 0; i < shape.size(); ++i) {
-            if (i > 0) shape_str += ',';
+            if (i > 0)
+                shape_str += ',';
             shape_str += std::to_string(shape[i]);
         }
         std::string vals;
         for (std::size_t i = 0; i < arr.size(); ++i) {
-            if (i > 0) vals += ',';
+            if (i > 0)
+                vals += ',';
             vals += arr[i] ? "true" : "false";
         }
         return "array:bool|shape=" + shape_str + "|values=" + vals;
@@ -2769,26 +2977,27 @@ template <typename T, typename Formatter>
     }
     case DataType::tp_dcomplex: {
         auto arr = table.read_array_dcomplex_cell(col_name, row);
-        return format_table_array_oracle(arr, shape, "complex128",
-                                         [](std::complex<double> v) { return format_complex128(v); });
+        return format_table_array_oracle(
+            arr, shape, "complex128", [](std::complex<double> v) { return format_complex128(v); });
     }
     case DataType::tp_string: {
         auto arr = table.read_array_string_cell(col_name, row);
         std::string shape_str;
         for (std::size_t i = 0; i < shape.size(); ++i) {
-            if (i > 0) shape_str += ',';
+            if (i > 0)
+                shape_str += ',';
             shape_str += std::to_string(shape[i]);
         }
         std::string vals;
         for (std::size_t i = 0; i < arr.size(); ++i) {
-            if (i > 0) vals += ',';
+            if (i > 0)
+                vals += ',';
             vals += "b64:" + base64_encode(arr[i]);
         }
         return "array:string|shape=" + shape_str + "|values=" + vals;
     }
     default:
-        throw std::runtime_error("unsupported array dtype: " +
-                                 mini_dtype_to_oracle(cd.data_type));
+        throw std::runtime_error("unsupported array dtype: " + mini_dtype_to_oracle(cd.data_type));
     }
 }
 
@@ -2836,8 +3045,8 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
         // Verify column count.
         if (table.ncolumn() != oracle_tbl.ncol) {
             std::cerr << "  verify-oracle-ms: FAIL table " << table_name
-                      << " ncol mismatch: oracle=" << oracle_tbl.ncol
-                      << " mini=" << table.ncolumn() << "\n";
+                      << " ncol mismatch: oracle=" << oracle_tbl.ncol << " mini=" << table.ncolumn()
+                      << "\n";
             ++total_fail;
             continue;
         }
@@ -2850,18 +3059,17 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
             const auto& mini_cd = mini_cols[i];
 
             if (mini_cd.name != oracle_cd.name) {
-                std::cerr << "  verify-oracle-ms: FAIL table " << table_name
-                          << " col[" << i << "] name mismatch: oracle=" << oracle_cd.name
+                std::cerr << "  verify-oracle-ms: FAIL table " << table_name << " col[" << i
+                          << "] name mismatch: oracle=" << oracle_cd.name
                           << " mini=" << mini_cd.name << "\n";
                 col_desc_ok = false;
                 break;
             }
             const auto oracle_dt = oracle_dtype_to_mini(oracle_cd.dtype);
             if (mini_cd.data_type != oracle_dt) {
-                std::cerr << "  verify-oracle-ms: FAIL table " << table_name
-                          << " col " << oracle_cd.name << " dtype mismatch: oracle="
-                          << oracle_cd.dtype << " mini="
-                          << mini_dtype_to_oracle(mini_cd.data_type) << "\n";
+                std::cerr << "  verify-oracle-ms: FAIL table " << table_name << " col "
+                          << oracle_cd.name << " dtype mismatch: oracle=" << oracle_cd.dtype
+                          << " mini=" << mini_dtype_to_oracle(mini_cd.data_type) << "\n";
                 col_desc_ok = false;
                 break;
             }
@@ -2885,8 +3093,8 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
             const auto* cd = table.find_column_desc(col_name);
             if (cd == nullptr) {
                 if (table_fail < 10) {
-                    std::cerr << "    FAIL " << table_name << "." << col_name
-                              << "[" << row << "]: column not found\n";
+                    std::cerr << "    FAIL " << table_name << "." << col_name << "[" << row
+                              << "]: column not found\n";
                 }
                 ++table_fail;
                 continue;
@@ -2902,8 +3110,8 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
                 actual_value = read_and_format_cell(table, col_name, row, *cd);
             } catch (const std::exception& e) {
                 if (table_fail < 10) {
-                    std::cerr << "    FAIL " << table_name << "." << col_name
-                              << "[" << row << "] read error: " << e.what() << "\n";
+                    std::cerr << "    FAIL " << table_name << "." << col_name << "[" << row
+                              << "] read error: " << e.what() << "\n";
                 }
                 ++table_fail;
                 continue;
@@ -2916,8 +3124,7 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
                 ++table_warn;
             } else {
                 if (table_fail < 10) {
-                    std::cerr << "    FAIL " << table_name << "." << col_name
-                              << "[" << row << "]\n"
+                    std::cerr << "    FAIL " << table_name << "." << col_name << "[" << row << "]\n"
                               << "      oracle: " << oracle_value.substr(0, 200) << "\n"
                               << "      actual: " << actual_value.substr(0, 200) << "\n";
                 }
@@ -2925,17 +3132,16 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
             }
         }
 
-        std::cout << "  verify-oracle-ms: table " << table_name
-                  << " pass=" << table_pass << " warn=" << table_warn
-                  << " fail=" << table_fail << "\n";
+        std::cout << "  verify-oracle-ms: table " << table_name << " pass=" << table_pass
+                  << " warn=" << table_warn << " fail=" << table_fail << "\n";
 
         total_pass += table_pass;
         total_warn += table_warn;
         total_fail += table_fail;
     }
 
-    std::cout << "\n  verify-oracle-ms summary: pass=" << total_pass
-              << " warn=" << total_warn << " fail=" << total_fail << "\n";
+    std::cout << "\n  verify-oracle-ms summary: pass=" << total_pass << " warn=" << total_warn
+              << " fail=" << total_fail << "\n";
 
     if (total_fail > 0) {
         throw std::runtime_error("verify-oracle-ms: " + std::to_string(total_fail) +

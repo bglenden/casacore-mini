@@ -11,11 +11,11 @@
 #include <casacore/casa/BasicSL/Complex.h>
 #include <casacore/casa/BasicSL/String.h>
 #include <casacore/casa/Containers/Record.h>
-#include <casacore/tables/Tables/TableRecord.h>
 #include <casacore/tables/Tables/ArrayColumn.h>
 #include <casacore/tables/Tables/ScalarColumn.h>
 #include <casacore/tables/Tables/Table.h>
 #include <casacore/tables/Tables/TableColumn.h>
+#include <casacore/tables/Tables/TableRecord.h>
 
 #include <algorithm>
 #include <chrono>
@@ -83,8 +83,14 @@ static double bench_scalar_seq_read(Table& table) {
     }
     auto t1 = Clock::now();
     // Suppress unused warnings
-    (void)vb; (void)vi; (void)vu; (void)vi64; (void)vf; (void)vd;
-    (void)vc_r; (void)vdc_r;
+    (void)vb;
+    (void)vi;
+    (void)vu;
+    (void)vi64;
+    (void)vf;
+    (void)vd;
+    (void)vc_r;
+    (void)vdc_r;
     return elapsed_sec(t0, t1);
 }
 
@@ -130,11 +136,25 @@ static double bench_keyword_access(Table& table) {
         const Record& sub = kw.subRecord("SUB_RECORD");
         String ss = sub.asString("SUB_STR");
         Int si = sub.asInt("SUB_INT");
-        (void)s1; (void)s2; (void)s3; (void)s4;
-        (void)n1; (void)d1; (void)d2; (void)d3;
-        (void)n2; (void)n3; (void)b1; (void)s5;
-        (void)f1; (void)c1; (void)dc1; (void)i64; (void)u1;
-        (void)ss; (void)si;
+        (void)s1;
+        (void)s2;
+        (void)s3;
+        (void)s4;
+        (void)n1;
+        (void)d1;
+        (void)d2;
+        (void)d3;
+        (void)n2;
+        (void)n3;
+        (void)b1;
+        (void)s5;
+        (void)f1;
+        (void)c1;
+        (void)dc1;
+        (void)i64;
+        (void)u1;
+        (void)ss;
+        (void)si;
     }
     auto t1 = Clock::now();
     return elapsed_sec(t0, t1);
@@ -168,9 +188,17 @@ static double bench_row_oriented_read(Table& table) {
         String s = col_string(r);
         Array<Float> af = arr_float(r);
         Array<Double> ad = arr_double(r);
-        (void)b; (void)i; (void)u; (void)i64;
-        (void)f; (void)d; (void)c; (void)dc; (void)s;
-        (void)af; (void)ad;
+        (void)b;
+        (void)i;
+        (void)u;
+        (void)i64;
+        (void)f;
+        (void)d;
+        (void)c;
+        (void)dc;
+        (void)s;
+        (void)af;
+        (void)ad;
     }
     auto t1 = Clock::now();
     return elapsed_sec(t0, t1);
@@ -184,12 +212,10 @@ int main(int argc, char* argv[]) {
     std::string table_path = argv[1];
 
     Table table(table_path, Table::Old);
-    std::cerr << "Opened table: " << table_path
-              << " (" << table.nrow() << " rows)\n";
+    std::cerr << "Opened table: " << table_path << " (" << table.nrow() << " rows)\n";
 
     // Run each benchmark kPasses times, report median
-    double scalar_times[kPasses], array_times[kPasses],
-           keyword_times[kPasses], row_times[kPasses];
+    double scalar_times[kPasses], array_times[kPasses], keyword_times[kPasses], row_times[kPasses];
 
     for (int p = 0; p < kPasses; ++p) {
         scalar_times[p] = bench_scalar_seq_read(table);

@@ -42,7 +42,9 @@ static double median3(double a, double b, double c) {
 }
 
 // Data generators
-static bool gen_bool(std::uint64_t row) { return (row % 2) == 0; }
+static bool gen_bool(std::uint64_t row) {
+    return (row % 2) == 0;
+}
 static std::int32_t gen_int(std::uint64_t row) {
     return static_cast<std::int32_t>(row * 3 - 100000);
 }
@@ -71,7 +73,8 @@ static std::string gen_string(std::uint64_t row) {
 static std::vector<float> gen_arr_float(std::uint64_t row) {
     std::vector<float> v(kArrSize);
     for (int i = 0; i < kArrSize; ++i) {
-        v[static_cast<std::size_t>(i)] = static_cast<float>(row * 256 + static_cast<std::uint64_t>(i)) * 0.01F;
+        v[static_cast<std::size_t>(i)] =
+            static_cast<float>(row * 256 + static_cast<std::uint64_t>(i)) * 0.01F;
     }
     return v;
 }
@@ -79,7 +82,8 @@ static std::vector<float> gen_arr_float(std::uint64_t row) {
 static std::vector<double> gen_arr_double(std::uint64_t row) {
     std::vector<double> v(kArrSize);
     for (int i = 0; i < kArrSize; ++i) {
-        v[static_cast<std::size_t>(i)] = static_cast<double>(row * 256 + static_cast<std::uint64_t>(i)) * 0.0001;
+        v[static_cast<std::size_t>(i)] =
+            static_cast<double>(row * 256 + static_cast<std::uint64_t>(i)) * 0.0001;
     }
     return v;
 }
@@ -119,42 +123,50 @@ static void add_keywords(cm::Table& table) {
 // Full table columns spec
 static std::vector<cm::TableColumnSpec> full_columns() {
     return {
-        {.name = "sc_bool",     .data_type = cm::DataType::tp_bool},
-        {.name = "sc_int",      .data_type = cm::DataType::tp_int},
-        {.name = "sc_uint",     .data_type = cm::DataType::tp_uint},
-        {.name = "sc_int64",    .data_type = cm::DataType::tp_int64},
-        {.name = "sc_float",    .data_type = cm::DataType::tp_float},
-        {.name = "sc_double",   .data_type = cm::DataType::tp_double},
-        {.name = "sc_complex",  .data_type = cm::DataType::tp_complex},
+        {.name = "sc_bool", .data_type = cm::DataType::tp_bool},
+        {.name = "sc_int", .data_type = cm::DataType::tp_int},
+        {.name = "sc_uint", .data_type = cm::DataType::tp_uint},
+        {.name = "sc_int64", .data_type = cm::DataType::tp_int64},
+        {.name = "sc_float", .data_type = cm::DataType::tp_float},
+        {.name = "sc_double", .data_type = cm::DataType::tp_double},
+        {.name = "sc_complex", .data_type = cm::DataType::tp_complex},
         {.name = "sc_dcomplex", .data_type = cm::DataType::tp_dcomplex},
-        {.name = "sc_string",   .data_type = cm::DataType::tp_string},
-        {.name = "arr_float",   .data_type = cm::DataType::tp_float,
-         .kind = cm::ColumnKind::array, .shape = {kArrDim0, kArrDim1}},
-        {.name = "arr_double",  .data_type = cm::DataType::tp_double,
-         .kind = cm::ColumnKind::array, .shape = {kArrDim0, kArrDim1}},
+        {.name = "sc_string", .data_type = cm::DataType::tp_string},
+        {.name = "arr_float",
+         .data_type = cm::DataType::tp_float,
+         .kind = cm::ColumnKind::array,
+         .shape = {kArrDim0, kArrDim1}},
+        {.name = "arr_double",
+         .data_type = cm::DataType::tp_double,
+         .kind = cm::ColumnKind::array,
+         .shape = {kArrDim0, kArrDim1}},
     };
 }
 
 static std::vector<cm::TableColumnSpec> scalar_columns() {
     return {
-        {.name = "sc_bool",     .data_type = cm::DataType::tp_bool},
-        {.name = "sc_int",      .data_type = cm::DataType::tp_int},
-        {.name = "sc_uint",     .data_type = cm::DataType::tp_uint},
-        {.name = "sc_int64",    .data_type = cm::DataType::tp_int64},
-        {.name = "sc_float",    .data_type = cm::DataType::tp_float},
-        {.name = "sc_double",   .data_type = cm::DataType::tp_double},
-        {.name = "sc_complex",  .data_type = cm::DataType::tp_complex},
+        {.name = "sc_bool", .data_type = cm::DataType::tp_bool},
+        {.name = "sc_int", .data_type = cm::DataType::tp_int},
+        {.name = "sc_uint", .data_type = cm::DataType::tp_uint},
+        {.name = "sc_int64", .data_type = cm::DataType::tp_int64},
+        {.name = "sc_float", .data_type = cm::DataType::tp_float},
+        {.name = "sc_double", .data_type = cm::DataType::tp_double},
+        {.name = "sc_complex", .data_type = cm::DataType::tp_complex},
         {.name = "sc_dcomplex", .data_type = cm::DataType::tp_dcomplex},
-        {.name = "sc_string",   .data_type = cm::DataType::tp_string},
+        {.name = "sc_string", .data_type = cm::DataType::tp_string},
     };
 }
 
 static std::vector<cm::TableColumnSpec> array_columns() {
     return {
-        {.name = "arr_float",  .data_type = cm::DataType::tp_float,
-         .kind = cm::ColumnKind::array, .shape = {kArrDim0, kArrDim1}},
-        {.name = "arr_double", .data_type = cm::DataType::tp_double,
-         .kind = cm::ColumnKind::array, .shape = {kArrDim0, kArrDim1}},
+        {.name = "arr_float",
+         .data_type = cm::DataType::tp_float,
+         .kind = cm::ColumnKind::array,
+         .shape = {kArrDim0, kArrDim1}},
+        {.name = "arr_double",
+         .data_type = cm::DataType::tp_double,
+         .kind = cm::ColumnKind::array,
+         .shape = {kArrDim0, kArrDim1}},
     };
 }
 

@@ -24,11 +24,9 @@ namespace casacore_mini {
 ///   ScalarColumn<int32_t> col(table, "ID");
 ///   int32_t val = col.get(0);
 ///   col.put(0, 42);
-template <typename T>
-class ScalarColumn {
+template <typename T> class ScalarColumn {
   public:
-    ScalarColumn(Table& table, std::string_view name)
-        : table_(&table), name_(name) {
+    ScalarColumn(Table& table, std::string_view name) : table_(&table), name_(name) {
         // Verify column exists.
         if (table_->find_column_desc(name_) == nullptr) {
             throw std::runtime_error("ScalarColumn: column '" + name_ + "' not found");
@@ -50,7 +48,9 @@ class ScalarColumn {
     }
 
     /// Number of rows.
-    [[nodiscard]] std::uint64_t nrow() const { return table_->nrow(); }
+    [[nodiscard]] std::uint64_t nrow() const {
+        return table_->nrow();
+    }
 
   private:
     Table* table_;
@@ -62,11 +62,9 @@ class ScalarColumn {
 /// Usage:
 ///   ArrayColumn<double> col(table, "UVW");
 ///   std::vector<double> vals = col.get(0);
-template <typename T>
-class ArrayColumn {
+template <typename T> class ArrayColumn {
   public:
-    ArrayColumn(Table& table, std::string_view name)
-        : table_(&table), name_(name) {
+    ArrayColumn(Table& table, std::string_view name) : table_(&table), name_(name) {
         if (table_->find_column_desc(name_) == nullptr) {
             throw std::runtime_error("ArrayColumn: column '" + name_ + "' not found");
         }
@@ -86,7 +84,9 @@ class ArrayColumn {
     }
 
     /// Number of rows.
-    [[nodiscard]] std::uint64_t nrow() const { return table_->nrow(); }
+    [[nodiscard]] std::uint64_t nrow() const {
+        return table_->nrow();
+    }
 
   private:
     Table* table_;
@@ -95,13 +95,11 @@ class ArrayColumn {
 
 // -- Template specializations for get/put --
 
-template <>
-inline std::vector<float> ArrayColumn<float>::get(std::uint64_t row) const {
+template <> inline std::vector<float> ArrayColumn<float>::get(std::uint64_t row) const {
     return table_->read_array_float_cell(name_, row);
 }
 
-template <>
-inline std::vector<double> ArrayColumn<double>::get(std::uint64_t row) const {
+template <> inline std::vector<double> ArrayColumn<double>::get(std::uint64_t row) const {
     return table_->read_array_double_cell(name_, row);
 }
 
@@ -124,7 +122,7 @@ inline std::vector<std::int32_t> ArrayColumn<std::int32_t>::get(std::uint64_t ro
 
 template <>
 inline void ArrayColumn<std::int32_t>::put(std::uint64_t row,
-                                            const std::vector<std::int32_t>& values) {
+                                           const std::vector<std::int32_t>& values) {
     table_->write_array_int_cell(name_, row, values);
 }
 
@@ -137,7 +135,7 @@ inline std::vector<std::uint8_t> ArrayColumn<std::uint8_t>::get(std::uint64_t ro
 
 template <>
 inline void ArrayColumn<std::uint8_t>::put(std::uint64_t row,
-                                            const std::vector<std::uint8_t>& values) {
+                                           const std::vector<std::uint8_t>& values) {
     table_->write_array_raw_cell(name_, row, values);
 }
 

@@ -15,7 +15,9 @@ namespace casacore_mini {
 
 MsWriter::MsWriter(MeasurementSet& ms) : ms_(ms) {}
 
-void MsWriter::add_row(MsMainRow row) { main_rows_.push_back(std::move(row)); }
+void MsWriter::add_row(MsMainRow row) {
+    main_rows_.push_back(std::move(row));
+}
 
 std::uint64_t MsWriter::add_antenna(MsAntennaRow row) {
     auto idx = antenna_rows_.size();
@@ -70,29 +72,28 @@ void MsWriter::validate_foreign_keys() const {
     for (std::size_t r = 0; r < main_rows_.size(); ++r) {
         const auto& row = main_rows_[r];
         if (row.antenna1 < 0 || static_cast<std::size_t>(row.antenna1) >= n_ant) {
-            errors += "row " + std::to_string(r) + ": ANTENNA1=" +
-                      std::to_string(row.antenna1) + " out of range [0," +
-                      std::to_string(n_ant) + ")\n";
+            errors += "row " + std::to_string(r) + ": ANTENNA1=" + std::to_string(row.antenna1) +
+                      " out of range [0," + std::to_string(n_ant) + ")\n";
         }
         if (row.antenna2 < 0 || static_cast<std::size_t>(row.antenna2) >= n_ant) {
-            errors += "row " + std::to_string(r) + ": ANTENNA2=" +
-                      std::to_string(row.antenna2) + " out of range\n";
+            errors += "row " + std::to_string(r) + ": ANTENNA2=" + std::to_string(row.antenna2) +
+                      " out of range\n";
         }
         if (row.field_id < 0 || static_cast<std::size_t>(row.field_id) >= n_field) {
-            errors += "row " + std::to_string(r) + ": FIELD_ID=" +
-                      std::to_string(row.field_id) + " out of range\n";
+            errors += "row " + std::to_string(r) + ": FIELD_ID=" + std::to_string(row.field_id) +
+                      " out of range\n";
         }
         if (row.data_desc_id < 0 || static_cast<std::size_t>(row.data_desc_id) >= n_dd) {
-            errors += "row " + std::to_string(r) + ": DATA_DESC_ID=" +
-                      std::to_string(row.data_desc_id) + " out of range\n";
+            errors += "row " + std::to_string(r) +
+                      ": DATA_DESC_ID=" + std::to_string(row.data_desc_id) + " out of range\n";
         }
         if (row.observation_id < 0 || static_cast<std::size_t>(row.observation_id) >= n_obs) {
-            errors += "row " + std::to_string(r) + ": OBSERVATION_ID=" +
-                      std::to_string(row.observation_id) + " out of range\n";
+            errors += "row " + std::to_string(r) +
+                      ": OBSERVATION_ID=" + std::to_string(row.observation_id) + " out of range\n";
         }
         if (row.state_id < 0 || static_cast<std::size_t>(row.state_id) >= n_state) {
-            errors += "row " + std::to_string(r) + ": STATE_ID=" +
-                      std::to_string(row.state_id) + " out of range\n";
+            errors += "row " + std::to_string(r) + ": STATE_ID=" + std::to_string(row.state_id) +
+                      " out of range\n";
         }
     }
 
@@ -176,27 +177,48 @@ void MsWriter::flush_main_table() {
                 // --- Scalar columns ---
                 if (col.kind == ColumnKind::scalar) {
                     CellValue val;
-                    if (col_name == "ANTENNA1") { val = row.antenna1; }
-                    else if (col_name == "ANTENNA2") { val = row.antenna2; }
-                    else if (col_name == "ARRAY_ID") { val = row.array_id; }
-                    else if (col_name == "DATA_DESC_ID") { val = row.data_desc_id; }
-                    else if (col_name == "EXPOSURE") { val = row.exposure; }
-                    else if (col_name == "FEED1") { val = row.feed1; }
-                    else if (col_name == "FEED2") { val = row.feed2; }
-                    else if (col_name == "FIELD_ID") { val = row.field_id; }
-                    else if (col_name == "FLAG_ROW") { val = row.flag_row; }
-                    else if (col_name == "INTERVAL") { val = row.interval; }
-                    else if (col_name == "OBSERVATION_ID") { val = row.observation_id; }
-                    else if (col_name == "PROCESSOR_ID") { val = row.processor_id; }
-                    else if (col_name == "SCAN_NUMBER") { val = row.scan_number; }
-                    else if (col_name == "STATE_ID") { val = row.state_id; }
-                    else if (col_name == "TIME") { val = row.time; }
-                    else if (col_name == "TIME_CENTROID") { val = row.time_centroid; }
-                    else {
-                        if (col.data_type == DataType::tp_int) { val = std::int32_t{0}; }
-                        else if (col.data_type == DataType::tp_double) { val = 0.0; }
-                        else if (col.data_type == DataType::tp_bool) { val = false; }
-                        else { val = std::string{}; }
+                    if (col_name == "ANTENNA1") {
+                        val = row.antenna1;
+                    } else if (col_name == "ANTENNA2") {
+                        val = row.antenna2;
+                    } else if (col_name == "ARRAY_ID") {
+                        val = row.array_id;
+                    } else if (col_name == "DATA_DESC_ID") {
+                        val = row.data_desc_id;
+                    } else if (col_name == "EXPOSURE") {
+                        val = row.exposure;
+                    } else if (col_name == "FEED1") {
+                        val = row.feed1;
+                    } else if (col_name == "FEED2") {
+                        val = row.feed2;
+                    } else if (col_name == "FIELD_ID") {
+                        val = row.field_id;
+                    } else if (col_name == "FLAG_ROW") {
+                        val = row.flag_row;
+                    } else if (col_name == "INTERVAL") {
+                        val = row.interval;
+                    } else if (col_name == "OBSERVATION_ID") {
+                        val = row.observation_id;
+                    } else if (col_name == "PROCESSOR_ID") {
+                        val = row.processor_id;
+                    } else if (col_name == "SCAN_NUMBER") {
+                        val = row.scan_number;
+                    } else if (col_name == "STATE_ID") {
+                        val = row.state_id;
+                    } else if (col_name == "TIME") {
+                        val = row.time;
+                    } else if (col_name == "TIME_CENTROID") {
+                        val = row.time_centroid;
+                    } else {
+                        if (col.data_type == DataType::tp_int) {
+                            val = std::int32_t{0};
+                        } else if (col.data_type == DataType::tp_double) {
+                            val = 0.0;
+                        } else if (col.data_type == DataType::tp_bool) {
+                            val = false;
+                        } else {
+                            val = std::string{};
+                        }
                     }
                     ssm.write_cell(ci, val, r);
                     continue;
@@ -354,14 +376,28 @@ void MsWriter::flush() {
                            const auto& row = antenna_rows_[r];
                            const auto& cols = ms_.subtable("ANTENNA").columns();
                            const auto& name = cols[ci].name;
-                           if (name == "NAME") { return row.name; }
-                           if (name == "STATION") { return row.station; }
-                           if (name == "TYPE") { return row.type; }
-                           if (name == "MOUNT") { return row.mount; }
-                           if (name == "DISH_DIAMETER") { return row.dish_diameter; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
+                           if (name == "NAME") {
+                               return row.name;
+                           }
+                           if (name == "STATION") {
+                               return row.station;
+                           }
+                           if (name == "TYPE") {
+                               return row.type;
+                           }
+                           if (name == "MOUNT") {
+                               return row.mount;
+                           }
+                           if (name == "DISH_DIAMETER") {
+                               return row.dish_diameter;
+                           }
+                           if (name == "FLAG_ROW") {
+                               return row.flag_row;
+                           }
                            // Array columns: return default (skip in flush_subtable).
-                           if (cols[ci].data_type == DataType::tp_double) { return 0.0; }
+                           if (cols[ci].data_type == DataType::tp_double) {
+                               return 0.0;
+                           }
                            return std::int32_t{0};
                        });
     }
@@ -373,20 +409,41 @@ void MsWriter::flush() {
         flush_subtable("SPECTRAL_WINDOW", cols, nrows,
                        [this](std::size_t ci, std::uint64_t r) -> CellValue {
                            const auto& row = spw_rows_[r];
-                           const auto& cols =
-                               ms_.subtable("SPECTRAL_WINDOW").columns();
+                           const auto& cols = ms_.subtable("SPECTRAL_WINDOW").columns();
                            const auto& name = cols[ci].name;
-                           if (name == "NUM_CHAN") { return row.num_chan; }
-                           if (name == "NAME") { return row.name; }
-                           if (name == "REF_FREQUENCY") { return row.ref_frequency; }
-                           if (name == "MEAS_FREQ_REF") { return row.meas_freq_ref; }
-                           if (name == "TOTAL_BANDWIDTH") { return row.total_bandwidth; }
-                           if (name == "NET_SIDEBAND") { return row.net_sideband; }
-                           if (name == "IF_CONV_CHAIN") { return row.if_conv_chain; }
-                           if (name == "FREQ_GROUP") { return row.freq_group; }
-                           if (name == "FREQ_GROUP_NAME") { return row.freq_group_name; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
-                           if (cols[ci].data_type == DataType::tp_double) { return 0.0; }
+                           if (name == "NUM_CHAN") {
+                               return row.num_chan;
+                           }
+                           if (name == "NAME") {
+                               return row.name;
+                           }
+                           if (name == "REF_FREQUENCY") {
+                               return row.ref_frequency;
+                           }
+                           if (name == "MEAS_FREQ_REF") {
+                               return row.meas_freq_ref;
+                           }
+                           if (name == "TOTAL_BANDWIDTH") {
+                               return row.total_bandwidth;
+                           }
+                           if (name == "NET_SIDEBAND") {
+                               return row.net_sideband;
+                           }
+                           if (name == "IF_CONV_CHAIN") {
+                               return row.if_conv_chain;
+                           }
+                           if (name == "FREQ_GROUP") {
+                               return row.freq_group;
+                           }
+                           if (name == "FREQ_GROUP_NAME") {
+                               return row.freq_group_name;
+                           }
+                           if (name == "FLAG_ROW") {
+                               return row.flag_row;
+                           }
+                           if (cols[ci].data_type == DataType::tp_double) {
+                               return 0.0;
+                           }
                            return std::int32_t{0};
                        });
     }
@@ -395,20 +452,33 @@ void MsWriter::flush() {
         const auto& st = ms_.subtable("FIELD");
         const auto& cols = st.columns();
         const auto nrows = static_cast<std::uint64_t>(field_rows_.size());
-        flush_subtable("FIELD", cols, nrows,
-                       [this](std::size_t ci, std::uint64_t r) -> CellValue {
-                           const auto& row = field_rows_[r];
-                           const auto& cols = ms_.subtable("FIELD").columns();
-                           const auto& name = cols[ci].name;
-                           if (name == "NAME") { return row.name; }
-                           if (name == "CODE") { return row.code; }
-                           if (name == "TIME") { return row.time; }
-                           if (name == "NUM_POLY") { return row.num_poly; }
-                           if (name == "SOURCE_ID") { return row.source_id; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
-                           if (cols[ci].data_type == DataType::tp_double) { return 0.0; }
-                           return std::int32_t{0};
-                       });
+        flush_subtable("FIELD", cols, nrows, [this](std::size_t ci, std::uint64_t r) -> CellValue {
+            const auto& row = field_rows_[r];
+            const auto& cols = ms_.subtable("FIELD").columns();
+            const auto& name = cols[ci].name;
+            if (name == "NAME") {
+                return row.name;
+            }
+            if (name == "CODE") {
+                return row.code;
+            }
+            if (name == "TIME") {
+                return row.time;
+            }
+            if (name == "NUM_POLY") {
+                return row.num_poly;
+            }
+            if (name == "SOURCE_ID") {
+                return row.source_id;
+            }
+            if (name == "FLAG_ROW") {
+                return row.flag_row;
+            }
+            if (cols[ci].data_type == DataType::tp_double) {
+                return 0.0;
+            }
+            return std::int32_t{0};
+        });
     }
 
     if (!dd_rows_.empty()) {
@@ -418,12 +488,17 @@ void MsWriter::flush() {
         flush_subtable("DATA_DESCRIPTION", cols, nrows,
                        [this](std::size_t ci, std::uint64_t r) -> CellValue {
                            const auto& row = dd_rows_[r];
-                           const auto& cols =
-                               ms_.subtable("DATA_DESCRIPTION").columns();
+                           const auto& cols = ms_.subtable("DATA_DESCRIPTION").columns();
                            const auto& name = cols[ci].name;
-                           if (name == "SPECTRAL_WINDOW_ID") { return row.spectral_window_id; }
-                           if (name == "POLARIZATION_ID") { return row.polarization_id; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
+                           if (name == "SPECTRAL_WINDOW_ID") {
+                               return row.spectral_window_id;
+                           }
+                           if (name == "POLARIZATION_ID") {
+                               return row.polarization_id;
+                           }
+                           if (name == "FLAG_ROW") {
+                               return row.flag_row;
+                           }
                            return std::int32_t{0};
                        });
     }
@@ -435,12 +510,17 @@ void MsWriter::flush() {
         flush_subtable("POLARIZATION", cols, nrows,
                        [this](std::size_t ci, std::uint64_t r) -> CellValue {
                            const auto& row = pol_rows_[r];
-                           const auto& cols =
-                               ms_.subtable("POLARIZATION").columns();
+                           const auto& cols = ms_.subtable("POLARIZATION").columns();
                            const auto& name = cols[ci].name;
-                           if (name == "NUM_CORR") { return row.num_corr; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
-                           if (cols[ci].data_type == DataType::tp_int) { return std::int32_t{0}; }
+                           if (name == "NUM_CORR") {
+                               return row.num_corr;
+                           }
+                           if (name == "FLAG_ROW") {
+                               return row.flag_row;
+                           }
+                           if (cols[ci].data_type == DataType::tp_int) {
+                               return std::int32_t{0};
+                           }
                            return false;
                        });
     }
@@ -452,16 +532,29 @@ void MsWriter::flush() {
         flush_subtable("OBSERVATION", cols, nrows,
                        [this](std::size_t ci, std::uint64_t r) -> CellValue {
                            const auto& row = obs_rows_[r];
-                           const auto& cols =
-                               ms_.subtable("OBSERVATION").columns();
+                           const auto& cols = ms_.subtable("OBSERVATION").columns();
                            const auto& name = cols[ci].name;
-                           if (name == "TELESCOPE_NAME") { return row.telescope_name; }
-                           if (name == "OBSERVER") { return row.observer; }
-                           if (name == "PROJECT") { return row.project; }
-                           if (name == "RELEASE_DATE") { return row.release_date; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
-                           if (name == "SCHEDULE_TYPE") { return std::string{}; }
-                           if (cols[ci].data_type == DataType::tp_double) { return 0.0; }
+                           if (name == "TELESCOPE_NAME") {
+                               return row.telescope_name;
+                           }
+                           if (name == "OBSERVER") {
+                               return row.observer;
+                           }
+                           if (name == "PROJECT") {
+                               return row.project;
+                           }
+                           if (name == "RELEASE_DATE") {
+                               return row.release_date;
+                           }
+                           if (name == "FLAG_ROW") {
+                               return row.flag_row;
+                           }
+                           if (name == "SCHEDULE_TYPE") {
+                               return std::string{};
+                           }
+                           if (cols[ci].data_type == DataType::tp_double) {
+                               return 0.0;
+                           }
                            if (cols[ci].data_type == DataType::tp_string) {
                                return std::string{};
                            }
@@ -473,22 +566,39 @@ void MsWriter::flush() {
         const auto& st = ms_.subtable("STATE");
         const auto& cols = st.columns();
         const auto nrows = static_cast<std::uint64_t>(state_rows_.size());
-        flush_subtable("STATE", cols, nrows,
-                       [this](std::size_t ci, std::uint64_t r) -> CellValue {
-                           const auto& row = state_rows_[r];
-                           const auto& cols = ms_.subtable("STATE").columns();
-                           const auto& name = cols[ci].name;
-                           if (name == "SIG") { return row.sig; }
-                           if (name == "REF") { return row.ref; }
-                           if (name == "CAL") { return row.cal; }
-                           if (name == "LOAD") { return row.load; }
-                           if (name == "SUB_SCAN") { return row.sub_scan; }
-                           if (name == "OBS_MODE") { return row.obs_mode; }
-                           if (name == "FLAG_ROW") { return row.flag_row; }
-                           if (cols[ci].data_type == DataType::tp_double) { return 0.0; }
-                           if (cols[ci].data_type == DataType::tp_bool) { return false; }
-                           return std::string{};
-                       });
+        flush_subtable("STATE", cols, nrows, [this](std::size_t ci, std::uint64_t r) -> CellValue {
+            const auto& row = state_rows_[r];
+            const auto& cols = ms_.subtable("STATE").columns();
+            const auto& name = cols[ci].name;
+            if (name == "SIG") {
+                return row.sig;
+            }
+            if (name == "REF") {
+                return row.ref;
+            }
+            if (name == "CAL") {
+                return row.cal;
+            }
+            if (name == "LOAD") {
+                return row.load;
+            }
+            if (name == "SUB_SCAN") {
+                return row.sub_scan;
+            }
+            if (name == "OBS_MODE") {
+                return row.obs_mode;
+            }
+            if (name == "FLAG_ROW") {
+                return row.flag_row;
+            }
+            if (cols[ci].data_type == DataType::tp_double) {
+                return 0.0;
+            }
+            if (cols[ci].data_type == DataType::tp_bool) {
+                return false;
+            }
+            return std::string{};
+        });
     }
 
     // Flush main table last (references subtable rows).

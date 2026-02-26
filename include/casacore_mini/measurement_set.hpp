@@ -40,7 +40,7 @@ class MeasurementSet {
     /// @param include_data  If true, include the DATA column (complex visibility).
     /// @throws std::runtime_error if path already exists or write fails.
     [[nodiscard]] static MeasurementSet create(const std::filesystem::path& path,
-                                                bool include_data = true);
+                                               bool include_data = true);
 
     /// Open an existing MeasurementSet from disk.
     ///
@@ -49,10 +49,14 @@ class MeasurementSet {
     [[nodiscard]] static MeasurementSet open(const std::filesystem::path& path);
 
     /// Access the main table.
-    [[nodiscard]] const Table& main_table() const noexcept { return main_table_; }
+    [[nodiscard]] const Table& main_table() const noexcept {
+        return main_table_;
+    }
 
     /// Access the main table (mutable).
-    [[nodiscard]] Table& main_table() noexcept { return main_table_; }
+    [[nodiscard]] Table& main_table() noexcept {
+        return main_table_;
+    }
 
     /// Access a subtable by name (lazy-open from disk).
     ///
@@ -64,7 +68,9 @@ class MeasurementSet {
     [[nodiscard]] Table& subtable(std::string_view name);
 
     /// Main table row count.
-    [[nodiscard]] std::uint64_t row_count() const noexcept { return main_table_.nrow(); }
+    [[nodiscard]] std::uint64_t row_count() const noexcept {
+        return main_table_.nrow();
+    }
 
     /// List names of all subtables present on disk.
     [[nodiscard]] std::vector<std::string> subtable_names() const;
@@ -73,7 +79,9 @@ class MeasurementSet {
     [[nodiscard]] bool has_subtable(std::string_view name) const;
 
     /// Root path of the MeasurementSet.
-    [[nodiscard]] const std::filesystem::path& path() const noexcept { return root_path_; }
+    [[nodiscard]] const std::filesystem::path& path() const noexcept {
+        return root_path_;
+    }
 
     /// Flush pending writes (re-writes table.dat for main table).
     void flush();

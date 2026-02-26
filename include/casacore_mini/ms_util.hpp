@@ -24,8 +24,7 @@ class StokesConverter {
     /// Set up conversion from input to output Stokes types.
     /// @param in_types  Input correlation types (e.g. {5,6,7,8} for RR,RL,LR,LL).
     /// @param out_types  Desired output types (e.g. {1,2,3,4} for I,Q,U,V).
-    StokesConverter(std::vector<std::int32_t> in_types,
-                    std::vector<std::int32_t> out_types);
+    StokesConverter(std::vector<std::int32_t> in_types, std::vector<std::int32_t> out_types);
 
     /// Convert a visibility vector from input to output Stokes basis.
     ///
@@ -35,9 +34,13 @@ class StokesConverter {
     convert(const std::vector<std::complex<float>>& in_data) const;
 
     /// Number of input correlations.
-    [[nodiscard]] std::size_t n_in() const noexcept { return in_types_.size(); }
+    [[nodiscard]] std::size_t n_in() const noexcept {
+        return in_types_.size();
+    }
     /// Number of output correlations.
-    [[nodiscard]] std::size_t n_out() const noexcept { return out_types_.size(); }
+    [[nodiscard]] std::size_t n_out() const noexcept {
+        return out_types_.size();
+    }
 
   private:
     std::vector<std::int32_t> in_types_;
@@ -55,12 +58,10 @@ class StokesConverter {
 /// using the rest frequency from the SOURCE subtable.
 struct MsDopplerUtil {
     /// Convert radio velocity (m/s) to frequency (Hz) given rest frequency.
-    [[nodiscard]] static double velocity_to_frequency(double velocity_mps,
-                                                       double rest_freq_hz);
+    [[nodiscard]] static double velocity_to_frequency(double velocity_mps, double rest_freq_hz);
 
     /// Convert frequency (Hz) to radio velocity (m/s) given rest frequency.
-    [[nodiscard]] static double frequency_to_velocity(double freq_hz,
-                                                       double rest_freq_hz);
+    [[nodiscard]] static double frequency_to_velocity(double freq_hz, double rest_freq_hz);
 };
 
 // ---------------------------------------------------------------------------

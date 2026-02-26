@@ -60,8 +60,15 @@ static double bench_scalar_seq_read(cm::Table& table) {
             auto vc = col_complex.get(r);
             auto vdc = col_dcomplex.get(r);
             std::string s = col_string.get(r);
-            (void)vb; (void)vi; (void)vu; (void)vi64;
-            (void)vf; (void)vd; (void)vc; (void)vdc; (void)s;
+            (void)vb;
+            (void)vi;
+            (void)vu;
+            (void)vi64;
+            (void)vf;
+            (void)vd;
+            (void)vc;
+            (void)vdc;
+            (void)s;
         }
     }
     auto t1 = Clock::now();
@@ -129,7 +136,8 @@ static double bench_keyword_access(cm::Table& table) {
         };
         auto get_rec = [&](const char* k) -> const cm::Record* {
             const auto* v = kw.find(k);
-            if (!v) return nullptr;
+            if (!v)
+                return nullptr;
             auto* rp = std::get_if<cm::RecordValue::record_ptr>(&v->storage());
             return rp ? rp->get() : nullptr;
         };
@@ -193,9 +201,17 @@ static double bench_row_oriented_read(cm::Table& table) {
         std::string s = col_string.get(r);
         auto af = arr_float.get(r);
         auto ad = arr_double.get(r);
-        (void)vb; (void)vi; (void)vu; (void)vi64;
-        (void)vf; (void)vd; (void)vc; (void)vdc; (void)s;
-        (void)af; (void)ad;
+        (void)vb;
+        (void)vi;
+        (void)vu;
+        (void)vi64;
+        (void)vf;
+        (void)vd;
+        (void)vc;
+        (void)vdc;
+        (void)s;
+        (void)af;
+        (void)ad;
     }
     auto t1 = Clock::now();
     return elapsed_sec(t0, t1);
@@ -210,11 +226,10 @@ int main(int argc, char* argv[]) {
 
     try {
         auto table = cm::Table::open(table_path);
-        std::cerr << "Opened table: " << table_path
-                  << " (" << table.nrow() << " rows)\n";
+        std::cerr << "Opened table: " << table_path << " (" << table.nrow() << " rows)\n";
 
-        double scalar_times[kPasses], array_times[kPasses],
-               keyword_times[kPasses], row_times[kPasses];
+        double scalar_times[kPasses], array_times[kPasses], keyword_times[kPasses],
+            row_times[kPasses];
 
         for (int p = 0; p < kPasses; ++p) {
             scalar_times[p] = bench_scalar_seq_read(table);
@@ -234,8 +249,7 @@ int main(int argc, char* argv[]) {
         std::cout << "TIMING keyword_access " << keyword_med << "\n";
         std::cout << "TIMING row_oriented_read " << row_med << "\n";
     } catch (const std::exception& e) {
-        std::cerr << "Cannot fully read table: " << table_path
-                  << " (" << e.what() << ")\n";
+        std::cerr << "Cannot fully read table: " << table_path << " (" << e.what() << ")\n";
         std::cout << "TIMING scalar_seq_read N/A\n";
         std::cout << "TIMING array_seq_read N/A\n";
         std::cout << "TIMING keyword_access N/A\n";

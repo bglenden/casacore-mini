@@ -25,8 +25,7 @@ MsFlagStats ms_flag_stats(MeasurementSet& ms) {
 
 namespace {
 
-void modify_flag_rows(MeasurementSet& ms,
-                      const std::vector<std::uint64_t>& rows,
+void modify_flag_rows(MeasurementSet& ms, const std::vector<std::uint64_t>& rows,
                       bool new_flag_value) {
     if (rows.empty() || ms.row_count() == 0) {
         return;

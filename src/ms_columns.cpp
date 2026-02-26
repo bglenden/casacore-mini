@@ -93,8 +93,7 @@ Measure MsMainColumns::time_measure(std::uint64_t row) const {
     if (!time_meas_desc_.has_value()) {
         throw std::runtime_error("MsMainColumns: no MEASINFO for TIME column");
     }
-    ScalarCellReader reader = [this](const std::string& col_name,
-                                      std::uint64_t r) -> CellValue {
+    ScalarCellReader reader = [this](const std::string& col_name, std::uint64_t r) -> CellValue {
         return table_.read_scalar_cell(col_name, r);
     };
     return read_scalar_measure(*time_meas_desc_, reader, row);
@@ -107,11 +106,11 @@ Measure MsMainColumns::uvw_measure(std::uint64_t row) const {
     }
 
     ArrayCellReader array_reader = [this](const std::string& col_name,
-                                           std::uint64_t r) -> std::vector<double> {
+                                          std::uint64_t r) -> std::vector<double> {
         return table_.read_array_double_cell(col_name, r);
     };
     ScalarCellReader scalar_reader = [this](const std::string& col_name,
-                                             std::uint64_t r) -> CellValue {
+                                            std::uint64_t r) -> CellValue {
         return table_.read_scalar_cell(col_name, r);
     };
 
@@ -122,7 +121,9 @@ Measure MsMainColumns::uvw_measure(std::uint64_t row) const {
     return measures[0];
 }
 
-std::uint64_t MsMainColumns::row_count() const noexcept { return table_.nrow(); }
+std::uint64_t MsMainColumns::row_count() const noexcept {
+    return table_.nrow();
+}
 
 // ===========================================================================
 // MsAntennaColumns
@@ -164,8 +165,7 @@ std::uint64_t MsAntennaColumns::row_count() const noexcept {
 // MsSpWindowColumns
 // ===========================================================================
 
-MsSpWindowColumns::MsSpWindowColumns(MeasurementSet& ms)
-    : table_(ms.subtable("SPECTRAL_WINDOW")) {}
+MsSpWindowColumns::MsSpWindowColumns(MeasurementSet& ms) : table_(ms.subtable("SPECTRAL_WINDOW")) {}
 
 std::int32_t MsSpWindowColumns::num_chan(std::uint64_t row) const {
     return std::get<std::int32_t>(table_.read_scalar_cell("NUM_CHAN", row));

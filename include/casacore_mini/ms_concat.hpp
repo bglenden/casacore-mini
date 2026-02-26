@@ -32,8 +32,7 @@ struct MsConcatResult {
 /// @param output_path  Path for the new concatenated MS.
 /// @return  Concat result with row count and ID remapping info.
 /// @throws std::runtime_error if schemas are incompatible.
-[[nodiscard]] MsConcatResult ms_concat(MeasurementSet& ms1,
-                                        MeasurementSet& ms2,
-                                        const std::filesystem::path& output_path);
+[[nodiscard]] MsConcatResult ms_concat(MeasurementSet& ms1, MeasurementSet& ms2,
+                                       const std::filesystem::path& output_path);
 
 } // namespace casacore_mini

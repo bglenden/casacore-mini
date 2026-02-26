@@ -1,8 +1,8 @@
-#include "casacore_mini/ms_concat.hpp"
+#include "casacore_mini/measurement_set.hpp"
 #include "casacore_mini/ms_columns.hpp"
+#include "casacore_mini/ms_concat.hpp"
 #include "casacore_mini/ms_metadata.hpp"
 #include "casacore_mini/ms_writer.hpp"
-#include "casacore_mini/measurement_set.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -30,44 +30,86 @@ static void populate_ms1(const fs::path& path) {
     auto ms = MeasurementSet::create(path, false);
     MsWriter writer(ms);
 
-    writer.add_antenna({.name = "ANT0", .station = "PAD0", .type = "GROUND-BASED",
-                         .mount = "ALT-AZ", .position = {}, .offset = {},
-                         .dish_diameter = 25.0});
-    writer.add_antenna({.name = "ANT1", .station = "PAD1", .type = "GROUND-BASED",
-                         .mount = "ALT-AZ", .position = {}, .offset = {},
-                         .dish_diameter = 25.0});
+    writer.add_antenna({.name = "ANT0",
+                        .station = "PAD0",
+                        .type = "GROUND-BASED",
+                        .mount = "ALT-AZ",
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 25.0});
+    writer.add_antenna({.name = "ANT1",
+                        .station = "PAD1",
+                        .type = "GROUND-BASED",
+                        .mount = "ALT-AZ",
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 25.0});
     writer.add_field({.name = "3C273", .code = {}});
-    writer.add_spectral_window({.num_chan = 64, .name = "L-band", .ref_frequency = 1.4e9,
-                                 .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                 .resolution = {}, .meas_freq_ref = 0,
-                                 .total_bandwidth = 0.0, .net_sideband = 0,
-                                 .if_conv_chain = 0, .freq_group = 0,
-                                 .freq_group_name = {}, .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                  .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64,
+                                .name = "L-band",
+                                .ref_frequency = 1.4e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
     writer.add_polarization({.num_corr = 2, .corr_type = {5, 8}, .flag_row = false});
-    writer.add_observation({.telescope_name = "VLA", .observer = "test", .project = {},
-                             .release_date = 0.0, .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA",
+                            .observer = "test",
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
     writer.add_state({.obs_mode = "OBSERVE"});
 
-    writer.add_row({.antenna1 = 0, .antenna2 = 1, .array_id = 0,
-                     .data_desc_id = 0, .exposure = 0.0, .feed1 = 0, .feed2 = 0,
-                     .field_id = 0, .flag_row = false, .interval = 0.0,
-                     .observation_id = 0, .processor_id = 0,
-                     .scan_number = 1, .state_id = 0, .time = 4.8e9,
-                     .time_centroid = 4.8e9,
-                     .uvw = {100.0, 200.0, 50.0},
-                     .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                     .data = {}, .flag = {}});
-    writer.add_row({.antenna1 = 1, .antenna2 = 0, .array_id = 0,
-                     .data_desc_id = 0, .exposure = 0.0, .feed1 = 0, .feed2 = 0,
-                     .field_id = 0, .flag_row = false, .interval = 0.0,
-                     .observation_id = 0, .processor_id = 0,
-                     .scan_number = 1, .state_id = 0, .time = 4.8e9 + 10.0,
-                     .time_centroid = 4.8e9 + 10.0,
-                     .uvw = {-100.0, -200.0, -50.0},
-                     .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                     .data = {}, .flag = {}});
+    writer.add_row({.antenna1 = 0,
+                    .antenna2 = 1,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 0,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 1,
+                    .state_id = 0,
+                    .time = 4.8e9,
+                    .time_centroid = 4.8e9,
+                    .uvw = {100.0, 200.0, 50.0},
+                    .sigma = {1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F},
+                    .data = {},
+                    .flag = {}});
+    writer.add_row({.antenna1 = 1,
+                    .antenna2 = 0,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 0,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 1,
+                    .state_id = 0,
+                    .time = 4.8e9 + 10.0,
+                    .time_centroid = 4.8e9 + 10.0,
+                    .uvw = {-100.0, -200.0, -50.0},
+                    .sigma = {1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F},
+                    .data = {},
+                    .flag = {}});
     writer.flush();
 }
 
@@ -76,56 +118,110 @@ static void populate_ms2(const fs::path& path) {
     MsWriter writer(ms);
 
     // ANT0 is shared, ANT2 is new.
-    writer.add_antenna({.name = "ANT0", .station = "PAD0", .type = "GROUND-BASED",
-                         .mount = "ALT-AZ", .position = {}, .offset = {},
-                         .dish_diameter = 25.0});
-    writer.add_antenna({.name = "ANT2", .station = "PAD2", .type = "GROUND-BASED",
-                         .mount = "ALT-AZ", .position = {}, .offset = {},
-                         .dish_diameter = 12.0});
+    writer.add_antenna({.name = "ANT0",
+                        .station = "PAD0",
+                        .type = "GROUND-BASED",
+                        .mount = "ALT-AZ",
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 25.0});
+    writer.add_antenna({.name = "ANT2",
+                        .station = "PAD2",
+                        .type = "GROUND-BASED",
+                        .mount = "ALT-AZ",
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 12.0});
     // 3C273 is shared, M31 is new.
     writer.add_field({.name = "3C273", .code = {}});
     writer.add_field({.name = "M31", .code = {}});
     // Same SPW.
-    writer.add_spectral_window({.num_chan = 64, .name = "L-band", .ref_frequency = 1.4e9,
-                                 .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                 .resolution = {}, .meas_freq_ref = 0,
-                                 .total_bandwidth = 0.0, .net_sideband = 0,
-                                 .if_conv_chain = 0, .freq_group = 0,
-                                 .freq_group_name = {}, .flag_row = false});
-    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                  .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64,
+                                .name = "L-band",
+                                .ref_frequency = 1.4e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
     writer.add_polarization({.num_corr = 2, .corr_type = {5, 8}, .flag_row = false});
-    writer.add_observation({.telescope_name = "VLA", .observer = "test2", .project = {},
-                             .release_date = 0.0, .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA",
+                            .observer = "test2",
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
     writer.add_state({.obs_mode = "CALIBRATE"});
 
-    writer.add_row({.antenna1 = 0, .antenna2 = 1, .array_id = 0,
-                     .data_desc_id = 0, .exposure = 0.0, .feed1 = 0, .feed2 = 0,
-                     .field_id = 0, .flag_row = false, .interval = 0.0,
-                     .observation_id = 0, .processor_id = 0,
-                     .scan_number = 2, .state_id = 0, .time = 4.8e9 + 100,
-                     .time_centroid = 4.8e9 + 100,
-                     .uvw = {300.0, 400.0, 100.0},
-                     .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                     .data = {}, .flag = {}});
-    writer.add_row({.antenna1 = 0, .antenna2 = 1, .array_id = 0,
-                     .data_desc_id = 0, .exposure = 0.0, .feed1 = 0, .feed2 = 0,
-                     .field_id = 1, .flag_row = false, .interval = 0.0,
-                     .observation_id = 0, .processor_id = 0,
-                     .scan_number = 2, .state_id = 0, .time = 4.8e9 + 110,
-                     .time_centroid = 4.8e9 + 110,
-                     .uvw = {350.0, 450.0, 110.0},
-                     .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                     .data = {}, .flag = {}});
-    writer.add_row({.antenna1 = 1, .antenna2 = 0, .array_id = 0,
-                     .data_desc_id = 0, .exposure = 0.0, .feed1 = 0, .feed2 = 0,
-                     .field_id = 1, .flag_row = false, .interval = 0.0,
-                     .observation_id = 0, .processor_id = 0,
-                     .scan_number = 2, .state_id = 0, .time = 4.8e9 + 120,
-                     .time_centroid = 4.8e9 + 120,
-                     .uvw = {-350.0, -450.0, -110.0},
-                     .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                     .data = {}, .flag = {}});
+    writer.add_row({.antenna1 = 0,
+                    .antenna2 = 1,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 0,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 2,
+                    .state_id = 0,
+                    .time = 4.8e9 + 100,
+                    .time_centroid = 4.8e9 + 100,
+                    .uvw = {300.0, 400.0, 100.0},
+                    .sigma = {1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F},
+                    .data = {},
+                    .flag = {}});
+    writer.add_row({.antenna1 = 0,
+                    .antenna2 = 1,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 1,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 2,
+                    .state_id = 0,
+                    .time = 4.8e9 + 110,
+                    .time_centroid = 4.8e9 + 110,
+                    .uvw = {350.0, 450.0, 110.0},
+                    .sigma = {1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F},
+                    .data = {},
+                    .flag = {}});
+    writer.add_row({.antenna1 = 1,
+                    .antenna2 = 0,
+                    .array_id = 0,
+                    .data_desc_id = 0,
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = 1,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = 2,
+                    .state_id = 0,
+                    .time = 4.8e9 + 120,
+                    .time_centroid = 4.8e9 + 120,
+                    .uvw = {-350.0, -450.0, -110.0},
+                    .sigma = {1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F},
+                    .data = {},
+                    .flag = {}});
     writer.flush();
 }
 
@@ -135,7 +231,9 @@ static void test_concat_row_count() {
     auto p1 = make_temp_dir("cat1a");
     auto p2 = make_temp_dir("cat1b");
     auto pout = make_temp_dir("cat1out");
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
 
     populate_ms1(p1);
     populate_ms2(p2);
@@ -149,7 +247,9 @@ static void test_concat_row_count() {
     auto out = MeasurementSet::open(pout);
     assert(out.row_count() == 5);
 
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
     std::cout << "PASS\n";
 }
 
@@ -159,7 +259,9 @@ static void test_concat_antenna_dedup() {
     auto p1 = make_temp_dir("cat2a");
     auto p2 = make_temp_dir("cat2b");
     auto pout = make_temp_dir("cat2out");
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
 
     populate_ms1(p1);
     populate_ms2(p2);
@@ -181,7 +283,9 @@ static void test_concat_antenna_dedup() {
     assert(result.id_remaps.at("ANTENNA").at(0) == 0);
     assert(result.id_remaps.at("ANTENNA").at(1) == 2);
 
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
     std::cout << "PASS\n";
 }
 
@@ -191,7 +295,9 @@ static void test_concat_field_dedup() {
     auto p1 = make_temp_dir("cat3a");
     auto p2 = make_temp_dir("cat3b");
     auto pout = make_temp_dir("cat3out");
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
 
     populate_ms1(p1);
     populate_ms2(p2);
@@ -208,7 +314,9 @@ static void test_concat_field_dedup() {
     assert(md.field_names()[0] == "3C273");
     assert(md.field_names()[1] == "M31");
 
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
     std::cout << "PASS\n";
 }
 
@@ -218,7 +326,9 @@ static void test_concat_id_remapping() {
     auto p1 = make_temp_dir("cat4a");
     auto p2 = make_temp_dir("cat4b");
     auto pout = make_temp_dir("cat4out");
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
 
     populate_ms1(p1);
     populate_ms2(p2);
@@ -241,20 +351,22 @@ static void test_concat_id_remapping() {
     // Row 4: ms2 field_id=1 (M31) → out field_id=1 (M31).
     assert(cols.field_id(4) == 1);
 
-    cleanup(p1); cleanup(p2); cleanup(pout);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(pout);
     std::cout << "PASS\n";
 }
 
 int main() {
     try {
-    std::cout << "ms_concat_test\n";
+        std::cout << "ms_concat_test\n";
 
-    test_concat_row_count();
-    test_concat_antenna_dedup();
-    test_concat_field_dedup();
-    test_concat_id_remapping();
+        test_concat_row_count();
+        test_concat_antenna_dedup();
+        test_concat_field_dedup();
+        test_concat_id_remapping();
 
-    std::cout << "all ms_concat tests passed\n";
+        std::cout << "all ms_concat tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

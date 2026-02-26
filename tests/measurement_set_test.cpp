@@ -12,8 +12,9 @@
 namespace fs = std::filesystem;
 
 static fs::path make_temp_dir(const std::string& suffix) {
-    auto tmp = fs::temp_directory_path() / ("ms_test_" + suffix + "_" +
-               std::to_string(std::hash<std::string>{}(std::to_string(rand()))));
+    auto tmp = fs::temp_directory_path() /
+               ("ms_test_" + suffix + "_" +
+                std::to_string(std::hash<std::string>{}(std::to_string(rand()))));
     return tmp;
 }
 
@@ -135,9 +136,15 @@ static void test_subtable_schemas() {
         bool has_position = false;
         bool has_dish_diameter = false;
         for (const auto& col : cols) {
-            if (col.name == "NAME") { has_name = true; }
-            if (col.name == "POSITION") { has_position = true; }
-            if (col.name == "DISH_DIAMETER") { has_dish_diameter = true; }
+            if (col.name == "NAME") {
+                has_name = true;
+            }
+            if (col.name == "POSITION") {
+                has_position = true;
+            }
+            if (col.name == "DISH_DIAMETER") {
+                has_dish_diameter = true;
+            }
         }
         assert(has_name);
         assert(has_position);
@@ -152,9 +159,15 @@ static void test_subtable_schemas() {
         bool has_chan_freq = false;
         bool has_ref_freq = false;
         for (const auto& col : cols) {
-            if (col.name == "NUM_CHAN") { has_num_chan = true; }
-            if (col.name == "CHAN_FREQ") { has_chan_freq = true; }
-            if (col.name == "REF_FREQUENCY") { has_ref_freq = true; }
+            if (col.name == "NUM_CHAN") {
+                has_num_chan = true;
+            }
+            if (col.name == "CHAN_FREQ") {
+                has_chan_freq = true;
+            }
+            if (col.name == "REF_FREQUENCY") {
+                has_ref_freq = true;
+            }
         }
         assert(has_num_chan);
         assert(has_chan_freq);
@@ -168,8 +181,12 @@ static void test_subtable_schemas() {
         bool has_num_corr = false;
         bool has_corr_type = false;
         for (const auto& col : cols) {
-            if (col.name == "NUM_CORR") { has_num_corr = true; }
-            if (col.name == "CORR_TYPE") { has_corr_type = true; }
+            if (col.name == "NUM_CORR") {
+                has_num_corr = true;
+            }
+            if (col.name == "CORR_TYPE") {
+                has_corr_type = true;
+            }
         }
         assert(has_num_corr);
         assert(has_corr_type);
@@ -196,9 +213,15 @@ static void test_subtable_names_list() {
     bool found_spw = false;
     bool found_state = false;
     for (const auto& n : names) {
-        if (n == "ANTENNA") { found_antenna = true; }
-        if (n == "SPECTRAL_WINDOW") { found_spw = true; }
-        if (n == "STATE") { found_state = true; }
+        if (n == "ANTENNA") {
+            found_antenna = true;
+        }
+        if (n == "SPECTRAL_WINDOW") {
+            found_spw = true;
+        }
+        if (n == "STATE") {
+            found_state = true;
+        }
     }
     assert(found_antenna);
     assert(found_spw);
@@ -296,16 +319,23 @@ static void test_flush_round_trip() {
 
         // Add real rows via MsWriter to test flush round-trip.
         casacore_mini::MsWriter writer(ms);
-        writer.add_antenna({.name = "A0", .station = "S0",
-                            .position = {0, 0, 0}, .offset = {0, 0, 0},
+        writer.add_antenna({.name = "A0",
+                            .station = "S0",
+                            .position = {0, 0, 0},
+                            .offset = {0, 0, 0},
                             .dish_diameter = 25.0});
-        writer.add_antenna({.name = "A1", .station = "S1",
-                            .position = {1, 0, 0}, .offset = {0, 0, 0},
+        writer.add_antenna({.name = "A1",
+                            .station = "S1",
+                            .position = {1, 0, 0},
+                            .offset = {0, 0, 0},
                             .dish_diameter = 25.0});
-        writer.add_spectral_window({.num_chan = 1, .ref_frequency = 1e9,
-                                     .chan_freq = {1e9}, .chan_width = {1e6},
-                                     .effective_bw = {1e6}, .resolution = {1e6},
-                                     .total_bandwidth = 1e6});
+        writer.add_spectral_window({.num_chan = 1,
+                                    .ref_frequency = 1e9,
+                                    .chan_freq = {1e9},
+                                    .chan_width = {1e6},
+                                    .effective_bw = {1e6},
+                                    .resolution = {1e6},
+                                    .total_bandwidth = 1e6});
         writer.add_polarization({.num_corr = 1, .corr_type = {5}});
         writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0});
         writer.add_observation({.telescope_name = "TEST"});
@@ -313,10 +343,13 @@ static void test_flush_round_trip() {
         writer.add_field({.name = "SRC"});
 
         for (int i = 0; i < 3; ++i) {
-            writer.add_row({.antenna1 = 0, .antenna2 = 1,
-                             .time = 4.8e9, .time_centroid = 4.8e9,
-                             .uvw = {1, 2, 3},
-                             .sigma = {1.0F}, .weight = {1.0F}});
+            writer.add_row({.antenna1 = 0,
+                            .antenna2 = 1,
+                            .time = 4.8e9,
+                            .time_centroid = 4.8e9,
+                            .uvw = {1, 2, 3},
+                            .sigma = {1.0F},
+                            .weight = {1.0F}});
         }
         writer.flush();
     }
@@ -332,17 +365,17 @@ static void test_flush_round_trip() {
 
 int main() {
     try {
-    std::cout << "measurement_set_test\n";
+        std::cout << "measurement_set_test\n";
 
-    test_ms_enums();
-    test_create_and_reopen();
-    test_subtable_schemas();
-    test_subtable_names_list();
-    test_measure_keywords();
-    test_malformed_paths();
-    test_flush_round_trip();
+        test_ms_enums();
+        test_create_and_reopen();
+        test_subtable_schemas();
+        test_subtable_names_list();
+        test_measure_keywords();
+        test_malformed_paths();
+        test_flush_round_trip();
 
-    std::cout << "all measurement_set tests passed\n";
+        std::cout << "all measurement_set tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;

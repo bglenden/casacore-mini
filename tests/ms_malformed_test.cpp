@@ -142,32 +142,64 @@ static void test_metadata_on_valid_ms() {
     {
         auto ms = MeasurementSet::create(path, false);
         MsWriter writer(ms);
-        writer.add_antenna({.name = "ANT0", .station = {}, .type = "GROUND-BASED",
-                              .mount = "ALT-AZ", .position = {}, .offset = {},
-                              .dish_diameter = 25.0, .flag_row = false});
-        writer.add_field({.name = "F0", .code = {}, .time = 0.0, .num_poly = 0,
-                            .source_id = -1, .flag_row = false});
-        writer.add_spectral_window({.num_chan = 64, .name = "S0", .ref_frequency = 1.4e9,
-                                     .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                     .resolution = {}, .meas_freq_ref = 0,
-                                     .total_bandwidth = 0.0, .net_sideband = 0,
-                                     .if_conv_chain = 0, .freq_group = 0,
-                                     .freq_group_name = {}, .flag_row = false});
-        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
-                                      .flag_row = false});
+        writer.add_antenna({.name = "ANT0",
+                            .station = {},
+                            .type = "GROUND-BASED",
+                            .mount = "ALT-AZ",
+                            .position = {},
+                            .offset = {},
+                            .dish_diameter = 25.0,
+                            .flag_row = false});
+        writer.add_field({.name = "F0",
+                          .code = {},
+                          .time = 0.0,
+                          .num_poly = 0,
+                          .source_id = -1,
+                          .flag_row = false});
+        writer.add_spectral_window({.num_chan = 64,
+                                    .name = "S0",
+                                    .ref_frequency = 1.4e9,
+                                    .chan_freq = {},
+                                    .chan_width = {},
+                                    .effective_bw = {},
+                                    .resolution = {},
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = {},
+                                    .flag_row = false});
+        writer.add_data_description(
+            {.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
         writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
-        writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
-                                 .release_date = 0.0, .flag_row = false});
+        writer.add_observation({.telescope_name = "VLA",
+                                .observer = {},
+                                .project = {},
+                                .release_date = 0.0,
+                                .flag_row = false});
         writer.add_state({.obs_mode = "OBSERVE"});
-        writer.add_row({.antenna1 = 0, .antenna2 = 0, .array_id = 0,
-                         .data_desc_id = 0, .exposure = 0.0, .feed1 = 0, .feed2 = 0,
-                         .field_id = 0, .flag_row = false, .interval = 0.0,
-                         .observation_id = 0, .processor_id = 0,
-                         .scan_number = 1, .state_id = 0, .time = 4.8e9,
-                         .time_centroid = 4.8e9,
-                         .uvw = {0.0, 0.0, 0.0},
-                         .sigma = {1.0F, 1.0F}, .weight = {1.0F, 1.0F},
-                         .data = {}, .flag = {}});
+        writer.add_row({.antenna1 = 0,
+                        .antenna2 = 0,
+                        .array_id = 0,
+                        .data_desc_id = 0,
+                        .exposure = 0.0,
+                        .feed1 = 0,
+                        .feed2 = 0,
+                        .field_id = 0,
+                        .flag_row = false,
+                        .interval = 0.0,
+                        .observation_id = 0,
+                        .processor_id = 0,
+                        .scan_number = 1,
+                        .state_id = 0,
+                        .time = 4.8e9,
+                        .time_centroid = 4.8e9,
+                        .uvw = {0.0, 0.0, 0.0},
+                        .sigma = {1.0F, 1.0F},
+                        .weight = {1.0F, 1.0F},
+                        .data = {},
+                        .flag = {}});
         writer.flush();
     }
 
@@ -191,11 +223,16 @@ static void test_selection_on_empty_subtable() {
     MsWriter writer(ms);
     // Only add required subtable rows to avoid FK errors,
     // but no main-table rows.
-    writer.add_antenna({.name = "ANT0", .station = {}, .type = "GROUND-BASED",
-                         .mount = "ALT-AZ", .position = {}, .offset = {},
-                         .dish_diameter = 0.0, .flag_row = false});
-    writer.add_field({.name = "F0", .code = {}, .time = 0.0, .num_poly = 0,
-                       .source_id = -1, .flag_row = false});
+    writer.add_antenna({.name = "ANT0",
+                        .station = {},
+                        .type = "GROUND-BASED",
+                        .mount = "ALT-AZ",
+                        .position = {},
+                        .offset = {},
+                        .dish_diameter = 0.0,
+                        .flag_row = false});
+    writer.add_field(
+        {.name = "F0", .code = {}, .time = 0.0, .num_poly = 0, .source_id = -1, .flag_row = false});
     writer.flush();
 
     auto ms2 = MeasurementSet::open(path);
@@ -210,17 +247,17 @@ static void test_selection_on_empty_subtable() {
 
 int main() {
     try {
-    std::cout << "ms_malformed_test\n";
+        std::cout << "ms_malformed_test\n";
 
-    test_open_nonexistent_path();
-    test_open_empty_directory();
-    test_open_truncated_table_dat();
-    test_create_over_existing_fails();
-    test_subtable_missing();
-    test_metadata_on_valid_ms();
-    test_selection_on_empty_subtable();
+        test_open_nonexistent_path();
+        test_open_empty_directory();
+        test_open_truncated_table_dat();
+        test_create_over_existing_fails();
+        test_subtable_missing();
+        test_metadata_on_valid_ms();
+        test_selection_on_empty_subtable();
 
-    std::cout << "all ms_malformed tests passed\n";
+        std::cout << "all ms_malformed tests passed\n";
     } catch (const std::exception& e) {
         std::cerr << "FAIL: " << e.what() << "\n";
         return 1;
