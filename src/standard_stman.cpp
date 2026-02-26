@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -251,6 +252,237 @@ class EndianAipsIoReader {
     bool be_ = false;
 };
 
+// --- StManArrayFile indirect entry header parser ---
+//
+// The .f0i file stores entries with this layout:
+//   Version > 0: refCount(uInt) + ndim(uInt) + shape[ndim](Int each) + data
+//   Version == 0: ndim(uInt) + shape[ndim](Int each) + data
+//
+// Returns {ndim, n_elements, shape, data_byte_offset_from_entry_start}.
+struct IndirectEntryHeader {
+    std::uint32_t ndim = 0;
+    std::uint64_t n_elements = 0;
+    std::vector<std::int64_t> shape;
+    std::size_t data_offset = 0; // bytes from entry start to array data
+};
+
+[[nodiscard]] IndirectEntryHeader
+parse_indirect_entry(const std::vector<std::uint8_t>& data,
+                     std::size_t entry_offset, std::uint32_t version, bool big_endian) {
+    IndirectEntryHeader hdr;
+    const auto remaining = data.size() - entry_offset;
+    const std::uint8_t* base = data.data() + entry_offset;
+
+    std::size_t off = 0;
+    // Version > 0 has a refCount uInt before ndim.
+    if (version > 0) {
+        if (remaining < 4) { return hdr; }
+        off += 4; // skip refCount
+    }
+    if (remaining < off + 4) { return hdr; }
+    hdr.ndim = read_endian_u32(base + off, big_endian);
+    off += 4;
+
+    // Sanity: casacore arrays are at most ~10 dimensions in practice.
+    if (hdr.ndim > 32) {
+        throw std::runtime_error("indirect array ndim too large (" +
+                                 std::to_string(hdr.ndim) + ") — possible corrupt offset");
+    }
+
+    if (remaining < off + static_cast<std::size_t>(hdr.ndim) * 4) { return hdr; }
+    hdr.n_elements = 1;
+    hdr.shape.resize(hdr.ndim);
+    for (std::uint32_t d = 0; d < hdr.ndim; ++d) {
+        const auto dim = static_cast<std::int32_t>(
+            read_endian_i32(base + off, big_endian));
+        hdr.shape[d] = dim;
+        hdr.n_elements *= static_cast<std::uint64_t>(dim);
+        off += 4;
+    }
+    hdr.data_offset = off;
+    return hdr;
+}
+
+struct SsmStringRef {
+    std::int32_t bucket_nr = 0;
+    std::int32_t offset = 0;
+    std::int32_t length = 0;
+};
+
+[[nodiscard]] SsmStringRef decode_ssm_string_ref(const std::uint8_t* cell_ptr, bool be) {
+    SsmStringRef ref;
+    ref.bucket_nr = read_endian_i32(cell_ptr, be);
+    ref.offset = read_endian_i32(cell_ptr + 4, be);
+    ref.length = read_endian_i32(cell_ptr + 8, be);
+    return ref;
+}
+
+[[nodiscard]] bool shape_element_count(const std::vector<std::int64_t>& shape,
+                                       std::uint64_t* out) {
+    std::uint64_t n = 1;
+    for (const auto dim : shape) {
+        if (dim < 0) {
+            return false;
+        }
+        const auto udim = static_cast<std::uint64_t>(dim);
+        if (udim == 0) {
+            n = 0;
+            break;
+        }
+        if (n > std::numeric_limits<std::uint64_t>::max() / udim) {
+            return false;
+        }
+        n *= udim;
+    }
+    *out = n;
+    return true;
+}
+
+[[nodiscard]] std::vector<std::uint8_t> read_ssm_string_payload(
+    const std::vector<std::uint8_t>& bucket_data, std::uint32_t bucket_size,
+    bool be, const SsmStringRef& ref) {
+    if (ref.length <= 0) {
+        return {};
+    }
+
+    constexpr std::uint32_t kStrBucketHeader = 16; // 4 canonical ints
+    if (bucket_size <= kStrBucketHeader) {
+        return {};
+    }
+
+    std::vector<std::uint8_t> payload;
+    payload.reserve(static_cast<std::size_t>(ref.length));
+
+    std::int32_t bucket_nr = ref.bucket_nr;
+    std::int32_t offset = ref.offset;
+    std::int32_t remaining = ref.length;
+
+    while (remaining > 0) {
+        if (bucket_nr < 0) {
+            return {};
+        }
+        const auto bucket_off =
+            static_cast<std::size_t>(bucket_nr) * static_cast<std::size_t>(bucket_size);
+        if (bucket_off + bucket_size > bucket_data.size()) {
+            return {};
+        }
+
+        const std::uint8_t* sbkt = bucket_data.data() + bucket_off;
+        const auto used_len = read_endian_i32(sbkt + 4, be);
+        const auto next_bucket = read_endian_i32(sbkt + 12, be);
+        const auto data_area = static_cast<std::int32_t>(bucket_size - kStrBucketHeader);
+
+        if (offset < 0 || offset > data_area) {
+            return {};
+        }
+
+        // used_len may be stale/corrupt in malformed inputs; clamp conservatively.
+        auto available = used_len - offset;
+        if (available < 0) {
+            available = 0;
+        }
+        if (available > data_area - offset) {
+            available = data_area - offset;
+        }
+        const auto ncopy = std::min(remaining, available);
+        if (ncopy > 0) {
+            const auto* src = sbkt + kStrBucketHeader + offset;
+            payload.insert(payload.end(), src, src + ncopy);
+            offset += ncopy;
+            remaining -= ncopy;
+        }
+
+        if (remaining == 0) {
+            break;
+        }
+        if (next_bucket < 0) {
+            return {};
+        }
+        bucket_nr = next_bucket;
+        offset = 0;
+    }
+
+    return payload;
+}
+
+[[nodiscard]] bool parse_ssm_string_array_payload(
+    const std::vector<std::uint8_t>& payload, bool be, bool has_shape_prefix,
+    const std::vector<std::int64_t>& fixed_shape, std::vector<std::int64_t>* shape_out,
+    std::vector<std::string>* values_out) {
+    std::size_t pos = 0;
+    auto read_u32_payload = [&](std::uint32_t* out) -> bool {
+        if (pos + 4 > payload.size()) {
+            return false;
+        }
+        *out = read_endian_u32(payload.data() + pos, be);
+        pos += 4;
+        return true;
+    };
+
+    std::vector<std::int64_t> shape;
+    if (has_shape_prefix) {
+        std::uint32_t ndim = 0;
+        if (!read_u32_payload(&ndim)) {
+            return false;
+        }
+        if (ndim > 32) {
+            return false;
+        }
+        shape.resize(ndim);
+        for (std::uint32_t i = 0; i < ndim; ++i) {
+            std::uint32_t d = 0;
+            if (!read_u32_payload(&d)) {
+                return false;
+            }
+            shape[i] = static_cast<std::int64_t>(static_cast<std::int32_t>(d));
+            if (shape[i] < 0) {
+                return false;
+            }
+        }
+
+        std::uint32_t filled = 0;
+        if (!read_u32_payload(&filled)) {
+            return false;
+        }
+
+        std::uint64_t n_elem = 0;
+        if (!shape_element_count(shape, &n_elem)) {
+            return false;
+        }
+
+        if (filled == 0U) {
+            shape_out->swap(shape);
+            values_out->assign(static_cast<std::size_t>(n_elem), std::string{});
+            return true;
+        }
+    } else {
+        shape = fixed_shape;
+    }
+
+    std::uint64_t n_elem = 0;
+    if (!shape_element_count(shape, &n_elem)) {
+        return false;
+    }
+
+    std::vector<std::string> values;
+    values.reserve(static_cast<std::size_t>(n_elem));
+    for (std::uint64_t i = 0; i < n_elem; ++i) {
+        std::uint32_t slen = 0;
+        if (!read_u32_payload(&slen)) {
+            return false;
+        }
+        if (pos + slen > payload.size()) {
+            return false;
+        }
+        values.emplace_back(reinterpret_cast<const char*>(payload.data() + pos), slen);
+        pos += slen;
+    }
+
+    shape_out->swap(shape);
+    values_out->swap(values);
+    return true;
+}
+
 // --- SSM string cell reader ---
 
 [[nodiscard]] std::string read_ssm_string_cell(const std::uint8_t* cell_ptr,
@@ -358,7 +590,25 @@ SsmFileHeader parse_ssm_file_header(const std::span<const std::uint8_t> header_b
         throw std::runtime_error("SSM file header too short (< 512 bytes)");
     }
 
-    EndianAipsIoReader reader(header_bytes, big_endian);
+    // The SSM .f0 file header is an AipsIO stream whose endianness matches
+    // the SSM's own storage endianness, NOT necessarily table_dat.big_endian.
+    // The AipsIO magic 0xBEBEBEBE is endian-neutral (palindrome).
+    // To detect the correct endianness, try the caller's hint first; if the
+    // AipsIO object length is unreasonable (>= 512), flip the endianness.
+    bool file_be = big_endian;
+    {
+        // Object length is at offset 4 (after the 4-byte magic).
+        const auto be_len = read_be_u32(header_bytes.data() + 4);
+        const auto le_len = read_le_u32(header_bytes.data() + 4);
+        if (be_len >= 512 && le_len < 512) {
+            file_be = false;
+        } else if (le_len >= 512 && be_len < 512) {
+            file_be = true;
+        }
+        // If both are < 512 (unlikely), stick with the caller's hint.
+    }
+
+    EndianAipsIoReader reader(header_bytes, file_be);
     const auto hdr = reader.read_object_header();
     if (hdr.type != "StandardStMan") {
         throw std::runtime_error("expected StandardStMan header, got: " + hdr.type);
@@ -368,9 +618,11 @@ SsmFileHeader parse_ssm_file_header(const std::span<const std::uint8_t> header_b
 
     if (hdr.version >= 3) {
         const auto be_flag = reader.read_u8();
-        if ((be_flag != 0) != big_endian) {
-            throw std::runtime_error("SSM endian flag mismatch");
-        }
+        // The SSM header's own endian flag is authoritative.
+        result.ssm_big_endian = (be_flag != 0);
+    } else {
+        // Pre-v3 files have no explicit endian flag; use detected file endianness.
+        result.ssm_big_endian = file_be;
     }
 
     result.bucket_size = reader.read_u32();
@@ -459,6 +711,9 @@ void SsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
     table_dat_ = &table_dat;
     big_endian_ = table_dat.big_endian;
     row_count_ = table_dat.row_count;
+    table_dir_ = table_dir;
+    indirect_loaded_ = false;
+    indirect_data_.clear();
 
     if (sm_index >= table_dat.storage_managers.size()) {
         throw std::runtime_error("SM index out of range");
@@ -467,6 +722,7 @@ void SsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
     if (sm.type_name != "StandardStMan") {
         throw std::runtime_error("not a StandardStMan: " + sm.type_name);
     }
+    sm_seq_nr_ = sm.sequence_number;
 
     blob_ = parse_ssm_blob(sm.data_blob);
 
@@ -477,8 +733,11 @@ void SsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
         throw std::runtime_error("SSM file too small: " + f0_path.string());
     }
 
+    // Parse the file header using table_dat.big_endian for the AipsIO framing,
+    // then adopt the SSM header's own endian flag for bucket/index/indirect data.
     file_header_ =
         parse_ssm_file_header(std::span<const std::uint8_t>(file_data.data(), 512), big_endian_);
+    big_endian_ = file_header_.ssm_big_endian;
 
     constexpr std::size_t kHeaderSize = 512;
     if (file_data.size() > kHeaderSize) {
@@ -508,17 +767,23 @@ void SsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
         const std::uint8_t* bp = bucket_data_.data() + bkt_off;
 
         if (file_header_.idx_bucket_offset > 0) {
+            // Index fits entirely in this single data bucket at the given offset.
+            // Per casacore: when idx_bucket_offset > 0, nr_idx_buckets == 1.
             const auto n =
                 std::min(bytes_left, file_header_.bucket_size - file_header_.idx_bucket_offset);
             assembled_index.insert(assembled_index.end(), bp + file_header_.idx_bucket_offset,
                                    bp + file_header_.idx_bucket_offset + n);
             bytes_left -= n;
         } else {
+            // Dedicated index bucket: first 8 bytes are link header
+            // (4 bytes check + 4 bytes next-bucket-nr), data follows.
             const auto n = std::min(bytes_left, idx_data_per_bucket);
             assembled_index.insert(assembled_index.end(), bp + kIdxLinkSize, bp + kIdxLinkSize + n);
             bytes_left -= n;
             // Next bucket number is at offset kCanonIntSize in the link header.
-            bkt_nr = read_endian_i32(bp + kCanonIntSize, big_endian_);
+            // Bucket link fields are always in canonical (big-endian) format,
+            // regardless of the SSM's data endianness.
+            bkt_nr = read_be_i32(bp + kCanonIntSize);
         }
     }
 
@@ -541,6 +806,7 @@ void SsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
             throw std::runtime_error("column not in table desc: " + cs.column_name);
         }
         info.data_type = it->data_type;
+        info.kind = it->kind;
 
         const auto sm_col = columns_.size();
         if (sm_col >= blob_.column_offset.size() || sm_col >= blob_.col_index_map.size()) {
@@ -549,6 +815,48 @@ void SsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
         info.col_offset = blob_.column_offset[sm_col];
         info.index_nr = blob_.col_index_map[sm_col];
         info.ext_size = canonical_type_size(info.data_type);
+        info.fixed_shape.clear();
+
+        // For array columns, determine if direct or indirect storage.
+        // casacore uses ColumnDesc::Direct (bit 0 of options) to decide:
+        //   options & 1 → SSMDirColumn (data stored inline in bucket)
+        //   otherwise   → SSMIndColumn (bucket stores Int64 offset into .f0i file)
+        if (it->kind == ColumnKind::array) {
+            const bool is_direct = (it->options & 1) != 0;
+
+            // Compute n_elements from shape if available (for both direct and indirect).
+            if (cs.has_shape && !cs.shape.empty()) {
+                std::uint64_t n = 1;
+                for (const auto dim : cs.shape) {
+                    n *= static_cast<std::uint64_t>(dim);
+                }
+                info.n_elements = n;
+                info.fixed_shape = cs.shape;
+            } else if (!it->shape.empty()) {
+                std::uint64_t n = 1;
+                for (const auto dim : it->shape) {
+                    n *= static_cast<std::uint64_t>(dim);
+                }
+                info.n_elements = n;
+                info.fixed_shape = it->shape;
+            }
+
+            if (!is_direct) {
+                // Indirect array. Most dtypes use SSMIndColumn (Int64 offset into .f0i).
+                // TpString uses SSMIndStringColumn and stores 3 canonical Ints
+                // (bucketNr, offset, length) in the main bucket.
+                info.indirect = true;
+                info.indirect_string = (it->data_type == DataType::tp_string);
+                info.ext_size = info.indirect_string ? 12U : 8U;
+                info.n_elements = 1;
+            }
+        }
+
+        if (info.indirect) {
+            info.row_size = info.ext_size;
+        } else {
+            info.row_size = info.ext_size * static_cast<std::uint32_t>(info.n_elements);
+        }
 
         columns_.push_back(std::move(info));
     }
@@ -601,6 +909,10 @@ CellValue SsmReader::read_cell(const std::string_view col_name, const std::uint6
             return read_be_f32(cp);
         case DataType::tp_double:
             return read_be_f64(cp);
+        case DataType::tp_complex:
+            return std::complex<float>(read_be_f32(cp), read_be_f32(cp + 4));
+        case DataType::tp_dcomplex:
+            return std::complex<double>(read_be_f64(cp), read_be_f64(cp + 8));
         default:
             throw std::runtime_error("unsupported data type for SSM read");
         }
@@ -617,9 +929,512 @@ CellValue SsmReader::read_cell(const std::string_view col_name, const std::uint6
         return read_le_f32(cp);
     case DataType::tp_double:
         return read_le_f64(cp);
+    case DataType::tp_complex:
+        return std::complex<float>(read_le_f32(cp), read_le_f32(cp + 4));
+    case DataType::tp_dcomplex:
+        return std::complex<double>(read_le_f64(cp), read_le_f64(cp + 8));
     default:
         throw std::runtime_error("unsupported data type for SSM read");
     }
+}
+
+std::vector<std::uint8_t> SsmReader::read_array_raw(const std::string_view col_name,
+                                                    const std::uint64_t row) const {
+    if (!is_open_) {
+        throw std::runtime_error("SsmReader not open");
+    }
+
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+
+    if (col.n_elements <= 1) {
+        throw std::runtime_error("read_array_raw: column '" + std::string(col_name) +
+                                 "' is not a fixed-shape array");
+    }
+
+    if (col.index_nr >= indices_.size()) {
+        throw std::runtime_error("index out of range for column: " + col.name);
+    }
+    const auto lookup = find_bucket(indices_[col.index_nr], row);
+
+    const auto bkt_off = static_cast<std::size_t>(lookup.bucket_nr) * file_header_.bucket_size;
+    if (bkt_off + file_header_.bucket_size > bucket_data_.size()) {
+        throw std::runtime_error("data bucket out of range");
+    }
+
+    const std::uint8_t* bp = bucket_data_.data() + bkt_off;
+    const auto row_in_bkt = row - lookup.start_row;
+    const std::uint8_t* cp = bp + col.col_offset + row_in_bkt * col.row_size;
+
+    return {cp, cp + col.row_size};
+}
+
+std::vector<double> SsmReader::read_array_double(const std::string_view col_name,
+                                                  const std::uint64_t row) const {
+    auto raw = read_array_raw(col_name, row);
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    const auto n = col.n_elements;
+
+    std::vector<double> result(n);
+    const std::uint8_t* p = raw.data();
+    for (std::uint64_t i = 0; i < n; ++i) {
+        if (big_endian_) {
+            result[i] = read_be_f64(p + i * 8);
+        } else {
+            result[i] = read_le_f64(p + i * 8);
+        }
+    }
+    return result;
+}
+
+std::vector<float> SsmReader::read_array_float(const std::string_view col_name,
+                                                const std::uint64_t row) const {
+    auto raw = read_array_raw(col_name, row);
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    const auto n = col.n_elements;
+
+    std::vector<float> result(n);
+    const std::uint8_t* p = raw.data();
+    for (std::uint64_t i = 0; i < n; ++i) {
+        if (big_endian_) {
+            result[i] = read_be_f32(p + i * 4);
+        } else {
+            result[i] = read_le_f32(p + i * 4);
+        }
+    }
+    return result;
+}
+
+bool SsmReader::is_indirect(const std::string_view col_name) const {
+    if (!is_open_) {
+        return false;
+    }
+    const auto ci = find_column(col_name);
+    return columns_[ci].indirect;
+}
+
+void SsmReader::ensure_indirect_loaded() const {
+    if (indirect_loaded_) {
+        return;
+    }
+    indirect_loaded_ = true;
+    const auto path = std::filesystem::path(table_dir_) /
+                      ("table.f" + std::to_string(sm_seq_nr_) + "i");
+    if (!std::filesystem::exists(path)) {
+        return; // No indirect file — indirect reads will fail with empty data.
+    }
+    indirect_data_ = read_file(path);
+
+    // Parse StManArrayFile header: version (uInt) at offset 0.
+    if (indirect_data_.size() >= 4) {
+        if (big_endian_) {
+            indirect_version_ = read_be_u32(indirect_data_.data());
+        } else {
+            indirect_version_ = read_le_u32(indirect_data_.data());
+        }
+    }
+}
+
+std::int64_t SsmReader::read_indirect_offset(const std::string_view col_name,
+                                              const std::uint64_t row) const {
+    if (!is_open_) {
+        throw std::runtime_error("SsmReader not open");
+    }
+    const auto ci = find_column(col_name);
+    return read_indirect_offset(columns_[ci], row);
+}
+
+std::int64_t SsmReader::read_indirect_offset(const ColumnInfo& col,
+                                              const std::uint64_t row) const {
+    if (col.index_nr >= indices_.size()) {
+        throw std::runtime_error("index out of range for column: " + col.name);
+    }
+    const auto lookup = find_bucket(indices_[col.index_nr], row);
+    const auto bkt_off = static_cast<std::size_t>(lookup.bucket_nr) * file_header_.bucket_size;
+    if (bkt_off + file_header_.bucket_size > bucket_data_.size()) {
+        throw std::runtime_error("data bucket out of range");
+    }
+    const std::uint8_t* bp = bucket_data_.data() + bkt_off;
+    const auto row_in_bkt = row - lookup.start_row;
+    const std::uint8_t* cp = bp + col.col_offset + row_in_bkt * col.row_size;
+    if (big_endian_) {
+        return static_cast<std::int64_t>(read_be_u64(cp));
+    }
+    return static_cast<std::int64_t>(read_le_u64(cp));
+}
+
+std::vector<float> SsmReader::read_indirect_float(const std::string_view col_name,
+                                                   const std::uint64_t row) const {
+    if (!is_open_) {
+        throw std::runtime_error("SsmReader not open");
+    }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_float: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {}; // No data.
+    }
+
+    const auto hdr = parse_indirect_entry(
+        indirect_data_, static_cast<std::size_t>(file_offset),
+        indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) {
+        return {};
+    }
+
+    const auto data_bytes = hdr.n_elements * 4;
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset + data_bytes) {
+        return {};
+    }
+
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    std::vector<float> result(hdr.n_elements);
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        if (big_endian_) {
+            result[i] = read_be_f32(dp + i * 4);
+        } else {
+            result[i] = read_le_f32(dp + i * 4);
+        }
+    }
+    return result;
+}
+
+std::vector<double> SsmReader::read_indirect_double(const std::string_view col_name,
+                                                     const std::uint64_t row) const {
+    if (!is_open_) {
+        throw std::runtime_error("SsmReader not open");
+    }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_double: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(
+        indirect_data_, static_cast<std::size_t>(file_offset),
+        indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) {
+        return {};
+    }
+
+    const auto data_bytes = hdr.n_elements * 8;
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset + data_bytes) {
+        return {};
+    }
+
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    std::vector<double> result(hdr.n_elements);
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        if (big_endian_) {
+            result[i] = read_be_f64(dp + i * 8);
+        } else {
+            result[i] = read_le_f64(dp + i * 8);
+        }
+    }
+    return result;
+}
+
+std::vector<bool> SsmReader::read_indirect_bool(const std::string_view col_name,
+                                                 const std::uint64_t row) const {
+    if (!is_open_) {
+        throw std::runtime_error("SsmReader not open");
+    }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_bool: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(
+        indirect_data_, static_cast<std::size_t>(file_offset),
+        indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) {
+        return {};
+    }
+
+    // Bool arrays stored as 1 byte (uChar) per element in the indirect file.
+    const auto data_bytes = hdr.n_elements;
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset + data_bytes) {
+        return {};
+    }
+
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    std::vector<bool> result(hdr.n_elements);
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        result[i] = dp[i] != 0;
+    }
+    return result;
+}
+
+std::vector<std::int32_t> SsmReader::read_indirect_int(const std::string_view col_name,
+                                                        const std::uint64_t row) const {
+    if (!is_open_) { throw std::runtime_error("SsmReader not open"); }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_int: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(
+        indirect_data_, static_cast<std::size_t>(file_offset),
+        indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) { return {}; }
+
+    const auto data_bytes = hdr.n_elements * 4;
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset + data_bytes) { return {}; }
+
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    std::vector<std::int32_t> result(hdr.n_elements);
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        result[i] = read_endian_i32(dp + i * 4, big_endian_);
+    }
+    return result;
+}
+
+std::vector<std::complex<float>> SsmReader::read_indirect_complex(
+    const std::string_view col_name, const std::uint64_t row) const {
+    if (!is_open_) { throw std::runtime_error("SsmReader not open"); }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_complex: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(
+        indirect_data_, static_cast<std::size_t>(file_offset),
+        indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) { return {}; }
+
+    const auto data_bytes = hdr.n_elements * 8; // 4 bytes real + 4 bytes imag
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset + data_bytes) { return {}; }
+
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    std::vector<std::complex<float>> result(hdr.n_elements);
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        float re = big_endian_ ? read_be_f32(dp + i * 8) : read_le_f32(dp + i * 8);
+        float im = big_endian_ ? read_be_f32(dp + i * 8 + 4) : read_le_f32(dp + i * 8 + 4);
+        result[i] = {re, im};
+    }
+    return result;
+}
+
+std::vector<std::complex<double>> SsmReader::read_indirect_dcomplex(
+    const std::string_view col_name, const std::uint64_t row) const {
+    if (!is_open_) { throw std::runtime_error("SsmReader not open"); }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_dcomplex: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(
+        indirect_data_, static_cast<std::size_t>(file_offset),
+        indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) { return {}; }
+
+    const auto data_bytes = hdr.n_elements * 16; // 8 bytes real + 8 bytes imag
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset + data_bytes) { return {}; }
+
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    std::vector<std::complex<double>> result(hdr.n_elements);
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        double re = big_endian_ ? read_be_f64(dp + i * 16) : read_le_f64(dp + i * 16);
+        double im = big_endian_ ? read_be_f64(dp + i * 16 + 8) : read_le_f64(dp + i * 16 + 8);
+        result[i] = {re, im};
+    }
+    return result;
+}
+
+std::vector<std::string> SsmReader::read_indirect_string(
+    const std::string_view col_name, const std::uint64_t row) const {
+    if (!is_open_) { throw std::runtime_error("SsmReader not open"); }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_string: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    if (col.indirect_string) {
+        if (col.index_nr >= indices_.size()) {
+            return {};
+        }
+        const auto lookup = find_bucket(indices_[col.index_nr], row);
+        const auto bkt_off = static_cast<std::size_t>(lookup.bucket_nr) * file_header_.bucket_size;
+        if (bkt_off + file_header_.bucket_size > bucket_data_.size()) {
+            return {};
+        }
+
+        const std::uint8_t* bp = bucket_data_.data() + bkt_off;
+        const auto row_in_bkt = row - lookup.start_row;
+        const std::uint8_t* cp = bp + col.col_offset + row_in_bkt * col.row_size;
+        const auto ref = decode_ssm_string_ref(cp, big_endian_);
+
+        if (ref.length <= 0) {
+            if (!col.fixed_shape.empty()) {
+                std::uint64_t n_elem = 0;
+                if (!shape_element_count(col.fixed_shape, &n_elem)) {
+                    return {};
+                }
+                return std::vector<std::string>(static_cast<std::size_t>(n_elem), std::string{});
+            }
+            return {};
+        }
+
+        const auto payload =
+            read_ssm_string_payload(bucket_data_, file_header_.bucket_size, big_endian_, ref);
+        std::vector<std::int64_t> shape;
+        std::vector<std::string> values;
+        const bool has_shape_prefix = col.fixed_shape.empty();
+        if (!parse_ssm_string_array_payload(payload, big_endian_, has_shape_prefix,
+                                            col.fixed_shape, &shape, &values)) {
+            return {};
+        }
+        return values;
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(indirect_data_, static_cast<std::size_t>(file_offset),
+                                          indirect_version_, big_endian_);
+    if (hdr.n_elements == 0) {
+        return {};
+    }
+
+    // Strings stored as: for each element, a uInt length followed by bytes.
+    const std::uint8_t* dp = indirect_data_.data() + file_offset + hdr.data_offset;
+    const auto remaining = indirect_data_.size() - static_cast<std::size_t>(file_offset);
+    if (remaining < hdr.data_offset) {
+        return {};
+    }
+    const auto avail = remaining - hdr.data_offset;
+
+    std::vector<std::string> result;
+    result.reserve(hdr.n_elements);
+    std::size_t pos = 0;
+    for (std::uint64_t i = 0; i < hdr.n_elements; ++i) {
+        if (pos + 4 > avail) {
+            return {};
+        }
+        const auto len = read_endian_u32(dp + pos, big_endian_);
+        pos += 4;
+        if (pos + len > avail) {
+            return {};
+        }
+        result.emplace_back(reinterpret_cast<const char*>(dp + pos), len);
+        pos += len;
+    }
+    return result;
+}
+
+std::vector<std::int64_t> SsmReader::read_indirect_shape(
+    const std::string_view col_name, const std::uint64_t row) const {
+    if (!is_open_) { throw std::runtime_error("SsmReader not open"); }
+    const auto ci = find_column(col_name);
+    const auto& col = columns_[ci];
+    if (!col.indirect) {
+        throw std::runtime_error("read_indirect_shape: column '" +
+                                 std::string(col_name) + "' is not indirect");
+    }
+
+    if (col.indirect_string) {
+        if (!col.fixed_shape.empty()) {
+            return col.fixed_shape;
+        }
+        if (col.index_nr >= indices_.size()) {
+            return {};
+        }
+        const auto lookup = find_bucket(indices_[col.index_nr], row);
+        const auto bkt_off = static_cast<std::size_t>(lookup.bucket_nr) * file_header_.bucket_size;
+        if (bkt_off + file_header_.bucket_size > bucket_data_.size()) {
+            return {};
+        }
+        const std::uint8_t* bp = bucket_data_.data() + bkt_off;
+        const auto row_in_bkt = row - lookup.start_row;
+        const std::uint8_t* cp = bp + col.col_offset + row_in_bkt * col.row_size;
+        const auto ref = decode_ssm_string_ref(cp, big_endian_);
+        if (ref.length <= 0) {
+            return {};
+        }
+        const auto payload =
+            read_ssm_string_payload(bucket_data_, file_header_.bucket_size, big_endian_, ref);
+        std::vector<std::int64_t> shape;
+        std::vector<std::string> values;
+        if (!parse_ssm_string_array_payload(payload, big_endian_, true, {}, &shape, &values)) {
+            return {};
+        }
+        return shape;
+    }
+
+    ensure_indirect_loaded();
+    const auto file_offset = read_indirect_offset(col, row);
+    if (file_offset <= 0 || static_cast<std::uint64_t>(file_offset) >= indirect_data_.size()) {
+        return {};
+    }
+
+    const auto hdr = parse_indirect_entry(indirect_data_, static_cast<std::size_t>(file_offset),
+                                          indirect_version_, big_endian_);
+    return hdr.shape;
+}
+
+bool SsmReader::has_column(std::string_view col_name) const noexcept {
+    for (const auto& col : columns_) {
+        if (col.name == col_name) return true;
+    }
+    return false;
 }
 
 std::size_t SsmReader::column_count() const noexcept {
@@ -838,51 +1653,140 @@ void SsmWriter::setup(const std::vector<ColumnDesc>& columns, const std::uint64_
     dm_name_ = dm_name;
     row_count_ = row_count;
 
-    // Compute column offsets and bucket size.
-    // All columns go into a single index (one column group).
-    std::uint32_t offset = 0;
+    // Build column info, accounting for array vs scalar vs indirect storage.
     columns_.clear();
     for (const auto& cd : columns) {
         WriterColumnInfo info;
         info.name = cd.name;
         info.data_type = cd.data_type;
+        info.kind = cd.kind;
         info.ext_size = canonical_type_size(cd.data_type);
-        info.col_offset = offset;
 
-        // Allocate space for rows_per_bucket rows.
-        // We compute rows_per_bucket below, so first accumulate per-row size.
+        if (cd.kind == ColumnKind::array) {
+            if (!cd.shape.empty()) {
+                // Fixed-shape array → SSMDirColumn: stored directly in bucket.
+                std::uint64_t n = 1;
+                for (const auto dim : cd.shape) {
+                    n *= static_cast<std::uint64_t>(dim);
+                }
+                info.n_elements = n;
+                info.indirect = false;
+            } else {
+                // Variable-shape array → SSMIndColumn: bucket stores Int64 offset.
+                info.n_elements = 1; // one Int64 offset per row in bucket
+                info.ext_size = 8;   // Int64
+                info.indirect = true;
+            }
+        }
+
+        // Compute per-row size in the bucket.
+        if (cd.data_type == DataType::tp_bool && !info.indirect) {
+            // Bools: stored as bits. For arrays, n_elements bits per row.
+            info.row_size = 0; // special-cased in bucket layout
+        } else if (info.indirect) {
+            info.row_size = 8; // Int64 offset per row
+        } else {
+            info.row_size = info.ext_size * static_cast<std::uint32_t>(info.n_elements);
+        }
+
         columns_.push_back(std::move(info));
-
-        // Minimum 1 byte per row even for booleans.
-        if (cd.data_type == DataType::tp_bool) {
-            offset += 1; // will be adjusted below
-        } else {
-            offset += columns_.back().ext_size;
-        }
     }
 
-    // casacore uses a default bucket size that can hold about 32 rows.
-    // Let's compute: bucket_size = per_row_bytes * 32, rounded up to be practical.
+    // Compute bucket size following casacore-original's SSMBase::setBucketSize()
+    // algorithm: target 32 rows per bucket, bucket size = data for those rows,
+    // clamped to [128, 32768].  Then verify the index fits in one bucket; if
+    // not, double bucket_size and recompute until it does.
+    constexpr std::uint32_t kMinBucketSize = 128;
+    constexpr std::uint32_t kMaxBucketSize = 32768;
     constexpr std::uint32_t kTargetRowsPerBucket = 32;
-    rows_per_bucket_ = kTargetRowsPerBucket;
-    bucket_size_ = 0;
+
+    // Helper: compute the total data bytes for a given number of rows per
+    // bucket, accounting for bool bit-packing.
+    auto compute_data_size = [&](std::uint32_t rpb) -> std::uint32_t {
+        std::uint32_t sz = 0;
+        for (const auto& ci : columns_) {
+            if (ci.data_type == DataType::tp_bool && !ci.indirect) {
+                sz += static_cast<std::uint32_t>(
+                    (static_cast<std::uint64_t>(rpb) * ci.n_elements + 7U) / 8U);
+            } else {
+                sz += ci.row_size * rpb;
+            }
+        }
+        return sz;
+    };
+
+    // Compute total full-byte size per row (ignoring bool bit-packing remainder).
+    std::uint32_t total_row_bytes = 0;
     for (const auto& ci : columns_) {
-        if (ci.data_type == DataType::tp_bool) {
-            // rows_per_bucket bits, rounded up to bytes.
-            bucket_size_ += (rows_per_bucket_ + 7U) / 8U;
+        total_row_bytes += ci.row_size;
+    }
+
+    // Step 1: Compute initial bucket size from the target of 32 rows.
+    // This mirrors casacore-original's advBucketRows path.
+    {
+        const auto target_data = compute_data_size(kTargetRowsPerBucket);
+        bucket_size_ = std::min(kMaxBucketSize, std::max(kMinBucketSize, target_data));
+
+        if (bucket_size_ == target_data) {
+            // Target rows fit perfectly in the clamped bucket size.
+            rows_per_bucket_ = kTargetRowsPerBucket;
         } else {
-            bucket_size_ += ci.ext_size * rows_per_bucket_;
+            // Bucket was clamped; compute rows that fit in the clamped size.
+            if (total_row_bytes > 0) {
+                rows_per_bucket_ = bucket_size_ / total_row_bytes;
+            } else {
+                rows_per_bucket_ = kTargetRowsPerBucket;
+            }
+            if (rows_per_bucket_ < 1) {
+                rows_per_bucket_ = 1;
+            }
+            // Refine with bool bit-packing: increase while data fits.
+            while (compute_data_size(rows_per_bucket_ + 1) <= bucket_size_) {
+                rows_per_bucket_++;
+            }
         }
     }
 
-    // Recompute column offsets for rows_per_bucket.
-    offset = 0;
+    // Step 2: Estimate the SSMIndex size and ensure it fits in one bucket.
+    // The index stores: SSMIndex AipsIO header (24 bytes: magic+objlen+string+ver)
+    // + nUsed/rowsPerBucket/nrColumns (12 bytes) + SimpleOrderedMap (40 bytes) +
+    // two Block<uInt> arrays (each: 17 byte header + 4 bytes per data bucket) +
+    // 8-byte link header at the start of the index bucket.
+    // Measured: 118 bytes base (0 data buckets) + 8 per data bucket + 8 link.
+    constexpr std::uint32_t kIndexFixedOverhead = 126;  // 118 base + 8 link header
+    constexpr std::uint32_t kIndexPerBucket = 8;
+
+    while (bucket_size_ < kMaxBucketSize) {
+        const auto nr_buckets =
+            (row_count_ > 0)
+                ? static_cast<std::uint32_t>((row_count_ - 1) / rows_per_bucket_ + 1)
+                : 0U;
+        const auto est_index = kIndexFixedOverhead + kIndexPerBucket * nr_buckets;
+        if (est_index <= bucket_size_) {
+            break;  // index fits
+        }
+        // Double bucket size and recompute rows_per_bucket.
+        bucket_size_ = std::min(kMaxBucketSize, bucket_size_ * 2);
+        if (total_row_bytes > 0) {
+            rows_per_bucket_ = bucket_size_ / total_row_bytes;
+        }
+        if (rows_per_bucket_ < 1) {
+            rows_per_bucket_ = 1;
+        }
+        while (compute_data_size(rows_per_bucket_ + 1) <= bucket_size_) {
+            rows_per_bucket_++;
+        }
+    }
+
+    // Compute column offsets for the final rows_per_bucket.
+    std::uint32_t offset = 0;
     for (auto& ci : columns_) {
         ci.col_offset = offset;
-        if (ci.data_type == DataType::tp_bool) {
-            offset += (rows_per_bucket_ + 7U) / 8U;
+        if (ci.data_type == DataType::tp_bool && !ci.indirect) {
+            const auto n_bits = ci.n_elements * rows_per_bucket_;
+            offset += static_cast<std::uint32_t>((n_bits + 7U) / 8U);
         } else {
-            offset += ci.ext_size * rows_per_bucket_;
+            offset += ci.row_size * rows_per_bucket_;
         }
     }
 
@@ -897,6 +1801,7 @@ void SsmWriter::setup(const std::vector<ColumnDesc>& columns, const std::uint64_
     string_bucket_data_.clear();
     string_bucket_offset_ = 0;
     nr_string_buckets_ = 0;
+    indirect_data_.clear();
 
     is_setup_ = true;
 }
@@ -950,25 +1855,51 @@ void SsmWriter::write_cell(const std::size_t col_index, const CellValue& value,
             }
             write_endian_i32(cp + 8, len, big_endian_);
         } else {
-            // Long string: allocate in string bucket.
-            // For simplicity we allocate one string bucket.
+            // Long string: allocate in string bucket(s).
+            // Each bucket has a 16-byte header: next_bucket, data_used, deleted, next_deleted.
             constexpr std::uint32_t kStrBucketHeader = 16;
-            if (string_bucket_data_.empty()) {
-                string_bucket_data_.assign(bucket_size_, 0);
-                // Header: 4 canonical ints (next_bucket, data_used, deleted, next_deleted)
-                write_endian_i32(string_bucket_data_.data(), -1, big_endian_);
-                write_endian_i32(string_bucket_data_.data() + 4, 0, big_endian_);
-                write_endian_i32(string_bucket_data_.data() + 8, 0, big_endian_);
-                write_endian_i32(string_bucket_data_.data() + 12, -1, big_endian_);
-                nr_string_buckets_ = 1;
+            const auto usable = bucket_size_ - kStrBucketHeader;
+
+            auto init_new_string_bucket = [&]() {
+                string_bucket_data_.resize(string_bucket_data_.size() + bucket_size_, 0);
+                auto* bkt = string_bucket_data_.data() +
+                            static_cast<std::size_t>(nr_string_buckets_) * bucket_size_;
+                write_endian_i32(bkt, -1, big_endian_);      // next_bucket
+                write_endian_i32(bkt + 4, 0, big_endian_);   // data_used
+                write_endian_i32(bkt + 8, 0, big_endian_);   // deleted
+                write_endian_i32(bkt + 12, -1, big_endian_); // next_deleted
+                ++nr_string_buckets_;
                 string_bucket_offset_ = 0;
+            };
+
+            if (string_bucket_data_.empty()) {
+                init_new_string_bucket();
             }
+
+            // Check if current bucket has room.
+            if (string_bucket_offset_ + static_cast<std::uint32_t>(len) > usable) {
+                // Finalize current bucket: write data_used in header.
+                auto cur_idx = nr_string_buckets_ - 1;
+                auto* cur_bkt = string_bucket_data_.data() +
+                                static_cast<std::size_t>(cur_idx) * bucket_size_;
+                write_endian_i32(cur_bkt + 4,
+                                 static_cast<std::int32_t>(string_bucket_offset_),
+                                 big_endian_);
+                // Set next_bucket to the new bucket number.
+                auto new_abs_nr = static_cast<std::int32_t>(nr_data_buckets_ + nr_string_buckets_);
+                write_endian_i32(cur_bkt, new_abs_nr, big_endian_);
+                init_new_string_bucket();
+            }
+
+            auto cur_idx = nr_string_buckets_ - 1;
             const auto str_bucket_nr =
-                static_cast<std::int32_t>(nr_data_buckets_); // string buckets follow data buckets
+                static_cast<std::int32_t>(nr_data_buckets_ + cur_idx);
             last_string_bucket_ = str_bucket_nr;
 
             auto str_offset = static_cast<std::int32_t>(string_bucket_offset_);
-            std::memcpy(string_bucket_data_.data() + kStrBucketHeader + string_bucket_offset_,
+            std::memcpy(string_bucket_data_.data() +
+                            static_cast<std::size_t>(cur_idx) * bucket_size_ +
+                            kStrBucketHeader + string_bucket_offset_,
                         sv->data(), static_cast<std::size_t>(len));
             string_bucket_offset_ += static_cast<std::uint32_t>(len);
 
@@ -1024,6 +1955,24 @@ void SsmWriter::write_cell(const std::size_t col_index, const CellValue& value,
             write_be_f64(cp, *dv);
             break;
         }
+        case DataType::tp_complex: {
+            const auto* cv = std::get_if<std::complex<float>>(&value);
+            if (cv == nullptr) {
+                throw std::runtime_error("type mismatch: expected complex");
+            }
+            write_be_f32(cp, cv->real());
+            write_be_f32(cp + 4, cv->imag());
+            break;
+        }
+        case DataType::tp_dcomplex: {
+            const auto* dcv = std::get_if<std::complex<double>>(&value);
+            if (dcv == nullptr) {
+                throw std::runtime_error("type mismatch: expected dcomplex");
+            }
+            write_be_f64(cp, dcv->real());
+            write_be_f64(cp + 8, dcv->imag());
+            break;
+        }
         default:
             throw std::runtime_error("unsupported data type for SSM write");
         }
@@ -1069,11 +2018,223 @@ void SsmWriter::write_cell(const std::size_t col_index, const CellValue& value,
             write_le_f64(cp, *dv);
             break;
         }
+        case DataType::tp_complex: {
+            const auto* cv = std::get_if<std::complex<float>>(&value);
+            if (cv == nullptr) {
+                throw std::runtime_error("type mismatch: expected complex");
+            }
+            write_le_f32(cp, cv->real());
+            write_le_f32(cp + 4, cv->imag());
+            break;
+        }
+        case DataType::tp_dcomplex: {
+            const auto* dcv = std::get_if<std::complex<double>>(&value);
+            if (dcv == nullptr) {
+                throw std::runtime_error("type mismatch: expected dcomplex");
+            }
+            write_le_f64(cp, dcv->real());
+            write_le_f64(cp + 8, dcv->imag());
+            break;
+        }
         default:
             throw std::runtime_error("unsupported data type for SSM write");
         }
     }
     // NOLINTEND(bugprone-branch-clone)
+}
+
+void SsmWriter::write_array_raw(const std::size_t col_index,
+                                const std::span<const std::uint8_t> data,
+                                const std::uint64_t row) {
+    if (!is_setup_) {
+        throw std::runtime_error("SsmWriter not setup");
+    }
+    if (col_index >= columns_.size()) {
+        throw std::runtime_error("column index out of range");
+    }
+    if (row >= row_count_) {
+        throw std::runtime_error("row out of range");
+    }
+    const auto& col = columns_[col_index];
+    if (col.indirect) {
+        throw std::runtime_error("write_array_raw: column '" + col.name +
+                                 "' is indirect; use write_indirect_array()");
+    }
+    if (data.size() != col.row_size) {
+        throw std::runtime_error("write_array_raw: data size mismatch for '" + col.name +
+                                 "': expected " + std::to_string(col.row_size) +
+                                 ", got " + std::to_string(data.size()));
+    }
+    const auto bucket_nr = static_cast<std::uint32_t>(row / rows_per_bucket_);
+    const auto row_in_bucket = row % rows_per_bucket_;
+    const auto bucket_offset = static_cast<std::size_t>(bucket_nr) * bucket_size_;
+    std::uint8_t* cp = bucket_data_.data() + bucket_offset + col.col_offset +
+                       row_in_bucket * col.row_size;
+    std::memcpy(cp, data.data(), data.size());
+}
+
+void SsmWriter::write_array_float(const std::size_t col_index,
+                                  const std::vector<float>& values,
+                                  const std::uint64_t row) {
+    const auto& col = columns_[col_index];
+    std::vector<std::uint8_t> raw(values.size() * sizeof(float));
+    auto* p = raw.data();
+    for (const auto v : values) {
+        if (big_endian_) {
+            write_be_f32(p, v);
+        } else {
+            write_le_f32(p, v);
+        }
+        p += sizeof(float);
+    }
+    write_array_raw(col_index, raw, row);
+    static_cast<void>(col); // suppress unused warning
+}
+
+void SsmWriter::write_array_double(const std::size_t col_index,
+                                   const std::vector<double>& values,
+                                   const std::uint64_t row) {
+    const auto& col = columns_[col_index];
+    std::vector<std::uint8_t> raw(values.size() * sizeof(double));
+    auto* p = raw.data();
+    for (const auto v : values) {
+        if (big_endian_) {
+            write_be_f64(p, v);
+        } else {
+            write_le_f64(p, v);
+        }
+        p += sizeof(double);
+    }
+    write_array_raw(col_index, raw, row);
+    static_cast<void>(col); // suppress unused warning
+}
+
+void SsmWriter::write_indirect_offset(const std::size_t col_index,
+                                      const std::uint64_t row,
+                                      const std::int64_t offset) {
+    if (!is_setup_) {
+        throw std::runtime_error("SsmWriter not setup");
+    }
+    if (col_index >= columns_.size()) {
+        throw std::runtime_error("column index out of range");
+    }
+    if (row >= row_count_) {
+        throw std::runtime_error("row out of range");
+    }
+    const auto& col = columns_[col_index];
+    if (!col.indirect) {
+        throw std::runtime_error("write_indirect_offset: column '" + col.name +
+                                 "' is not indirect");
+    }
+
+    const auto bucket_nr = static_cast<std::uint32_t>(row / rows_per_bucket_);
+    const auto row_in_bucket = row % rows_per_bucket_;
+    const auto bucket_base = static_cast<std::size_t>(bucket_nr) * bucket_size_;
+    std::uint8_t* cp = bucket_data_.data() + bucket_base + col.col_offset +
+                       row_in_bucket * col.row_size;
+    write_endian_u64(cp, static_cast<std::uint64_t>(offset), big_endian_);
+}
+
+void SsmWriter::write_indirect_array(const std::size_t col_index,
+                                     const std::vector<std::int32_t>& shape,
+                                     const std::span<const std::uint8_t> data,
+                                     const std::uint64_t row) {
+    if (!is_setup_) {
+        throw std::runtime_error("SsmWriter not setup");
+    }
+    if (col_index >= columns_.size()) {
+        throw std::runtime_error("column index out of range");
+    }
+    if (row >= row_count_) {
+        throw std::runtime_error("row out of range");
+    }
+    const auto& col = columns_[col_index];
+    if (!col.indirect) {
+        throw std::runtime_error("write_indirect_array: column '" + col.name +
+                                 "' is not indirect");
+    }
+
+    // StManArrayFile entry format (version 1):
+    //   refCount (uInt, 4 bytes) + ndim (uInt, 4 bytes)
+    //   + shape[0..ndim-1] (Int, 4 bytes each) + data
+    // All values written in the table's byte order.
+
+    // Compute file offset for this entry: header(16) + current indirect data size.
+    constexpr std::uint64_t kStManArrayFileHeader = 16;
+    const auto file_offset = static_cast<std::int64_t>(kStManArrayFileHeader +
+                                                       indirect_data_.size());
+
+    // Append entry to indirect_data_.
+    const auto ndim = static_cast<std::uint32_t>(shape.size());
+    const auto entry_header_size = 4 + 4 + static_cast<std::size_t>(ndim) * 4; // refCount + ndim + shape
+    indirect_data_.reserve(indirect_data_.size() + entry_header_size + data.size());
+
+    // Write refCount = 1.
+    {
+        std::uint8_t b[4];
+        write_endian_u32(b, 1, big_endian_);
+        indirect_data_.insert(indirect_data_.end(), b, b + 4);
+    }
+    // Write ndim.
+    {
+        std::uint8_t b[4];
+        write_endian_u32(b, ndim, big_endian_);
+        indirect_data_.insert(indirect_data_.end(), b, b + 4);
+    }
+    // Write shape elements.
+    for (const auto dim : shape) {
+        std::uint8_t b[4];
+        write_endian_i32(b, dim, big_endian_);
+        indirect_data_.insert(indirect_data_.end(), b, b + 4);
+    }
+    // Write data.
+    indirect_data_.insert(indirect_data_.end(), data.begin(), data.end());
+
+    // Store file offset in the SSM bucket (Int64).
+    const auto bucket_nr = static_cast<std::uint32_t>(row / rows_per_bucket_);
+    const auto row_in_bucket = row % rows_per_bucket_;
+    const auto bucket_base = static_cast<std::size_t>(bucket_nr) * bucket_size_;
+    std::uint8_t* cp = bucket_data_.data() + bucket_base + col.col_offset +
+                       row_in_bucket * col.row_size;
+    write_endian_u64(cp, static_cast<std::uint64_t>(file_offset), big_endian_);
+}
+
+std::vector<std::uint8_t> SsmWriter::flush_indirect() const {
+    if (indirect_data_.empty()) {
+        return {};
+    }
+
+    // StManArrayFile header: version(uInt) + leng(Int64) + padding(Int)
+    // Total: 16 bytes, little-endian (always LE in casacore).
+    constexpr std::uint64_t kHeaderSize = 16;
+    const auto total_size = kHeaderSize + indirect_data_.size();
+
+    std::vector<std::uint8_t> result(total_size, 0);
+    // version = 1 (LE).
+    write_le_u32(result.data(), 1);
+    // leng = total file size (LE Int64).
+    write_le_u64(result.data() + 4, total_size);
+    // padding = 0 (already zero).
+
+    // Copy indirect data.
+    std::memcpy(result.data() + kHeaderSize, indirect_data_.data(), indirect_data_.size());
+    return result;
+}
+
+void SsmWriter::write_indirect_file(const std::string_view table_dir,
+                                    const std::uint32_t sequence_number) const {
+    auto data = flush_indirect();
+    if (data.empty()) {
+        return;
+    }
+    const auto path = std::filesystem::path(table_dir) /
+                      ("table.f" + std::to_string(sequence_number) + "i");
+    std::ofstream out(path, std::ios::binary);
+    if (!out) {
+        throw std::runtime_error("cannot create indirect file: " + path.string());
+    }
+    out.write(reinterpret_cast<const char*>(data.data()),
+              static_cast<std::streamsize>(data.size()));
 }
 
 std::vector<std::uint8_t> SsmWriter::flush() const {
@@ -1184,7 +2345,15 @@ std::vector<std::uint8_t> SsmWriter::flush() const {
 
     // String buckets (if any).
     if (!string_bucket_data_.empty()) {
+        const auto str_start = result.size();
         result.insert(result.end(), string_bucket_data_.begin(), string_bucket_data_.end());
+        // Finalize data_used in the last string bucket header.
+        auto last_bkt_idx = nr_string_buckets_ - 1;
+        auto* last_bkt = result.data() + str_start +
+                          static_cast<std::size_t>(last_bkt_idx) * bucket_size_;
+        write_endian_i32(last_bkt + 4,
+                         static_cast<std::int32_t>(string_bucket_offset_),
+                         big_endian_);
     }
 
     // Index bucket: pad to bucket_size_.

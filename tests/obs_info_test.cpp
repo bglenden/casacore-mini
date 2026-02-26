@@ -14,7 +14,7 @@ using namespace casacore_mini;
 
 constexpr double kTol = 1.0e-12;
 
-bool near(double a, double b) {
+[[maybe_unused]] bool near(double a, double b) {
     return std::abs(a - b) < kTol * std::max(1.0, std::abs(a));
 }
 
@@ -54,7 +54,7 @@ bool test_with_obsdate() {
     ObsInfo restored = obs_info_from_record(rec);
     assert(restored.obs_date.has_value());
     assert(restored.obs_date->type == MeasureType::epoch);
-    const auto& ev = std::get<EpochValue>(restored.obs_date->value);
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(restored.obs_date->value);
     assert(near(ev.day, 59000.0));
     assert(near(ev.fraction, 0.5));
     return true;
@@ -76,7 +76,7 @@ bool test_with_telescope_position() {
     ObsInfo restored = obs_info_from_record(rec);
     assert(restored.telescope_position.has_value());
     assert(restored.telescope_position->type == MeasureType::position);
-    const auto& pv = std::get<PositionValue>(restored.telescope_position->value);
+    [[maybe_unused]] const auto& pv = std::get<PositionValue>(restored.telescope_position->value);
     assert(near(pv.x_m, 882589.0));
     return true;
 }

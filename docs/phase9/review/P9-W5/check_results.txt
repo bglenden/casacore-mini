@@ -1,0 +1,2 @@
+bash tools/check_phase9_w5.sh build-p9 -> PASS
+ctest --test-dir build-p9 -> 48/48 PASS

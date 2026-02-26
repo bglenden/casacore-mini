@@ -1,0 +1,5 @@
+docs/phase9/exit_report.md         (new)  Phase 9 exit report
+docs/phase9/known_differences.md   (new)  Known differences from upstream casacore
+docs/phase9/plan.md                (mod)  Status updated to Complete, all waves Done
+docs/casacore_plan.md              (mod)  Phase 9 status updated to complete
+tools/check_phase9_w12.sh          (new)  W12 gate script

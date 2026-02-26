@@ -14,7 +14,7 @@ using namespace casacore_mini;
 constexpr double kTol = 1.0e-8;
 constexpr double kDeg2Rad = M_PI / 180.0;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 

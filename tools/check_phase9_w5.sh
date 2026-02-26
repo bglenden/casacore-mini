@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Phase 9 Wave 5 gate: Write/update flows and persistent integrity.
+set -euo pipefail
+
+BUILD="${1:?usage: $0 <build-dir>}"
+
+echo "=== P9-W5 gate ==="
+
+# 1. Required source files exist.
+for f in include/casacore_mini/ms_writer.hpp \
+         src/ms_writer.cpp \
+         tests/ms_writer_test.cpp; do
+    [[ -f "$f" ]] || { echo "FAIL: missing $f"; exit 1; }
+done
+echo "  source files present: OK"
+
+# 2. Build succeeds.
+cmake --build "$BUILD" --target ms_writer_test 2>&1 | tail -1
+echo "  build: OK"
+
+# 3. Test passes.
+ctest --test-dir "$BUILD" -R ms_writer_test --output-on-failure
+echo "  tests: OK"
+
+echo "=== P9-W5 gate PASSED ==="

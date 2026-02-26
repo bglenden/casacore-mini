@@ -1,0 +1,8 @@
+include/casacore_mini/ms_metadata.hpp
+include/casacore_mini/ms_summary.hpp
+src/ms_metadata.cpp
+src/ms_summary.cpp
+tests/ms_metadata_test.cpp
+tests/ms_summary_test.cpp
+tools/check_phase9_w9.sh
+CMakeLists.txt

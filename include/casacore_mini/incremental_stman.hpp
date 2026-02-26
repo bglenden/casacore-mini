@@ -27,6 +27,9 @@ class IsmReader {
     /// Read a scalar cell value.
     [[nodiscard]] CellValue read_cell(std::string_view col_name, std::uint64_t row) const;
 
+    /// Check if this ISM instance manages the given column.
+    [[nodiscard]] bool has_column(std::string_view col_name) const noexcept;
+
     /// Number of columns managed by this ISM instance.
     [[nodiscard]] std::size_t column_count() const noexcept;
 

@@ -180,6 +180,7 @@ add_library(
   src/standard_stman.cpp
   src/incremental_stman.cpp
   src/tiled_stman.cpp
+  src/unit.cpp
   src/quantity.cpp
   src/measure_types.cpp
   src/measure_record.cpp
@@ -202,7 +203,20 @@ add_library(
   src/coordinate_util.cpp
   src/fits_coordinate_util.cpp
   src/gaussian_convert.cpp
-  src/uvw_machine.cpp)
+  src/uvw_machine.cpp
+  src/ms_enums.cpp
+  src/measurement_set.cpp
+  src/ms_subtables.cpp
+  src/ms_columns.cpp
+  src/ms_writer.cpp
+  src/ms_iter.cpp
+  src/ms_util.cpp
+  src/ms_selection.cpp
+  src/ms_metadata.cpp
+  src/ms_summary.cpp
+  src/ms_concat.cpp
+  src/ms_flagger.cpp
+  src/table.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -362,6 +376,10 @@ add_executable(quantity_test tests/quantity_test.cpp)
 target_link_libraries(quantity_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME quantity_test COMMAND quantity_test)
 
+add_executable(unit_test tests/unit_test.cpp)
+target_link_libraries(unit_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME unit_test COMMAND unit_test)
+
 add_executable(measure_types_test tests/measure_types_test.cpp)
 target_link_libraries(measure_types_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME measure_types_test COMMAND measure_types_test)
@@ -454,6 +472,58 @@ add_executable(reference_data_absence_test tests/reference_data_absence_test.cpp
 target_link_libraries(reference_data_absence_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME reference_data_absence_test COMMAND reference_data_absence_test)
 
+add_executable(measurement_set_test tests/measurement_set_test.cpp)
+target_link_libraries(measurement_set_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME measurement_set_test COMMAND measurement_set_test)
+
+add_executable(ms_subtables_test tests/ms_subtables_test.cpp)
+target_link_libraries(ms_subtables_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_subtables_test COMMAND ms_subtables_test)
+
+add_executable(ms_columns_test tests/ms_columns_test.cpp)
+target_link_libraries(ms_columns_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_columns_test COMMAND ms_columns_test)
+
+add_executable(ms_writer_test tests/ms_writer_test.cpp)
+target_link_libraries(ms_writer_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_writer_test COMMAND ms_writer_test)
+
+add_executable(ms_iter_test tests/ms_iter_test.cpp)
+target_link_libraries(ms_iter_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_iter_test COMMAND ms_iter_test)
+
+add_executable(ms_util_test tests/ms_util_test.cpp)
+target_link_libraries(ms_util_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_util_test COMMAND ms_util_test)
+
+add_executable(ms_selection_test tests/ms_selection_test.cpp)
+target_link_libraries(ms_selection_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_selection_test COMMAND ms_selection_test)
+
+add_executable(ms_selection_parity_test tests/ms_selection_parity_test.cpp)
+target_link_libraries(ms_selection_parity_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_selection_parity_test COMMAND ms_selection_parity_test)
+
+add_executable(ms_metadata_test tests/ms_metadata_test.cpp)
+target_link_libraries(ms_metadata_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_metadata_test COMMAND ms_metadata_test)
+
+add_executable(ms_summary_test tests/ms_summary_test.cpp)
+target_link_libraries(ms_summary_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_summary_test COMMAND ms_summary_test)
+
+add_executable(ms_concat_test tests/ms_concat_test.cpp)
+target_link_libraries(ms_concat_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_concat_test COMMAND ms_concat_test)
+
+add_executable(ms_flagger_test tests/ms_flagger_test.cpp)
+target_link_libraries(ms_flagger_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_flagger_test COMMAND ms_flagger_test)
+
+add_executable(ms_malformed_test tests/ms_malformed_test.cpp)
+target_link_libraries(ms_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_malformed_test COMMAND ms_malformed_test)
+
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)
 target_compile_definitions(
@@ -465,6 +535,35 @@ target_link_libraries(table_schema_cli PRIVATE casacore_mini_core casacore_mini_
 
 add_executable(interop_mini_tool src/interop_mini_tool.cpp)
 target_link_libraries(interop_mini_tool PRIVATE casacore_mini_core casacore_mini_project_options)
+
+add_executable(table_test tests/table_test.cpp)
+target_link_libraries(
+  table_test
+  PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  table_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME table_test COMMAND table_test)
+
+# Demo programs (also serve as integration tests)
+foreach(demo demo_aipsio_record demo_table_read demo_table_write
+        demo_measure demo_coordinate demo_unit demo_ms_write demo_ms_read)
+  add_executable(${demo} demos/${demo}.cpp)
+  target_link_libraries(${demo} PRIVATE casacore_mini_core casacore_mini_project_options)
+  add_test(NAME ${demo} COMMAND ${demo})
+endforeach()
+target_compile_definitions(demo_table_read PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+
+# Performance benchmark programs (casacore-mini side; casacore-original built by shell script)
+add_executable(bench_mini_read tools/perf/bench_mini_read.cpp)
+target_link_libraries(bench_mini_read PRIVATE casacore_mini_core)
+target_compile_options(bench_mini_read PRIVATE -O2)
+set_target_properties(bench_mini_read PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+add_executable(bench_mini_write tools/perf/bench_mini_write.cpp)
+target_link_libraries(bench_mini_write PRIVATE casacore_mini_core)
+target_compile_options(bench_mini_write PRIVATE -O2)
+set_target_properties(bench_mini_write PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 if(CASACORE_MINI_ENABLE_DOXYGEN)
   find_package(Doxygen QUIET)

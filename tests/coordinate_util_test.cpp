@@ -21,7 +21,7 @@ bool test_find_direction() {
         DirectionRef::j2000, Projection{ProjectionType::sin, {0.0, 0.0}}, 0.0, 0.0,
         -kDeg2Rad / 3600.0, kDeg2Rad / 3600.0, std::vector<double>{}, 50.0, 50.0));
 
-    auto idx = find_direction_coordinate(cs);
+    [[maybe_unused]] auto idx = find_direction_coordinate(cs);
     assert(idx.has_value());
     assert(*idx == 1);
     return true;
@@ -32,7 +32,7 @@ bool test_find_spectral() {
     cs.add_coordinate(std::make_unique<StokesCoordinate>(std::vector<std::int32_t>{1, 2}));
     cs.add_coordinate(std::make_unique<SpectralCoordinate>(FrequencyRef::lsrk, 1.42e9, 1e6, 0.0));
 
-    auto idx = find_spectral_coordinate(cs);
+    [[maybe_unused]] auto idx = find_spectral_coordinate(cs);
     assert(idx.has_value());
     assert(*idx == 1);
     return true;
@@ -43,7 +43,7 @@ bool test_find_stokes() {
     cs.add_coordinate(std::make_unique<SpectralCoordinate>(FrequencyRef::lsrk, 1.42e9, 1e6, 0.0));
     cs.add_coordinate(std::make_unique<StokesCoordinate>(std::vector<std::int32_t>{1, 2, 3, 4}));
 
-    auto idx = find_stokes_coordinate(cs);
+    [[maybe_unused]] auto idx = find_stokes_coordinate(cs);
     assert(idx.has_value());
     assert(*idx == 1);
     return true;

@@ -73,13 +73,12 @@ bool test_missing_table_dat() {
     fs::remove_all(tmp);
     fs::create_directories(tmp);
 
-    bool threw = false;
     try {
         static_cast<void>(casacore_mini::read_table_directory(tmp.string()));
+        assert(false && "expected exception for missing table.dat");
     } catch (const std::runtime_error&) { // NOLINT(bugprone-empty-catch)
-        threw = true;
+        // expected
     }
-    assert(threw);
 
     fs::remove_all(tmp);
     std::cerr << "  PASS: test_missing_table_dat\n";

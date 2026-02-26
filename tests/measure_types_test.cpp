@@ -31,7 +31,7 @@ bool test_measure_type_strings() {
     assert(string_to_measure_type("RadialVelocity") == MeasureType::radial_velocity);
 
     // to_string round-trip.
-    for (auto t : {MeasureType::epoch, MeasureType::direction, MeasureType::position,
+    for ([[maybe_unused]] auto t : {MeasureType::epoch, MeasureType::direction, MeasureType::position,
                    MeasureType::frequency, MeasureType::doppler, MeasureType::radial_velocity,
                    MeasureType::baseline, MeasureType::uvw, MeasureType::earth_magnetic}) {
         assert(string_to_measure_type(measure_type_to_string(t)) == t);
@@ -54,7 +54,7 @@ bool test_measure_type_strings() {
 bool test_epoch_ref() {
     using namespace casacore_mini;
     // Canonical round-trips.
-    for (auto r : {EpochRef::last, EpochRef::lmst, EpochRef::gmst1, EpochRef::gast, EpochRef::ut1,
+    for ([[maybe_unused]] auto r : {EpochRef::last, EpochRef::lmst, EpochRef::gmst1, EpochRef::gast, EpochRef::ut1,
                    EpochRef::ut2, EpochRef::utc, EpochRef::tai, EpochRef::tdt, EpochRef::tcg,
                    EpochRef::tdb, EpochRef::tcb}) {
         assert(string_to_epoch_ref(epoch_ref_to_string(r)) == r);
@@ -87,7 +87,7 @@ bool test_epoch_ref() {
 
 bool test_direction_ref() {
     using namespace casacore_mini;
-    for (auto r : {DirectionRef::j2000,    DirectionRef::jmean,     DirectionRef::jtrue,
+    for ([[maybe_unused]] auto r : {DirectionRef::j2000,    DirectionRef::jmean,     DirectionRef::jtrue,
                    DirectionRef::app,      DirectionRef::b1950,     DirectionRef::b1950_vla,
                    DirectionRef::bmean,    DirectionRef::btrue,     DirectionRef::galactic,
                    DirectionRef::hadec,    DirectionRef::azel,      DirectionRef::azelsw,
@@ -125,7 +125,7 @@ bool test_position_ref() {
 
 bool test_frequency_ref() {
     using namespace casacore_mini;
-    for (auto r : {FrequencyRef::rest, FrequencyRef::lsrk, FrequencyRef::lsrd, FrequencyRef::bary,
+    for ([[maybe_unused]] auto r : {FrequencyRef::rest, FrequencyRef::lsrk, FrequencyRef::lsrd, FrequencyRef::bary,
                    FrequencyRef::geo, FrequencyRef::topo, FrequencyRef::galacto,
                    FrequencyRef::lgroup, FrequencyRef::cmb}) {
         assert(string_to_frequency_ref(frequency_ref_to_string(r)) == r);
@@ -141,7 +141,7 @@ bool test_frequency_ref() {
 
 bool test_doppler_ref() {
     using namespace casacore_mini;
-    for (auto r : {DopplerRef::radio, DopplerRef::z, DopplerRef::ratio, DopplerRef::beta,
+    for ([[maybe_unused]] auto r : {DopplerRef::radio, DopplerRef::z, DopplerRef::ratio, DopplerRef::beta,
                    DopplerRef::gamma}) {
         assert(string_to_doppler_ref(doppler_ref_to_string(r)) == r);
     }
@@ -157,7 +157,7 @@ bool test_doppler_ref() {
 
 bool test_radial_velocity_ref() {
     using namespace casacore_mini;
-    for (auto r : {RadialVelocityRef::lsrk, RadialVelocityRef::lsrd, RadialVelocityRef::bary,
+    for ([[maybe_unused]] auto r : {RadialVelocityRef::lsrk, RadialVelocityRef::lsrd, RadialVelocityRef::bary,
                    RadialVelocityRef::geo, RadialVelocityRef::topo, RadialVelocityRef::galacto,
                    RadialVelocityRef::lgroup, RadialVelocityRef::cmb}) {
         assert(string_to_radial_velocity_ref(radial_velocity_ref_to_string(r)) == r);
@@ -221,20 +221,20 @@ bool test_measure_ref_to_string() {
 bool test_value_structs() {
     using namespace casacore_mini;
 
-    EpochValue e1{59000.0, 0.5};
-    EpochValue e2{59000.0, 0.5};
+    [[maybe_unused]] EpochValue e1{59000.0, 0.5};
+    [[maybe_unused]] EpochValue e2{59000.0, 0.5};
     assert(e1 == e2);
     e2.fraction = 0.6;
     assert(!(e1 == e2));
 
-    DirectionValue d1{1.0, 2.0};
-    DirectionValue d2{1.0, 2.0};
+    [[maybe_unused]] DirectionValue d1{1.0, 2.0};
+    [[maybe_unused]] DirectionValue d2{1.0, 2.0};
     assert(d1 == d2);
 
-    PositionValue p1{100.0, 200.0, 300.0};
+    [[maybe_unused]] PositionValue p1{100.0, 200.0, 300.0};
     assert(p1.x_m == 100.0);
 
-    FrequencyValue f1{1.4e9};
+    [[maybe_unused]] FrequencyValue f1{1.4e9};
     assert(f1.hz == 1.4e9);
 
     return true;

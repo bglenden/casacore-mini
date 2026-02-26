@@ -111,7 +111,21 @@ Decision:
 7. Image table conventions (`PagedImage`) and coordinate metadata conventions.
 8. If present in corpus: persistent lattice/expression encodings.
 
-### 5.1 Shape/IPosition boundary policy
+### 5.1 Table data access policy
+- All access to table cell values — reads and writes — MUST go through the
+  high-level `Table` abstraction (`Table::read_scalar_cell`,
+  `Table::read_array_*_cell`, `Table::write_*_cell`, `TableRow`, etc.).
+- Storage managers (`SsmReader`, `IsmReader`, `TiledStManReader`,
+  `SsmWriter`, etc.) are internal implementation details of the `Table`
+  class. They may be specified at table creation time (via
+  `TableCreateOptions`) to control on-disk layout, but no code outside of
+  `Table` and its private `Impl` should directly instantiate or call
+  storage manager reader/writer objects to get or set cell values.
+- This applies to all library code, interop tools, test code, and verifiers.
+- If `Table` cannot read a cell type, that is a `Table` bug to be fixed —
+  not a reason to bypass the abstraction.
+
+### 5.2 Shape/IPosition boundary policy
 - Public in-memory shape/extents APIs use unsigned dimensions:
   `std::vector<std::uint64_t>`.
 - AipsIO/table wire parsing and encoding use an internal signed wire type:
@@ -216,13 +230,24 @@ Required feature coverage:
   utility layer (CoordinateUtil, FITSCoordinateUtil, GaussianConvert).
   24/24 interop matrix cells pass. 43 unit tests, 3 hardening test suites.
   See `docs/phase8/exit_report.md`.
-- Phase 9 (pending): full MeasurementSet implementation.
+- Phase 9 (complete 2026-02-24): full MeasurementSet implementation.
+  MS lifecycle, 17 subtable schemas, typed column wrappers, write/update,
+  utility layer (MsIter, StokesConverter, MsDopplerUtil), 8-category
+  selection API, MsMetaData/MsSummary, MsConcat/MsFlagger operations.
+  13/20 interop matrix cells pass (self-roundtrips + most casacore→mini;
+  mini→casacore blocked by table format gap). 57 unit tests, 1 hardening
+  test suite. See `docs/phase9/exit_report.md`.
 - Phase 10 (pending): full Lattices + Images implementation, including lattice
   expression language compatibility. Detailed wave plan:
   `docs/phase10/plan.md`.
 - Phase 11 (pending, planned terminal phase): remaining capabilities closure;
   first wave is a full missing-capabilities audit with explicit
   include/exclude decisions, followed by implementation of accepted remainder.
+  Phase 11 also includes a full storage-manager fidelity audit to identify
+  and remove any simplified/heuristic behavior versus upstream casacore.
+  Includes: integrate ISM and TSM writers into `Table::create()` so that
+  casacore-mini can produce tables with all 6 required storage managers,
+  not only StandardStMan.
   Detailed wave plan: `docs/phase11/plan.md`.
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
@@ -426,3 +451,29 @@ Carry-forward guardrails (minimum):
   - `#include <casacore/casa/Containers/Block.h>`: `134`
 
 Interpretation: replace foundational array/container internals behind compatibility facades, not via early broad mechanical rewrites.
+
+## 11. API audit (planned)
+
+Goal: minimize the public API surface to keep the library manageable and reduce
+maintenance burden.
+
+Actions:
+
+1. **Audit all public methods on every class.** Any method that exists solely
+   to support internal cross-class communication (e.g. `has_column()` on
+   `TiledStManReader`, helper parse functions) should be moved to `private`
+   or `protected`.
+2. **Use `friend class` declarations** where a private method must be called
+   by another class (e.g. `Table` needs to query storage-manager readers).
+   Follow the pattern already applied to `TiledStManReader` / `Table`.
+3. **Review free functions in headers.** Functions like `parse_ssm_blob`,
+   `parse_ssm_file_header`, `parse_ssm_indices` are currently in the public
+   namespace. If they are only consumed by `SsmReader::open()`, move them to
+   an anonymous namespace in the `.cpp` file or make them private static
+   members.
+4. **Check `struct` visibility.** Internal structs such as `SsmFileHeader`,
+   `SsmTableDatBlob`, and `SsmIndex` may not need to be in the public header
+   if they are only used inside the implementation.
+5. **Produce an API surface map** (`docs/api_surface_audit.csv`) listing every
+   public symbol, its current consumers, and a disposition: `keep-public`,
+   `make-private`, `make-friend`, or `internalize`.

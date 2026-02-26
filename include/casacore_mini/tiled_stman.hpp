@@ -4,11 +4,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace casacore_mini {
+
+class Table; // forward declaration for friend access
 
 /// @file
 /// @brief Read/write access to Tiled Storage Manager (TSM) data files.
@@ -39,6 +42,10 @@ class TiledStManReader {
     [[nodiscard]] std::vector<std::uint8_t> read_raw_cell(std::string_view col_name,
                                                           std::uint64_t row) const;
 
+    /// Read the cell shape for a row (for variable-shape TSM layouts).
+    [[nodiscard]] std::vector<std::int64_t> cell_shape(std::string_view col_name,
+                                                       std::uint64_t row) const;
+
     /// Number of columns managed by this TSM instance.
     [[nodiscard]] std::size_t column_count() const noexcept;
 
@@ -46,6 +53,10 @@ class TiledStManReader {
     [[nodiscard]] bool is_open() const noexcept;
 
   private:
+    friend class Table;
+
+    /// Check if this TSM instance manages a column with the given name.
+    [[nodiscard]] bool has_column(std::string_view col_name) const noexcept;
     struct TsmColumnInfo {
         std::string name;
         DataType data_type = DataType::tp_float;
@@ -65,17 +76,60 @@ class TiledStManReader {
         std::vector<std::uint64_t> col_tile_offsets;
     };
 
+    struct CubeLayout {
+        std::size_t original_cube_index = 0;
+        std::uint64_t row_start = 0;
+        std::uint64_t row_count = 0;
+        std::int32_t file_nr = 0;
+        std::uint64_t file_offset = 0;
+        std::vector<std::int64_t> cell_shape;
+        std::vector<std::int64_t> tile_shape;
+        std::uint64_t tile_pixels = 0;
+        std::int64_t tile_rows = 0;
+        std::uint64_t bucket_size = 0;
+        std::vector<std::uint64_t> col_tile_offsets;
+    };
+
+    struct ShapeRowInterval {
+        std::uint64_t row_end = 0;
+        std::uint32_t cube_index = 0;
+        std::uint32_t pos_end = 0;
+    };
+
+    struct DataRowChunk {
+        std::uint64_t row_start = 0;
+        std::uint32_t cube_index = 0;
+        std::uint32_t pos_start = 0;
+    };
+
+    struct RowLocation {
+        const CubeLayout* cube = nullptr;
+        std::uint64_t row_in_cube = 0;
+    };
+
     const TsmColumnInfo* find_column(std::string_view col_name, std::size_t& original_index) const;
+    [[nodiscard]] const CubeLayout* find_cube_for_row(std::uint64_t row) const;
+    [[nodiscard]] const CubeLayout* find_cube_by_index(std::size_t cube_index) const;
+    [[nodiscard]] std::optional<RowLocation> locate_row(std::uint64_t row) const;
+    [[nodiscard]] const std::vector<std::uint8_t>* find_file_data(std::int32_t file_nr) const;
     [[nodiscard]] std::uint64_t cell_byte_offset(std::size_t original_col_index,
                                                  const TsmColumnInfo& column,
-                                                 std::uint64_t row) const;
+                                                 std::uint64_t row_in_cube,
+                                                 const CubeLayout& cube) const;
+    [[nodiscard]] std::uint64_t cell_elements_for_row(const TsmColumnInfo& column,
+                                                      const CubeLayout& cube) const;
 
     bool is_open_ = false;
     std::uint64_t row_count_ = 0;
     TileLayout tile_layout_;
     std::vector<TsmColumnInfo> columns_;
-    /// Raw TSM0 data file contents.
-    std::vector<std::uint8_t> tsm_data_;
+    std::vector<CubeLayout> cubes_;
+    std::vector<ShapeRowInterval> shape_row_intervals_;
+    bool use_shape_row_map_ = false;
+    std::vector<DataRowChunk> data_row_chunks_;
+    bool use_data_row_map_ = false;
+    std::vector<std::int32_t> tsm_file_seqnrs_;
+    std::vector<std::vector<std::uint8_t>> tsm_file_data_;
 };
 
 /// Write-only TSM writer for producing a complete TSM table directory.

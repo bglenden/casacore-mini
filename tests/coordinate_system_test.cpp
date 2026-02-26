@@ -15,7 +15,7 @@ using namespace casacore_mini;
 constexpr double kTol = 1.0e-8;
 constexpr double kDeg2Rad = M_PI / 180.0;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
@@ -42,15 +42,15 @@ bool test_composition() {
     assert(cs.n_world_axes() == 4);
 
     // Verify axis mapping.
-    auto dir_world = cs.find_world_axis(0);
+    [[maybe_unused]] auto dir_world = cs.find_world_axis(0);
     assert(dir_world.has_value());
     assert(dir_world->first == 0); // direction coordinate
 
-    auto spec_world = cs.find_world_axis(2);
+    [[maybe_unused]] auto spec_world = cs.find_world_axis(2);
     assert(spec_world.has_value());
     assert(spec_world->first == 1); // spectral coordinate
 
-    auto stokes_world = cs.find_world_axis(3);
+    [[maybe_unused]] auto stokes_world = cs.find_world_axis(3);
     assert(stokes_world.has_value());
     assert(stokes_world->first == 2); // stokes coordinate
 

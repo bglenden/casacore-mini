@@ -13,7 +13,9 @@ Phase 11 is planned as the terminal delivery phase:
 1. complete an explicit include/exclude audit of remaining capability surface
 2. implement all accepted capabilities with executable parity evidence
 3. run full cross-domain interoperability closure tests
-4. publish final compatibility status, known differences, and maintenance backlog
+4. perform a full storage-manager fidelity audit to identify and remove
+   simplifications/heuristics versus upstream casacore behavior
+5. publish final compatibility status, known differences, and maintenance backlog
 
 ## Entry condition
 
@@ -74,6 +76,7 @@ Phase 11 is complete only when all are true:
 3. `docs/phase11/api_surface_map.csv`
 4. `docs/phase11/interop_artifact_inventory.md`
 5. `docs/phase11/tolerances.md`
+6. `docs/phase11/storage_manager_fidelity_audit.md`
 
 Audit rows must include at minimum:
 
@@ -84,6 +87,8 @@ Audit rows must include at minimum:
 5. disposition (`Include`, `Exclude`)
 6. target wave assignment (`P11-W3`..`P11-W7` for included capabilities)
 7. rationale and dependency notes
+8. simplification status (`Exact`, `Simplified`) and remediation wave
+   assignment for non-`Exact` rows
 
 ## Execution order and dependencies (strict)
 
@@ -131,7 +136,7 @@ Gate rules:
 
 | ID | Status | Scope | Required deliverables |
 |---|---|---|---|
-| `P11-W1` | Pending | Audit + disposition freeze | complete capability inventory, include/exclude decisions, wave assignments |
+| `P11-W1` | Pending | Audit + disposition freeze | complete capability inventory, include/exclude decisions, wave assignments, storage-manager simplification audit |
 | `P11-W2` | Pending | Contract lock | frozen tranche plan, check scaffolding, lint profile lock, API-conformance scaffolding |
 | `P11-W3` | Pending | Tranche A | highest-priority included capabilities implemented + tested |
 | `P11-W4` | Pending | Tranche B | next tranche implemented + tested |
@@ -154,10 +159,13 @@ Implementation tasks:
 2. classify each capability by interoperability/workflow impact
 3. assign `Include` or `Exclude` with explicit rationale
 4. assign each included capability to a target implementation tranche wave
-5. produce and commit audit artifacts:
+5. audit all storage-manager/table-format reader+writer paths for behavioral
+   simplifications/heuristics and classify each finding as `Exact` or `Simplified`
+6. produce and commit audit artifacts:
    - `docs/phase11/missing_capabilities_audit.csv`
    - `docs/phase11/disposition_decisions.md`
    - `docs/phase11/api_surface_map.csv`
+   - `docs/phase11/storage_manager_fidelity_audit.md`
 
 Expected touchpoints:
 
@@ -168,7 +176,9 @@ Wave gate:
 
 1. all in-scope upstream capability families are represented in audit rows
 2. each row has disposition, rationale, and wave assignment (if included)
-3. `tools/check_phase11_w1.sh` passes
+3. storage-manager fidelity audit exists and every `Simplified` item has an
+   explicit remediation wave or explicit exclusion rationale
+4. `tools/check_phase11_w1.sh` passes
 
 ### `P11-W2` closure contract lock + tranche planning
 

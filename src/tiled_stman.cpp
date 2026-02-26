@@ -82,6 +82,7 @@ struct TsmHeaderInfo {
     std::uint32_t bucket_size = kDefaultBucketSize;
     std::uint64_t file_length = 0;    // total length of the TSM data file
     std::int32_t data_file_seqnr = 0; // sequence number of first present TSMFile
+    std::vector<std::int32_t> file_seqnrs; // all present TSM file sequence numbers
 
     /// Per-cube info.
     struct CubeInfo {
@@ -91,6 +92,16 @@ struct TsmHeaderInfo {
         std::uint64_t file_offset = 0;
     };
     std::vector<CubeInfo> cubes;
+
+    // TiledShapeStMan row mapping (row-end interval map).
+    std::vector<std::uint32_t> shape_row_map;
+    std::vector<std::uint32_t> shape_cube_map;
+    std::vector<std::uint32_t> shape_pos_map;
+
+    // TiledDataStMan row mapping (row-start chunk map).
+    std::vector<std::uint64_t> data_row_map;
+    std::vector<std::uint32_t> data_cube_map;
+    std::vector<std::uint32_t> data_pos_map;
 };
 
 /// Read an IPosition from AipsIO stream (handles both root and nested format).
@@ -114,44 +125,62 @@ struct TsmHeaderInfo {
 
 /// Read an empty/simple Record from AipsIO (skip it).
 void skip_aipsio_record(AipsIoReader& reader) {
+    const auto start = reader.position();
     const auto hdr = reader.read_object_header_auto();
     if (hdr.object_type != "Record" && hdr.object_type != "TableRecord") {
         throw std::runtime_error("expected Record, got: " + hdr.object_type);
     }
-    // RecordDesc sub-object.
-    const auto rdhdr = reader.read_object_header_auto();
-    if (rdhdr.object_type != "RecordDesc") {
-        throw std::runtime_error("expected RecordDesc, got: " + rdhdr.object_type);
+    const auto consumed = reader.position() - start;
+    if (hdr.object_length < consumed) {
+        throw std::runtime_error("corrupt Record object length");
     }
-    const auto nfields = reader.read_u32();
-    // For each field: i32 type + string name + optional sub-record-desc.
-    for (std::uint32_t i = 0; i < nfields; ++i) {
-        const auto ftype = reader.read_i32();
-        static_cast<void>(reader.read_string()); // field name
-        if (ftype == 25) {                       // TpRecord -- nested RecordDesc
-            // Recursively skip a RecordDesc.
-            const auto sub_rd = reader.read_object_header_auto();
-            static_cast<void>(sub_rd);
-            const auto sub_n = reader.read_u32();
-            static_cast<void>(sub_n);
-            // This is a simplification: skip nested field types.
-            // For our use case, TSM cube records are typically empty.
-        }
-        // Array fields have an IPosition shape too.
-        const auto ftype_i = static_cast<std::int32_t>(ftype);
-        if (ftype_i >= 13 && ftype_i <= 24) {
-            // Array type — read the IPosition shape.
-            static_cast<void>(read_iposition(reader));
-        }
-    }
-    // recordType (Int).
-    static_cast<void>(reader.read_i32());
+    reader.skip(hdr.object_length - consumed);
+}
 
-    // Skip actual field values — for empty records there are none.
-    // For non-empty records we'd need to know the types; but TSM cube
-    // records in practice are empty. If nfields > 0, we just warn and
-    // skip nothing (the caller will encounter parse errors if the record
-    // is non-trivial). For robustness we handle the common case.
+/// Read a nested Block<uInt> object (nested object header + count + u32 values).
+[[nodiscard]] std::vector<std::uint32_t> read_block_u32(AipsIoReader& reader) {
+    const auto start = reader.position();
+    const auto hdr = reader.read_object_header_auto();
+    if (hdr.object_type != "Block") {
+        throw std::runtime_error("expected Block, got: " + hdr.object_type);
+    }
+    const auto count = reader.read_u32();
+    std::vector<std::uint32_t> values;
+    values.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        values.push_back(reader.read_u32());
+    }
+    const auto consumed = reader.position() - start;
+    if (consumed > hdr.object_length) {
+        throw std::runtime_error("corrupt Block object length");
+    }
+    if (consumed < hdr.object_length) {
+        reader.skip(hdr.object_length - consumed);
+    }
+    return values;
+}
+
+/// Read a nested Block<uInt64> object (nested object header + count + u64 values).
+[[nodiscard]] std::vector<std::uint64_t> read_block_u64(AipsIoReader& reader) {
+    const auto start = reader.position();
+    const auto hdr = reader.read_object_header_auto();
+    if (hdr.object_type != "Block") {
+        throw std::runtime_error("expected Block, got: " + hdr.object_type);
+    }
+    const auto count = reader.read_u32();
+    std::vector<std::uint64_t> values;
+    values.reserve(count);
+    for (std::uint32_t i = 0; i < count; ++i) {
+        values.push_back(reader.read_u64());
+    }
+    const auto consumed = reader.position() - start;
+    if (consumed > hdr.object_length) {
+        throw std::runtime_error("corrupt Block object length");
+    }
+    if (consumed < hdr.object_length) {
+        reader.skip(hdr.object_length - consumed);
+    }
+    return values;
 }
 
 /// Parse the .f0 header file to extract TSM layout info.
@@ -176,6 +205,7 @@ void skip_aipsio_record(AipsIoReader& reader) {
     }
 
     // Sub-object: "TiledStMan" version=2 (nested, auto-detect magic)
+    const auto tsm_start = reader.position();
     const auto tsm_hdr = reader.read_object_header_auto();
     if (tsm_hdr.object_type != "TiledStMan") {
         throw std::runtime_error("expected TiledStMan, got: " + tsm_hdr.object_type);
@@ -221,6 +251,7 @@ void skip_aipsio_record(AipsIoReader& reader) {
             const auto fver = reader.read_u32();
             // uInt seqnr.
             const auto seqnr = reader.read_u32();
+            info.file_seqnrs.push_back(static_cast<std::int32_t>(seqnr));
             // File length: u64 for version >= 2, u32 otherwise.
             if (fver >= 2) {
                 info.file_length = reader.read_u64();
@@ -278,6 +309,68 @@ void skip_aipsio_record(AipsIoReader& reader) {
         }
 
         info.cubes.push_back(std::move(cube));
+    }
+
+    // Ensure alignment to the end of the nested TiledStMan object before
+    // reading manager-specific tail fields.
+    const auto tsm_consumed = reader.position() - tsm_start;
+    if (tsm_consumed > tsm_hdr.object_length) {
+        throw std::runtime_error("corrupt TiledStMan object length");
+    }
+    if (tsm_consumed < tsm_hdr.object_length) {
+        reader.skip(tsm_hdr.object_length - tsm_consumed);
+    }
+
+    // TiledShapeStMan stores row->cube mapping after the TiledStMan object.
+    if (info.sm_type == "TiledShapeStMan") {
+        static_cast<void>(read_iposition(reader)); // defaultTileShape
+        const auto nr_used = reader.read_u32();
+        info.shape_row_map = read_block_u32(reader);
+        info.shape_cube_map = read_block_u32(reader);
+        info.shape_pos_map = read_block_u32(reader);
+
+        // Keep only the active map entries.
+        const auto used = static_cast<std::size_t>(nr_used);
+        if (info.shape_row_map.size() > used) {
+            info.shape_row_map.resize(used);
+        }
+        if (info.shape_cube_map.size() > used) {
+            info.shape_cube_map.resize(used);
+        }
+        if (info.shape_pos_map.size() > used) {
+            info.shape_pos_map.resize(used);
+        }
+    } else if (info.sm_type == "TiledDataStMan") {
+        if (root_hdr.object_version == 1U) {
+            if (tsm_hdr.object_version < 3U) {
+                static_cast<void>(reader.read_u32()); // nrrowLast_p (old uInt)
+            } else {
+                static_cast<void>(reader.read_u64()); // nrrowLast_p (rownr_t)
+            }
+            const auto nused = reader.read_u32();
+            const auto old_row_map = read_block_u32(reader);
+            info.data_row_map.reserve(old_row_map.size());
+            for (const auto v : old_row_map) {
+                info.data_row_map.push_back(static_cast<std::uint64_t>(v));
+            }
+            info.data_cube_map = read_block_u32(reader);
+            info.data_pos_map = read_block_u32(reader);
+            const auto used = static_cast<std::size_t>(nused);
+            if (info.data_row_map.size() > used) {
+                info.data_row_map.resize(used);
+            }
+            if (info.data_cube_map.size() > used) {
+                info.data_cube_map.resize(used);
+            }
+            if (info.data_pos_map.size() > used) {
+                info.data_pos_map.resize(used);
+            }
+        } else {
+            static_cast<void>(reader.read_u64()); // nrrowLast_p
+            info.data_row_map = read_block_u64(reader);
+            info.data_cube_map = read_block_u32(reader);
+            info.data_pos_map = read_block_u32(reader);
+        }
     }
 
     return info;
@@ -525,11 +618,36 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
         }
     }
 
-    // Variable-shape columns (e.g. TiledShapeStMan) have no shape in
-    // ColumnDesc or ColumnSetup.  Derive cell shape from the cube shape
-    // in the .f0 header: cube_shape = [cell_dim0, ..., cell_dimN, nrows],
-    // so cell_shape = cube_shape with the last dimension stripped.
+    bool cube_shape_varies = false;
     if (have_header) {
+        std::optional<std::vector<std::int64_t>> first_shape;
+        for (const auto& cube : tsm_header.cubes) {
+            if (cube.file_nr < 0 || cube.cube_shape.size() < 2) {
+                continue;
+            }
+            std::vector<std::int64_t> cell_shape(cube.cube_shape.begin(), cube.cube_shape.end() - 1);
+            if (!first_shape.has_value()) {
+                first_shape = std::move(cell_shape);
+            } else if (cell_shape != *first_shape) {
+                cube_shape_varies = true;
+                break;
+            }
+        }
+    }
+
+    // Variable-shape tiled managers must resolve shape per-row/per-cube.
+    const bool variable_shape_tiled =
+        have_header && (tsm_header.sm_type == "TiledShapeStMan" || cube_shape_varies);
+    if (variable_shape_tiled) {
+        for (auto& col : columns_) {
+            col.shape.clear();
+            col.cell_elements = 0;
+        }
+    }
+
+    // Variable-shape columns with missing shape metadata can derive an initial
+    // shape from cube metadata.
+    if (have_header && !variable_shape_tiled) {
         const auto* cube = find_first_valid_cube(tsm_header);
         if (cube != nullptr && cube->cube_shape.size() >= 2) {
             for (auto& col : columns_) {
@@ -561,23 +679,171 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
     tile_layout_.sorted_col_indices = std::move(tsm_layout.sorted_col_indices);
     tile_layout_.col_tile_offsets = std::move(tsm_layout.col_tile_offsets);
 
-    // Read the TSM data file (no BucketFile header — raw bucket data).
-    // Use the header-derived sequence number for the _TSMn suffix.
-    // Fall back to other suffix if header-derived path doesn't exist.
+    cubes_.clear();
+    shape_row_intervals_.clear();
+    use_shape_row_map_ = false;
+    data_row_chunks_.clear();
+    use_data_row_map_ = false;
+    tsm_file_seqnrs_.clear();
+    tsm_file_data_.clear();
+
     const auto base_path =
         std::filesystem::path(table_dir) / ("table.f" + std::to_string(sm.sequence_number));
-    const auto primary_suffix = "_TSM" + std::to_string(tsm_header.data_file_seqnr);
-    auto tsm_path = base_path.string() + primary_suffix;
-    if (!std::filesystem::exists(tsm_path)) {
-        // Fallback: try the other common suffix.
-        const auto alt_suffix = (tsm_header.data_file_seqnr == 0) ? "_TSM1" : "_TSM0";
-        auto alt_path = base_path.string() + alt_suffix;
-        if (std::filesystem::exists(alt_path)) {
-            tsm_path = std::move(alt_path);
+
+    // Load all declared TSM data files when the header is available.
+    if (have_header) {
+        for (const auto seqnr : tsm_header.file_seqnrs) {
+            const auto tsm_path = base_path.string() + "_TSM" + std::to_string(seqnr);
+            if (!std::filesystem::exists(tsm_path)) {
+                continue;
+            }
+            tsm_file_seqnrs_.push_back(seqnr);
+            tsm_file_data_.push_back(read_file_tsm(tsm_path));
         }
-        // If neither exists, we'll get an error from read_file_tsm below.
+        for (const auto& cube : tsm_header.cubes) {
+            if (cube.file_nr < 0) {
+                continue;
+            }
+            if (std::find(tsm_file_seqnrs_.begin(), tsm_file_seqnrs_.end(), cube.file_nr) !=
+                tsm_file_seqnrs_.end()) {
+                continue;
+            }
+            const auto tsm_path = base_path.string() + "_TSM" + std::to_string(cube.file_nr);
+            if (!std::filesystem::exists(tsm_path)) {
+                continue;
+            }
+            tsm_file_seqnrs_.push_back(cube.file_nr);
+            tsm_file_data_.push_back(read_file_tsm(tsm_path));
+        }
     }
-    tsm_data_ = read_file_tsm(tsm_path);
+
+    // Fallback for mini-produced/legacy tables where header file listing is
+    // unavailable or incomplete.
+    if (tsm_file_data_.empty()) {
+        std::vector<std::int32_t> candidates;
+        if (have_header) {
+            candidates.push_back(tsm_header.data_file_seqnr);
+        }
+        candidates.push_back(0);
+        candidates.push_back(1);
+        candidates.push_back(2);
+
+        for (const auto seqnr : candidates) {
+            if (std::find(tsm_file_seqnrs_.begin(), tsm_file_seqnrs_.end(), seqnr) !=
+                tsm_file_seqnrs_.end()) {
+                continue;
+            }
+            const auto tsm_path = base_path.string() + "_TSM" + std::to_string(seqnr);
+            if (!std::filesystem::exists(tsm_path)) {
+                continue;
+            }
+            tsm_file_seqnrs_.push_back(seqnr);
+            tsm_file_data_.push_back(read_file_tsm(tsm_path));
+            break;
+        }
+    }
+    if (tsm_file_data_.empty()) {
+        throw std::runtime_error("TSM data file not found for SM sequence " +
+                                 std::to_string(sm.sequence_number));
+    }
+
+    // Build per-cube row/file mapping when present.
+    if (have_header && !tsm_header.cubes.empty()) {
+        std::uint64_t row_start = 0;
+        for (std::size_t cube_index = 0; cube_index < tsm_header.cubes.size(); ++cube_index) {
+            const auto& cube = tsm_header.cubes[cube_index];
+            if (cube.file_nr < 0 || cube.tile_shape.empty() || cube.cube_shape.empty()) {
+                continue;
+            }
+
+            CubeLayout layout;
+            layout.original_cube_index = cube_index;
+            layout.row_start = row_start;
+            layout.row_count = static_cast<std::uint64_t>(cube.cube_shape.back());
+            layout.file_nr = cube.file_nr;
+            layout.file_offset = cube.file_offset;
+            layout.cell_shape.assign(cube.cube_shape.begin(), cube.cube_shape.end() - 1);
+            layout.tile_shape = cube.tile_shape;
+            layout.tile_pixels = shape_product(layout.tile_shape);
+            layout.tile_rows = layout.tile_shape.empty() ? 0 : layout.tile_shape.back();
+
+            layout.col_tile_offsets.resize(tile_layout_.sorted_col_indices.size(), 0);
+            std::uint64_t offset = 0;
+            for (std::size_t i = 0; i < tile_layout_.sorted_col_indices.size(); ++i) {
+                layout.col_tile_offsets[i] = offset;
+                const auto sorted_idx = tile_layout_.sorted_col_indices[i];
+                offset += layout.tile_pixels *
+                          static_cast<std::uint64_t>(columns_[sorted_idx].element_size);
+            }
+            layout.bucket_size = offset;
+            cubes_.push_back(std::move(layout));
+            row_start += cubes_.back().row_count;
+        }
+    }
+
+    if (cubes_.empty()) {
+        CubeLayout layout;
+        layout.original_cube_index = 0;
+        layout.row_start = 0;
+        layout.row_count = row_count_;
+        layout.file_nr = tsm_file_seqnrs_.front();
+        layout.file_offset = 0;
+        layout.cell_shape = columns_.empty() ? std::vector<std::int64_t>{} : columns_[0].shape;
+        layout.tile_shape = tile_layout_.tile_shape;
+        layout.tile_pixels = tile_layout_.tile_pixels;
+        layout.tile_rows = tile_layout_.tile_rows;
+        layout.bucket_size = tile_layout_.bucket_size;
+        layout.col_tile_offsets = tile_layout_.col_tile_offsets;
+        cubes_.push_back(std::move(layout));
+    }
+
+    // TiledShapeStMan row mapping overrides naive cumulative cube ranges.
+    if (have_header && tsm_header.sm_type == "TiledShapeStMan" &&
+        !tsm_header.shape_row_map.empty() &&
+        tsm_header.shape_row_map.size() == tsm_header.shape_cube_map.size() &&
+        tsm_header.shape_row_map.size() == tsm_header.shape_pos_map.size()) {
+        shape_row_intervals_.reserve(tsm_header.shape_row_map.size());
+        for (std::size_t i = 0; i < tsm_header.shape_row_map.size(); ++i) {
+            ShapeRowInterval interval;
+            interval.row_end = static_cast<std::uint64_t>(tsm_header.shape_row_map[i]);
+            interval.cube_index = tsm_header.shape_cube_map[i];
+            interval.pos_end = tsm_header.shape_pos_map[i];
+            shape_row_intervals_.push_back(interval);
+        }
+        use_shape_row_map_ = !shape_row_intervals_.empty();
+    }
+
+    if (have_header && tsm_header.sm_type == "TiledDataStMan" &&
+        !tsm_header.data_row_map.empty() &&
+        tsm_header.data_row_map.size() == tsm_header.data_cube_map.size() &&
+        tsm_header.data_row_map.size() == tsm_header.data_pos_map.size()) {
+        data_row_chunks_.reserve(tsm_header.data_row_map.size());
+        for (std::size_t i = 0; i < tsm_header.data_row_map.size(); ++i) {
+            DataRowChunk chunk;
+            chunk.row_start = tsm_header.data_row_map[i];
+            chunk.cube_index = tsm_header.data_cube_map[i];
+            chunk.pos_start = tsm_header.data_pos_map[i];
+            data_row_chunks_.push_back(chunk);
+        }
+        use_data_row_map_ = !data_row_chunks_.empty();
+    }
+
+    if (have_header && tsm_header.sm_type == "TiledShapeStMan" && !use_shape_row_map_) {
+        throw std::runtime_error("TiledShapeStMan row map missing or invalid");
+    }
+    if (have_header && tsm_header.sm_type == "TiledDataStMan" && !use_data_row_map_) {
+        throw std::runtime_error("TiledDataStMan row map missing or invalid");
+    }
+
+    // Enforce strict row coverage when using cumulative cube layout.
+    if (!use_shape_row_map_ && !use_data_row_map_ && !cubes_.empty()) {
+        const auto covered_rows = cubes_.back().row_start + cubes_.back().row_count;
+        if (covered_rows != row_count_) {
+            throw std::runtime_error("TSM cube coverage mismatch: covered_rows=" +
+                                     std::to_string(covered_rows) +
+                                     " row_count=" + std::to_string(row_count_));
+        }
+    }
 
     is_open_ = true;
 }
@@ -596,25 +862,149 @@ TiledStManReader::find_column(const std::string_view col_name, std::size_t& orig
 
 std::uint64_t TiledStManReader::cell_byte_offset(const std::size_t original_col_index,
                                                  const TsmColumnInfo& column,
-                                                 const std::uint64_t row) const {
+                                                 const std::uint64_t row_in_cube,
+                                                 const CubeLayout& cube) const {
 
     // Find the sorted position of this column.
     std::size_t sorted_pos = 0;
+    bool found = false;
     for (std::size_t i = 0; i < tile_layout_.sorted_col_indices.size(); ++i) {
         if (tile_layout_.sorted_col_indices[i] == original_col_index) {
             sorted_pos = i;
+            found = true;
             break;
         }
     }
+    if (!found) {
+        throw std::runtime_error("column missing from TSM sorted column index");
+    }
 
-    const auto tile_rows_u64 = static_cast<std::uint64_t>(tile_layout_.tile_rows);
-    const auto tile_index = row / tile_rows_u64;
-    const auto row_in_tile = row % tile_rows_u64;
+    if (cube.tile_rows <= 0) {
+        throw std::runtime_error("invalid TSM cube tile_rows");
+    }
+    const auto tile_rows_u64 = static_cast<std::uint64_t>(cube.tile_rows);
+    const auto tile_index = row_in_cube / tile_rows_u64;
+    const auto row_in_tile = row_in_cube % tile_rows_u64;
 
-    const auto cell_bytes = column.cell_elements * static_cast<std::uint64_t>(column.element_size);
+    const auto cell_bytes =
+        cell_elements_for_row(column, cube) * static_cast<std::uint64_t>(column.element_size);
 
-    return tile_index * tile_layout_.bucket_size + tile_layout_.col_tile_offsets[sorted_pos] +
+    return cube.file_offset + tile_index * cube.bucket_size + cube.col_tile_offsets[sorted_pos] +
            row_in_tile * cell_bytes;
+}
+
+const TiledStManReader::CubeLayout* TiledStManReader::find_cube_for_row(
+    const std::uint64_t row) const {
+    for (const auto& cube : cubes_) {
+        if (row >= cube.row_start && row < cube.row_start + cube.row_count) {
+            return &cube;
+        }
+    }
+    return nullptr;
+}
+
+const TiledStManReader::CubeLayout* TiledStManReader::find_cube_by_index(
+    const std::size_t cube_index) const {
+    for (const auto& cube : cubes_) {
+        if (cube.original_cube_index == cube_index) {
+            return &cube;
+        }
+    }
+    return nullptr;
+}
+
+std::optional<TiledStManReader::RowLocation> TiledStManReader::locate_row(
+    const std::uint64_t row) const {
+    if (row >= row_count_) {
+        return std::nullopt;
+    }
+
+    if (use_shape_row_map_) {
+        std::uint64_t row_start = 0;
+        for (const auto& interval : shape_row_intervals_) {
+            if (row <= interval.row_end) {
+                if (interval.row_end < row_start) {
+                    return std::nullopt;
+                }
+                const auto* cube = find_cube_by_index(interval.cube_index);
+                if (cube == nullptr) {
+                    return std::nullopt;
+                }
+                const auto delta = interval.row_end - row;
+                if (static_cast<std::uint64_t>(interval.pos_end) < delta) {
+                    return std::nullopt;
+                }
+                const auto row_in_cube = static_cast<std::uint64_t>(interval.pos_end) - delta;
+                if (row_in_cube >= cube->row_count) {
+                    return std::nullopt;
+                }
+                return RowLocation{cube, row_in_cube};
+            }
+            row_start = interval.row_end + 1;
+        }
+        return std::nullopt;
+    }
+
+    if (use_data_row_map_) {
+        if (data_row_chunks_.empty()) {
+            return std::nullopt;
+        }
+        std::size_t chunk_index = 0;
+        for (std::size_t i = 1; i < data_row_chunks_.size(); ++i) {
+            if (row < data_row_chunks_[i].row_start) {
+                break;
+            }
+            chunk_index = i;
+        }
+        const auto& chunk = data_row_chunks_[chunk_index];
+        if (row < chunk.row_start) {
+            return std::nullopt;
+        }
+        const auto* cube = find_cube_by_index(chunk.cube_index);
+        if (cube == nullptr) {
+            return std::nullopt;
+        }
+        const auto row_diff = row - chunk.row_start;
+        const auto row_in_cube = static_cast<std::uint64_t>(chunk.pos_start) + row_diff;
+        if (row_in_cube >= cube->row_count) {
+            return std::nullopt;
+        }
+        return RowLocation{cube, row_in_cube};
+    }
+
+    const auto* cube = find_cube_for_row(row);
+    if (cube == nullptr) {
+        return std::nullopt;
+    }
+    if (row < cube->row_start) {
+        return std::nullopt;
+    }
+    const auto row_in_cube = row - cube->row_start;
+    if (row_in_cube >= cube->row_count) {
+        return std::nullopt;
+    }
+    return RowLocation{cube, row_in_cube};
+}
+
+const std::vector<std::uint8_t>* TiledStManReader::find_file_data(
+    const std::int32_t file_nr) const {
+    for (std::size_t i = 0; i < tsm_file_seqnrs_.size(); ++i) {
+        if (tsm_file_seqnrs_[i] == file_nr) {
+            return &tsm_file_data_[i];
+        }
+    }
+    return nullptr;
+}
+
+std::uint64_t TiledStManReader::cell_elements_for_row(const TsmColumnInfo& column,
+                                                      const CubeLayout& cube) const {
+    if (column.cell_elements > 0) {
+        return column.cell_elements;
+    }
+    if (cube.cell_shape.empty()) {
+        return 0;
+    }
+    return shape_product(cube.cell_shape);
 }
 
 std::vector<float> TiledStManReader::read_float_cell(const std::string_view col_name,
@@ -631,19 +1021,13 @@ std::vector<float> TiledStManReader::read_float_cell(const std::string_view col_
     if (col->data_type != DataType::tp_float) {
         throw std::runtime_error("column is not Float: " + std::string(col_name));
     }
-    if (row >= row_count_) {
-        throw std::runtime_error("row out of range");
+    static_cast<void>(col_idx);
+    auto raw = read_raw_cell(col_name, row);
+    if ((raw.size() % sizeof(float)) != 0U) {
+        throw std::runtime_error("TSM float cell byte size is not a multiple of sizeof(float)");
     }
-
-    const auto cell_bytes = col->cell_elements * col->element_size;
-    const auto byte_offset = cell_byte_offset(col_idx, *col, row);
-
-    if (byte_offset + cell_bytes > tsm_data_.size()) {
-        throw std::runtime_error("TSM0 read beyond file end");
-    }
-
-    std::vector<float> result(static_cast<std::size_t>(col->cell_elements));
-    std::memcpy(result.data(), tsm_data_.data() + byte_offset, cell_bytes);
+    std::vector<float> result(raw.size() / sizeof(float));
+    std::memcpy(result.data(), raw.data(), raw.size());
     return result;
 }
 
@@ -661,19 +1045,13 @@ std::vector<std::int32_t> TiledStManReader::read_int_cell(const std::string_view
     if (col->data_type != DataType::tp_int) {
         throw std::runtime_error("column is not Int: " + std::string(col_name));
     }
-    if (row >= row_count_) {
-        throw std::runtime_error("row out of range");
+    static_cast<void>(col_idx);
+    auto raw = read_raw_cell(col_name, row);
+    if ((raw.size() % sizeof(std::int32_t)) != 0U) {
+        throw std::runtime_error("TSM int cell byte size is not a multiple of sizeof(int32_t)");
     }
-
-    const auto cell_bytes = col->cell_elements * col->element_size;
-    const auto byte_offset = cell_byte_offset(col_idx, *col, row);
-
-    if (byte_offset + cell_bytes > tsm_data_.size()) {
-        throw std::runtime_error("TSM0 read beyond file end");
-    }
-
-    std::vector<std::int32_t> result(static_cast<std::size_t>(col->cell_elements));
-    std::memcpy(result.data(), tsm_data_.data() + byte_offset, cell_bytes);
+    std::vector<std::int32_t> result(raw.size() / sizeof(std::int32_t));
+    std::memcpy(result.data(), raw.data(), raw.size());
     return result;
 }
 
@@ -692,16 +1070,195 @@ std::vector<std::uint8_t> TiledStManReader::read_raw_cell(const std::string_view
         throw std::runtime_error("row out of range");
     }
 
-    const auto cell_bytes = col->cell_elements * col->element_size;
-    const auto byte_offset = cell_byte_offset(col_idx, *col, row);
-
-    if (byte_offset + cell_bytes > tsm_data_.size()) {
-        throw std::runtime_error("TSM0 read beyond file end");
+    const auto loc = locate_row(row);
+    if (!loc.has_value()) {
+        throw std::runtime_error("row not mapped to TSM cube");
+    }
+    const auto* cube = loc->cube;
+    const auto* file_data = find_file_data(cube->file_nr);
+    if (file_data == nullptr) {
+        throw std::runtime_error("TSM data file not loaded for fileNr=" +
+                                 std::to_string(cube->file_nr));
     }
 
+    const auto elem_count = cell_elements_for_row(*col, *cube);
+    const auto cell_bytes = elem_count * col->element_size;
     std::vector<std::uint8_t> result(static_cast<std::size_t>(cell_bytes));
-    std::memcpy(result.data(), tsm_data_.data() + byte_offset, cell_bytes);
+
+    std::vector<std::uint64_t> cell_shape_u;
+    if (!col->shape.empty()) {
+        cell_shape_u.reserve(col->shape.size());
+        for (const auto dim : col->shape) {
+            cell_shape_u.push_back(static_cast<std::uint64_t>(dim));
+        }
+    } else {
+        cell_shape_u.reserve(cube->cell_shape.size());
+        for (const auto dim : cube->cell_shape) {
+            cell_shape_u.push_back(static_cast<std::uint64_t>(dim));
+        }
+    }
+    const auto ncell_dims = cell_shape_u.size();
+    if (cube->tile_shape.size() != ncell_dims + 1) {
+        throw std::runtime_error("TSM tile/cell dimensionality mismatch");
+    }
+
+    std::vector<std::uint64_t> tile_cell_shape_u;
+    tile_cell_shape_u.reserve(ncell_dims);
+    for (std::size_t i = 0; i < ncell_dims; ++i) {
+        tile_cell_shape_u.push_back(static_cast<std::uint64_t>(cube->tile_shape[i]));
+    }
+
+    bool full_cell_per_tile = true;
+    for (std::size_t i = 0; i < ncell_dims; ++i) {
+        if (tile_cell_shape_u[i] != cell_shape_u[i]) {
+            full_cell_per_tile = false;
+            break;
+        }
+    }
+
+    if (full_cell_per_tile) {
+        const auto byte_offset = cell_byte_offset(col_idx, *col, loc->row_in_cube, *cube);
+        if (byte_offset > file_data->size() || cell_bytes > file_data->size() - byte_offset) {
+            throw std::runtime_error("TSM0 read beyond file end");
+        }
+        std::memcpy(result.data(), file_data->data() + byte_offset, cell_bytes);
+        return result;
+    }
+
+    std::size_t sorted_pos = 0;
+    bool found_sorted = false;
+    for (std::size_t i = 0; i < tile_layout_.sorted_col_indices.size(); ++i) {
+        if (tile_layout_.sorted_col_indices[i] == col_idx) {
+            sorted_pos = i;
+            found_sorted = true;
+            break;
+        }
+    }
+    if (!found_sorted) {
+        throw std::runtime_error("column missing from TSM sorted column index");
+    }
+
+    if (cube->tile_rows <= 0) {
+        throw std::runtime_error("invalid TSM cube tile_rows");
+    }
+    const auto tile_rows_u64 = static_cast<std::uint64_t>(cube->tile_rows);
+    const auto row_tile_index = loc->row_in_cube / tile_rows_u64;
+    const auto row_in_tile = loc->row_in_cube % tile_rows_u64;
+
+    std::vector<std::uint64_t> tiles_per_dim(ncell_dims, 1);
+    for (std::size_t i = 0; i < ncell_dims; ++i) {
+        if (tile_cell_shape_u[i] == 0U) {
+            throw std::runtime_error("TSM tile shape contains zero-sized dimension");
+        }
+        tiles_per_dim[i] = (cell_shape_u[i] + tile_cell_shape_u[i] - 1U) / tile_cell_shape_u[i];
+    }
+
+    std::vector<std::uint64_t> cell_strides(ncell_dims, 1);
+    std::vector<std::uint64_t> tile_strides(ncell_dims, 1);
+    for (std::size_t i = 1; i < ncell_dims; ++i) {
+        cell_strides[i] = cell_strides[i - 1] * cell_shape_u[i - 1];
+        tile_strides[i] = tile_strides[i - 1] * tile_cell_shape_u[i - 1];
+    }
+    std::uint64_t tile_cell_pixels = 1;
+    for (const auto dim : tile_cell_shape_u) {
+        tile_cell_pixels *= dim;
+    }
+
+    std::vector<std::uint64_t> tile_coord(ncell_dims, 0);
+    bool done = ncell_dims == 0;
+    while (!done) {
+        std::uint64_t tile_linear = 0;
+        std::uint64_t tile_mult = 1;
+        for (std::size_t i = 0; i < ncell_dims; ++i) {
+            tile_linear += tile_coord[i] * tile_mult;
+            tile_mult *= tiles_per_dim[i];
+        }
+        tile_linear += row_tile_index * tile_mult;
+
+        const auto tile_base = cube->file_offset + tile_linear * cube->bucket_size +
+                               cube->col_tile_offsets[sorted_pos];
+
+        std::vector<std::uint64_t> chunk_shape(ncell_dims, 1);
+        std::vector<std::uint64_t> chunk_start(ncell_dims, 0);
+        for (std::size_t i = 0; i < ncell_dims; ++i) {
+            chunk_start[i] = tile_coord[i] * tile_cell_shape_u[i];
+            const auto remaining = cell_shape_u[i] - chunk_start[i];
+            chunk_shape[i] = std::min(tile_cell_shape_u[i], remaining);
+        }
+
+        std::uint64_t chunk_pixels = 1;
+        for (const auto dim : chunk_shape) {
+            chunk_pixels *= dim;
+        }
+        for (std::uint64_t p = 0; p < chunk_pixels; ++p) {
+            std::uint64_t rem = p;
+            std::uint64_t tile_cell_linear = 0;
+            std::uint64_t out_cell_linear = 0;
+            for (std::size_t i = 0; i < ncell_dims; ++i) {
+                const auto c = rem % chunk_shape[i];
+                rem /= chunk_shape[i];
+                tile_cell_linear += c * tile_strides[i];
+                out_cell_linear += (chunk_start[i] + c) * cell_strides[i];
+            }
+
+            const auto src =
+                tile_base + (row_in_tile * tile_cell_pixels + tile_cell_linear) * col->element_size;
+            const auto dst = out_cell_linear * col->element_size;
+            if (src > file_data->size() || col->element_size > file_data->size() - src) {
+                throw std::runtime_error("TSM0 tiled read beyond file end");
+            }
+            if (dst > result.size() || col->element_size > result.size() - dst) {
+                throw std::runtime_error("TSM0 tiled write beyond cell buffer");
+            }
+            std::memcpy(result.data() + dst, file_data->data() + src, col->element_size);
+        }
+
+        for (std::size_t i = 0; i < ncell_dims; ++i) {
+            ++tile_coord[i];
+            if (tile_coord[i] < tiles_per_dim[i]) {
+                break;
+            }
+            tile_coord[i] = 0;
+            if (i + 1 == ncell_dims) {
+                done = true;
+            }
+        }
+    }
     return result;
+}
+
+std::vector<std::int64_t> TiledStManReader::cell_shape(const std::string_view col_name,
+                                                       const std::uint64_t row) const {
+    if (!is_open_) {
+        throw std::runtime_error("TiledStManReader not open");
+    }
+
+    std::size_t col_idx = 0;
+    const auto* col = find_column(col_name, col_idx);
+    if (col == nullptr) {
+        throw std::runtime_error("column not found: " + std::string(col_name));
+    }
+    if (row >= row_count_) {
+        throw std::runtime_error("row out of range");
+    }
+
+    if (!col->shape.empty()) {
+        return col->shape;
+    }
+    const auto loc = locate_row(row);
+    if (!loc.has_value()) {
+        return {};
+    }
+    return loc->cube->cell_shape;
+}
+
+bool TiledStManReader::has_column(const std::string_view col_name) const noexcept {
+    for (const auto& c : columns_) {
+        if (c.name == col_name) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::size_t TiledStManReader::column_count() const noexcept {

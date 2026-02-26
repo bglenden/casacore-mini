@@ -25,6 +25,16 @@
 #include <casacore/tables/Tables/TableAttr.h>
 #include <casacore/tables/Tables/TableDesc.h>
 
+#include <casacore/ms/MeasurementSets/MeasurementSet.h>
+#include <casacore/ms/MeasurementSets/MSColumns.h>
+#include <casacore/ms/MeasurementSets/MSAntennaColumns.h>
+#include <casacore/ms/MeasurementSets/MSFieldColumns.h>
+#include <casacore/ms/MeasurementSets/MSSpWindowColumns.h>
+#include <casacore/ms/MeasurementSets/MSDataDescColumns.h>
+#include <casacore/ms/MeasurementSets/MSPolColumns.h>
+#include <casacore/ms/MeasurementSets/MSObsColumns.h>
+#include <casacore/ms/MeasurementSets/MSStateColumns.h>
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -35,6 +45,7 @@
 #include <ios>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -2107,6 +2118,987 @@ void verify_conversion_vectors_semantic(const casacore::Record& record,
 }
 
 // =====================================================================
+// Phase 9: MeasurementSet produce / verify helpers
+// =====================================================================
+
+void ms_verify_check(bool cond, const std::string& artifact, const std::string& detail) {
+    if (!cond) throw std::runtime_error(artifact + ": " + detail);
+}
+
+// --------------- shared MS building blocks ---------------
+
+void ms_add_antenna(casacore::MeasurementSet& ms, const casacore::String& name,
+                    const casacore::String& station, double dish_diameter) {
+    casacore::MSAntennaColumns cols(ms.antenna());
+    casacore::uInt row = ms.antenna().nrow();
+    ms.antenna().addRow();
+    cols.name().put(row, name);
+    cols.station().put(row, station);
+    cols.type().put(row, casacore::String("GROUND-BASED"));
+    cols.mount().put(row, casacore::String("ALT-AZ"));
+    cols.position().put(row, casacore::Vector<casacore::Double>(3, 0.0));
+    cols.offset().put(row, casacore::Vector<casacore::Double>(3, 0.0));
+    cols.dishDiameter().put(row, dish_diameter);
+    cols.flagRow().put(row, false);
+}
+
+void ms_add_field(casacore::MeasurementSet& ms, const casacore::String& name,
+                  double ra_rad, double dec_rad) {
+    casacore::MSFieldColumns cols(ms.field());
+    casacore::uInt row = ms.field().nrow();
+    ms.field().addRow();
+    cols.name().put(row, name);
+    cols.code().put(row, casacore::String(""));
+    cols.time().put(row, 0.0);
+    cols.numPoly().put(row, 0);
+    cols.sourceId().put(row, -1);
+    cols.flagRow().put(row, false);
+    casacore::Matrix<casacore::Double> dir(2, 1, 0.0);
+    dir(0, 0) = ra_rad;
+    dir(1, 0) = dec_rad;
+    cols.delayDir().put(row, dir);
+    cols.phaseDir().put(row, dir);
+    cols.referenceDir().put(row, dir);
+}
+
+void ms_add_spw(casacore::MeasurementSet& ms, const casacore::String& name,
+                casacore::Int nchan, double ref_freq, double chan_width) {
+    casacore::MSSpWindowColumns cols(ms.spectralWindow());
+    casacore::uInt row = ms.spectralWindow().nrow();
+    ms.spectralWindow().addRow();
+    cols.name().put(row, name);
+    cols.numChan().put(row, nchan);
+    cols.refFrequency().put(row, ref_freq);
+    casacore::Vector<casacore::Double> freqs(nchan);
+    for (casacore::Int i = 0; i < nchan; ++i) {
+        freqs[i] = ref_freq + i * chan_width;
+    }
+    cols.chanFreq().put(row, freqs);
+    casacore::Vector<casacore::Double> widths(nchan, chan_width);
+    cols.chanWidth().put(row, widths);
+    cols.effectiveBW().put(row, widths);
+    cols.resolution().put(row, widths);
+    cols.totalBandwidth().put(row, nchan * chan_width);
+    cols.measFreqRef().put(row, 5);  // TOPO
+    cols.netSideband().put(row, 0);
+    cols.ifConvChain().put(row, 0);
+    cols.freqGroup().put(row, 0);
+    cols.freqGroupName().put(row, casacore::String(""));
+    cols.flagRow().put(row, false);
+}
+
+void ms_add_dd(casacore::MeasurementSet& ms, casacore::Int spw_id, casacore::Int pol_id) {
+    casacore::MSDataDescColumns cols(ms.dataDescription());
+    casacore::uInt row = ms.dataDescription().nrow();
+    ms.dataDescription().addRow();
+    cols.spectralWindowId().put(row, spw_id);
+    cols.polarizationId().put(row, pol_id);
+    cols.flagRow().put(row, false);
+}
+
+void ms_add_pol(casacore::MeasurementSet& ms, casacore::Int ncorr,
+                const casacore::Vector<casacore::Int>& corr_type) {
+    casacore::MSPolarizationColumns cols(ms.polarization());
+    casacore::uInt row = ms.polarization().nrow();
+    ms.polarization().addRow();
+    cols.numCorr().put(row, ncorr);
+    cols.corrType().put(row, corr_type);
+    casacore::Matrix<casacore::Int> prod(2, ncorr, 0);
+    for (casacore::Int c = 0; c < ncorr; ++c) {
+        prod(0, c) = c;
+        prod(1, c) = c;
+    }
+    cols.corrProduct().put(row, prod);
+    cols.flagRow().put(row, false);
+}
+
+void ms_add_observation(casacore::MeasurementSet& ms, const casacore::String& telescope) {
+    casacore::MSObservationColumns cols(ms.observation());
+    casacore::uInt row = ms.observation().nrow();
+    ms.observation().addRow();
+    cols.telescopeName().put(row, telescope);
+    cols.observer().put(row, casacore::String(""));
+    cols.project().put(row, casacore::String(""));
+    cols.releaseDate().put(row, 0.0);
+    cols.flagRow().put(row, false);
+    casacore::Vector<casacore::Double> tr(2, 0.0);
+    cols.timeRange().put(row, tr);
+    cols.scheduleType().put(row, casacore::String(""));
+    casacore::Vector<casacore::String> sched(1, casacore::String(""));
+    cols.schedule().put(row, sched);
+    casacore::Vector<casacore::String> logv(1, casacore::String(""));
+    cols.log().put(row, logv);
+}
+
+void ms_add_state(casacore::MeasurementSet& ms, const casacore::String& obs_mode,
+                  bool sig, bool ref_flag) {
+    casacore::MSStateColumns cols(ms.state());
+    casacore::uInt row = ms.state().nrow();
+    ms.state().addRow();
+    cols.sig().put(row, sig);
+    cols.ref().put(row, ref_flag);
+    cols.cal().put(row, 0.0);
+    cols.load().put(row, 0.0);
+    cols.subScan().put(row, 0);
+    cols.obsMode().put(row, obs_mode);
+    cols.flagRow().put(row, false);
+}
+
+struct MsRowData {
+    casacore::Int ant1;
+    casacore::Int ant2;
+    casacore::Int dd_id;
+    casacore::Int field_id;
+    casacore::Int scan;
+    casacore::Int state_id;
+    casacore::Int array_id;
+    double time_val;
+    casacore::Vector<casacore::Double> uvw;
+    casacore::Vector<casacore::Float> sigma;
+    casacore::Vector<casacore::Float> weight;
+};
+
+void ms_add_main_row(casacore::MeasurementSet& ms, casacore::MSColumns& mc,
+                     const MsRowData& d) {
+    casacore::uInt row = ms.nrow();
+    ms.addRow();
+    mc.antenna1().put(row, d.ant1);
+    mc.antenna2().put(row, d.ant2);
+    mc.arrayId().put(row, d.array_id);
+    mc.dataDescId().put(row, d.dd_id);
+    mc.exposure().put(row, 10.0);
+    mc.feed1().put(row, 0);
+    mc.feed2().put(row, 0);
+    mc.fieldId().put(row, d.field_id);
+    mc.flagRow().put(row, false);
+    mc.interval().put(row, 10.0);
+    mc.observationId().put(row, 0);
+    mc.processorId().put(row, 0);
+    mc.scanNumber().put(row, d.scan);
+    mc.stateId().put(row, d.state_id);
+    mc.time().put(row, d.time_val);
+    mc.timeCentroid().put(row, d.time_val);
+    mc.uvw().put(row, d.uvw);
+    mc.sigma().put(row, d.sigma);
+    mc.weight().put(row, d.weight);
+}
+
+casacore::Vector<casacore::Double> make_uvw(double u, double v, double w) {
+    casacore::Vector<casacore::Double> vec(3);
+    vec[0] = u; vec[1] = v; vec[2] = w;
+    return vec;
+}
+
+casacore::Vector<casacore::Int> make_corr_type_2() {
+    casacore::Vector<casacore::Int> ct(2);
+    ct[0] = 9;   // XX
+    ct[1] = 12;  // YY
+    return ct;
+}
+
+// --------------- ms-minimal ---------------
+
+void produce_ms_minimal(const std::string& path) {
+    std::filesystem::remove_all(path);
+    casacore::TableDesc td = casacore::MS::requiredTableDesc();
+    casacore::SetupNewTable newtab(path, td, casacore::Table::New);
+    casacore::MeasurementSet ms(newtab);
+    ms.createDefaultSubtables(casacore::Table::New);
+
+    ms_add_antenna(ms, "ANT0", "PAD0", 25.0);
+    ms_add_field(ms, "F0", 0.0, 0.0);
+    ms_add_spw(ms, "SPW0", 4, 1.4e9, 1e6);
+    ms_add_pol(ms, 2, make_corr_type_2());
+    ms_add_dd(ms, 0, 0);
+    ms_add_observation(ms, "MINI");
+    ms_add_state(ms, "OBSERVE", true, false);
+    // 0 main rows
+    ms.flush(true);
+    std::cout << path << '\n';
+}
+
+void verify_ms_minimal(const std::string& path) {
+    const std::string art = "ms-minimal";
+    casacore::MeasurementSet ms(path);
+    ms_verify_check(ms.nrow() == 0, art, "expected 0 main rows, got " +
+                    std::to_string(ms.nrow()));
+    ms_verify_check(ms.antenna().nrow() >= 1, art, "need >=1 antenna row");
+    ms_verify_check(ms.field().nrow() >= 1, art, "need >=1 field row");
+    ms_verify_check(ms.spectralWindow().nrow() >= 1, art, "need >=1 SPW row");
+    ms_verify_check(ms.dataDescription().nrow() >= 1, art, "need >=1 DD row");
+    ms_verify_check(ms.polarization().nrow() >= 1, art, "need >=1 pol row");
+    ms_verify_check(ms.observation().nrow() >= 1, art, "need >=1 obs row");
+    ms_verify_check(ms.state().nrow() >= 1, art, "need >=1 state row");
+    // Check that 12 required subtables are present (just verify key ones exist
+    // by checking nrow doesn't throw)
+    (void)ms.feed().nrow();
+    (void)ms.flagCmd().nrow();
+    (void)ms.history().nrow();
+    (void)ms.pointing().nrow();
+    (void)ms.processor().nrow();
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- ms-representative ---------------
+
+void produce_ms_representative(const std::string& path) {
+    std::filesystem::remove_all(path);
+    casacore::TableDesc td = casacore::MS::requiredTableDesc();
+    casacore::SetupNewTable newtab(path, td, casacore::Table::New);
+    casacore::MeasurementSet ms(newtab);
+    ms.createDefaultSubtables(casacore::Table::New);
+
+    // 6 antennas
+    for (int i = 0; i < 6; ++i) {
+        ms_add_antenna(ms, casacore::String("ANT" + std::to_string(i)),
+                       casacore::String("PAD" + std::to_string(i)), 25.0);
+    }
+    // 2 fields
+    ms_add_field(ms, "F0", 0.0, 0.0);
+    ms_add_field(ms, "F1", 1.0, 0.5);
+    // 2 SPWs
+    ms_add_spw(ms, "SPW0", 4, 1.4e9, 1e6);
+    ms_add_spw(ms, "SPW1", 4, 2.0e9, 2e6);
+    // 1 pol (2 corr)
+    ms_add_pol(ms, 2, make_corr_type_2());
+    // 2 DDs
+    ms_add_dd(ms, 0, 0);
+    ms_add_dd(ms, 1, 0);
+    // 1 obs
+    ms_add_observation(ms, "VLA");
+    // 2 states
+    ms_add_state(ms, "OBSERVE", true, false);
+    ms_add_state(ms, "REFERENCE", false, true);
+
+    // 16 main rows: vary baselines, fields, scans, DDs, states
+    casacore::MSColumns mc(ms);
+    casacore::Vector<casacore::Float> sig(2, 1.0f);
+    casacore::Vector<casacore::Float> wgt(2, 1.0f);
+    const double t0 = 4.8e9;
+    int row_idx = 0;
+    for (int scan = 1; scan <= 2; ++scan) {
+        for (int fld = 0; fld < 2; ++fld) {
+            for (int dd = 0; dd < 2; ++dd) {
+                // 2 baselines per combo: (0,1) and (0,2)
+                for (int bl = 0; bl < 2; ++bl) {
+                    MsRowData rd;
+                    rd.ant1 = 0;
+                    rd.ant2 = bl + 1;
+                    rd.dd_id = dd;
+                    rd.field_id = fld;
+                    rd.scan = scan;
+                    rd.state_id = (scan == 1) ? 0 : 1;
+                    rd.array_id = 0;
+                    rd.time_val = t0 + row_idx * 10.0;
+                    rd.uvw = make_uvw(100.0 + row_idx, 200.0 + row_idx,
+                                      50.0 + row_idx);
+                    rd.sigma = sig;
+                    rd.weight = wgt;
+                    ms_add_main_row(ms, mc, rd);
+                    ++row_idx;
+                }
+            }
+        }
+    }
+    ms.flush(true);
+    std::cout << path << '\n';
+}
+
+void verify_ms_representative(const std::string& path) {
+    const std::string art = "ms-representative";
+    casacore::MeasurementSet ms(path);
+    casacore::MSColumns mc(ms);
+    ms_verify_check(ms.nrow() >= 10, art,
+                    "expected >=10 rows, got " + std::to_string(ms.nrow()));
+    ms_verify_check(ms.antenna().nrow() == 6, art,
+                    "expected 6 antennas, got " +
+                    std::to_string(ms.antenna().nrow()));
+    ms_verify_check(ms.field().nrow() == 2, art,
+                    "expected 2 fields, got " +
+                    std::to_string(ms.field().nrow()));
+    ms_verify_check(ms.spectralWindow().nrow() == 2, art,
+                    "expected 2 SPWs, got " +
+                    std::to_string(ms.spectralWindow().nrow()));
+    // Spot-check a UVW value
+    casacore::Vector<casacore::Double> uvw = mc.uvw().get(0);
+    ms_verify_check(uvw.nelements() == 3, art, "UVW should have 3 elements");
+    // Spot-check sigma and weight
+    casacore::Vector<casacore::Float> sig = mc.sigma().get(0);
+    casacore::Vector<casacore::Float> wgt = mc.weight().get(0);
+    ms_verify_check(sig.nelements() == 2, art, "SIGMA should have 2 elements");
+    ms_verify_check(wgt.nelements() == 2, art, "WEIGHT should have 2 elements");
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- ms-optional-subtables ---------------
+
+void produce_ms_optional_subtables(const std::string& path) {
+    // Same as minimal: required subtables only, 0 data rows
+    std::filesystem::remove_all(path);
+    casacore::TableDesc td = casacore::MS::requiredTableDesc();
+    casacore::SetupNewTable newtab(path, td, casacore::Table::New);
+    casacore::MeasurementSet ms(newtab);
+    ms.createDefaultSubtables(casacore::Table::New);
+
+    ms_add_antenna(ms, "ANT0", "PAD0", 25.0);
+    ms_add_field(ms, "F0", 0.0, 0.0);
+    ms_add_spw(ms, "SPW0", 4, 1.4e9, 1e6);
+    ms_add_pol(ms, 2, make_corr_type_2());
+    ms_add_dd(ms, 0, 0);
+    ms_add_observation(ms, "MINI");
+    ms_add_state(ms, "OBSERVE", true, false);
+    ms.flush(true);
+    std::cout << path << '\n';
+}
+
+void verify_ms_optional_subtables(const std::string& path) {
+    const std::string art = "ms-optional-subtables";
+    casacore::MeasurementSet ms(path);
+    // Verify the 12 required subtable keywords are present by accessing each
+    (void)ms.antenna().nrow();
+    (void)ms.dataDescription().nrow();
+    (void)ms.feed().nrow();
+    (void)ms.field().nrow();
+    (void)ms.flagCmd().nrow();
+    (void)ms.history().nrow();
+    (void)ms.observation().nrow();
+    (void)ms.pointing().nrow();
+    (void)ms.polarization().nrow();
+    (void)ms.processor().nrow();
+    (void)ms.spectralWindow().nrow();
+    (void)ms.state().nrow();
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- ms-concat ---------------
+
+void produce_ms_concat(const std::string& dir_path) {
+    std::filesystem::remove_all(dir_path);
+    std::filesystem::create_directories(dir_path);
+
+    const std::string path_a = dir_path + "/ms_a.ms";
+    const std::string path_b = dir_path + "/ms_b.ms";
+    const std::string path_c = dir_path + "/concat.ms";
+
+    casacore::Vector<casacore::Float> sig(2, 1.0f);
+    casacore::Vector<casacore::Float> wgt(2, 1.0f);
+    const double t0 = 4.8e9;
+
+    // --- ms_a: 2 antennas ANT0/ANT1, field SRC_A, 3 rows ---
+    {
+        casacore::TableDesc td = casacore::MS::requiredTableDesc();
+        casacore::SetupNewTable newtab(path_a, td, casacore::Table::New);
+        casacore::MeasurementSet ms(newtab);
+        ms.createDefaultSubtables(casacore::Table::New);
+        ms_add_antenna(ms, "ANT0", "PAD0", 25.0);
+        ms_add_antenna(ms, "ANT1", "PAD1", 25.0);
+        ms_add_field(ms, "SRC_A", 0.0, 0.0);
+        ms_add_spw(ms, "SPW0", 4, 1.4e9, 1e6);
+        ms_add_pol(ms, 2, make_corr_type_2());
+        ms_add_dd(ms, 0, 0);
+        ms_add_observation(ms, "VLA");
+        ms_add_state(ms, "OBSERVE", true, false);
+        casacore::MSColumns mc(ms);
+        for (int i = 0; i < 3; ++i) {
+            MsRowData rd;
+            rd.ant1 = 0; rd.ant2 = 1; rd.dd_id = 0; rd.field_id = 0;
+            rd.scan = 1; rd.state_id = 0; rd.array_id = 0;
+            rd.time_val = t0 + i * 10.0;
+            rd.uvw = make_uvw(100.0 + i, 200.0, 50.0);
+            rd.sigma = sig; rd.weight = wgt;
+            ms_add_main_row(ms, mc, rd);
+        }
+        ms.flush(true);
+    }
+
+    // --- ms_b: 2 antennas ANT0/ANT2, field SRC_B, 2 rows ---
+    {
+        casacore::TableDesc td = casacore::MS::requiredTableDesc();
+        casacore::SetupNewTable newtab(path_b, td, casacore::Table::New);
+        casacore::MeasurementSet ms(newtab);
+        ms.createDefaultSubtables(casacore::Table::New);
+        ms_add_antenna(ms, "ANT0", "PAD0", 25.0);
+        ms_add_antenna(ms, "ANT2", "PAD2", 25.0);
+        ms_add_field(ms, "SRC_B", 1.0, 0.5);
+        ms_add_spw(ms, "SPW0", 4, 1.4e9, 1e6);
+        ms_add_pol(ms, 2, make_corr_type_2());
+        ms_add_dd(ms, 0, 0);
+        ms_add_observation(ms, "VLA");
+        ms_add_state(ms, "OBSERVE", true, false);
+        casacore::MSColumns mc(ms);
+        for (int i = 0; i < 2; ++i) {
+            MsRowData rd;
+            rd.ant1 = 0; rd.ant2 = 1; rd.dd_id = 0; rd.field_id = 0;
+            rd.scan = 2; rd.state_id = 0; rd.array_id = 0;
+            rd.time_val = t0 + 100.0 + i * 10.0;
+            rd.uvw = make_uvw(300.0 + i, 400.0, 60.0);
+            rd.sigma = sig; rd.weight = wgt;
+            ms_add_main_row(ms, mc, rd);
+        }
+        ms.flush(true);
+    }
+
+    // --- concat.ms: merge both ---
+    {
+        casacore::TableDesc td = casacore::MS::requiredTableDesc();
+        casacore::SetupNewTable newtab(path_c, td, casacore::Table::New);
+        casacore::MeasurementSet out_ms(newtab);
+        out_ms.createDefaultSubtables(casacore::Table::New);
+
+        // Combined subtables: 3 antennas ANT0/ANT1/ANT2, 2 fields, 1 SPW
+        ms_add_antenna(out_ms, "ANT0", "PAD0", 25.0);
+        ms_add_antenna(out_ms, "ANT1", "PAD1", 25.0);
+        ms_add_antenna(out_ms, "ANT2", "PAD2", 25.0);
+        ms_add_field(out_ms, "SRC_A", 0.0, 0.0);
+        ms_add_field(out_ms, "SRC_B", 1.0, 0.5);
+        ms_add_spw(out_ms, "SPW0", 4, 1.4e9, 1e6);
+        ms_add_pol(out_ms, 2, make_corr_type_2());
+        ms_add_dd(out_ms, 0, 0);
+        ms_add_observation(out_ms, "VLA");
+        ms_add_state(out_ms, "OBSERVE", true, false);
+
+        casacore::MSColumns out_mc(out_ms);
+
+        // Copy rows from ms_a (antenna IDs match: 0->0, 1->1)
+        {
+            casacore::MeasurementSet a(path_a);
+            casacore::MSColumns ac(a);
+            for (casacore::uInt r = 0; r < a.nrow(); ++r) {
+                MsRowData rd;
+                rd.ant1 = ac.antenna1().get(r);
+                rd.ant2 = ac.antenna2().get(r);
+                rd.dd_id = ac.dataDescId().get(r);
+                rd.field_id = ac.fieldId().get(r);  // field 0 -> 0 (SRC_A)
+                rd.scan = ac.scanNumber().get(r);
+                rd.state_id = ac.stateId().get(r);
+                rd.array_id = ac.arrayId().get(r);
+                rd.time_val = ac.time().get(r);
+                rd.uvw = ac.uvw().get(r);
+                rd.sigma = ac.sigma().get(r);
+                rd.weight = ac.weight().get(r);
+                ms_add_main_row(out_ms, out_mc, rd);
+            }
+        }
+
+        // Copy rows from ms_b (antenna remap: b_ant0->0, b_ant1->2; field 0->1)
+        {
+            casacore::MeasurementSet b(path_b);
+            casacore::MSColumns bc(b);
+            for (casacore::uInt r = 0; r < b.nrow(); ++r) {
+                MsRowData rd;
+                casacore::Int b_ant1 = bc.antenna1().get(r);
+                casacore::Int b_ant2 = bc.antenna2().get(r);
+                // ms_b antenna mapping: 0->ANT0(=0), 1->ANT2(=2)
+                rd.ant1 = (b_ant1 == 1) ? 2 : b_ant1;
+                rd.ant2 = (b_ant2 == 1) ? 2 : b_ant2;
+                rd.dd_id = bc.dataDescId().get(r);
+                rd.field_id = bc.fieldId().get(r) + 1;  // remap: field 0 -> 1
+                rd.scan = bc.scanNumber().get(r);
+                rd.state_id = bc.stateId().get(r);
+                rd.array_id = bc.arrayId().get(r);
+                rd.time_val = bc.time().get(r);
+                rd.uvw = bc.uvw().get(r);
+                rd.sigma = bc.sigma().get(r);
+                rd.weight = bc.weight().get(r);
+                ms_add_main_row(out_ms, out_mc, rd);
+            }
+        }
+
+        out_ms.flush(true);
+    }
+
+    std::cout << dir_path << '\n';
+}
+
+void verify_ms_concat(const std::string& dir_path) {
+    const std::string art = "ms-concat";
+    const std::string path_c = dir_path + "/concat.ms";
+    ms_verify_check(std::filesystem::exists(path_c), art,
+                    "concat.ms not found in " + dir_path);
+    casacore::MeasurementSet ms(path_c);
+    ms_verify_check(ms.nrow() >= 2, art,
+                    "expected >=2 rows, got " + std::to_string(ms.nrow()));
+    ms_verify_check(ms.antenna().nrow() >= 2, art,
+                    "expected >=2 antennas, got " +
+                    std::to_string(ms.antenna().nrow()));
+    ms_verify_check(ms.field().nrow() >= 2, art,
+                    "expected >=2 fields, got " +
+                    std::to_string(ms.field().nrow()));
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- ms-selection-stress ---------------
+
+void produce_ms_selection_stress(const std::string& path) {
+    std::filesystem::remove_all(path);
+    casacore::TableDesc td = casacore::MS::requiredTableDesc();
+    casacore::SetupNewTable newtab(path, td, casacore::Table::New);
+    casacore::MeasurementSet ms(newtab);
+    ms.createDefaultSubtables(casacore::Table::New);
+
+    // 6 antennas
+    for (int i = 0; i < 6; ++i) {
+        ms_add_antenna(ms, casacore::String("ANT" + std::to_string(i)),
+                       casacore::String("PAD" + std::to_string(i)), 25.0);
+    }
+    // 3 fields
+    ms_add_field(ms, "F0", 0.0, 0.0);
+    ms_add_field(ms, "F1", 1.0, 0.5);
+    ms_add_field(ms, "F2", 2.0, 1.0);
+    // 3 SPWs
+    ms_add_spw(ms, "SPW0", 4, 1.4e9, 1e6);
+    ms_add_spw(ms, "SPW1", 4, 2.0e9, 2e6);
+    ms_add_spw(ms, "SPW2", 4, 3.0e9, 4e6);
+    // 1 pol (2 corr)
+    ms_add_pol(ms, 2, make_corr_type_2());
+    // 3 DDs (one per SPW, same pol)
+    ms_add_dd(ms, 0, 0);
+    ms_add_dd(ms, 1, 0);
+    ms_add_dd(ms, 2, 0);
+    // 1 obs
+    ms_add_observation(ms, "VLA");
+    // 1 state
+    ms_add_state(ms, "OBSERVE", true, false);
+
+    // 27 rows: 3 scans x 3 fields x 3 DDs, alternating array_id 0/1
+    casacore::MSColumns mc(ms);
+    casacore::Vector<casacore::Float> sig(2, 1.0f);
+    casacore::Vector<casacore::Float> wgt(2, 1.0f);
+    const double t0 = 4.8e9;
+    int row_idx = 0;
+    for (int scan = 1; scan <= 3; ++scan) {
+        for (int fld = 0; fld < 3; ++fld) {
+            for (int dd = 0; dd < 3; ++dd) {
+                MsRowData rd;
+                rd.ant1 = 0;
+                rd.ant2 = (row_idx % 5) + 1;  // baselines across antennas
+                rd.dd_id = dd;
+                rd.field_id = fld;
+                rd.scan = scan;
+                rd.state_id = 0;
+                rd.array_id = (scan <= 2) ? 0 : 1;  // 2 array_ids
+                rd.time_val = t0 + row_idx * 10.0;
+                rd.uvw = make_uvw(100.0 * (row_idx + 1),
+                                  200.0 * (row_idx + 1),
+                                  50.0 * (row_idx + 1));
+                rd.sigma = sig;
+                rd.weight = wgt;
+                ms_add_main_row(ms, mc, rd);
+                ++row_idx;
+            }
+        }
+    }
+    ms.flush(true);
+    std::cout << path << '\n';
+}
+
+void verify_ms_selection_stress(const std::string& path) {
+    const std::string art = "ms-selection-stress";
+    casacore::MeasurementSet ms(path);
+    casacore::MSColumns mc(ms);
+    ms_verify_check(ms.nrow() >= 27, art,
+                    "expected >=27 rows, got " + std::to_string(ms.nrow()));
+    ms_verify_check(ms.field().nrow() >= 3, art,
+                    "expected >=3 fields, got " +
+                    std::to_string(ms.field().nrow()));
+    ms_verify_check(ms.spectralWindow().nrow() >= 3, art,
+                    "expected >=3 SPWs, got " +
+                    std::to_string(ms.spectralWindow().nrow()));
+
+    // Check 3 distinct scans
+    std::set<casacore::Int> scans;
+    for (casacore::uInt r = 0; r < ms.nrow(); ++r) {
+        scans.insert(mc.scanNumber().get(r));
+    }
+    ms_verify_check(scans.size() >= 3, art,
+                    "expected >=3 distinct scans, got " +
+                    std::to_string(scans.size()));
+
+    // Check 2 distinct array_ids
+    std::set<casacore::Int> arrays;
+    for (casacore::uInt r = 0; r < ms.nrow(); ++r) {
+        arrays.insert(mc.arrayId().get(r));
+    }
+    ms_verify_check(arrays.size() >= 2, art,
+                    "expected >=2 distinct array_ids, got " +
+                    std::to_string(arrays.size()));
+
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// =====================================================================
+// Oracle conformance: dump-oracle-ms
+// =====================================================================
+
+/// Map casacore DataType enum to the oracle format dtype string.
+[[nodiscard]] std::string oracle_dtype_string(casacore::DataType dt) {
+    switch (dt) {
+    case casacore::TpBool: return "TpBool";
+    case casacore::TpChar: return "TpChar";
+    case casacore::TpUChar: return "TpUChar";
+    case casacore::TpShort: return "TpShort";
+    case casacore::TpUShort: return "TpUShort";
+    case casacore::TpInt: return "TpInt";
+    case casacore::TpUInt: return "TpUInt";
+    case casacore::TpFloat: return "TpFloat";
+    case casacore::TpDouble: return "TpDouble";
+    case casacore::TpComplex: return "TpComplex";
+    case casacore::TpDComplex: return "TpDComplex";
+    case casacore::TpString: return "TpString";
+    case casacore::TpTable: return "TpTable";
+    case casacore::TpInt64: return "TpInt64";
+    default: return "TpOther(" + std::to_string(static_cast<int>(dt)) + ")";
+    }
+}
+
+/// Format a scalar cell value from a TableColumn for the oracle dump.
+[[nodiscard]] std::string oracle_format_scalar_cell(const casacore::TableColumn& col,
+                                                     casacore::uInt row) {
+    const auto dt = col.columnDesc().dataType();
+    switch (dt) {
+    case casacore::TpBool: {
+        casacore::ScalarColumn<casacore::Bool> sc(col.table(), col.columnDesc().name());
+        return std::string("bool|") + (sc.get(row) ? "true" : "false");
+    }
+    case casacore::TpShort: {
+        casacore::ScalarColumn<casacore::Short> sc(col.table(), col.columnDesc().name());
+        return "int16|" + std::to_string(sc.get(row));
+    }
+    case casacore::TpUShort: {
+        casacore::ScalarColumn<casacore::uShort> sc(col.table(), col.columnDesc().name());
+        return "uint16|" + std::to_string(sc.get(row));
+    }
+    case casacore::TpInt: {
+        casacore::ScalarColumn<casacore::Int> sc(col.table(), col.columnDesc().name());
+        return "int32|" + std::to_string(sc.get(row));
+    }
+    case casacore::TpUInt: {
+        casacore::ScalarColumn<casacore::uInt> sc(col.table(), col.columnDesc().name());
+        return "uint32|" + std::to_string(sc.get(row));
+    }
+    case casacore::TpInt64: {
+        casacore::ScalarColumn<casacore::Int64> sc(col.table(), col.columnDesc().name());
+        return "int64|" + std::to_string(sc.get(row));
+    }
+    case casacore::TpFloat: {
+        casacore::ScalarColumn<casacore::Float> sc(col.table(), col.columnDesc().name());
+        return "float32|" + format_hex_float(sc.get(row));
+    }
+    case casacore::TpDouble: {
+        casacore::ScalarColumn<casacore::Double> sc(col.table(), col.columnDesc().name());
+        return "float64|" + format_hex_float(sc.get(row));
+    }
+    case casacore::TpComplex: {
+        casacore::ScalarColumn<casacore::Complex> sc(col.table(), col.columnDesc().name());
+        return "complex64|" + format_complex64(sc.get(row));
+    }
+    case casacore::TpDComplex: {
+        casacore::ScalarColumn<casacore::DComplex> sc(col.table(), col.columnDesc().name());
+        return "complex128|" + format_complex128(sc.get(row));
+    }
+    case casacore::TpString: {
+        casacore::ScalarColumn<casacore::String> sc(col.table(), col.columnDesc().name());
+        return "string|b64:" + base64_encode(sc.get(row));
+    }
+    default:
+        return "unsupported_scalar(" + std::to_string(static_cast<int>(dt)) + ")";
+    }
+}
+
+/// Format an array cell value for the oracle dump.
+[[nodiscard]] std::string oracle_format_array_cell(const casacore::TableColumn& col,
+                                                    casacore::uInt row) {
+    const auto dt = col.columnDesc().dataType();
+    const auto& col_name = col.columnDesc().name();
+
+    // Check if array is defined at this row (TableColumn::isDefined works
+    // for any column type).
+    if (!col.isDefined(row)) {
+        return "undefined";
+    }
+
+    switch (dt) {
+    case casacore::TpBool: {
+        casacore::ArrayColumn<casacore::Bool> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += (*it ? "true" : "false");
+        }
+        return "array:bool|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpShort: {
+        casacore::ArrayColumn<casacore::Short> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += std::to_string(*it);
+        }
+        return "array:int16|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpInt: {
+        casacore::ArrayColumn<casacore::Int> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += std::to_string(*it);
+        }
+        return "array:int32|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpUInt: {
+        casacore::ArrayColumn<casacore::uInt> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += std::to_string(*it);
+        }
+        return "array:uint32|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpInt64: {
+        casacore::ArrayColumn<casacore::Int64> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += std::to_string(*it);
+        }
+        return "array:int64|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpFloat: {
+        casacore::ArrayColumn<casacore::Float> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += format_hex_float(*it);
+        }
+        return "array:float32|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpDouble: {
+        casacore::ArrayColumn<casacore::Double> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += format_hex_float(*it);
+        }
+        return "array:float64|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpComplex: {
+        casacore::ArrayColumn<casacore::Complex> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += format_complex64(*it);
+        }
+        return "array:complex64|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpDComplex: {
+        casacore::ArrayColumn<casacore::DComplex> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += format_complex128(*it);
+        }
+        return "array:complex128|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    case casacore::TpString: {
+        casacore::ArrayColumn<casacore::String> ac(col.table(), col_name);
+        const auto arr = ac.get(row);
+        std::string values;
+        std::size_t count = 0;
+        for (auto it = arr.begin(); it != arr.end(); ++it, ++count) {
+            if (count > 0U) values += ',';
+            values += "b64:" + base64_encode(*it);
+        }
+        return "array:string|shape=" + join_shape(arr.shape()) + "|values=" + values;
+    }
+    default:
+        return "unsupported_array(" + std::to_string(static_cast<int>(dt)) + ")";
+    }
+}
+
+/// Dump one casacore Table (main or subtable) to oracle lines.
+void dump_oracle_table(const casacore::Table& table, const std::string& table_name,
+                       std::vector<std::string>* lines) {
+    const auto& td = table.tableDesc();
+    const auto nrow = table.nrow();
+    const auto ncol = td.ncolumn();
+
+    lines->push_back("table=" + table_name);
+    lines->push_back("table=" + table_name + ".row_count=" + std::to_string(nrow));
+    lines->push_back("table=" + table_name + ".ncol=" + std::to_string(ncol));
+
+    // Column descriptors (file order).
+    for (casacore::uInt col_idx = 0; col_idx < ncol; ++col_idx) {
+        const auto& cd = td.columnDesc(col_idx);
+        const std::string prefix = "table=" + table_name + ".col[" +
+                                   std::to_string(col_idx) + "]";
+
+        lines->push_back(prefix + ".name_b64=" + base64_encode(cd.name()));
+        lines->push_back(prefix + ".kind=" +
+                         std::string(cd.isScalar() ? "scalar" : "array"));
+        lines->push_back(prefix + ".dtype=" + oracle_dtype_string(cd.dataType()));
+        lines->push_back(prefix + ".ndim=" + std::to_string(cd.ndim()));
+        if (cd.ndim() > 0 && cd.isFixedShape()) {
+            lines->push_back(prefix + ".shape=" + join_shape(cd.shape()));
+        }
+        lines->push_back(prefix + ".options=" + std::to_string(cd.options()));
+        lines->push_back(prefix + ".dm_type_b64=" + base64_encode(cd.dataManagerType()));
+        lines->push_back(prefix + ".dm_group_b64=" + base64_encode(cd.dataManagerGroup()));
+    }
+
+    // Table keywords.
+    {
+        const auto& kw = table.keywordSet();
+        std::vector<std::string> kw_lines;
+        for (casacore::uInt i = 0; i < kw.nfields(); ++i) {
+            const casacore::RecordFieldId fid(static_cast<int>(i));
+            const auto fname = std::string(kw.name(fid));
+            // Skip subtable references (TpTable) — they are structural, not data.
+            if (kw.dataType(fid) == casacore::TpTable) {
+                continue;
+            }
+            const std::string kw_prefix = "table=" + table_name + ".kw.";
+            std::vector<std::string> field_lines;
+            append_field_line(kw, fid, fname, &field_lines);
+            for (const auto& fl : field_lines) {
+                // field_lines have format "field=<path>|<type>|<value>".
+                // Strip the "field=" prefix and prepend the kw prefix.
+                if (fl.starts_with("field=")) {
+                    kw_lines.push_back(kw_prefix + fl.substr(6));
+                } else {
+                    kw_lines.push_back(kw_prefix + fl);
+                }
+            }
+        }
+        std::sort(kw_lines.begin(), kw_lines.end());
+        lines->insert(lines->end(), kw_lines.begin(), kw_lines.end());
+    }
+
+    // Column keywords.
+    {
+        // Collect column names sorted alphabetically for deterministic output.
+        std::vector<std::string> col_names;
+        col_names.reserve(ncol);
+        for (casacore::uInt i = 0; i < ncol; ++i) {
+            col_names.push_back(td.columnDesc(i).name());
+        }
+        std::sort(col_names.begin(), col_names.end());
+
+        for (const auto& cname : col_names) {
+            const auto& cd = td.columnDesc(cname);
+            const auto& ckw = cd.keywordSet();
+            if (ckw.nfields() == 0) {
+                continue;
+            }
+            const auto col_b64 = base64_encode(cname);
+            std::vector<std::string> ckw_lines;
+            for (casacore::uInt i = 0; i < ckw.nfields(); ++i) {
+                const casacore::RecordFieldId fid(static_cast<int>(i));
+                const auto fname = std::string(ckw.name(fid));
+                if (ckw.dataType(fid) == casacore::TpTable) {
+                    continue;
+                }
+                const std::string prefix = "table=" + table_name +
+                                           ".col_kw[" + col_b64 + "].";
+                std::vector<std::string> field_lines;
+                append_field_line(ckw, fid, fname, &field_lines);
+                for (const auto& fl : field_lines) {
+                    if (fl.starts_with("field=")) {
+                        ckw_lines.push_back(prefix + fl.substr(6));
+                    } else {
+                        ckw_lines.push_back(prefix + fl);
+                    }
+                }
+            }
+            std::sort(ckw_lines.begin(), ckw_lines.end());
+            lines->insert(lines->end(), ckw_lines.begin(), ckw_lines.end());
+        }
+    }
+
+    // Cell values: columns sorted alphabetically, then rows 0..N-1.
+    {
+        std::vector<std::string> col_names;
+        col_names.reserve(ncol);
+        for (casacore::uInt i = 0; i < ncol; ++i) {
+            col_names.push_back(td.columnDesc(i).name());
+        }
+        std::sort(col_names.begin(), col_names.end());
+
+        for (const auto& cname : col_names) {
+            const auto col_b64 = base64_encode(cname);
+            const casacore::TableColumn tc(table, cname);
+            const bool is_scalar = tc.columnDesc().isScalar();
+
+            for (casacore::uInt row = 0; row < nrow; ++row) {
+                const std::string cell_prefix = "table=" + table_name +
+                                                ".cell[" + col_b64 + "][" +
+                                                std::to_string(row) + "]=";
+                if (is_scalar) {
+                    lines->push_back(cell_prefix + oracle_format_scalar_cell(tc, row));
+                } else {
+                    lines->push_back(cell_prefix + oracle_format_array_cell(tc, row));
+                }
+            }
+        }
+    }
+}
+
+/// Dump an entire MS (main + subtables) to oracle format lines.
+void dump_oracle_ms(const std::string& ms_path, const std::string& output_path) {
+    casacore::MeasurementSet ms(ms_path);
+    std::vector<std::string> lines;
+
+    lines.emplace_back("oracle_version=1");
+    const auto ms_basename = std::filesystem::path(ms_path).filename().string();
+    lines.push_back("source_ms=" + ms_basename);
+
+    // Discover subtables from keyword set (TpTable entries).
+    const auto& kw = ms.keywordSet();
+    std::vector<std::string> subtable_names;
+    for (casacore::uInt i = 0; i < kw.nfields(); ++i) {
+        const casacore::RecordFieldId fid(static_cast<int>(i));
+        if (kw.dataType(fid) == casacore::TpTable) {
+            subtable_names.push_back(kw.name(fid));
+        }
+    }
+    std::sort(subtable_names.begin(), subtable_names.end());
+
+    lines.push_back("table_count=" + std::to_string(1 + subtable_names.size()));
+
+    // MAIN table first.
+    dump_oracle_table(ms, "MAIN", &lines);
+
+    // Subtables alphabetically.
+    for (const auto& st_name : subtable_names) {
+        const auto st_path = std::filesystem::path(ms_path) / st_name;
+        casacore::Table subtable(st_path.string(), casacore::Table::Old);
+        dump_oracle_table(subtable, st_name, &lines);
+    }
+
+    write_text(output_path, lines);
+    std::cout << "  dump-oracle-ms: wrote " << output_path
+              << " (" << lines.size() << " lines, "
+              << (1 + subtable_names.size()) << " tables)\n";
+}
+
+// =====================================================================
 
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
@@ -2153,7 +3145,18 @@ void verify_conversion_vectors_semantic(const casacore::Record& record,
            "  casacore_interop_tool produce-mixed-coords --output <path>\n"
            "  casacore_interop_tool verify-mixed-coords --input <path>\n"
            "  casacore_interop_tool produce-conversion-vectors --output <path>\n"
-           "  casacore_interop_tool verify-conversion-vectors --input <path>\n";
+           "  casacore_interop_tool verify-conversion-vectors --input <path>\n"
+           "  casacore_interop_tool produce-ms-minimal --output <dir>\n"
+           "  casacore_interop_tool verify-ms-minimal --input <dir>\n"
+           "  casacore_interop_tool produce-ms-representative --output <dir>\n"
+           "  casacore_interop_tool verify-ms-representative --input <dir>\n"
+           "  casacore_interop_tool produce-ms-optional-subtables --output <dir>\n"
+           "  casacore_interop_tool verify-ms-optional-subtables --input <dir>\n"
+           "  casacore_interop_tool produce-ms-concat --output <dir>\n"
+           "  casacore_interop_tool verify-ms-concat --input <dir>\n"
+           "  casacore_interop_tool produce-ms-selection-stress --output <dir>\n"
+           "  casacore_interop_tool verify-ms-selection-stress --input <dir>\n"
+           "  casacore_interop_tool dump-oracle-ms --input <ms_dir> --output <path>\n";
 }
 
 } // namespace
@@ -2625,6 +3628,99 @@ int main(int argc, char** argv) {
                 verify_conversion_vectors_semantic(actual_record,
                                                    "conversion-vectors");
             }
+            return 0;
+        }
+
+        // Phase 9: MeasurementSet artifacts
+        if (subcommand == "produce-ms-minimal") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_minimal(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-minimal") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_minimal(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-representative") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_representative(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-representative") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_representative(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-optional-subtables") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_optional_subtables(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-optional-subtables") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_optional_subtables(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-concat") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_concat(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-concat") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_concat(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-selection-stress") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_selection_stress(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-selection-stress") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_selection_stress(*input);
+            return 0;
+        }
+
+        // Oracle conformance
+        if (subcommand == "dump-oracle-ms") {
+            const auto input = arg_value(argc, argv, "--input");
+            const auto output = arg_value(argc, argv, "--output");
+            if (!input.has_value() || !output.has_value()) {
+                throw std::runtime_error("missing required --input/--output");
+            }
+            dump_oracle_ms(*input, *output);
             return 0;
         }
 

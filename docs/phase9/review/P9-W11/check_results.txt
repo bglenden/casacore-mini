@@ -1,0 +1,8 @@
+bash tools/check_phase9_w11.sh build-p9 -> PASS
+ctest --test-dir build-p9 -> 57/57 PASS
+mini→mini round-trip: 5/5 artifacts PASS
+Full 4-direction matrix: 13/20 PASS, 7 FAIL
+  mini→casacore: 0/5 (table format gap)
+  casacore→mini: 3/5 (representative+concat fail)
+  casacore→casacore: 5/5
+  mini→mini: 5/5

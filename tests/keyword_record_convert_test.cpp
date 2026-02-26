@@ -68,7 +68,7 @@ bool test_array_kv_to_rv() {
         ka.elements.push_back(KeywordValue(std::int64_t{2}));
         ka.elements.push_back(KeywordValue(std::int64_t{3}));
         auto rv = keyword_value_to_record_value(KeywordValue::from_array(std::move(ka)));
-        const auto& arr = get_rv<RecordValue::int64_array>(rv);
+        [[maybe_unused]] const auto& arr = get_rv<RecordValue::int64_array>(rv);
         assert(arr.shape == std::vector<std::uint64_t>{3});
         assert(arr.elements == (std::vector<std::int64_t>{1, 2, 3}));
     }
@@ -78,7 +78,7 @@ bool test_array_kv_to_rv() {
         ka.elements.push_back(KeywordValue(1.5));
         ka.elements.push_back(KeywordValue(2.5));
         auto rv = keyword_value_to_record_value(KeywordValue::from_array(std::move(ka)));
-        const auto& arr = get_rv<RecordValue::double_array>(rv);
+        [[maybe_unused]] const auto& arr = get_rv<RecordValue::double_array>(rv);
         assert(arr.shape == std::vector<std::uint64_t>{2});
         assert(arr.elements[0] == 1.5);
         assert(arr.elements[1] == 2.5);
@@ -89,7 +89,7 @@ bool test_array_kv_to_rv() {
         ka.elements.push_back(KeywordValue("a"));
         ka.elements.push_back(KeywordValue("b"));
         auto rv = keyword_value_to_record_value(KeywordValue::from_array(std::move(ka)));
-        const auto& arr = get_rv<RecordValue::string_array>(rv);
+        [[maybe_unused]] const auto& arr = get_rv<RecordValue::string_array>(rv);
         assert(arr.shape == std::vector<std::uint64_t>{2});
         assert(arr.elements[0] == "a");
     }
@@ -97,7 +97,7 @@ bool test_array_kv_to_rv() {
     {
         KeywordArray ka;
         auto rv = keyword_value_to_record_value(KeywordValue::from_array(std::move(ka)));
-        const auto& arr = get_rv<RecordValue::string_array>(rv);
+        [[maybe_unused]] const auto& arr = get_rv<RecordValue::string_array>(rv);
         assert(arr.shape == std::vector<std::uint64_t>{0});
         assert(arr.elements.empty());
     }
@@ -107,7 +107,7 @@ bool test_array_kv_to_rv() {
         ka.elements.push_back(KeywordValue(std::int64_t{1}));
         ka.elements.push_back(KeywordValue(2.5));
         auto rv = keyword_value_to_record_value(KeywordValue::from_array(std::move(ka)));
-        const auto& arr = get_rv<RecordValue::double_array>(rv);
+        [[maybe_unused]] const auto& arr = get_rv<RecordValue::double_array>(rv);
         assert(arr.elements[0] == 1.0);
         assert(arr.elements[1] == 2.5);
     }
@@ -130,7 +130,8 @@ bool test_nested_kv_to_rv() {
 
     const auto* child_rv = rec.find("child");
     assert(child_rv != nullptr);
-    const auto& child_rec = *std::get<RecordValue::record_ptr>(child_rv->storage());
+    [[maybe_unused]] const auto& child_rec =
+        *std::get<RecordValue::record_ptr>(child_rv->storage());
     assert(child_rec.size() == 1);
     assert(get_rv<std::int64_t>(*child_rec.find("x")) == 99);
 
@@ -174,13 +175,13 @@ bool test_scalar_rv_to_kv() {
     // complex → string
     {
         auto kv = record_value_to_keyword_value(RecordValue(std::complex<float>(1.0F, -2.0F)));
-        const auto& str = get_kv<std::string>(kv);
+        [[maybe_unused]] const auto& str = get_kv<std::string>(kv);
         assert(str.find('1') != std::string::npos);
         assert(str.find("-2") != std::string::npos);
     }
     {
         auto kv = record_value_to_keyword_value(RecordValue(std::complex<double>(3.0, -4.0)));
-        const auto& str = get_kv<std::string>(kv);
+        [[maybe_unused]] const auto& str = get_kv<std::string>(kv);
         assert(str.find('3') != std::string::npos);
         assert(str.find("-4") != std::string::npos);
     }
@@ -198,7 +199,7 @@ bool test_array_rv_to_kv() {
         arr.shape = {2, 3};
         arr.elements = {1, 2, 3, 4, 5, 6};
         auto kv = record_value_to_keyword_value(RecordValue(std::move(arr)));
-        const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
+        [[maybe_unused]] const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
         assert(ka.elements.size() == 6);
         assert(get_kv<std::int64_t>(ka.elements[0]) == 1);
         assert(get_kv<std::int64_t>(ka.elements[5]) == 6);
@@ -209,7 +210,7 @@ bool test_array_rv_to_kv() {
         arr.shape = {2};
         arr.elements = {1.5, 2.5};
         auto kv = record_value_to_keyword_value(RecordValue(std::move(arr)));
-        const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
+        [[maybe_unused]] const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
         assert(ka.elements.size() == 2);
         assert(get_kv<double>(ka.elements[0]) == 1.5);
     }
@@ -219,7 +220,7 @@ bool test_array_rv_to_kv() {
         arr.shape = {2};
         arr.elements = {"a", "b"};
         auto kv = record_value_to_keyword_value(RecordValue(std::move(arr)));
-        const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
+        [[maybe_unused]] const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
         assert(ka.elements.size() == 2);
         assert(get_kv<std::string>(ka.elements[0]) == "a");
     }
@@ -229,9 +230,9 @@ bool test_array_rv_to_kv() {
         arr.shape = {1};
         arr.elements = {std::complex<float>(1.0F, 2.0F)};
         auto kv = record_value_to_keyword_value(RecordValue(std::move(arr)));
-        const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
+        [[maybe_unused]] const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
         assert(ka.elements.size() == 1);
-        const auto& str = get_kv<std::string>(ka.elements[0]);
+        [[maybe_unused]] const auto& str = get_kv<std::string>(ka.elements[0]);
         assert(str.find('1') != std::string::npos);
     }
 
@@ -255,7 +256,8 @@ bool test_nested_rv_to_kv() {
 
     const auto* child_kv = kr.find("child");
     assert(child_kv != nullptr);
-    const auto& child_kr = *std::get<KeywordValue::record_ptr>(child_kv->storage());
+    [[maybe_unused]] const auto& child_kr =
+        *std::get<KeywordValue::record_ptr>(child_kv->storage());
     assert(child_kr.size() == 2);
     assert(get_kv<double>(*child_kr.find("pi")) == 3.14);
     assert(get_kv<std::int64_t>(*child_kr.find("n")) == 7);
@@ -296,7 +298,7 @@ bool test_kv_to_rv_roundtrip() {
     // Array: roundtripped through int64_array → KeywordArray of int64
     const auto* ids_kv = roundtripped.find("ids");
     assert(ids_kv != nullptr);
-    const auto& ids = *std::get<KeywordValue::array_ptr>(ids_kv->storage());
+    [[maybe_unused]] const auto& ids = *std::get<KeywordValue::array_ptr>(ids_kv->storage());
     assert(ids.elements.size() == 2);
     assert(get_kv<std::int64_t>(ids.elements[0]) == 1);
     assert(get_kv<std::int64_t>(ids.elements[1]) == 2);
@@ -337,7 +339,7 @@ bool test_list_to_kv() {
     rl.elements.push_back(RecordValue("two"));
     auto rv = RecordValue::from_list(std::move(rl));
     auto kv = record_value_to_keyword_value(rv);
-    const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
+    [[maybe_unused]] const auto& ka = *std::get<KeywordValue::array_ptr>(kv.storage());
     assert(ka.elements.size() == 2);
     assert(get_kv<std::int64_t>(ka.elements[0]) == 1);
     assert(get_kv<std::string>(ka.elements[1]) == "two");

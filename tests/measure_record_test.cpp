@@ -14,7 +14,7 @@ namespace {
 
 constexpr double kTol = 1.0e-12;
 
-bool near(double a, double b) {
+[[maybe_unused]] bool near(double a, double b) {
     return std::abs(a - b) < kTol * std::max(1.0, std::abs(a));
 }
 
@@ -31,7 +31,7 @@ bool test_epoch_round_trip() {
     assert(m2.type == MeasureType::epoch);
     assert(std::holds_alternative<EpochRef>(m2.ref.ref_type));
     assert(std::get<EpochRef>(m2.ref.ref_type) == EpochRef::utc);
-    const auto& ev = std::get<EpochValue>(m2.value);
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(m2.value);
     assert(near(ev.day, 59000.0));
     assert(near(ev.fraction, 0.5));
     return true;
@@ -45,7 +45,7 @@ bool test_direction_round_trip() {
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::direction);
     assert(std::get<DirectionRef>(m2.ref.ref_type) == DirectionRef::j2000);
-    const auto& dv = std::get<DirectionValue>(m2.value);
+    [[maybe_unused]] const auto& dv = std::get<DirectionValue>(m2.value);
     assert(near(dv.lon_rad, 1.234));
     assert(near(dv.lat_rad, -0.567));
     return true;
@@ -58,7 +58,7 @@ bool test_position_round_trip() {
     Record rec = measure_to_record(m);
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::position);
-    const auto& pv = std::get<PositionValue>(m2.value);
+    [[maybe_unused]] const auto& pv = std::get<PositionValue>(m2.value);
     assert(near(pv.x_m, -2390490.0));
     assert(near(pv.y_m, 5564764.0));
     assert(near(pv.z_m, -1462209.0));
@@ -72,7 +72,7 @@ bool test_frequency_round_trip() {
     Record rec = measure_to_record(m);
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::frequency);
-    const auto& fv = std::get<FrequencyValue>(m2.value);
+    [[maybe_unused]] const auto& fv = std::get<FrequencyValue>(m2.value);
     assert(near(fv.hz, 1.42040575e9));
     return true;
 }
@@ -85,7 +85,7 @@ bool test_doppler_round_trip() {
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::doppler);
     assert(std::get<DopplerRef>(m2.ref.ref_type) == DopplerRef::radio);
-    const auto& dv = std::get<DopplerValue>(m2.value);
+    [[maybe_unused]] const auto& dv = std::get<DopplerValue>(m2.value);
     assert(near(dv.ratio, 0.001));
     return true;
 }
@@ -97,7 +97,7 @@ bool test_radial_velocity_round_trip() {
     Record rec = measure_to_record(m);
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::radial_velocity);
-    const auto& rv = std::get<RadialVelocityValue>(m2.value);
+    [[maybe_unused]] const auto& rv = std::get<RadialVelocityValue>(m2.value);
     assert(near(rv.mps, 30000.0));
     return true;
 }
@@ -109,7 +109,7 @@ bool test_baseline_round_trip() {
     Record rec = measure_to_record(m);
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::baseline);
-    const auto& bv = std::get<BaselineValue>(m2.value);
+    [[maybe_unused]] const auto& bv = std::get<BaselineValue>(m2.value);
     assert(near(bv.x_m, 100.0));
     assert(near(bv.y_m, 200.0));
     assert(near(bv.z_m, 300.0));
@@ -123,7 +123,7 @@ bool test_uvw_round_trip() {
     Record rec = measure_to_record(m);
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::uvw);
-    const auto& uv = std::get<UvwValue>(m2.value);
+    [[maybe_unused]] const auto& uv = std::get<UvwValue>(m2.value);
     assert(near(uv.u_m, 10.5));
     assert(near(uv.v_m, 20.5));
     assert(near(uv.w_m, 30.5));
@@ -138,7 +138,7 @@ bool test_earth_magnetic_round_trip() {
     Measure m2 = measure_from_record(rec);
     assert(m2.type == MeasureType::earth_magnetic);
     assert(std::get<EarthMagneticRef>(m2.ref.ref_type) == EarthMagneticRef::igrf);
-    const auto& emv = std::get<EarthMagneticValue>(m2.value);
+    [[maybe_unused]] const auto& emv = std::get<EarthMagneticValue>(m2.value);
     assert(near(emv.x_t, 2.0e-5));
     assert(near(emv.y_t, 3.0e-5));
     assert(near(emv.z_t, 4.0e-5));
@@ -157,7 +157,7 @@ bool test_offset_round_trip() {
     Record rec = measure_to_record(m);
 
     // Verify offset sub-record exists.
-    const auto* offset_field = rec.find("offset");
+    [[maybe_unused]] const auto* offset_field = rec.find("offset");
     assert(offset_field != nullptr);
 
     Measure m2 = measure_from_record(rec);
@@ -166,7 +166,7 @@ bool test_offset_round_trip() {
     const auto& off = **m2.ref.offset;
     assert(off.type == MeasureType::epoch);
     assert(std::get<EpochRef>(off.ref.ref_type) == EpochRef::tai);
-    const auto& oev = std::get<EpochValue>(off.value);
+    [[maybe_unused]] const auto& oev = std::get<EpochValue>(off.value);
     assert(near(oev.day, 50000.0));
     return true;
 }
@@ -191,7 +191,7 @@ bool test_record_field_names() {
 
     // Check type string value.
     const auto* type_val = rec.find("type");
-    const auto* sp = std::get_if<std::string>(&type_val->storage());
+    [[maybe_unused]] const auto* sp = std::get_if<std::string>(&type_val->storage());
     assert(sp != nullptr);
     assert(*sp == "direction");
 

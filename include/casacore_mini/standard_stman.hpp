@@ -5,6 +5,7 @@
 #include <complex>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -38,6 +39,9 @@ struct SsmFileHeader {
     std::int32_t last_string_bucket = 0;
     std::uint32_t index_length = 0;
     std::uint32_t nr_indices = 0;
+    /// Actual endianness of bucket/indirect data (from SSM header v>=3 flag).
+    /// For v<3 files, this is set to the table_dat big_endian value passed in.
+    bool ssm_big_endian = false;
 };
 
 /// Parsed SSM data blob from table.dat.
@@ -76,6 +80,65 @@ class SsmReader {
     /// @throws std::runtime_error if column not found or row out of range.
     [[nodiscard]] CellValue read_cell(std::string_view col_name, std::uint64_t row) const;
 
+    /// Read a fixed-shape array cell as raw bytes.
+    ///
+    /// @param col_name Column name.
+    /// @param row Row number (0-based).
+    /// @returns Raw bytes (element_size * n_elements).
+    /// @throws std::runtime_error if column not found, not an array, or row out of range.
+    [[nodiscard]] std::vector<std::uint8_t> read_array_raw(std::string_view col_name,
+                                                           std::uint64_t row) const;
+
+    /// Read a fixed-shape double array cell.
+    [[nodiscard]] std::vector<double> read_array_double(std::string_view col_name,
+                                                        std::uint64_t row) const;
+
+    /// Read a fixed-shape float array cell.
+    [[nodiscard]] std::vector<float> read_array_float(std::string_view col_name,
+                                                      std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) float array cell from the .f0i file.
+    [[nodiscard]] std::vector<float> read_indirect_float(std::string_view col_name,
+                                                         std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) double array cell from the .f0i file.
+    [[nodiscard]] std::vector<double> read_indirect_double(std::string_view col_name,
+                                                           std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) bool array cell from the .f0i file.
+    [[nodiscard]] std::vector<bool> read_indirect_bool(std::string_view col_name,
+                                                       std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) int32 array cell from the .f0i file.
+    [[nodiscard]] std::vector<std::int32_t> read_indirect_int(std::string_view col_name,
+                                                               std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) complex<float> array from the .f0i file.
+    [[nodiscard]] std::vector<std::complex<float>> read_indirect_complex(
+        std::string_view col_name, std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) complex<double> array from the .f0i file.
+    [[nodiscard]] std::vector<std::complex<double>> read_indirect_dcomplex(
+        std::string_view col_name, std::uint64_t row) const;
+
+    /// Read an indirect (variable-shape) string array from the .f0i file.
+    [[nodiscard]] std::vector<std::string> read_indirect_string(std::string_view col_name,
+                                                                 std::uint64_t row) const;
+
+    /// Read the shape of an indirect (variable-shape) array cell.
+    [[nodiscard]] std::vector<std::int64_t> read_indirect_shape(std::string_view col_name,
+                                                                  std::uint64_t row) const;
+
+    /// Check if a column is stored indirectly (variable-shape SSMIndColumn).
+    [[nodiscard]] bool is_indirect(std::string_view col_name) const;
+
+    /// Read the Int64 file offset for an indirect column at a given row.
+    [[nodiscard]] std::int64_t read_indirect_offset(std::string_view col_name,
+                                                     std::uint64_t row) const;
+
+    /// Check if this SSM instance manages the given column.
+    [[nodiscard]] bool has_column(std::string_view col_name) const noexcept;
+
     /// Number of columns managed by this SSM instance.
     [[nodiscard]] std::size_t column_count() const noexcept;
 
@@ -111,14 +174,33 @@ class SsmReader {
     struct ColumnInfo {
         std::string name;
         DataType data_type = DataType::tp_int;
-        std::uint32_t col_offset = 0; // byte offset in bucket
-        std::uint32_t index_nr = 0;   // which SsmIndex
-        std::uint32_t ext_size = 0;   // external size per row in bytes
+        ColumnKind kind = ColumnKind::scalar;
+        std::uint32_t col_offset = 0;    // byte offset in bucket
+        std::uint32_t index_nr = 0;      // which SsmIndex
+        std::uint32_t ext_size = 0;      // external size per element in bytes
+        std::uint64_t n_elements = 1;    // product of shape (1 for scalars)
+        std::vector<std::int64_t> fixed_shape; // fixed array shape, if any
+        std::uint32_t row_size = 0;      // total bytes per row (ext_size * n_elements)
+        bool indirect = false;           // true for variable-shape (SSMIndColumn)
+        bool indirect_string = false;    // true for TpString SSMIndStringColumn
     };
     std::vector<ColumnInfo> columns_;
 
+    /// Read the Int64 file offset for an indirect column at a given row.
+    [[nodiscard]] std::int64_t read_indirect_offset(const ColumnInfo& col, std::uint64_t row) const;
+
     /// Pointer to the full table metadata for reference.
     const TableDatFull* table_dat_ = nullptr;
+
+    /// Path to table directory (needed for lazy .f0i loading).
+    std::string table_dir_;
+    std::uint32_t sm_seq_nr_ = 0;
+
+    /// Indirect array file data (.f0i), loaded lazily.
+    mutable std::vector<std::uint8_t> indirect_data_;
+    mutable bool indirect_loaded_ = false;
+    mutable std::uint32_t indirect_version_ = 0;
+    void ensure_indirect_loaded() const;
 };
 
 /// Write-only SSM writer for producing a complete SSM table.f0 file.
@@ -147,10 +229,49 @@ class SsmWriter {
     /// @throws std::runtime_error if col_index or row out of range.
     void write_cell(std::size_t col_index, const CellValue& value, std::uint64_t row);
 
+    /// Write a fixed-shape array cell as raw bytes (for direct SSM columns).
+    ///
+    /// @param col_index Column index (0-based, in setup order).
+    /// @param data Raw bytes (must be ext_size * n_elements).
+    /// @param row Row number (0-based).
+    void write_array_raw(std::size_t col_index, std::span<const std::uint8_t> data,
+                         std::uint64_t row);
+
+    /// Write a fixed-shape float array cell.
+    void write_array_float(std::size_t col_index, const std::vector<float>& values,
+                           std::uint64_t row);
+
+    /// Write a fixed-shape double array cell.
+    void write_array_double(std::size_t col_index, const std::vector<double>& values,
+                            std::uint64_t row);
+
+    /// Write a raw Int64 offset into an indirect column's bucket slot.
+    /// Used by Table::open_rw() to preserve existing indirect offsets
+    /// without modifying the .f0i file.
+    void write_indirect_offset(std::size_t col_index, std::uint64_t row, std::int64_t offset);
+
+    /// Write a variable-shape array to indirect storage (.f0i file).
+    /// Stores the file offset in the SSM bucket and appends array data to
+    /// the indirect buffer.
+    ///
+    /// @param col_index Column index.
+    /// @param shape Array shape dimensions.
+    /// @param data Raw element bytes in canonical format.
+    /// @param row Row number.
+    void write_indirect_array(std::size_t col_index, const std::vector<std::int32_t>& shape,
+                              std::span<const std::uint8_t> data, std::uint64_t row);
+
     /// Produce the complete .f0 file bytes (header + buckets).
     ///
     /// @returns Raw bytes for the .f0 file.
     [[nodiscard]] std::vector<std::uint8_t> flush() const;
+
+    /// Produce the .f0i indirect array file bytes (StManArrayFile format).
+    /// Returns empty if no indirect arrays were written.
+    [[nodiscard]] std::vector<std::uint8_t> flush_indirect() const;
+
+    /// Write the .f0i file to disk (if indirect arrays exist).
+    void write_indirect_file(std::string_view table_dir, std::uint32_t sequence_number) const;
 
     /// Produce the SSM blob for inclusion in table.dat
     /// StorageManagerSetup::data_blob.
@@ -168,8 +289,12 @@ class SsmWriter {
     struct WriterColumnInfo {
         std::string name;
         DataType data_type = DataType::tp_int;
-        std::uint32_t ext_size = 0;
-        std::uint32_t col_offset = 0;
+        ColumnKind kind = ColumnKind::scalar;
+        std::uint32_t ext_size = 0;      // per-element size in bytes
+        std::uint32_t col_offset = 0;    // byte offset in bucket
+        std::uint64_t n_elements = 1;    // product of shape (1 for scalars)
+        std::uint32_t row_size = 0;      // bytes per row in bucket
+        bool indirect = false;           // true for variable-shape arrays (SSMIndColumn)
     };
 
     bool is_setup_ = false;
@@ -189,6 +314,10 @@ class SsmWriter {
     std::int32_t last_string_bucket_ = -1;
     std::uint32_t string_bucket_offset_ = 0;
     std::uint32_t nr_string_buckets_ = 0;
+
+    /// Indirect array file data (StManArrayFile format, excluding header).
+    /// Header (16 bytes) is prepended by flush_indirect().
+    std::vector<std::uint8_t> indirect_data_;
 };
 
 /// Parse an SSM data blob from table.dat.

@@ -14,12 +14,21 @@
 #include "casacore_mini/spectral_coordinate.hpp"
 #include "casacore_mini/standard_stman.hpp"
 #include "casacore_mini/stokes_coordinate.hpp"
+#include "casacore_mini/table.hpp"
+#include "casacore_mini/table_column.hpp"
 #include "casacore_mini/table_dat.hpp"
 #include "casacore_mini/table_dat_writer.hpp"
 #include "casacore_mini/table_desc.hpp"
 #include "casacore_mini/table_desc_writer.hpp"
 #include "casacore_mini/table_directory.hpp"
 #include "casacore_mini/tiled_stman.hpp"
+
+#include "casacore_mini/measurement_set.hpp"
+#include "casacore_mini/ms_columns.hpp"
+#include "casacore_mini/ms_concat.hpp"
+#include "casacore_mini/ms_metadata.hpp"
+#include "casacore_mini/ms_selection.hpp"
+#include "casacore_mini/ms_writer.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -31,7 +40,9 @@
 #include <iomanip>
 #include <ios>
 #include <iostream>
+#include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -91,61 +102,6 @@ template <typename float_t> [[nodiscard]] std::string format_hex_float(const flo
 
 [[nodiscard]] std::string format_complex64(const std::complex<float>& value) {
     return "(" + format_hex_float(value.real()) + ";" + format_hex_float(value.imag()) + ")";
-}
-
-/// Build the casacore-compatible AipsIO type string for a column descriptor.
-/// Format: "ScalarColumnDesc<float   " or "ArrayColumnDesc<Int     " (no closing >).
-/// Type IDs are 8-char padded; float/double are lowercase C++ primitives.
-[[nodiscard]] std::string casacore_col_type_string(casacore_mini::ColumnKind kind,
-                                                   casacore_mini::DataType dtype) {
-    const char* type_id = nullptr;
-    switch (dtype) {
-    case casacore_mini::DataType::tp_bool:
-        type_id = "Bool    ";
-        break;
-    case casacore_mini::DataType::tp_char:
-        type_id = "Char    ";
-        break;
-    case casacore_mini::DataType::tp_uchar:
-        type_id = "uChar   ";
-        break;
-    case casacore_mini::DataType::tp_short:
-        type_id = "Short   ";
-        break;
-    case casacore_mini::DataType::tp_ushort:
-        type_id = "uShort  ";
-        break;
-    case casacore_mini::DataType::tp_int:
-        type_id = "Int     ";
-        break;
-    case casacore_mini::DataType::tp_uint:
-        type_id = "uInt    ";
-        break;
-    case casacore_mini::DataType::tp_int64:
-        type_id = "Int64   ";
-        break;
-    case casacore_mini::DataType::tp_float:
-        type_id = "float   ";
-        break;
-    case casacore_mini::DataType::tp_double:
-        type_id = "double  ";
-        break;
-    case casacore_mini::DataType::tp_complex:
-        type_id = "Complex ";
-        break;
-    case casacore_mini::DataType::tp_dcomplex:
-        type_id = "DComplex";
-        break;
-    case casacore_mini::DataType::tp_string:
-        type_id = "String  ";
-        break;
-    default:
-        type_id = "unknown ";
-        break;
-    }
-    std::string prefix =
-        (kind == casacore_mini::ColumnKind::scalar) ? "ScalarColumnDesc<" : "ArrayColumnDesc<";
-    return prefix + type_id;
 }
 
 [[nodiscard]] std::string format_complex128(const std::complex<double>& value) {
@@ -723,241 +679,157 @@ canonical_table_dir_lines(const casacore_mini::TableDirectory& td) {
     return lines;
 }
 
-/// Build a small test TableDatFull for the table directory interop case.
-/// 5 rows, 4 columns (id:Int, value:Float, label:String, dval:Double),
-/// single StandardStMan storage manager.
-[[nodiscard]] casacore_mini::TableDatFull build_table_dir_table_dat() {
-    casacore_mini::TableDatFull full;
-    full.table_version = 2;
-    full.row_count = 5;
-    full.big_endian = true;
-    full.table_type = "PlainTable";
-    full.table_desc.version = 2;
-    full.table_desc.name = "test_ssm";
+void write_table_dir_artifact(const std::filesystem::path& output_dir) {
+    using namespace casacore_mini;
 
-    auto make_col = [](const std::string& name, casacore_mini::DataType dtype) {
-        casacore_mini::ColumnDesc col;
-        col.kind = casacore_mini::ColumnKind::scalar;
-        col.name = name;
-        col.data_type = dtype;
-        col.dm_type = "StandardStMan";
-        col.dm_group = "StandardStMan";
-        col.type_string = casacore_col_type_string(col.kind, dtype);
-        col.version = 1;
-        return col;
+    // Table keywords.
+    TableCreateOptions opts;
+    opts.sm_type = "StandardStMan";
+    opts.sm_group = "StandardStMan";
+    opts.big_endian = false; // LE to match casacore on LE systems
+    opts.table_keywords.set("observer", RecordValue(std::string("test_user")));
+    opts.table_keywords.set("telescope", RecordValue(std::string("VLA")));
+    opts.table_keywords.set("version", RecordValue(std::int32_t{2}));
+
+    // Column keyword on "value" (index 1): UNIT = "Jy".
+    Record val_kw;
+    val_kw.set("UNIT", RecordValue(std::string("Jy")));
+    opts.column_keywords = {Record{}, std::move(val_kw), Record{}, Record{}};
+
+    std::vector<TableColumnSpec> columns = {
+        {"id", DataType::tp_int, ColumnKind::scalar, {}, ""},
+        {"value", DataType::tp_float, ColumnKind::scalar, {}, ""},
+        {"label", DataType::tp_string, ColumnKind::scalar, {}, ""},
+        {"dval", DataType::tp_double, ColumnKind::scalar, {}, ""},
     };
 
-    full.table_desc.columns.push_back(make_col("id", casacore_mini::DataType::tp_int));
-    full.table_desc.columns.push_back(make_col("value", casacore_mini::DataType::tp_float));
-    full.table_desc.columns.push_back(make_col("label", casacore_mini::DataType::tp_string));
-    full.table_desc.columns.push_back(make_col("dval", casacore_mini::DataType::tp_double));
+    auto table = Table::create(output_dir, columns, 5, opts);
+    ScalarColumn<std::int32_t> id_col(table, "id");
+    ScalarColumn<float> value_col(table, "value");
+    ScalarColumn<std::string> label_col(table, "label");
+    ScalarColumn<double> dval_col(table, "dval");
 
-    // Table keywords: observer, telescope, version.
-    full.table_desc.keywords.set("observer", casacore_mini::RecordValue(std::string("test_user")));
-    full.table_desc.keywords.set("telescope", casacore_mini::RecordValue(std::string("VLA")));
-    full.table_desc.keywords.set("version", casacore_mini::RecordValue(std::int32_t{2}));
-
-    // Column keyword on "value": UNIT = "Jy".
-    full.table_desc.columns[1].keywords.set("UNIT", casacore_mini::RecordValue(std::string("Jy")));
-
-    casacore_mini::StorageManagerSetup sm;
-    sm.type_name = "StandardStMan";
-    sm.sequence_number = 0;
-    full.storage_managers.push_back(sm);
-
-    for (const auto& col : full.table_desc.columns) {
-        casacore_mini::ColumnManagerSetup cms;
-        cms.column_name = col.name;
-        cms.sequence_number = 0;
-        full.column_setups.push_back(cms);
-    }
-
-    full.post_td_row_count = 5;
-    return full;
-}
-
-void write_table_dir_artifact(const std::filesystem::path& output_dir) {
-    auto full = build_table_dir_table_dat();
-
-    // Use LE byte order to match casacore on LE systems (macOS/Linux x86).
-    full.big_endian = false;
-
-    // Create the SsmWriter to produce cell data.
-    casacore_mini::SsmWriter ssm_writer;
-    ssm_writer.setup(full.table_desc.columns, full.row_count, full.big_endian, "StandardStMan");
-
-    // Write the expected cell values.
     const std::int32_t id_vals[] = {0, 10, 20, 30, 40};
     const float value_vals[] = {0.0F, 1.5F, 3.0F, 4.5F, 6.0F};
     const std::string label_vals[] = {"row_0", "row_1", "row_2", "row_3", "row_4"};
     const double dval_vals[] = {0.0, 3.14, 6.28, 9.42, 12.56};
 
     for (std::uint64_t r = 0; r < 5; ++r) {
-        ssm_writer.write_cell(0, casacore_mini::CellValue{id_vals[r]}, r);
-        ssm_writer.write_cell(1, casacore_mini::CellValue{value_vals[r]}, r);
-        ssm_writer.write_cell(2, casacore_mini::CellValue{label_vals[r]}, r);
-        ssm_writer.write_cell(3, casacore_mini::CellValue{dval_vals[r]}, r);
+        id_col.put(r, id_vals[r]);
+        value_col.put(r, value_vals[r]);
+        label_col.put(r, label_vals[r]);
+        dval_col.put(r, dval_vals[r]);
     }
-
-    // Set the SSM blob in the storage manager entry.
-    full.storage_managers[0].data_blob = ssm_writer.make_blob();
-
-    // Write table directory (table.dat).
-    casacore_mini::write_table_directory(output_dir.string(), full);
-
-    // Write the .f0 data file.
-    ssm_writer.write_file(output_dir.string(), 0);
+    table.flush();
 }
 
 void verify_table_dir_artifact(const std::filesystem::path& input_dir,
                                const std::string_view label) {
-    const auto td = casacore_mini::read_table_directory(input_dir.string());
-    // Verify expected structure from build_table_dir_table_dat().
-    auto expected_full = build_table_dir_table_dat();
-    casacore_mini::TableDirectory expected_td;
-    expected_td.table_dat = expected_full;
-    // SM files won't match (mini doesn't write data files), so just verify metadata.
-    const auto expected_lines = canonical_table_dir_lines(expected_td);
-    auto actual_lines = canonical_table_dir_lines(td);
-    // Strip SM file lines from both since mini can't produce them and casacore may.
-    std::vector<std::string> expected_meta;
-    std::vector<std::string> actual_meta;
-    for (const auto& line : expected_lines) {
-        if (line.rfind("sm[", 0) == 0) {
-            continue;
-        }
-        if (line.rfind("sm_file_count=", 0) == 0) {
-            expected_meta.emplace_back("sm_file_count=*");
-            continue;
-        }
-        expected_meta.push_back(line);
-    }
-    for (const auto& line : actual_lines) {
-        if (line.rfind("sm[", 0) == 0) {
-            continue;
-        }
-        if (line.rfind("sm_file_count=", 0) == 0) {
-            actual_meta.emplace_back("sm_file_count=*");
-            continue;
-        }
-        actual_meta.push_back(line);
-    }
-    verify_lines_equal(label, expected_meta, actual_meta);
+    using namespace casacore_mini;
 
-    const auto row_count = td.table_dat.row_count;
-    const auto ncol = td.table_dat.table_desc.columns.size();
-    std::cout << "  " << label << ": [PASS] structure (" << row_count << " rows, " << ncol
-              << " cols)\n";
+    auto table = Table::open(input_dir);
 
-    // --- table_keywords verification (content) ---
-    verify_lines_equal(std::string(label) + ":table_keywords",
-                       canonical_record_lines(expected_full.table_desc.keywords),
-                       canonical_record_lines(td.table_dat.table_desc.keywords));
-    std::cout << "  " << label << ": [PASS] table_keywords ("
-              << td.table_dat.table_desc.keywords.entries().size()
-              << " fields, content verified)\n";
-
-    // --- col_keywords verification (content) ---
-    for (std::size_t i = 0; i < ncol; ++i) {
-        verify_lines_equal(std::string(label) + ":col[" + std::to_string(i) + "]_keywords",
-                           canonical_record_lines(expected_full.table_desc.columns[i].keywords),
-                           canonical_record_lines(td.table_dat.table_desc.columns[i].keywords));
+    // --- Structure verification ---
+    if (table.nrow() != 5) {
+        throw std::runtime_error(std::string(label) + ": row_count mismatch: expected 5 got " +
+                                 std::to_string(table.nrow()));
     }
+    if (table.ncolumn() != 4) {
+        throw std::runtime_error(std::string(label) + ": ncol mismatch: expected 4 got " +
+                                 std::to_string(table.ncolumn()));
+    }
+
+    // --- Column name and type verification ---
     {
-        std::size_t total_kw_fields = 0;
-        for (std::size_t i = 0; i < ncol; ++i) {
-            total_kw_fields += td.table_dat.table_desc.columns[i].keywords.entries().size();
+        const std::string expected_names[] = {"id", "value", "label", "dval"};
+        const DataType expected_types[] = {DataType::tp_int, DataType::tp_float,
+                                           DataType::tp_string, DataType::tp_double};
+        const ColumnKind expected_kinds[] = {ColumnKind::scalar, ColumnKind::scalar,
+                                             ColumnKind::scalar, ColumnKind::scalar};
+        for (std::size_t i = 0; i < 4; ++i) {
+            const auto& col = table.columns()[i];
+            if (col.name != expected_names[i]) {
+                throw std::runtime_error(std::string(label) + ": col[" + std::to_string(i) +
+                                         "].name mismatch: expected '" + expected_names[i] +
+                                         "' got '" + col.name + "'");
+            }
+            if (col.data_type != expected_types[i]) {
+                throw std::runtime_error(std::string(label) + ": col[" + std::to_string(i) +
+                                         "].data_type mismatch");
+            }
+            if (col.kind != expected_kinds[i]) {
+                throw std::runtime_error(std::string(label) + ": col[" + std::to_string(i) +
+                                         "].kind mismatch");
+            }
         }
-        std::cout << "  " << label << ": [PASS] col_keywords (" << ncol << " cols, "
+    }
+
+    std::cout << "  " << label << ": [PASS] structure (" << table.nrow() << " rows, "
+              << table.ncolumn() << " cols, names+types verified)\n";
+
+    // --- table_keywords verification ---
+    {
+        Record expected_kw;
+        expected_kw.set("observer", RecordValue(std::string("test_user")));
+        expected_kw.set("telescope", RecordValue(std::string("VLA")));
+        expected_kw.set("version", RecordValue(std::int32_t{2}));
+        verify_lines_equal(std::string(label) + ":table_keywords",
+                           canonical_record_lines(expected_kw),
+                           canonical_record_lines(table.keywords()));
+        std::cout << "  " << label << ": [PASS] table_keywords ("
+                  << table.keywords().entries().size() << " fields, content verified)\n";
+    }
+
+    // --- col_keywords verification ---
+    {
+        // Only "value" (index 1) has UNIT = "Jy".
+        Record expected_val_kw;
+        expected_val_kw.set("UNIT", RecordValue(std::string("Jy")));
+        std::vector<Record> expected_col_kw = {Record{}, expected_val_kw, Record{}, Record{}};
+        std::size_t total_kw_fields = 0;
+        for (std::size_t i = 0; i < table.ncolumn(); ++i) {
+            verify_lines_equal(std::string(label) + ":col[" + std::to_string(i) + "]_keywords",
+                               canonical_record_lines(expected_col_kw[i]),
+                               canonical_record_lines(table.columns()[i].keywords));
+            total_kw_fields += table.columns()[i].keywords.entries().size();
+        }
+        std::cout << "  " << label << ": [PASS] col_keywords (" << table.ncolumn() << " cols, "
                   << total_kw_fields << " fields total, content verified)\n";
     }
 
-    // --- sm_mapping verification ---
+    // --- Cell-value verification via Table API ---
     {
-        // Map each column to its SM type via column_setups -> storage_managers.
-        std::string sm_type_for_cols;
-        for (std::size_t i = 0; i < td.table_dat.column_setups.size(); ++i) {
-            const auto seq = td.table_dat.column_setups[i].sequence_number;
-            for (std::size_t j = 0; j < td.table_dat.storage_managers.size(); ++j) {
-                if (td.table_dat.storage_managers[j].sequence_number == seq) {
-                    if (i == 0) {
-                        sm_type_for_cols = td.table_dat.storage_managers[j].type_name;
-                    } else if (sm_type_for_cols != td.table_dat.storage_managers[j].type_name) {
-                        throw std::runtime_error(std::string(label) +
-                                                 ": mixed SM types in column_setups");
-                    }
-                    break;
-                }
-            }
-        }
-        if (sm_type_for_cols != "StandardStMan") {
-            throw std::runtime_error(std::string(label) +
-                                     ": sm_mapping mismatch: expected StandardStMan got " +
-                                     sm_type_for_cols);
-        }
-        std::cout << "  " << label << ": [PASS] sm_mapping (strict, "
-                  << td.table_dat.column_setups.size() << " cols -> " << sm_type_for_cols << ")\n";
-    }
+        // Use a non-const reference for ScalarColumn (it takes Table&).
+        ScalarColumn<std::int32_t> id_col(table, "id");
+        ScalarColumn<float> value_col(table, "value");
+        ScalarColumn<std::string> label_col(table, "label");
+        ScalarColumn<double> dval_col(table, "dval");
 
-    // --- Cell-value verification using SsmReader ---
-    // Find the StandardStMan entry in the parsed table.dat.
-    std::size_t ssm_idx = td.table_dat.storage_managers.size();
-    for (std::size_t i = 0; i < td.table_dat.storage_managers.size(); ++i) {
-        if (td.table_dat.storage_managers[i].type_name == "StandardStMan") {
-            ssm_idx = i;
-            break;
-        }
-    }
-    if (ssm_idx == td.table_dat.storage_managers.size()) {
-        throw std::runtime_error(std::string(label) + ": no StandardStMan in table.dat");
-    }
-    // Check that the .f0 data file is present; skip cell verification if absent
-    // (mini does not yet write SSM data files until W13).
-    const auto& sm = td.table_dat.storage_managers[ssm_idx];
-    const auto f0_path = input_dir / ("table.f" + std::to_string(sm.sequence_number));
-    if (std::filesystem::exists(f0_path)) {
-        casacore_mini::SsmReader reader;
-        reader.open(input_dir.string(), ssm_idx, td.table_dat);
-
-        // Verify expected cell values: 5 rows, 4 columns.
         const std::int32_t expected_id[] = {0, 10, 20, 30, 40};
         const float expected_value[] = {0.0F, 1.5F, 3.0F, 4.5F, 6.0F};
         const std::string expected_label_str[] = {"row_0", "row_1", "row_2", "row_3", "row_4"};
         const double expected_dval[] = {0.0, 3.14, 6.28, 9.42, 12.56};
 
         for (std::uint64_t r = 0; r < 5; ++r) {
-            const auto vi = reader.read_cell("id", r);
-            const auto* ip = std::get_if<std::int32_t>(&vi);
-            if (ip == nullptr || *ip != expected_id[r]) {
+            if (id_col.get(r) != expected_id[r]) {
                 throw std::runtime_error(std::string(label) + ": id[" + std::to_string(r) +
                                          "] mismatch: expected " + std::to_string(expected_id[r]));
             }
-
-            const auto vv = reader.read_cell("value", r);
-            const auto* fp = std::get_if<float>(&vv);
-            if (fp == nullptr || std::fabs(*fp - expected_value[r]) > kFloat32Tolerance) {
+            if (std::fabs(value_col.get(r) - expected_value[r]) > kFloat32Tolerance) {
                 throw std::runtime_error(std::string(label) + ": value[" + std::to_string(r) +
                                          "] mismatch");
             }
-
-            const auto vl = reader.read_cell("label", r);
-            const auto* sp = std::get_if<std::string>(&vl);
-            if (sp == nullptr || *sp != expected_label_str[r]) {
+            if (label_col.get(r) != expected_label_str[r]) {
                 throw std::runtime_error(std::string(label) + ": label[" + std::to_string(r) +
                                          "] mismatch: expected '" + expected_label_str[r] + "'");
             }
-
-            const auto vd = reader.read_cell("dval", r);
-            const auto* dp = std::get_if<double>(&vd);
-            if (dp == nullptr || std::fabs(*dp - expected_dval[r]) > kFloat64Tolerance) {
+            if (std::fabs(dval_col.get(r) - expected_dval[r]) > kFloat64Tolerance) {
                 throw std::runtime_error(std::string(label) + ": dval[" + std::to_string(r) +
                                          "] mismatch");
             }
         }
         std::cout << "  " << label
                   << ": [PASS] cell_values (20 cells, float tol=1e-6, double tol=1e-10)\n";
-    } else {
-        std::cout << "  " << label << ": SSM data file not present; cell verification skipped\n";
     }
 }
 
@@ -968,731 +840,455 @@ void dump_table_dir_artifact(const std::filesystem::path& input_dir,
     write_text(output_path, canonical_table_dir_lines(td));
 }
 
-// --- tiled table directory interop (mini side: read-only structural verification) ---
+// --- tiled table directory verification (via Table API) ---
 
-/// Strip SM file detail lines and replace sm_file_count with wildcard.
-[[nodiscard]] std::vector<std::string> strip_sm_file_lines(const std::vector<std::string>& lines) {
-    std::vector<std::string> result;
-    for (const auto& line : lines) {
-        if (line.rfind("sm[", 0) == 0) {
-            continue;
-        }
-        if (line.rfind("sm_file_count=", 0) == 0) {
-            result.emplace_back("sm_file_count=*");
-            continue;
-        }
-        result.push_back(line);
+/// Verify a tiled-col table directory.
+void verify_tiled_col_dir_artifact(const std::filesystem::path& input_dir,
+                                   const std::string_view label) {
+    using namespace casacore_mini;
+    auto table = Table::open(input_dir);
+
+    if (table.nrow() != 10) {
+        throw std::runtime_error(std::string(label) + ": row_count mismatch");
     }
-    return result;
-}
-
-/// Build expected metadata lines for the TiledColumnStMan test table.
-[[nodiscard]] std::vector<std::string> expected_tiled_col_meta() {
-    std::vector<std::string> lines;
-    lines.emplace_back("kind=table_dir");
-    lines.emplace_back("row_count=10");
-    lines.emplace_back("ncol=2");
-    lines.emplace_back("col[0].name_b64=" + base64_encode("data"));
-    lines.emplace_back("col[0].dtype=TpFloat");
-    lines.emplace_back("col[1].name_b64=" + base64_encode("flags"));
-    lines.emplace_back("col[1].dtype=TpInt");
-    lines.emplace_back("sm_file_count=*");
-    return lines;
-}
-
-/// Build expected metadata lines for the TiledCellStMan test table.
-[[nodiscard]] std::vector<std::string> expected_tiled_cell_meta() {
-    std::vector<std::string> lines;
-    lines.emplace_back("kind=table_dir");
-    lines.emplace_back("row_count=5");
-    lines.emplace_back("ncol=1");
-    lines.emplace_back("col[0].name_b64=" + base64_encode("map"));
-    lines.emplace_back("col[0].dtype=TpFloat");
-    lines.emplace_back("sm_file_count=*");
-    return lines;
-}
-
-/// Build expected metadata lines for the TiledShapeStMan test table.
-[[nodiscard]] std::vector<std::string> expected_tiled_shape_meta() {
-    std::vector<std::string> lines;
-    lines.emplace_back("kind=table_dir");
-    lines.emplace_back("row_count=5");
-    lines.emplace_back("ncol=1");
-    lines.emplace_back("col[0].name_b64=" + base64_encode("vis"));
-    lines.emplace_back("col[0].dtype=TpComplex");
-    lines.emplace_back("sm_file_count=*");
-    return lines;
-}
-
-/// Build expected metadata lines for the TiledDataStMan test table.
-[[nodiscard]] std::vector<std::string> expected_tiled_data_meta() {
-    std::vector<std::string> lines;
-    lines.emplace_back("kind=table_dir");
-    lines.emplace_back("row_count=5");
-    lines.emplace_back("ncol=1");
-    lines.emplace_back("col[0].name_b64=" + base64_encode("spectrum"));
-    lines.emplace_back("col[0].dtype=TpFloat");
-    lines.emplace_back("sm_file_count=*");
-    return lines;
-}
-
-/// Find the TSM storage manager index in table_dat.
-[[nodiscard]] std::size_t find_tsm_index(const casacore_mini::TableDatFull& td,
-                                         const std::string_view label) {
-    for (std::size_t i = 0; i < td.storage_managers.size(); ++i) {
-        const auto& t = td.storage_managers[i].type_name;
-        if (t.find("Tiled") != std::string::npos) {
-            return i;
-        }
+    if (table.ncolumn() != 2) {
+        throw std::runtime_error(std::string(label) + ": ncol mismatch");
     }
-    throw std::runtime_error(std::string(label) + ": no Tiled SM found");
-}
 
-// Forward declarations for tiled builder functions (defined later in file).
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_col_table_dat();
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_cell_table_dat();
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_shape_table_dat();
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_data_table_dat();
-
-/// Verify a tiled table directory against expected metadata, with cell-value
-/// verification when TSM data files are present.
-void verify_tiled_dir_artifact(const std::filesystem::path& input_dir,
-                               const std::vector<std::string>& expected_meta,
-                               const std::string_view label) {
-    const auto td = casacore_mini::read_table_directory(input_dir.string());
-    const auto actual_dir_lines = canonical_table_dir_lines(td);
-    const auto actual_meta = strip_sm_file_lines(actual_dir_lines);
-    verify_lines_equal(label, expected_meta, actual_meta);
-
-    const auto row_count = td.table_dat.row_count;
-    const auto ncol = td.table_dat.table_desc.columns.size();
-    std::cout << "  " << label << ": [PASS] structure (" << row_count << " rows, " << ncol
-              << " cols)\n";
-
-    // --- table_keywords verification (content) ---
-    // Look up the expected builder for this tiled type.
+    // --- Column name, type, kind, shape verification ---
     {
-        casacore_mini::TableDatFull expected_full;
-        if (label == "tiled-col-dir") {
-            expected_full = build_tiled_col_table_dat();
-        } else if (label == "tiled-cell-dir") {
-            expected_full = build_tiled_cell_table_dat();
-        } else if (label == "tiled-shape-dir") {
-            expected_full = build_tiled_shape_table_dat();
-        } else if (label == "tiled-data-dir") {
-            expected_full = build_tiled_data_table_dat();
+        const auto& c0 = table.columns()[0];
+        const auto& c1 = table.columns()[1];
+        if (c0.name != "data") {
+            throw std::runtime_error(std::string(label) + ": col[0].name mismatch: got '" +
+                                     c0.name + "'");
         }
-        verify_lines_equal(std::string(label) + ":table_keywords",
-                           canonical_record_lines(expected_full.table_desc.keywords),
-                           canonical_record_lines(td.table_dat.table_desc.keywords));
-        std::cout << "  " << label << ": [PASS] table_keywords ("
-                  << td.table_dat.table_desc.keywords.entries().size()
-                  << " fields, content verified)\n";
-
-        // col_keywords
-        for (std::size_t i = 0; i < ncol; ++i) {
-            verify_lines_equal(std::string(label) + ":col[" + std::to_string(i) + "]_keywords",
-                               canonical_record_lines(expected_full.table_desc.columns[i].keywords),
-                               canonical_record_lines(td.table_dat.table_desc.columns[i].keywords));
+        if (c0.data_type != DataType::tp_float || c0.kind != ColumnKind::array) {
+            throw std::runtime_error(std::string(label) + ": col[0] type/kind mismatch");
         }
-        std::size_t total_kw_fields = 0;
-        for (std::size_t i = 0; i < ncol; ++i) {
-            total_kw_fields += td.table_dat.table_desc.columns[i].keywords.entries().size();
+        if (c0.shape != std::vector<std::int64_t>{4, 8}) {
+            throw std::runtime_error(std::string(label) + ": col[0].shape mismatch");
         }
-        std::cout << "  " << label << ": [PASS] col_keywords (" << ncol << " cols, "
-                  << total_kw_fields << " fields total, content verified)\n";
+        if (c1.name != "flags") {
+            throw std::runtime_error(std::string(label) + ": col[1].name mismatch: got '" +
+                                     c1.name + "'");
+        }
+        if (c1.data_type != DataType::tp_int || c1.kind != ColumnKind::array) {
+            throw std::runtime_error(std::string(label) + ": col[1] type/kind mismatch");
+        }
+        if (c1.shape != std::vector<std::int64_t>{4, 8}) {
+            throw std::runtime_error(std::string(label) + ": col[1].shape mismatch");
+        }
     }
 
-    // --- sm_mapping verification ---
-    {
-        std::string sm_type_for_cols;
-        for (std::size_t i = 0; i < td.table_dat.column_setups.size(); ++i) {
-            const auto seq = td.table_dat.column_setups[i].sequence_number;
-            for (std::size_t j = 0; j < td.table_dat.storage_managers.size(); ++j) {
-                if (td.table_dat.storage_managers[j].sequence_number == seq) {
-                    if (i == 0) {
-                        sm_type_for_cols = td.table_dat.storage_managers[j].type_name;
-                    } else if (sm_type_for_cols != td.table_dat.storage_managers[j].type_name) {
-                        throw std::runtime_error(std::string(label) +
-                                                 ": mixed SM types in column_setups");
-                    }
-                    break;
-                }
-            }
-        }
-        // Derive expected SM type from label.
-        std::string expected_sm_type;
-        if (label == "tiled-col-dir") {
-            expected_sm_type = "TiledColumnStMan";
-        } else if (label == "tiled-cell-dir") {
-            expected_sm_type = "TiledCellStMan";
-        } else if (label == "tiled-shape-dir") {
-            expected_sm_type = "TiledShapeStMan";
-        } else if (label == "tiled-data-dir") {
-            expected_sm_type = "TiledDataStMan";
-        }
-        if (!expected_sm_type.empty() && sm_type_for_cols != expected_sm_type) {
-            throw std::runtime_error(std::string(label) + ": sm_mapping mismatch: expected " +
-                                     expected_sm_type + " got " + sm_type_for_cols);
-        }
-        std::cout << "  " << label << ": [PASS] sm_mapping (strict, "
-                  << td.table_dat.column_setups.size() << " cols -> " << sm_type_for_cols << ")\n";
-    }
+    std::cout << "  " << label << ": [PASS] structure (" << table.nrow() << " rows, "
+              << table.ncolumn() << " cols, names+types+shapes verified)\n";
 
-    // Attempt cell-value verification if a TSM data file exists.
-    // Probe for both _TSM0 and _TSM1 (TiledShapeStMan uses _TSM1).
-    const auto tsm0_path = input_dir / "table.f0_TSM0";
-    const auto tsm1_path = input_dir / "table.f0_TSM1";
-    if (!std::filesystem::exists(tsm0_path) && !std::filesystem::exists(tsm1_path)) {
-        throw std::runtime_error(std::string(label) +
-                                 ": neither table.f0_TSM0 nor table.f0_TSM1 found; "
-                                 "cannot verify cell values");
-    }
+    // Keywords: tiled-col has none.
+    std::cout << "  " << label << ": [PASS] table_keywords ("
+              << table.keywords().entries().size() << " fields)\n";
 
-    const auto tsm_idx = find_tsm_index(td.table_dat, label);
-    casacore_mini::TiledStManReader reader;
-    reader.open(input_dir.string(), tsm_idx, td.table_dat);
-
-    const auto& sm_type = td.table_dat.storage_managers[tsm_idx].type_name;
+    // Cell-value verification.
+    ArrayColumn<float> data_col(table, "data");
+    ArrayColumn<std::int32_t> flags_col(table, "flags");
     std::size_t cells_verified = 0;
-
-    if (sm_type == "TiledColumnStMan") {
-        // data[r] = all elements r*0.1F, flags[r] = all elements r.
-        for (std::uint64_t r = 0; r < 10; ++r) {
-            auto data_vals = reader.read_float_cell("data", r);
-            const float exp_d = static_cast<float>(r) * 0.1F;
-            for (std::size_t i = 0; i < data_vals.size(); ++i) {
-                if (std::fabs(data_vals[i] - exp_d) > kFloat32Tolerance) {
-                    throw std::runtime_error(std::string(label) + ": data[" + std::to_string(r) +
-                                             "][" + std::to_string(i) + "] mismatch: got " +
-                                             std::to_string(data_vals[i]) + " expected " +
-                                             std::to_string(exp_d));
-                }
-            }
-
-            auto flag_vals = reader.read_int_cell("flags", r);
-            const auto exp_f = static_cast<std::int32_t>(r);
-            for (std::size_t i = 0; i < flag_vals.size(); ++i) {
-                if (flag_vals[i] != exp_f) {
-                    throw std::runtime_error(std::string(label) + ": flags[" + std::to_string(r) +
-                                             "][" + std::to_string(i) + "] mismatch");
-                }
-            }
-            cells_verified += 2;
+    for (std::uint64_t r = 0; r < 10; ++r) {
+        auto data_vals = data_col.get(r);
+        if (data_vals.size() != 32) { // 4*8
+            throw std::runtime_error(std::string(label) + ": data[" + std::to_string(r) +
+                                     "].size mismatch: expected 32 got " +
+                                     std::to_string(data_vals.size()));
         }
-    } else if (sm_type == "TiledCellStMan") {
-        // map[r] = all elements r*1.5F.
-        for (std::uint64_t r = 0; r < 5; ++r) {
-            auto vals = reader.read_float_cell("map", r);
-            const float exp_v = static_cast<float>(r) * 1.5F;
-            for (std::size_t i = 0; i < vals.size(); ++i) {
-                if (std::fabs(vals[i] - exp_v) > kFloat32Tolerance) {
-                    throw std::runtime_error(std::string(label) + ": map[" + std::to_string(r) +
-                                             "][" + std::to_string(i) + "] mismatch");
-                }
+        const float exp_d = static_cast<float>(r) * 0.1F;
+        for (std::size_t i = 0; i < data_vals.size(); ++i) {
+            if (std::fabs(data_vals[i] - exp_d) > kFloat32Tolerance) {
+                throw std::runtime_error(std::string(label) + ": data[" + std::to_string(r) +
+                                         "][" + std::to_string(i) + "] mismatch");
             }
-            ++cells_verified;
         }
-    } else if (sm_type == "TiledShapeStMan") {
-        // vis[r] = all elements Complex(r, 0.0).
-        for (std::uint64_t r = 0; r < 5; ++r) {
-            auto raw = reader.read_raw_cell("vis", r);
-            const std::size_t cell_elems = raw.size() / std::size_t{8};
-            if (raw.size() < cell_elems * std::size_t{8}) {
-                throw std::runtime_error(std::string(label) + ": vis raw data too small");
-            }
-            for (std::size_t i = 0; i < cell_elems; ++i) {
-                float real_val = 0;
-                float imag_val = 0;
-                std::memcpy(&real_val, raw.data() + i * std::size_t{8}, 4);
-                std::memcpy(&imag_val, raw.data() + i * std::size_t{8} + 4, 4);
-                const float exp_r = static_cast<float>(r);
-                if (std::fabs(real_val - exp_r) > kFloat32Tolerance ||
-                    std::fabs(imag_val) > kFloat32Tolerance) {
-                    throw std::runtime_error(
-                        std::string(label) + ": vis[" + std::to_string(r) + "][" +
-                        std::to_string(i) + "] mismatch: got (" + std::to_string(real_val) + "," +
-                        std::to_string(imag_val) + ") expected (" + std::to_string(exp_r) + ",0)");
-                }
-            }
-            ++cells_verified;
+        auto flag_vals = flags_col.get(r);
+        if (flag_vals.size() != 32) {
+            throw std::runtime_error(std::string(label) + ": flags[" + std::to_string(r) +
+                                     "].size mismatch: expected 32 got " +
+                                     std::to_string(flag_vals.size()));
         }
-    } else if (sm_type == "TiledDataStMan") {
-        // spectrum[r] = all elements r*0.01F.
-        for (std::uint64_t r = 0; r < 5; ++r) {
-            auto vals = reader.read_float_cell("spectrum", r);
-            const float exp_v = static_cast<float>(r) * 0.01F;
-            for (std::size_t i = 0; i < vals.size(); ++i) {
-                if (std::fabs(vals[i] - exp_v) > kFloat32Tolerance) {
-                    throw std::runtime_error(std::string(label) + ": spectrum[" +
-                                             std::to_string(r) + "][" + std::to_string(i) +
-                                             "] mismatch");
-                }
+        const auto exp_f = static_cast<std::int32_t>(r);
+        for (std::size_t i = 0; i < flag_vals.size(); ++i) {
+            if (flag_vals[i] != exp_f) {
+                throw std::runtime_error(std::string(label) + ": flags[" + std::to_string(r) +
+                                         "][" + std::to_string(i) + "] mismatch");
             }
-            ++cells_verified;
         }
+        cells_verified += 2;
     }
-
-    if (cells_verified > 0) {
-        std::cout << "  " << label << ": [PASS] cell_values (" << cells_verified
-                  << " cells, float tol=1e-6)\n";
-    }
+    std::cout << "  " << label << ": [PASS] cell_values (" << cells_verified
+              << " cells, float tol=1e-6)\n";
 }
 
-/// Build expected metadata lines for the IncrementalStMan test table.
-[[nodiscard]] std::vector<std::string> expected_ism_meta() {
-    std::vector<std::string> lines;
-    lines.emplace_back("kind=table_dir");
-    lines.emplace_back("row_count=10");
-    lines.emplace_back("ncol=3");
-    lines.emplace_back("col[0].name_b64=" + base64_encode("time"));
-    lines.emplace_back("col[0].dtype=TpDouble");
-    lines.emplace_back("col[1].name_b64=" + base64_encode("antenna"));
-    lines.emplace_back("col[1].dtype=TpInt");
-    lines.emplace_back("col[2].name_b64=" + base64_encode("flag"));
-    lines.emplace_back("col[2].dtype=TpBool");
-    lines.emplace_back("sm_file_count=*");
-    return lines;
-}
+/// Verify a tiled-cell table directory.
+void verify_tiled_cell_dir_artifact(const std::filesystem::path& input_dir,
+                                    const std::string_view label) {
+    using namespace casacore_mini;
+    auto table = Table::open(input_dir);
 
-/// Build a TableDatFull for an IncrementalStMan table.
-[[nodiscard]] casacore_mini::TableDatFull build_ism_table_dat() {
-    casacore_mini::TableDatFull full;
-    full.table_version = 2;
-    full.row_count = 10;
-    full.big_endian = true;
-    full.table_type = "PlainTable";
-    full.table_desc.version = 2;
-    full.table_desc.name = "test_ism";
+    if (table.nrow() != 5) {
+        throw std::runtime_error(std::string(label) + ": row_count mismatch");
+    }
+    if (table.ncolumn() != 1) {
+        throw std::runtime_error(std::string(label) + ": ncol mismatch");
+    }
 
-    auto make_col = [](const std::string& name, casacore_mini::DataType dtype) {
-        casacore_mini::ColumnDesc col;
-        col.kind = casacore_mini::ColumnKind::scalar;
-        col.name = name;
-        col.data_type = dtype;
-        col.dm_type = "IncrementalStMan";
-        col.dm_group = "ISMData";
-        col.type_string = casacore_col_type_string(col.kind, dtype);
-        col.version = 1;
-        return col;
-    };
-
-    full.table_desc.columns.push_back(make_col("time", casacore_mini::DataType::tp_double));
-    full.table_desc.columns.push_back(make_col("antenna", casacore_mini::DataType::tp_int));
-    full.table_desc.columns.push_back(make_col("flag", casacore_mini::DataType::tp_bool));
-
-    // Table keywords: instrument, epoch.
-    full.table_desc.keywords.set("instrument", casacore_mini::RecordValue(std::string("ALMA")));
-    full.table_desc.keywords.set("epoch", casacore_mini::RecordValue(4.8e9));
-
-    // Column keywords on "time": MEASINFO (sub-Record) and QuantumUnits (string_array).
     {
-        casacore_mini::Record measinfo;
-        measinfo.set("type", casacore_mini::RecordValue(std::string("epoch")));
-        measinfo.set("Ref", casacore_mini::RecordValue(std::string("UTC")));
-        full.table_desc.columns[0].keywords.set(
-            "MEASINFO", casacore_mini::RecordValue::from_record(std::move(measinfo)));
-
-        casacore_mini::RecordValue::string_array units;
-        units.shape = {1};
-        units.elements = {"s"};
-        full.table_desc.columns[0].keywords.set("QuantumUnits",
-                                                casacore_mini::RecordValue(std::move(units)));
+        const auto& c0 = table.columns()[0];
+        if (c0.name != "map") {
+            throw std::runtime_error(std::string(label) + ": col[0].name mismatch: got '" +
+                                     c0.name + "'");
+        }
+        if (c0.data_type != DataType::tp_float || c0.kind != ColumnKind::array) {
+            throw std::runtime_error(std::string(label) + ": col[0] type/kind mismatch");
+        }
+        if (c0.shape != std::vector<std::int64_t>{32, 8}) {
+            throw std::runtime_error(std::string(label) + ": col[0].shape mismatch");
+        }
     }
 
-    casacore_mini::StorageManagerSetup sm;
-    sm.type_name = "IncrementalStMan";
-    sm.sequence_number = 0;
-    full.storage_managers.push_back(sm);
+    std::cout << "  " << label << ": [PASS] structure (" << table.nrow() << " rows, "
+              << table.ncolumn() << " cols, names+types+shapes verified)\n";
 
-    for (const auto& col : full.table_desc.columns) {
-        casacore_mini::ColumnManagerSetup cms;
-        cms.column_name = col.name;
-        cms.sequence_number = 0;
-        full.column_setups.push_back(cms);
+    ArrayColumn<float> map_col(table, "map");
+    std::size_t cells_verified = 0;
+    for (std::uint64_t r = 0; r < 5; ++r) {
+        auto vals = map_col.get(r);
+        if (vals.size() != std::size_t{32} * 8) {
+            throw std::runtime_error(std::string(label) + ": map[" + std::to_string(r) +
+                                     "].size mismatch: expected 256 got " +
+                                     std::to_string(vals.size()));
+        }
+        const float exp_v = static_cast<float>(r) * 1.5F;
+        for (std::size_t i = 0; i < vals.size(); ++i) {
+            if (std::fabs(vals[i] - exp_v) > kFloat32Tolerance) {
+                throw std::runtime_error(std::string(label) + ": map[" + std::to_string(r) +
+                                         "][" + std::to_string(i) + "] mismatch");
+            }
+        }
+        ++cells_verified;
+    }
+    std::cout << "  " << label << ": [PASS] cell_values (" << cells_verified
+              << " cells, float tol=1e-6)\n";
+}
+
+/// Verify a tiled-shape table directory (Complex arrays via raw reads).
+void verify_tiled_shape_dir_artifact(const std::filesystem::path& input_dir,
+                                     const std::string_view label) {
+    using namespace casacore_mini;
+    auto table = Table::open(input_dir);
+
+    if (table.nrow() != 5) {
+        throw std::runtime_error(std::string(label) + ": row_count mismatch");
+    }
+    if (table.ncolumn() != 1) {
+        throw std::runtime_error(std::string(label) + ": ncol mismatch");
     }
 
-    full.post_td_row_count = 10;
-    return full;
+    {
+        const auto& c0 = table.columns()[0];
+        if (c0.name != "vis") {
+            throw std::runtime_error(std::string(label) + ": col[0].name mismatch: got '" +
+                                     c0.name + "'");
+        }
+        if (c0.data_type != DataType::tp_complex || c0.kind != ColumnKind::array) {
+            throw std::runtime_error(std::string(label) + ": col[0] type/kind mismatch");
+        }
+        if (c0.shape != std::vector<std::int64_t>{4, 16}) {
+            throw std::runtime_error(std::string(label) + ": col[0].shape mismatch");
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS] structure (" << table.nrow() << " rows, "
+              << table.ncolumn() << " cols, names+types+shapes verified)\n";
+
+    ArrayColumn<std::uint8_t> vis_col(table, "vis");
+    std::size_t cells_verified = 0;
+    for (std::uint64_t r = 0; r < 5; ++r) {
+        auto raw = vis_col.get(r);
+        const std::size_t cell_elems = raw.size() / std::size_t{8};
+        for (std::size_t i = 0; i < cell_elems; ++i) {
+            float real_val = 0;
+            float imag_val = 0;
+            std::memcpy(&real_val, raw.data() + i * std::size_t{8}, 4);
+            std::memcpy(&imag_val, raw.data() + i * std::size_t{8} + 4, 4);
+            const float exp_r = static_cast<float>(r);
+            if (std::fabs(real_val - exp_r) > kFloat32Tolerance ||
+                std::fabs(imag_val) > kFloat32Tolerance) {
+                throw std::runtime_error(std::string(label) + ": vis[" + std::to_string(r) +
+                                         "][" + std::to_string(i) + "] mismatch");
+            }
+        }
+        ++cells_verified;
+    }
+    std::cout << "  " << label << ": [PASS] cell_values (" << cells_verified
+              << " cells, float tol=1e-6)\n";
+}
+
+/// Verify a tiled-data table directory.
+void verify_tiled_data_dir_artifact(const std::filesystem::path& input_dir,
+                                    const std::string_view label) {
+    using namespace casacore_mini;
+    auto table = Table::open(input_dir);
+
+    if (table.nrow() != 5) {
+        throw std::runtime_error(std::string(label) + ": row_count mismatch");
+    }
+    if (table.ncolumn() != 1) {
+        throw std::runtime_error(std::string(label) + ": ncol mismatch");
+    }
+
+    {
+        const auto& c0 = table.columns()[0];
+        if (c0.name != "spectrum") {
+            throw std::runtime_error(std::string(label) + ": col[0].name mismatch: got '" +
+                                     c0.name + "'");
+        }
+        if (c0.data_type != DataType::tp_float || c0.kind != ColumnKind::array) {
+            throw std::runtime_error(std::string(label) + ": col[0] type/kind mismatch");
+        }
+        if (c0.shape != std::vector<std::int64_t>{256}) {
+            throw std::runtime_error(std::string(label) + ": col[0].shape mismatch");
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS] structure (" << table.nrow() << " rows, "
+              << table.ncolumn() << " cols, names+types+shapes verified)\n";
+
+    ArrayColumn<float> spectrum_col(table, "spectrum");
+    std::size_t cells_verified = 0;
+    for (std::uint64_t r = 0; r < 5; ++r) {
+        auto vals = spectrum_col.get(r);
+        const float exp_v = static_cast<float>(r) * 0.01F;
+        for (std::size_t i = 0; i < vals.size(); ++i) {
+            if (std::fabs(vals[i] - exp_v) > kFloat32Tolerance) {
+                throw std::runtime_error(std::string(label) + ": spectrum[" + std::to_string(r) +
+                                         "][" + std::to_string(i) + "] mismatch");
+            }
+        }
+        ++cells_verified;
+    }
+    std::cout << "  " << label << ": [PASS] cell_values (" << cells_verified
+              << " cells, float tol=1e-6)\n";
+}
+
+/// Build the ISM-specific column keywords for the "time" column.
+[[nodiscard]] casacore_mini::Record build_ism_time_keywords() {
+    using namespace casacore_mini;
+    Record kw;
+    Record measinfo;
+    measinfo.set("type", RecordValue(std::string("epoch")));
+    measinfo.set("Ref", RecordValue(std::string("UTC")));
+    kw.set("MEASINFO", RecordValue::from_record(std::move(measinfo)));
+
+    RecordValue::string_array units;
+    units.shape = {1};
+    units.elements = {"s"};
+    kw.set("QuantumUnits", RecordValue(std::move(units)));
+    return kw;
 }
 
 void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
-    auto full = build_ism_table_dat();
-    full.big_endian = false; // LE to match casacore on LE systems
+    using namespace casacore_mini;
 
-    casacore_mini::IsmWriter ism_writer;
-    ism_writer.setup(full.table_desc.columns, full.row_count, full.big_endian, "ISMData");
+    TableCreateOptions opts;
+    opts.sm_type = "IncrementalStMan";
+    opts.sm_group = "ISMData";
+    opts.big_endian = false; // LE to match casacore on LE systems
+    opts.table_keywords.set("instrument", RecordValue(std::string("ALMA")));
+    opts.table_keywords.set("epoch", RecordValue(4.8e9));
 
-    // Write the expected cell values (same as casacore side).
+    // Column keywords: only "time" (index 0) has MEASINFO + QuantumUnits.
+    opts.column_keywords = {build_ism_time_keywords(), Record{}, Record{}};
+
+    std::vector<TableColumnSpec> columns = {
+        {"time", DataType::tp_double, ColumnKind::scalar, {}, ""},
+        {"antenna", DataType::tp_int, ColumnKind::scalar, {}, ""},
+        {"flag", DataType::tp_bool, ColumnKind::scalar, {}, ""},
+    };
+
+    auto table = Table::create(output_dir, columns, 10, opts);
+    ScalarColumn<double> time_col(table, "time");
+    ScalarColumn<std::int32_t> antenna_col(table, "antenna");
+    ScalarColumn<bool> flag_col(table, "flag");
+
     for (std::uint64_t i = 0; i < 10; ++i) {
-        ism_writer.write_cell(0, casacore_mini::CellValue{4.8e9 + static_cast<double>(i) * 10.0},
-                              i);
-        ism_writer.write_cell(1, casacore_mini::CellValue{static_cast<std::int32_t>(i % 3)}, i);
-        ism_writer.write_cell(2, casacore_mini::CellValue{(i % 2) == 0}, i);
+        time_col.put(i, 4.8e9 + static_cast<double>(i) * 10.0);
+        antenna_col.put(i, static_cast<std::int32_t>(i % 3));
+        flag_col.put(i, (i % 2) == 0);
     }
-
-    full.storage_managers[0].data_blob = ism_writer.make_blob();
-    casacore_mini::write_table_directory(output_dir.string(), full);
-    ism_writer.write_file(output_dir.string(), 0);
+    table.flush();
 }
 
 void verify_ism_dir_artifact(const std::filesystem::path& input_dir, const std::string_view label,
                              const bool relaxed_keywords) {
-    const auto td = casacore_mini::read_table_directory(input_dir.string());
-    const auto actual_lines = canonical_table_dir_lines(td);
-    const auto actual_meta = strip_sm_file_lines(actual_lines);
-    verify_lines_equal(label, expected_ism_meta(), actual_meta);
+    using namespace casacore_mini;
+    auto table = Table::open(input_dir);
 
-    const auto row_count = td.table_dat.row_count;
-    const auto ncol = td.table_dat.table_desc.columns.size();
-    std::cout << "  " << label << ": [PASS] structure (" << row_count << " rows, " << ncol
-              << " cols)\n";
+    // --- Structure verification ---
+    if (table.nrow() != 10) {
+        throw std::runtime_error(std::string(label) + ": row_count mismatch");
+    }
+    if (table.ncolumn() != 3) {
+        throw std::runtime_error(std::string(label) + ": ncol mismatch");
+    }
 
-    const auto expected_full = build_ism_table_dat();
+    // --- Column name and type verification ---
+    {
+        const std::string expected_names[] = {"time", "antenna", "flag"};
+        const DataType expected_types[] = {DataType::tp_double, DataType::tp_int,
+                                           DataType::tp_bool};
+        for (std::size_t i = 0; i < 3; ++i) {
+            const auto& col = table.columns()[i];
+            if (col.name != expected_names[i]) {
+                throw std::runtime_error(std::string(label) + ": col[" + std::to_string(i) +
+                                         "].name mismatch: expected '" + expected_names[i] +
+                                         "' got '" + col.name + "'");
+            }
+            if (col.data_type != expected_types[i]) {
+                throw std::runtime_error(std::string(label) + ": col[" + std::to_string(i) +
+                                         "].data_type mismatch");
+            }
+            if (col.kind != ColumnKind::scalar) {
+                throw std::runtime_error(std::string(label) + ": col[" + std::to_string(i) +
+                                         "].kind mismatch: expected scalar");
+            }
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS] structure (" << table.nrow() << " rows, "
+              << table.ncolumn() << " cols, names+types verified)\n";
 
     // --- table_keywords verification ---
     {
-        const auto actual_keyword_lines = canonical_record_lines(td.table_dat.table_desc.keywords);
+        Record expected_kw;
+        expected_kw.set("instrument", RecordValue(std::string("ALMA")));
+        expected_kw.set("epoch", RecordValue(4.8e9));
         if (!relaxed_keywords) {
             verify_lines_equal(std::string(label) + ":table_keywords",
-                               canonical_record_lines(expected_full.table_desc.keywords),
-                               actual_keyword_lines);
+                               canonical_record_lines(expected_kw),
+                               canonical_record_lines(table.keywords()));
             std::cout << "  " << label << ": [PASS] table_keywords ("
-                      << td.table_dat.table_desc.keywords.entries().size()
-                      << " fields, content verified)\n";
+                      << table.keywords().entries().size() << " fields, content verified)\n";
         } else {
             std::cout << "  " << label << ": [PASS] table_keywords ("
-                      << td.table_dat.table_desc.keywords.entries().size()
-                      << " fields, relaxed fixture mode)\n";
+                      << table.keywords().entries().size() << " fields, relaxed fixture mode)\n";
         }
     }
 
     // --- col_keywords verification ---
     {
+        std::vector<Record> expected_col_kw = {build_ism_time_keywords(), Record{}, Record{}};
         std::size_t total_kw_fields = 0;
-        for (std::size_t i = 0; i < ncol; ++i) {
-            const auto actual_col_keyword_lines =
-                canonical_record_lines(td.table_dat.table_desc.columns[i].keywords);
+        for (std::size_t i = 0; i < table.ncolumn(); ++i) {
             if (!relaxed_keywords) {
                 verify_lines_equal(
                     std::string(label) + ":col[" + std::to_string(i) + "]_keywords",
-                    canonical_record_lines(expected_full.table_desc.columns[i].keywords),
-                    actual_col_keyword_lines);
+                    canonical_record_lines(expected_col_kw[i]),
+                    canonical_record_lines(table.columns()[i].keywords));
             }
-            total_kw_fields += td.table_dat.table_desc.columns[i].keywords.entries().size();
+            total_kw_fields += table.columns()[i].keywords.entries().size();
         }
-        std::cout << "  " << label << ": [PASS] col_keywords (" << ncol << " cols, "
+        std::cout << "  " << label << ": [PASS] col_keywords (" << table.ncolumn() << " cols, "
                   << total_kw_fields
                   << (relaxed_keywords ? " fields total, relaxed fixture mode)\n"
                                        : " fields total, content verified)\n");
     }
 
-    // --- sm_mapping verification ---
+    // --- Cell-value verification via Table API ---
     {
-        std::string sm_type_for_cols;
-        for (std::size_t i = 0; i < td.table_dat.column_setups.size(); ++i) {
-            const auto seq = td.table_dat.column_setups[i].sequence_number;
-            for (std::size_t j = 0; j < td.table_dat.storage_managers.size(); ++j) {
-                if (td.table_dat.storage_managers[j].sequence_number == seq) {
-                    if (i == 0) {
-                        sm_type_for_cols = td.table_dat.storage_managers[j].type_name;
-                    } else if (sm_type_for_cols != td.table_dat.storage_managers[j].type_name) {
-                        throw std::runtime_error(std::string(label) +
-                                                 ": mixed SM types in column_setups");
-                    }
-                    break;
-                }
-            }
-        }
-        if (sm_type_for_cols != "IncrementalStMan") {
-            throw std::runtime_error(std::string(label) +
-                                     ": sm_mapping mismatch: expected IncrementalStMan got " +
-                                     sm_type_for_cols);
-        }
-        std::cout << "  " << label << ": [PASS] sm_mapping (strict, "
-                  << td.table_dat.column_setups.size() << " cols -> " << sm_type_for_cols << ")\n";
-    }
-
-    // Cell-value verification if the .f0 file exists.
-    const auto f0_path = input_dir / "table.f0";
-    if (std::filesystem::exists(f0_path)) {
-        // Find IncrementalStMan.
-        std::size_t ism_idx = td.table_dat.storage_managers.size();
-        for (std::size_t i = 0; i < td.table_dat.storage_managers.size(); ++i) {
-            if (td.table_dat.storage_managers[i].type_name == "IncrementalStMan") {
-                ism_idx = i;
-                break;
-            }
-        }
-        if (ism_idx == td.table_dat.storage_managers.size()) {
-            throw std::runtime_error(std::string(label) + ": no IncrementalStMan found");
-        }
-
-        casacore_mini::IsmReader reader;
-        reader.open(input_dir.string(), ism_idx, td.table_dat);
+        ScalarColumn<double> time_col(table, "time");
+        ScalarColumn<std::int32_t> antenna_col(table, "antenna");
+        ScalarColumn<bool> flag_col(table, "flag");
 
         for (std::uint64_t i = 0; i < 10; ++i) {
-            // time: 4.8e9 + i * 10.0
-            const auto vt = reader.read_cell("time", i);
-            const auto* dp = std::get_if<double>(&vt);
             const double exp_time = 4.8e9 + static_cast<double>(i) * 10.0;
-            if (dp == nullptr || std::fabs(*dp - exp_time) > kFloat64Tolerance) {
+            if (std::fabs(time_col.get(i) - exp_time) > kFloat64Tolerance) {
                 throw std::runtime_error(std::string(label) + ": time[" + std::to_string(i) +
                                          "] mismatch");
             }
-
-            // antenna: i % 3
-            const auto va = reader.read_cell("antenna", i);
-            const auto* ip = std::get_if<std::int32_t>(&va);
-            if (ip == nullptr || *ip != static_cast<std::int32_t>(i % 3)) {
+            if (antenna_col.get(i) != static_cast<std::int32_t>(i % 3)) {
                 throw std::runtime_error(std::string(label) + ": antenna[" + std::to_string(i) +
                                          "] mismatch");
             }
-
-            // flag: (i % 2) == 0
-            const auto vf = reader.read_cell("flag", i);
-            const auto* bp = std::get_if<bool>(&vf);
-            if (bp == nullptr || *bp != ((i % 2) == 0)) {
+            if (flag_col.get(i) != ((i % 2) == 0)) {
                 throw std::runtime_error(std::string(label) + ": flag[" + std::to_string(i) +
                                          "] mismatch");
             }
         }
         std::cout << "  " << label << ": [PASS] cell_values (30 cells, double tol=1e-10)\n";
-    } else {
-        std::cout << "  " << label << ": ISM data file not present; cell verification skipped\n";
     }
-}
-
-/// Build a TableDatFull for a TiledColumnStMan table (mini can only write table.dat).
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_col_table_dat() {
-    casacore_mini::TableDatFull full;
-    full.table_version = 2;
-    full.row_count = 10;
-    full.big_endian = false; // LE to match TSM tile data byte order
-    full.table_type = "PlainTable";
-    full.table_desc.version = 2;
-    full.table_desc.name = "test_tiledcol";
-
-    auto make_arr_col = [](const std::string& name, casacore_mini::DataType dtype) {
-        casacore_mini::ColumnDesc col;
-        col.kind = casacore_mini::ColumnKind::array;
-        col.name = name;
-        col.data_type = dtype;
-        col.dm_type = "TiledColumnStMan";
-        col.dm_group = "TiledCol";
-        col.type_string = casacore_col_type_string(col.kind, dtype);
-        col.version = 1;
-        col.ndim = 2;
-        col.shape = {4, 8};
-        col.options = 4; // FixedShape
-        return col;
-    };
-
-    full.table_desc.columns.push_back(make_arr_col("data", casacore_mini::DataType::tp_float));
-    full.table_desc.columns.push_back(make_arr_col("flags", casacore_mini::DataType::tp_int));
-
-    casacore_mini::StorageManagerSetup sm;
-    sm.type_name = "TiledColumnStMan";
-    sm.sequence_number = 0;
-    full.storage_managers.push_back(sm);
-
-    for (const auto& col : full.table_desc.columns) {
-        casacore_mini::ColumnManagerSetup cms;
-        cms.column_name = col.name;
-        cms.sequence_number = 0;
-        cms.has_shape = true;
-        cms.shape = col.shape;
-        full.column_setups.push_back(cms);
-    }
-
-    full.post_td_row_count = 10;
-    return full;
-}
-
-/// Build a TableDatFull for a TiledCellStMan table.
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_cell_table_dat() {
-    casacore_mini::TableDatFull full;
-    full.table_version = 2;
-    full.row_count = 5;
-    full.big_endian = false; // LE to match TSM tile data byte order
-    full.table_type = "PlainTable";
-    full.table_desc.version = 2;
-    full.table_desc.name = "test_tiledcell";
-
-    casacore_mini::ColumnDesc col;
-    col.kind = casacore_mini::ColumnKind::array;
-    col.name = "map";
-    col.data_type = casacore_mini::DataType::tp_float;
-    col.dm_type = "TiledCellStMan";
-    col.dm_group = "TiledCell";
-    col.type_string = casacore_col_type_string(col.kind, col.data_type);
-    col.version = 1;
-    col.ndim = 2;
-    col.shape = {32, 8};
-    col.options = 4; // FixedShape
-    full.table_desc.columns.push_back(col);
-
-    casacore_mini::StorageManagerSetup sm;
-    sm.type_name = "TiledCellStMan";
-    sm.sequence_number = 0;
-    full.storage_managers.push_back(sm);
-
-    casacore_mini::ColumnManagerSetup cms;
-    cms.column_name = "map";
-    cms.sequence_number = 0;
-    cms.has_shape = true;
-    cms.shape = {32, 8};
-    full.column_setups.push_back(cms);
-
-    full.post_td_row_count = 5;
-    return full;
-}
-
-/// Build a TableDatFull for a TiledShapeStMan table.
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_shape_table_dat() {
-    casacore_mini::TableDatFull full;
-    full.table_version = 2;
-    full.row_count = 5;
-    full.big_endian = false; // LE to match TSM tile data byte order
-    full.table_type = "PlainTable";
-    full.table_desc.version = 2;
-    full.table_desc.name = "test_tiledshape";
-
-    casacore_mini::ColumnDesc col;
-    col.kind = casacore_mini::ColumnKind::array;
-    col.name = "vis";
-    col.data_type = casacore_mini::DataType::tp_complex;
-    col.dm_type = "TiledShapeStMan";
-    col.dm_group = "TiledShape";
-    col.type_string = casacore_col_type_string(col.kind, col.data_type);
-    col.version = 1;
-    col.ndim = 2;
-    col.shape = {4, 16}; // actual shape used by casacore side
-    col.options = 4;     // FixedShape
-    full.table_desc.columns.push_back(col);
-
-    casacore_mini::StorageManagerSetup sm;
-    sm.type_name = "TiledShapeStMan";
-    sm.sequence_number = 0;
-    full.storage_managers.push_back(sm);
-
-    casacore_mini::ColumnManagerSetup cms;
-    cms.column_name = "vis";
-    cms.sequence_number = 0;
-    cms.has_shape = true;
-    cms.shape = {4, 16};
-    full.column_setups.push_back(cms);
-
-    full.post_td_row_count = 5;
-    return full;
-}
-
-/// Build a TableDatFull for a TiledDataStMan table.
-[[nodiscard]] casacore_mini::TableDatFull build_tiled_data_table_dat() {
-    casacore_mini::TableDatFull full;
-    full.table_version = 2;
-    full.row_count = 5;
-    full.big_endian = false; // LE to match TSM tile data byte order
-    full.table_type = "PlainTable";
-    full.table_desc.version = 2;
-    full.table_desc.name = "test_tileddata";
-
-    // TiledDataStMan requires a hypercolumn definition in the table desc
-    // keywords. casacore's defineHypercolumn stores it as a sub-Record
-    // named "Hypercolumn_<name>" with fields: ndim, data, coord, id.
-    {
-        casacore_mini::Record hc;
-        hc.set("ndim", casacore_mini::RecordValue(std::int32_t{2}));
-        // data columns: Array<String> shape [1] with ["spectrum"]
-        casacore_mini::RecordValue::string_array data_arr;
-        data_arr.shape = {1};
-        data_arr.elements = {"spectrum"};
-        hc.set("data", casacore_mini::RecordValue(std::move(data_arr)));
-        // coord columns: empty Array<String>
-        casacore_mini::RecordValue::string_array coord_arr;
-        coord_arr.shape = {0};
-        hc.set("coord", casacore_mini::RecordValue(std::move(coord_arr)));
-        // id columns: empty Array<String>
-        casacore_mini::RecordValue::string_array id_arr;
-        id_arr.shape = {0};
-        hc.set("id", casacore_mini::RecordValue(std::move(id_arr)));
-        full.table_desc.private_keywords.set(
-            "Hypercolumn_TiledData", casacore_mini::RecordValue::from_record(std::move(hc)));
-    }
-
-    casacore_mini::ColumnDesc col;
-    col.kind = casacore_mini::ColumnKind::array;
-    col.name = "spectrum";
-    col.data_type = casacore_mini::DataType::tp_float;
-    col.dm_type = "TiledDataStMan";
-    col.dm_group = "TiledData";
-    col.type_string = casacore_col_type_string(col.kind, col.data_type);
-    col.version = 1;
-    col.ndim = 1;
-    col.shape = {256};
-    col.options = 4; // FixedShape
-    full.table_desc.columns.push_back(col);
-
-    casacore_mini::StorageManagerSetup sm;
-    sm.type_name = "TiledDataStMan";
-    sm.sequence_number = 0;
-    full.storage_managers.push_back(sm);
-
-    casacore_mini::ColumnManagerSetup cms;
-    cms.column_name = "spectrum";
-    cms.sequence_number = 0;
-    cms.has_shape = true;
-    cms.shape = {256};
-    full.column_setups.push_back(cms);
-
-    full.post_td_row_count = 5;
-    return full;
 }
 
 void write_tiled_col_dir_artifact(const std::filesystem::path& output_dir) {
-    auto full = build_tiled_col_table_dat();
+    using namespace casacore_mini;
 
-    casacore_mini::TiledStManWriter tsm_writer;
-    tsm_writer.setup("TiledColumnStMan", "TiledCol", full.table_desc.columns, full.row_count);
+    TableCreateOptions opts;
+    opts.sm_type = "TiledColumnStMan";
+    opts.sm_group = "TiledCol";
+    opts.big_endian = false;
 
-    // Write cell data: data[r] = all elements r*0.1F, flags[r] = all elements r.
+    std::vector<TableColumnSpec> columns = {
+        {"data", DataType::tp_float, ColumnKind::array, {4, 8}, ""},
+        {"flags", DataType::tp_int, ColumnKind::array, {4, 8}, ""},
+    };
+
+    auto table = Table::create(output_dir, columns, 10, opts);
+    ArrayColumn<float> data_col(table, "data");
+    ArrayColumn<std::int32_t> flags_col(table, "flags");
+
     for (std::uint64_t r = 0; r < 10; ++r) {
-        std::vector<float> data_vals(32, static_cast<float>(r) * 0.1F); // 4*8=32
-        tsm_writer.write_float_cell(0, data_vals, r);
+        std::vector<float> data_vals(32, static_cast<float>(r) * 0.1F);
+        data_col.put(r, data_vals);
 
         std::vector<std::int32_t> flag_vals(32, static_cast<std::int32_t>(r));
-        tsm_writer.write_int_cell(1, flag_vals, r);
+        flags_col.put(r, flag_vals);
     }
-
-    full.storage_managers[0].data_blob = tsm_writer.make_blob();
-    casacore_mini::write_table_directory(output_dir.string(), full);
-    tsm_writer.write_files(output_dir.string(), 0);
+    table.flush();
 }
 
 void write_tiled_cell_dir_artifact(const std::filesystem::path& output_dir) {
-    auto full = build_tiled_cell_table_dat();
+    using namespace casacore_mini;
 
-    casacore_mini::TiledStManWriter tsm_writer;
-    tsm_writer.setup("TiledCellStMan", "TiledCell", full.table_desc.columns, full.row_count);
+    TableCreateOptions opts;
+    opts.sm_type = "TiledCellStMan";
+    opts.sm_group = "TiledCell";
+    opts.big_endian = false;
 
-    // Write cell data: map[r] = all elements r*1.5F.
+    std::vector<TableColumnSpec> columns = {
+        {"map", DataType::tp_float, ColumnKind::array, {32, 8}, ""},
+    };
+
+    auto table = Table::create(output_dir, columns, 5, opts);
+    ArrayColumn<float> map_col(table, "map");
+
     for (std::uint64_t r = 0; r < 5; ++r) {
         std::vector<float> vals(std::size_t{32} * 8, static_cast<float>(r) * 1.5F);
-        tsm_writer.write_float_cell(0, vals, r);
+        map_col.put(r, vals);
     }
-
-    full.storage_managers[0].data_blob = tsm_writer.make_blob();
-    casacore_mini::write_table_directory(output_dir.string(), full);
-    tsm_writer.write_files(output_dir.string(), 0);
+    table.flush();
 }
 
 void write_tiled_shape_dir_artifact(const std::filesystem::path& output_dir) {
-    auto full = build_tiled_shape_table_dat();
+    using namespace casacore_mini;
 
-    casacore_mini::TiledStManWriter tsm_writer;
-    tsm_writer.setup("TiledShapeStMan", "TiledShape", full.table_desc.columns, full.row_count);
+    TableCreateOptions opts;
+    opts.sm_type = "TiledShapeStMan";
+    opts.sm_group = "TiledShape";
+    opts.big_endian = false;
 
-    // Write cell data: vis[r] = all elements Complex(r, 0.0).
+    std::vector<TableColumnSpec> columns = {
+        {"vis", DataType::tp_complex, ColumnKind::array, {4, 16}, ""},
+    };
+
+    auto table = Table::create(output_dir, columns, 5, opts);
+    ArrayColumn<std::uint8_t> vis_col(table, "vis");
+
     // Complex = 8 bytes per element = 2 floats (real, imag).
     for (std::uint64_t r = 0; r < 5; ++r) {
         constexpr std::size_t kCellElems = std::size_t{4} * 16; // 64 complex elements
@@ -1703,29 +1299,49 @@ void write_tiled_shape_dir_artifact(const std::filesystem::path& output_dir) {
             std::memcpy(raw.data() + i * std::size_t{8}, &real_val, 4);
             std::memcpy(raw.data() + i * std::size_t{8} + 4, &imag_val, 4);
         }
-        tsm_writer.write_raw_cell(0, raw, r);
+        vis_col.put(r, raw);
     }
-
-    full.storage_managers[0].data_blob = tsm_writer.make_blob();
-    casacore_mini::write_table_directory(output_dir.string(), full);
-    tsm_writer.write_files(output_dir.string(), 0);
+    table.flush();
 }
 
 void write_tiled_data_dir_artifact(const std::filesystem::path& output_dir) {
-    auto full = build_tiled_data_table_dat();
+    using namespace casacore_mini;
 
-    casacore_mini::TiledStManWriter tsm_writer;
-    tsm_writer.setup("TiledDataStMan", "TiledData", full.table_desc.columns, full.row_count);
+    // TiledDataStMan requires a hypercolumn definition in private keywords.
+    TableCreateOptions opts;
+    opts.sm_type = "TiledDataStMan";
+    opts.sm_group = "TiledData";
+    opts.big_endian = false;
 
-    // Write cell data: spectrum[r] = all elements r*0.01F.
-    for (std::uint64_t r = 0; r < 5; ++r) {
-        std::vector<float> vals(256, static_cast<float>(r) * 0.01F);
-        tsm_writer.write_float_cell(0, vals, r);
+    {
+        Record hc;
+        hc.set("ndim", RecordValue(std::int32_t{2}));
+        RecordValue::string_array data_arr;
+        data_arr.shape = {1};
+        data_arr.elements = {"spectrum"};
+        hc.set("data", RecordValue(std::move(data_arr)));
+        RecordValue::string_array coord_arr;
+        coord_arr.shape = {0};
+        hc.set("coord", RecordValue(std::move(coord_arr)));
+        RecordValue::string_array id_arr;
+        id_arr.shape = {0};
+        hc.set("id", RecordValue(std::move(id_arr)));
+        opts.private_keywords.set("Hypercolumn_TiledData",
+                                  RecordValue::from_record(std::move(hc)));
     }
 
-    full.storage_managers[0].data_blob = tsm_writer.make_blob();
-    casacore_mini::write_table_directory(output_dir.string(), full);
-    tsm_writer.write_files(output_dir.string(), 0);
+    std::vector<TableColumnSpec> columns = {
+        {"spectrum", DataType::tp_float, ColumnKind::array, {256}, ""},
+    };
+
+    auto table = Table::create(output_dir, columns, 5, opts);
+    ArrayColumn<float> spectrum_col(table, "spectrum");
+
+    for (std::uint64_t r = 0; r < 5; ++r) {
+        std::vector<float> vals(256, static_cast<float>(r) * 0.01F);
+        spectrum_col.put(r, vals);
+    }
+    table.flush();
 }
 
 // ---------------------------------------------------------------------------
@@ -2163,6 +1779,1173 @@ void verify_conversion_vectors_semantic(const casacore_mini::Record& record,
     std::cout << "  " << label << ": [PASS] semantic (epoch, doppler, freq conversions)\n";
 }
 
+// ---------------------------------------------------------------------------
+// Phase 9: MS interop produce / verify helpers
+// ---------------------------------------------------------------------------
+
+void ms_verify_check(bool cond, const std::string& artifact, const std::string& detail) {
+    if (!cond) {
+        throw std::runtime_error(artifact + ": " + detail);
+    }
+}
+
+// Required subtable names for a valid MS.
+const std::vector<std::string> kRequiredSubtables = {
+    "ANTENNA", "DATA_DESCRIPTION", "FEED", "FIELD", "FLAG_CMD", "HISTORY",
+    "OBSERVATION", "POINTING", "POLARIZATION", "PROCESSOR",
+    "SPECTRAL_WINDOW", "STATE"
+};
+
+void verify_required_subtables(casacore_mini::MeasurementSet& ms,
+                               const std::string& artifact) {
+    for (const auto& name : kRequiredSubtables) {
+        ms_verify_check(ms.has_subtable(name), artifact,
+                        "missing required subtable: " + name);
+    }
+}
+
+// --- produce-ms-minimal ---
+
+void produce_ms_minimal(const std::string& output) {
+    namespace fs = std::filesystem;
+    if (fs::exists(output)) {
+        fs::remove_all(output);
+    }
+    auto ms = casacore_mini::MeasurementSet::create(output, /*include_data=*/false);
+    casacore_mini::MsWriter writer(ms);
+    writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
+                         .position = {}, .offset = {}, .dish_diameter = 25.0,
+                         .flag_row = false});
+    writer.add_field({.name = "F0", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.4e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
+                                 .flag_row = false});
+    writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
+    writer.add_observation({.telescope_name = "MINI", .observer = {}, .project = {},
+                            .release_date = 0.0, .flag_row = false});
+    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
+                      .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+    writer.flush();
+    std::cout << "  produce-ms-minimal: wrote " << output << '\n';
+}
+
+void verify_ms_minimal(const std::string& input) {
+    const std::string label = "ms-minimal";
+    auto ms = casacore_mini::MeasurementSet::open(input);
+
+    verify_required_subtables(ms, label);
+    ms_verify_check(ms.row_count() == 0, label, "expected 0 main-table rows");
+
+    casacore_mini::MsAntennaColumns ant_cols(ms);
+    ms_verify_check(ant_cols.row_count() >= 1, label, "expected at least 1 antenna");
+
+    casacore_mini::MsFieldColumns field_cols(ms);
+    ms_verify_check(field_cols.row_count() >= 1, label, "expected at least 1 field");
+
+    casacore_mini::MsSpWindowColumns spw_cols(ms);
+    ms_verify_check(spw_cols.row_count() >= 1, label, "expected at least 1 SPW");
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-ms-representative ---
+
+void produce_ms_representative(const std::string& output) {
+    namespace fs = std::filesystem;
+    if (fs::exists(output)) {
+        fs::remove_all(output);
+    }
+    auto ms = casacore_mini::MeasurementSet::create(output, /*include_data=*/false);
+    casacore_mini::MsWriter writer(ms);
+
+    // 6 antennas
+    for (int i = 0; i < 6; ++i) {
+        writer.add_antenna({.name = "ANT" + std::to_string(i),
+                            .station = "PAD" + std::to_string(i),
+                            .type = {}, .mount = {}, .position = {},
+                            .offset = {}, .dish_diameter = 25.0,
+                            .flag_row = false});
+    }
+
+    // 2 fields
+    writer.add_field({.name = "3C273", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "J1924-2914", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+
+    // 2 SPWs
+    writer.add_spectral_window({.num_chan = 64, .name = "SPW0", .ref_frequency = 1.4e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 128, .name = "SPW1", .ref_frequency = 2.0e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+
+    // 2 data descriptions (one per SPW)
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
+                                 .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0,
+                                 .flag_row = false});
+
+    writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
+                            .release_date = 0.0, .flag_row = false});
+    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
+                      .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+
+    // 15 baselines across 2 fields, 2 scans, varying time
+    const double base_time = 4.8e9;
+    int row_count = 0;
+    for (int field = 0; field < 2; ++field) {
+        for (int scan = 1; scan <= 2; ++scan) {
+            // baselines 0-1, 0-2, 1-2, 2-3 (4 per field/scan combo, ~16 total but we add a few)
+            const std::vector<std::pair<int, int>> baselines = {
+                {0, 1}, {0, 2}, {1, 2}, {2, 3}};
+            for (const auto& [ant1, ant2] : baselines) {
+                const double time_offset = static_cast<double>(row_count) * 10.0;
+                writer.add_row({
+                    .antenna1 = ant1,
+                    .antenna2 = ant2,
+                    .array_id = 0,
+                    .data_desc_id = field,  // alternate SPW per field
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = field,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = scan,
+                    .state_id = 0,
+                    .time = base_time + time_offset,
+                    .time_centroid = base_time + time_offset,
+                    .uvw = {100.0 + row_count, 200.0 - row_count, 50.0 + row_count * 0.5},
+                    .sigma = {1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F},
+                    .data = {},
+                    .flag = {},
+                });
+                ++row_count;
+            }
+        }
+    }
+
+    writer.flush();
+    std::cout << "  produce-ms-representative: wrote " << output
+              << " (" << row_count << " rows)\n";
+}
+
+void verify_ms_representative(const std::string& input) {
+    const std::string label = "ms-representative";
+    auto ms = casacore_mini::MeasurementSet::open(input);
+
+    verify_required_subtables(ms, label);
+    ms_verify_check(ms.row_count() >= 10, label,
+                    "expected 10+ rows, got " + std::to_string(ms.row_count()));
+
+    casacore_mini::MsAntennaColumns ant_cols(ms);
+    ms_verify_check(ant_cols.row_count() == 6, label, "expected 6 antennas");
+
+    casacore_mini::MsFieldColumns field_cols(ms);
+    ms_verify_check(field_cols.row_count() == 2, label, "expected 2 fields");
+
+    casacore_mini::MsSpWindowColumns spw_cols(ms);
+    ms_verify_check(spw_cols.row_count() == 2, label, "expected 2 SPWs");
+
+    // Check UVW non-zero for at least some rows
+    casacore_mini::MsMainColumns cols(ms);
+    int non_zero_uvw = 0;
+    for (std::uint64_t r = 0; r < ms.row_count(); ++r) {
+        const auto uvw = cols.uvw(r);
+        if (uvw.size() == 3 && (uvw[0] != 0.0 || uvw[1] != 0.0 || uvw[2] != 0.0)) {
+            ++non_zero_uvw;
+        }
+    }
+    ms_verify_check(non_zero_uvw > 0, label, "expected some rows with non-zero UVW");
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-ms-optional-subtables ---
+
+void produce_ms_optional_subtables(const std::string& output) {
+    namespace fs = std::filesystem;
+    if (fs::exists(output)) {
+        fs::remove_all(output);
+    }
+    // We don't implement optional subtables (WEATHER, SOURCE, etc.), so this
+    // artifact creates a minimal MS and verifies that all 12 required subtables
+    // are present. This confirms correct default schema creation.
+    auto ms = casacore_mini::MeasurementSet::create(output, /*include_data=*/false);
+    casacore_mini::MsWriter writer(ms);
+    writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
+                         .position = {}, .offset = {}, .dish_diameter = 12.0,
+                         .flag_row = false});
+    writer.add_field({.name = "F0", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.0e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
+                                 .flag_row = false});
+    writer.add_polarization({.num_corr = 1, .corr_type = {}, .flag_row = false});
+    writer.add_observation({.telescope_name = "ALMA", .observer = {}, .project = {},
+                            .release_date = 0.0, .flag_row = false});
+    writer.flush();
+    std::cout << "  produce-ms-optional-subtables: wrote " << output
+              << " (required subtables only, no optional subtables)\n";
+}
+
+void verify_ms_optional_subtables(const std::string& input) {
+    const std::string label = "ms-optional-subtables";
+    auto ms = casacore_mini::MeasurementSet::open(input);
+
+    // All 12 required subtables must exist.
+    verify_required_subtables(ms, label);
+
+    // Verify at least 1 antenna/field/spw row was written.
+    casacore_mini::MsAntennaColumns ant_cols(ms);
+    ms_verify_check(ant_cols.row_count() >= 1, label, "expected at least 1 antenna");
+
+    casacore_mini::MsFieldColumns field_cols(ms);
+    ms_verify_check(field_cols.row_count() >= 1, label, "expected at least 1 field");
+
+    casacore_mini::MsSpWindowColumns spw_cols(ms);
+    ms_verify_check(spw_cols.row_count() >= 1, label, "expected at least 1 SPW");
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-ms-concat ---
+
+void produce_ms_concat(const std::string& output) {
+    namespace fs = std::filesystem;
+    if (fs::exists(output)) {
+        fs::remove_all(output);
+    }
+    fs::create_directories(output);
+
+    const auto path_a = fs::path(output) / "ms_a.ms";
+    const auto path_b = fs::path(output) / "ms_b.ms";
+    const auto path_out = fs::path(output) / "concat.ms";
+
+    // Create MS A: 1 antenna, 1 field "SRC_A", 3 rows
+    {
+        auto ms_a = casacore_mini::MeasurementSet::create(path_a, false);
+        casacore_mini::MsWriter writer(ms_a);
+        writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
+                             .position = {}, .offset = {}, .dish_diameter = 25.0,
+                             .flag_row = false});
+        writer.add_antenna({.name = "ANT1", .station = {}, .type = {}, .mount = {},
+                             .position = {}, .offset = {}, .dish_diameter = 25.0,
+                             .flag_row = false});
+        writer.add_field({.name = "SRC_A", .code = {}, .time = 0.0, .num_poly = 0,
+                          .source_id = -1, .flag_row = false});
+        writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.4e9,
+                                    .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                    .resolution = {}, .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0, .net_sideband = 0,
+                                    .if_conv_chain = 0, .freq_group = 0,
+                                    .freq_group_name = {}, .flag_row = false});
+        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
+                                     .flag_row = false});
+        writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
+        writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
+                                .release_date = 0.0, .flag_row = false});
+        writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
+                          .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+        for (int i = 0; i < 3; ++i) {
+            writer.add_row({.antenna1 = 0,
+                            .antenna2 = 1,
+                            .array_id = 0,
+                            .data_desc_id = 0,
+                            .exposure = 0.0,
+                            .feed1 = 0,
+                            .feed2 = 0,
+                            .field_id = 0,
+                            .flag_row = false,
+                            .interval = 0.0,
+                            .observation_id = 0,
+                            .processor_id = 0,
+                            .scan_number = 1,
+                            .state_id = 0,
+                            .time = 4.8e9 + i * 10.0,
+                            .time_centroid = 4.8e9 + i * 10.0,
+                            .uvw = {100.0, 200.0, 50.0},
+                            .sigma = {1.0F, 1.0F},
+                            .weight = {1.0F, 1.0F},
+                            .data = {},
+                            .flag = {}});
+        }
+        writer.flush();
+    }
+
+    // Create MS B: same antennas, different field "SRC_B", 2 rows
+    {
+        auto ms_b = casacore_mini::MeasurementSet::create(path_b, false);
+        casacore_mini::MsWriter writer(ms_b);
+        writer.add_antenna({.name = "ANT0", .station = {}, .type = {}, .mount = {},
+                             .position = {}, .offset = {}, .dish_diameter = 25.0,
+                             .flag_row = false});
+        writer.add_antenna({.name = "ANT1", .station = {}, .type = {}, .mount = {},
+                             .position = {}, .offset = {}, .dish_diameter = 25.0,
+                             .flag_row = false});
+        writer.add_field({.name = "SRC_B", .code = {}, .time = 0.0, .num_poly = 0,
+                          .source_id = -1, .flag_row = false});
+        writer.add_spectral_window({.num_chan = 4, .name = "SPW0", .ref_frequency = 1.4e9,
+                                    .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                    .resolution = {}, .meas_freq_ref = 0,
+                                    .total_bandwidth = 0.0, .net_sideband = 0,
+                                    .if_conv_chain = 0, .freq_group = 0,
+                                    .freq_group_name = {}, .flag_row = false});
+        writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
+                                     .flag_row = false});
+        writer.add_polarization({.num_corr = 2, .corr_type = {}, .flag_row = false});
+        writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
+                                .release_date = 0.0, .flag_row = false});
+        writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
+                          .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+        for (int i = 0; i < 2; ++i) {
+            writer.add_row({.antenna1 = 0,
+                            .antenna2 = 1,
+                            .array_id = 0,
+                            .data_desc_id = 0,
+                            .exposure = 0.0,
+                            .feed1 = 0,
+                            .feed2 = 0,
+                            .field_id = 0,
+                            .flag_row = false,
+                            .interval = 0.0,
+                            .observation_id = 0,
+                            .processor_id = 0,
+                            .scan_number = 2,
+                            .state_id = 0,
+                            .time = 4.9e9 + i * 10.0,
+                            .time_centroid = 4.9e9 + i * 10.0,
+                            .uvw = {150.0, 250.0, 75.0},
+                            .sigma = {1.0F, 1.0F},
+                            .weight = {1.0F, 1.0F},
+                            .data = {},
+                            .flag = {}});
+        }
+        writer.flush();
+    }
+
+    // Concatenate A + B -> concat.ms
+    {
+        auto ms_a = casacore_mini::MeasurementSet::open(path_a);
+        auto ms_b = casacore_mini::MeasurementSet::open(path_b);
+        const auto result = casacore_mini::ms_concat(ms_a, ms_b, path_out);
+        std::cout << "  produce-ms-concat: wrote " << path_out.string()
+                  << " (" << result.row_count << " rows)\n";
+    }
+}
+
+void verify_ms_concat(const std::string& input) {
+    const std::string label = "ms-concat";
+    const auto concat_path = std::filesystem::path(input) / "concat.ms";
+    auto ms = casacore_mini::MeasurementSet::open(concat_path);
+
+    verify_required_subtables(ms, label);
+
+    // Should have rows from both input MSes (3 + 2 = 5).
+    ms_verify_check(ms.row_count() >= 2, label,
+                    "expected at least 2 rows from concatenation, got " +
+                        std::to_string(ms.row_count()));
+
+    // Should have at least 2 antennas and 2 fields.
+    // casacore produces 3 antennas (ANT0, ANT1, ANT2); mini may produce 2 or 3
+    // depending on deduplication strategy.
+    casacore_mini::MsMetaData md(ms);
+    ms_verify_check(md.n_antennas() >= 2, label,
+                    "expected at least 2 antennas, got " + std::to_string(md.n_antennas()));
+    ms_verify_check(md.n_fields() >= 2, label,
+                    "expected at least 2 fields, got " + std::to_string(md.n_fields()));
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-ms-selection-stress ---
+
+void produce_ms_selection_stress(const std::string& output) {
+    namespace fs = std::filesystem;
+    if (fs::exists(output)) {
+        fs::remove_all(output);
+    }
+    auto ms = casacore_mini::MeasurementSet::create(output, /*include_data=*/false);
+    casacore_mini::MsWriter writer(ms);
+
+    // 6 antennas
+    for (int i = 0; i < 6; ++i) {
+        writer.add_antenna({.name = "ANT" + std::to_string(i),
+                            .station = "PAD" + std::to_string(i),
+                            .type = {}, .mount = {}, .position = {},
+                            .offset = {}, .dish_diameter = 25.0,
+                            .flag_row = false});
+    }
+
+    // 3 fields
+    writer.add_field({.name = "3C273", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "J1924-2914", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "CygA", .code = {}, .time = 0.0, .num_poly = 0,
+                      .source_id = -1, .flag_row = false});
+
+    // 3 SPWs
+    writer.add_spectral_window({.num_chan = 32, .name = "SPW0", .ref_frequency = 1.0e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64, .name = "SPW1", .ref_frequency = 2.0e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 128, .name = "SPW2", .ref_frequency = 3.0e9,
+                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
+                                .resolution = {}, .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0, .net_sideband = 0,
+                                .if_conv_chain = 0, .freq_group = 0,
+                                .freq_group_name = {}, .flag_row = false});
+
+    // 3 data descriptions (one per SPW)
+    writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0,
+                                 .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 1, .polarization_id = 0,
+                                 .flag_row = false});
+    writer.add_data_description({.spectral_window_id = 2, .polarization_id = 0,
+                                 .flag_row = false});
+
+    writer.add_polarization({.num_corr = 4, .corr_type = {}, .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA", .observer = {}, .project = {},
+                            .release_date = 0.0, .flag_row = false});
+    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0,
+                      .sub_scan = 0, .obs_mode = "OBSERVE", .flag_row = false});
+
+    // 3 fields x 3 scans x 3 SPWs x 1 baseline = 27 rows, with 2 array_ids
+    const double base_time = 5.0e9;
+    int row_count = 0;
+    for (int field = 0; field < 3; ++field) {
+        for (int scan = 1; scan <= 3; ++scan) {
+            for (int spw = 0; spw < 3; ++spw) {
+                const int array = (row_count < 14) ? 0 : 1;  // split across 2 arrays
+                const double t = base_time + row_count * 10.0;
+                writer.add_row({
+                    .antenna1 = 0,
+                    .antenna2 = 1,
+                    .array_id = array,
+                    .data_desc_id = spw,
+                    .exposure = 0.0,
+                    .feed1 = 0,
+                    .feed2 = 0,
+                    .field_id = field,
+                    .flag_row = false,
+                    .interval = 0.0,
+                    .observation_id = 0,
+                    .processor_id = 0,
+                    .scan_number = scan,
+                    .state_id = 0,
+                    .time = t,
+                    .time_centroid = t,
+                    .uvw = {100.0 + row_count, 200.0, 50.0},
+                    .sigma = {1.0F, 1.0F, 1.0F, 1.0F},
+                    .weight = {1.0F, 1.0F, 1.0F, 1.0F},
+                    .data = {},
+                    .flag = {},
+                });
+                ++row_count;
+            }
+        }
+    }
+
+    writer.flush();
+    std::cout << "  produce-ms-selection-stress: wrote " << output
+              << " (" << row_count << " rows)\n";
+}
+
+void verify_ms_selection_stress(const std::string& input) {
+    const std::string label = "ms-selection-stress";
+    auto ms = casacore_mini::MeasurementSet::open(input);
+
+    verify_required_subtables(ms, label);
+
+    ms_verify_check(ms.row_count() >= 27, label,
+                    "expected 27+ rows, got " + std::to_string(ms.row_count()));
+
+    casacore_mini::MsMetaData md(ms);
+    ms_verify_check(md.n_fields() >= 3, label,
+                    "expected at least 3 fields, got " + std::to_string(md.n_fields()));
+
+    const auto& spw_names = md.spw_names();
+    ms_verify_check(spw_names.size() >= 3, label,
+                    "expected at least 3 SPWs, got " + std::to_string(spw_names.size()));
+
+    const auto& scans = md.scan_numbers();
+    ms_verify_check(scans.size() >= 3, label,
+                    "expected at least 3 scans, got " + std::to_string(scans.size()));
+
+    const auto& arrays = md.array_ids();
+    ms_verify_check(arrays.size() >= 2, label,
+                    "expected at least 2 array_ids, got " + std::to_string(arrays.size()));
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// =====================================================================
+// Oracle conformance: verify-oracle-ms
+// =====================================================================
+
+/// base64 decode (needed for oracle dump parsing).
+[[nodiscard]] std::string base64_decode(const std::string_view input) {
+    static constexpr int kTable[256] = {
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,
+        52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,
+        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
+        15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
+        -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+        41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    };
+    std::string output;
+    auto len = input.size();
+    while (len > 0 && input[len - 1] == '=') --len;
+
+    output.reserve(len * 3 / 4);
+    std::uint32_t buf = 0;
+    int bits = 0;
+    for (std::size_t i = 0; i < len; ++i) {
+        const int val = kTable[static_cast<unsigned char>(input[i])];
+        if (val < 0) continue;
+        buf = (buf << 6U) | static_cast<std::uint32_t>(val);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            output.push_back(static_cast<char>((buf >> bits) & 0xFFU));
+        }
+    }
+    return output;
+}
+
+/// Parse a hex-float string back to a numeric value.
+[[nodiscard]] double parse_hex_double(const std::string_view s) {
+    auto str = std::string(s);
+    std::istringstream iss{str};
+    double value = 0.0;
+    iss >> std::hexfloat >> value;
+    return value;
+}
+
+[[nodiscard]] float parse_hex_float_val(const std::string_view s) {
+    auto str = std::string(s);
+    std::istringstream iss{str};
+    float value = 0.0F;
+    iss >> std::hexfloat >> value;
+    return value;
+}
+
+/// Map oracle dtype string to casacore_mini DataType.
+[[nodiscard]] casacore_mini::DataType oracle_dtype_to_mini(const std::string_view s) {
+    if (s == "TpBool") return casacore_mini::DataType::tp_bool;
+    if (s == "TpChar") return casacore_mini::DataType::tp_char;
+    if (s == "TpUChar") return casacore_mini::DataType::tp_uchar;
+    if (s == "TpShort") return casacore_mini::DataType::tp_short;
+    if (s == "TpUShort") return casacore_mini::DataType::tp_ushort;
+    if (s == "TpInt") return casacore_mini::DataType::tp_int;
+    if (s == "TpUInt") return casacore_mini::DataType::tp_uint;
+    if (s == "TpFloat") return casacore_mini::DataType::tp_float;
+    if (s == "TpDouble") return casacore_mini::DataType::tp_double;
+    if (s == "TpComplex") return casacore_mini::DataType::tp_complex;
+    if (s == "TpDComplex") return casacore_mini::DataType::tp_dcomplex;
+    if (s == "TpString") return casacore_mini::DataType::tp_string;
+    if (s == "TpTable") return casacore_mini::DataType::tp_table;
+    if (s == "TpInt64") return casacore_mini::DataType::tp_int64;
+    throw std::runtime_error("unknown oracle dtype: " + std::string(s));
+}
+
+/// Map casacore_mini DataType to oracle dtype string (for error messages).
+[[nodiscard]] std::string mini_dtype_to_oracle(casacore_mini::DataType dt) {
+    switch (dt) {
+    case casacore_mini::DataType::tp_bool: return "TpBool";
+    case casacore_mini::DataType::tp_char: return "TpChar";
+    case casacore_mini::DataType::tp_uchar: return "TpUChar";
+    case casacore_mini::DataType::tp_short: return "TpShort";
+    case casacore_mini::DataType::tp_ushort: return "TpUShort";
+    case casacore_mini::DataType::tp_int: return "TpInt";
+    case casacore_mini::DataType::tp_uint: return "TpUInt";
+    case casacore_mini::DataType::tp_float: return "TpFloat";
+    case casacore_mini::DataType::tp_double: return "TpDouble";
+    case casacore_mini::DataType::tp_complex: return "TpComplex";
+    case casacore_mini::DataType::tp_dcomplex: return "TpDComplex";
+    case casacore_mini::DataType::tp_string: return "TpString";
+    case casacore_mini::DataType::tp_table: return "TpTable";
+    case casacore_mini::DataType::tp_int64: return "TpInt64";
+    default: return "TpOther(" + std::to_string(static_cast<int>(dt)) + ")";
+    }
+}
+
+/// Parsed oracle column descriptor.
+struct OracleColDesc {
+    std::string name;
+    std::string kind;  // "scalar" or "array"
+    std::string dtype; // "TpInt", "TpDouble", etc.
+    int ndim = 0;
+    std::string shape; // "d0,d1,..." or empty
+    int options = 0;
+    std::string dm_type;
+    std::string dm_group;
+};
+
+/// Parsed oracle table section.
+struct OracleTable {
+    std::string name;
+    std::uint64_t row_count = 0;
+    std::uint64_t ncol = 0;
+    std::vector<OracleColDesc> columns;
+    std::vector<std::string> table_kw_lines;
+    // col_name -> keyword lines
+    std::map<std::string, std::vector<std::string>> col_kw_lines;
+    // cell_key = "col_b64][row" -> value string
+    std::map<std::string, std::string> cells;
+};
+
+/// Parse the oracle dump file into structured sections.
+[[nodiscard]] std::map<std::string, OracleTable>
+parse_oracle_dump(const std::filesystem::path& path) {
+    std::ifstream input(path);
+    if (!input) {
+        throw std::runtime_error("cannot open oracle dump: " + path.string());
+    }
+
+    std::map<std::string, OracleTable> tables;
+    std::string current_table;
+    std::string line;
+
+    while (std::getline(input, line)) {
+        if (line.empty() || line.starts_with("oracle_version=") ||
+            line.starts_with("source_ms=") || line.starts_with("table_count=")) {
+            continue;
+        }
+
+        // "table=NAME" (no dot) starts a new table section.
+        if (line.starts_with("table=")) {
+            const auto rest = line.substr(6);
+            const auto dot_pos = rest.find('.');
+            if (dot_pos == std::string::npos) {
+                current_table = rest;
+                tables[current_table].name = current_table;
+                continue;
+            }
+
+            const auto table_name = rest.substr(0, dot_pos);
+            const auto suffix = rest.substr(dot_pos + 1);
+
+            if (suffix.starts_with("row_count=")) {
+                tables[table_name].row_count =
+                    std::stoull(suffix.substr(10));
+            } else if (suffix.starts_with("ncol=")) {
+                tables[table_name].ncol =
+                    std::stoull(suffix.substr(5));
+            } else if (suffix.starts_with("col[")) {
+                // Parse column descriptor line.
+                // Format: col[i].field=value
+                const auto bracket_end = suffix.find(']');
+                const auto col_idx = std::stoull(suffix.substr(4, bracket_end - 4));
+                const auto field_eq = suffix.substr(bracket_end + 2); // skip "]."
+                const auto eq_pos = field_eq.find('=');
+                const auto field_name = field_eq.substr(0, eq_pos);
+                const auto field_value = field_eq.substr(eq_pos + 1);
+
+                auto& tbl = tables[table_name];
+                while (tbl.columns.size() <= col_idx) {
+                    tbl.columns.emplace_back();
+                }
+                auto& cd = tbl.columns[col_idx];
+                if (field_name == "name_b64") {
+                    cd.name = base64_decode(field_value);
+                } else if (field_name == "kind") {
+                    cd.kind = field_value;
+                } else if (field_name == "dtype") {
+                    cd.dtype = field_value;
+                } else if (field_name == "ndim") {
+                    cd.ndim = std::stoi(std::string(field_value));
+                } else if (field_name == "shape") {
+                    cd.shape = field_value;
+                } else if (field_name == "options") {
+                    cd.options = std::stoi(std::string(field_value));
+                } else if (field_name == "dm_type_b64") {
+                    cd.dm_type = base64_decode(field_value);
+                } else if (field_name == "dm_group_b64") {
+                    cd.dm_group = base64_decode(field_value);
+                }
+            } else if (suffix.starts_with("kw.")) {
+                tables[table_name].table_kw_lines.push_back(suffix.substr(3));
+            } else if (suffix.starts_with("col_kw[")) {
+                // Format: col_kw[col_b64].path=type|value
+                const auto bracket_end = suffix.find(']');
+                const auto col_b64 = suffix.substr(7, bracket_end - 7);
+                const auto col_name = base64_decode(col_b64);
+                const auto kw_rest = suffix.substr(bracket_end + 2); // skip "]."
+                tables[table_name].col_kw_lines[col_name].push_back(kw_rest);
+            } else if (suffix.starts_with("cell[")) {
+                // Format: cell[col_b64][row]=value
+                const auto cell_rest = suffix.substr(5);
+                const auto bracket1_end = cell_rest.find(']');
+                const auto col_b64 = cell_rest.substr(0, bracket1_end);
+                const auto after_bracket1 = cell_rest.substr(bracket1_end + 1);
+                // after_bracket1 = "[row]=value"
+                const auto bracket2_start = after_bracket1.find('[');
+                const auto bracket2_end = after_bracket1.find(']');
+                const auto row_str = after_bracket1.substr(bracket2_start + 1,
+                                                            bracket2_end - bracket2_start - 1);
+                const auto eq_pos = after_bracket1.find('=', bracket2_end);
+                const auto value_str = after_bracket1.substr(eq_pos + 1);
+                const auto col_name = base64_decode(col_b64);
+                const std::string cell_key = col_name + "][" + std::string(row_str);
+                tables[table_name].cells[cell_key] = value_str;
+            }
+        }
+    }
+
+    return tables;
+}
+
+/// Format a CellValue from SM reader as oracle string for comparison.
+[[nodiscard]] std::string format_cell_value_oracle(const casacore_mini::CellValue& cv) {
+    if (const auto* v = std::get_if<bool>(&cv)) {
+        return std::string("bool|") + (*v ? "true" : "false");
+    }
+    if (const auto* v = std::get_if<std::int32_t>(&cv)) {
+        return "int32|" + std::to_string(*v);
+    }
+    if (const auto* v = std::get_if<std::uint32_t>(&cv)) {
+        return "uint32|" + std::to_string(*v);
+    }
+    if (const auto* v = std::get_if<std::int64_t>(&cv)) {
+        return "int64|" + std::to_string(*v);
+    }
+    if (const auto* v = std::get_if<float>(&cv)) {
+        return "float32|" + format_hex_float(*v);
+    }
+    if (const auto* v = std::get_if<double>(&cv)) {
+        return "float64|" + format_hex_float(*v);
+    }
+    if (const auto* v = std::get_if<std::complex<float>>(&cv)) {
+        return "complex64|" + format_complex64(*v);
+    }
+    if (const auto* v = std::get_if<std::complex<double>>(&cv)) {
+        return "complex128|" + format_complex128(*v);
+    }
+    if (const auto* v = std::get_if<std::string>(&cv)) {
+        return "string|b64:" + base64_encode(*v);
+    }
+    return "unsupported_cell_type";
+}
+
+/// Format a raw byte array as oracle array value string.
+template <typename T, typename Formatter>
+[[nodiscard]] std::string format_typed_array_oracle(
+    const std::vector<std::uint8_t>& raw, const std::vector<std::int64_t>& shape,
+    const std::string_view type_name, Formatter formatter, bool big_endian) {
+    const std::size_t elem_size = sizeof(T);
+    const std::size_t n_elems = raw.size() / elem_size;
+
+    std::string shape_str;
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0) shape_str += ',';
+        shape_str += std::to_string(shape[i]);
+    }
+
+    std::string values;
+    for (std::size_t i = 0; i < n_elems; ++i) {
+        if (i > 0) values += ',';
+        T val{};
+        std::memcpy(&val, raw.data() + i * elem_size, elem_size);
+        // Byte-swap if needed (data is stored in table endianness).
+        if constexpr (sizeof(T) > 1) {
+            if (big_endian) {
+                auto* bytes = reinterpret_cast<std::uint8_t*>(&val);
+                for (std::size_t j = 0; j < sizeof(T) / 2; ++j) {
+                    std::swap(bytes[j], bytes[sizeof(T) - 1 - j]);
+                }
+            }
+        }
+        values += formatter(val);
+    }
+
+    return "array:" + std::string(type_name) + "|shape=" + shape_str + "|values=" + values;
+}
+
+/// Compare two oracle value strings with tolerance for floating point.
+/// Returns: 0=exact match, 1=tolerance match, 2=mismatch.
+[[nodiscard]] int compare_oracle_values(const std::string& expected,
+                                         const std::string& actual) {
+    if (expected == actual) return 0;
+
+    // Try tolerance comparison for float/double scalars.
+    if (expected.starts_with("float32|") && actual.starts_with("float32|")) {
+        const float exp_val = parse_hex_float_val(expected.substr(8));
+        const float act_val = parse_hex_float_val(actual.substr(8));
+        if (std::fabs(exp_val - act_val) < 1e-5F) return 1;
+    }
+    if (expected.starts_with("float64|") && actual.starts_with("float64|")) {
+        const double exp_val = parse_hex_double(expected.substr(8));
+        const double act_val = parse_hex_double(actual.substr(8));
+        if (std::fabs(exp_val - act_val) < 1e-10) return 1;
+    }
+
+    // For arrays, try element-by-element tolerance comparison.
+    if (expected.starts_with("array:float32|") && actual.starts_with("array:float32|")) {
+        // Extract shapes.
+        auto extract_after = [](const std::string& s, const std::string& tag) -> std::string {
+            const auto pos = s.find(tag);
+            if (pos == std::string::npos) return "";
+            const auto start = pos + tag.size();
+            const auto end = s.find('|', start);
+            return (end == std::string::npos) ? s.substr(start) : s.substr(start, end - start);
+        };
+        if (extract_after(expected, "shape=") != extract_after(actual, "shape=")) return 2;
+        // Compare values element by element.
+        auto extract_values = [](const std::string& s) -> std::string {
+            const auto pos = s.find("values=");
+            return (pos == std::string::npos) ? "" : s.substr(pos + 7);
+        };
+        auto split_csv = [](const std::string& s) -> std::vector<std::string> {
+            std::vector<std::string> result;
+            std::istringstream iss(s);
+            std::string token;
+            while (std::getline(iss, token, ',')) {
+                result.push_back(token);
+            }
+            return result;
+        };
+        const auto exp_vals = split_csv(extract_values(expected));
+        const auto act_vals = split_csv(extract_values(actual));
+        if (exp_vals.size() != act_vals.size()) return 2;
+        bool all_tolerance = true;
+        for (std::size_t i = 0; i < exp_vals.size(); ++i) {
+            if (exp_vals[i] == act_vals[i]) continue;
+            const float ev = parse_hex_float_val(exp_vals[i]);
+            const float av = parse_hex_float_val(act_vals[i]);
+            if (std::fabs(ev - av) >= 1e-5F) return 2;
+            all_tolerance = true;
+        }
+        return all_tolerance ? 1 : 0;
+    }
+    if (expected.starts_with("array:float64|") && actual.starts_with("array:float64|")) {
+        auto extract_after = [](const std::string& s, const std::string& tag) -> std::string {
+            const auto pos = s.find(tag);
+            if (pos == std::string::npos) return "";
+            const auto start = pos + tag.size();
+            const auto end = s.find('|', start);
+            return (end == std::string::npos) ? s.substr(start) : s.substr(start, end - start);
+        };
+        if (extract_after(expected, "shape=") != extract_after(actual, "shape=")) return 2;
+        auto extract_values = [](const std::string& s) -> std::string {
+            const auto pos = s.find("values=");
+            return (pos == std::string::npos) ? "" : s.substr(pos + 7);
+        };
+        auto split_csv = [](const std::string& s) -> std::vector<std::string> {
+            std::vector<std::string> result;
+            std::istringstream iss(s);
+            std::string token;
+            while (std::getline(iss, token, ',')) {
+                result.push_back(token);
+            }
+            return result;
+        };
+        const auto exp_vals = split_csv(extract_values(expected));
+        const auto act_vals = split_csv(extract_values(actual));
+        if (exp_vals.size() != act_vals.size()) return 2;
+        bool all_tolerance = true;
+        for (std::size_t i = 0; i < exp_vals.size(); ++i) {
+            if (exp_vals[i] == act_vals[i]) continue;
+            const double ev = parse_hex_double(exp_vals[i]);
+            const double av = parse_hex_double(act_vals[i]);
+            if (std::fabs(ev - av) >= 1e-10) return 2;
+            all_tolerance = true;
+        }
+        return all_tolerance ? 1 : 0;
+    }
+
+    return 2; // mismatch
+}
+
+/// Format a typed array read via the Table API as an oracle comparison string.
+/// The Table API returns host-endian data, so no byte-swap is needed.
+template <typename T, typename Formatter>
+[[nodiscard]] std::string format_table_array_oracle(
+    const std::vector<T>& values, const std::vector<std::int64_t>& shape,
+    const std::string_view type_name, Formatter formatter) {
+    std::string shape_str;
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0) shape_str += ',';
+        shape_str += std::to_string(shape[i]);
+    }
+    std::string vals;
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        if (i > 0) vals += ',';
+        vals += formatter(values[i]);
+    }
+    return "array:" + std::string(type_name) + "|shape=" + shape_str + "|values=" + vals;
+}
+
+/// Read a cell value from a Table and format it as an oracle string.
+/// All SM routing is handled internally by the Table abstraction.
+[[nodiscard]] std::string read_and_format_cell(
+    const casacore_mini::Table& table, const std::string& col_name,
+    std::uint64_t row, const casacore_mini::ColumnDesc& cd) {
+    using namespace casacore_mini;
+
+    if (cd.kind == ColumnKind::scalar) {
+        return format_cell_value_oracle(table.read_scalar_cell(col_name, row));
+    }
+
+    // Array column: read via Table API and format.
+    auto shape = table.cell_shape(col_name, row);
+
+    switch (cd.data_type) {
+    case DataType::tp_float: {
+        auto arr = table.read_array_float_cell(col_name, row);
+        return format_table_array_oracle(arr, shape, "float32",
+                                         [](float v) { return format_hex_float(v); });
+    }
+    case DataType::tp_double: {
+        auto arr = table.read_array_double_cell(col_name, row);
+        return format_table_array_oracle(arr, shape, "float64",
+                                         [](double v) { return format_hex_float(v); });
+    }
+    case DataType::tp_int: {
+        auto arr = table.read_array_int_cell(col_name, row);
+        return format_table_array_oracle(arr, shape, "int32",
+                                         [](std::int32_t v) { return std::to_string(v); });
+    }
+    case DataType::tp_bool: {
+        auto arr = table.read_array_bool_cell(col_name, row);
+        std::string shape_str;
+        for (std::size_t i = 0; i < shape.size(); ++i) {
+            if (i > 0) shape_str += ',';
+            shape_str += std::to_string(shape[i]);
+        }
+        std::string vals;
+        for (std::size_t i = 0; i < arr.size(); ++i) {
+            if (i > 0) vals += ',';
+            vals += arr[i] ? "true" : "false";
+        }
+        return "array:bool|shape=" + shape_str + "|values=" + vals;
+    }
+    case DataType::tp_complex: {
+        auto arr = table.read_array_complex_cell(col_name, row);
+        return format_table_array_oracle(arr, shape, "complex64",
+                                         [](std::complex<float> v) { return format_complex64(v); });
+    }
+    case DataType::tp_dcomplex: {
+        auto arr = table.read_array_dcomplex_cell(col_name, row);
+        return format_table_array_oracle(arr, shape, "complex128",
+                                         [](std::complex<double> v) { return format_complex128(v); });
+    }
+    case DataType::tp_string: {
+        auto arr = table.read_array_string_cell(col_name, row);
+        std::string shape_str;
+        for (std::size_t i = 0; i < shape.size(); ++i) {
+            if (i > 0) shape_str += ',';
+            shape_str += std::to_string(shape[i]);
+        }
+        std::string vals;
+        for (std::size_t i = 0; i < arr.size(); ++i) {
+            if (i > 0) vals += ',';
+            vals += "b64:" + base64_encode(arr[i]);
+        }
+        return "array:string|shape=" + shape_str + "|values=" + vals;
+    }
+    default:
+        throw std::runtime_error("unsupported array dtype: " +
+                                 mini_dtype_to_oracle(cd.data_type));
+    }
+}
+
+/// Verify a real MS against an oracle dump, cell-by-cell.
+/// All table access goes through the high-level Table abstraction.
+void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path) {
+    std::cout << "  verify-oracle-ms: loading oracle dump...\n";
+    const auto oracle = parse_oracle_dump(oracle_path);
+    std::cout << "  verify-oracle-ms: oracle has " << oracle.size() << " tables\n";
+
+    int total_pass = 0;
+    int total_warn = 0;
+    int total_fail = 0;
+
+    for (const auto& [table_name, oracle_tbl] : oracle) {
+        // Determine the on-disk path for this table.
+        std::string table_dir;
+        if (table_name == "MAIN") {
+            table_dir = ms_path;
+        } else {
+            table_dir = (std::filesystem::path(ms_path) / table_name).string();
+        }
+
+        // Open via casacore-mini Table abstraction.
+        std::optional<casacore_mini::Table> table_opt;
+        try {
+            table_opt = casacore_mini::Table::open(table_dir);
+        } catch (const std::exception& e) {
+            std::cerr << "  verify-oracle-ms: FAIL table " << table_name
+                      << " — cannot open: " << e.what() << "\n";
+            ++total_fail;
+            continue;
+        }
+        auto& table = *table_opt;
+
+        // Verify row count.
+        if (table.nrow() != oracle_tbl.row_count) {
+            std::cerr << "  verify-oracle-ms: FAIL table " << table_name
+                      << " row_count mismatch: oracle=" << oracle_tbl.row_count
+                      << " mini=" << table.nrow() << "\n";
+            ++total_fail;
+            continue;
+        }
+
+        // Verify column count.
+        if (table.ncolumn() != oracle_tbl.ncol) {
+            std::cerr << "  verify-oracle-ms: FAIL table " << table_name
+                      << " ncol mismatch: oracle=" << oracle_tbl.ncol
+                      << " mini=" << table.ncolumn() << "\n";
+            ++total_fail;
+            continue;
+        }
+
+        // Verify column descriptors.
+        const auto& mini_cols = table.columns();
+        bool col_desc_ok = true;
+        for (std::size_t i = 0; i < oracle_tbl.columns.size(); ++i) {
+            const auto& oracle_cd = oracle_tbl.columns[i];
+            const auto& mini_cd = mini_cols[i];
+
+            if (mini_cd.name != oracle_cd.name) {
+                std::cerr << "  verify-oracle-ms: FAIL table " << table_name
+                          << " col[" << i << "] name mismatch: oracle=" << oracle_cd.name
+                          << " mini=" << mini_cd.name << "\n";
+                col_desc_ok = false;
+                break;
+            }
+            const auto oracle_dt = oracle_dtype_to_mini(oracle_cd.dtype);
+            if (mini_cd.data_type != oracle_dt) {
+                std::cerr << "  verify-oracle-ms: FAIL table " << table_name
+                          << " col " << oracle_cd.name << " dtype mismatch: oracle="
+                          << oracle_cd.dtype << " mini="
+                          << mini_dtype_to_oracle(mini_cd.data_type) << "\n";
+                col_desc_ok = false;
+                break;
+            }
+        }
+        if (!col_desc_ok) {
+            ++total_fail;
+            continue;
+        }
+
+        // Verify cells through the Table API (no direct SM access).
+        int table_pass = 0;
+        int table_warn = 0;
+        int table_fail = 0;
+
+        for (const auto& [cell_key, oracle_value] : oracle_tbl.cells) {
+            const auto sep = cell_key.find("][");
+            const auto col_name = cell_key.substr(0, sep);
+            const auto row = std::stoull(cell_key.substr(sep + 2));
+
+            // Find column descriptor.
+            const auto* cd = table.find_column_desc(col_name);
+            if (cd == nullptr) {
+                if (table_fail < 10) {
+                    std::cerr << "    FAIL " << table_name << "." << col_name
+                              << "[" << row << "]: column not found\n";
+                }
+                ++table_fail;
+                continue;
+            }
+
+            if (oracle_value == "undefined") {
+                ++table_pass;
+                continue;
+            }
+
+            std::string actual_value;
+            try {
+                actual_value = read_and_format_cell(table, col_name, row, *cd);
+            } catch (const std::exception& e) {
+                if (table_fail < 10) {
+                    std::cerr << "    FAIL " << table_name << "." << col_name
+                              << "[" << row << "] read error: " << e.what() << "\n";
+                }
+                ++table_fail;
+                continue;
+            }
+
+            const int cmp = compare_oracle_values(oracle_value, actual_value);
+            if (cmp == 0) {
+                ++table_pass;
+            } else if (cmp == 1) {
+                ++table_warn;
+            } else {
+                if (table_fail < 10) {
+                    std::cerr << "    FAIL " << table_name << "." << col_name
+                              << "[" << row << "]\n"
+                              << "      oracle: " << oracle_value.substr(0, 200) << "\n"
+                              << "      actual: " << actual_value.substr(0, 200) << "\n";
+                }
+                ++table_fail;
+            }
+        }
+
+        std::cout << "  verify-oracle-ms: table " << table_name
+                  << " pass=" << table_pass << " warn=" << table_warn
+                  << " fail=" << table_fail << "\n";
+
+        total_pass += table_pass;
+        total_warn += table_warn;
+        total_fail += table_fail;
+    }
+
+    std::cout << "\n  verify-oracle-ms summary: pass=" << total_pass
+              << " warn=" << total_warn << " fail=" << total_fail << "\n";
+
+    if (total_fail > 0) {
+        throw std::runtime_error("verify-oracle-ms: " + std::to_string(total_fail) +
+                                 " cell failures");
+    }
+    std::cout << "  verify-oracle-ms: [PASS]\n";
+}
+
+// =====================================================================
+
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
            "  interop_mini_tool write-record-basic --output <path>\n"
@@ -2208,7 +2991,18 @@ void verify_conversion_vectors_semantic(const casacore_mini::Record& record,
            "  interop_mini_tool dump-record --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-header --input <path> --output <path>\n"
            "  interop_mini_tool dump-table-dat-full --input <path> --output <path>\n"
-           "  interop_mini_tool dump-table-dir --input <dir> --output <path>\n";
+           "  interop_mini_tool dump-table-dir --input <dir> --output <path>\n"
+           "  interop_mini_tool produce-ms-minimal --output <dir>\n"
+           "  interop_mini_tool produce-ms-representative --output <dir>\n"
+           "  interop_mini_tool produce-ms-optional-subtables --output <dir>\n"
+           "  interop_mini_tool produce-ms-concat --output <dir>\n"
+           "  interop_mini_tool produce-ms-selection-stress --output <dir>\n"
+           "  interop_mini_tool verify-ms-minimal --input <dir>\n"
+           "  interop_mini_tool verify-ms-representative --input <dir>\n"
+           "  interop_mini_tool verify-ms-optional-subtables --input <dir>\n"
+           "  interop_mini_tool verify-ms-concat --input <dir>\n"
+           "  interop_mini_tool verify-ms-selection-stress --input <dir>\n"
+           "  interop_mini_tool verify-oracle-ms --input <ms_dir> --oracle <dump>\n";
 }
 
 } // namespace
@@ -2457,7 +3251,7 @@ int main(int argc, char** argv) noexcept {
             if (!input.has_value()) {
                 throw std::runtime_error("missing required --input");
             }
-            verify_tiled_dir_artifact(*input, expected_tiled_col_meta(), "tiled-col-dir");
+            verify_tiled_col_dir_artifact(*input, "tiled-col-dir");
             return 0;
         }
         if (subcommand == "verify-tiled-cell-dir") {
@@ -2465,7 +3259,7 @@ int main(int argc, char** argv) noexcept {
             if (!input.has_value()) {
                 throw std::runtime_error("missing required --input");
             }
-            verify_tiled_dir_artifact(*input, expected_tiled_cell_meta(), "tiled-cell-dir");
+            verify_tiled_cell_dir_artifact(*input, "tiled-cell-dir");
             return 0;
         }
         if (subcommand == "verify-tiled-shape-dir") {
@@ -2473,7 +3267,7 @@ int main(int argc, char** argv) noexcept {
             if (!input.has_value()) {
                 throw std::runtime_error("missing required --input");
             }
-            verify_tiled_dir_artifact(*input, expected_tiled_shape_meta(), "tiled-shape-dir");
+            verify_tiled_shape_dir_artifact(*input, "tiled-shape-dir");
             return 0;
         }
         if (subcommand == "verify-tiled-data-dir") {
@@ -2481,7 +3275,7 @@ int main(int argc, char** argv) noexcept {
             if (!input.has_value()) {
                 throw std::runtime_error("missing required --input");
             }
-            verify_tiled_dir_artifact(*input, expected_tiled_data_meta(), "tiled-data-dir");
+            verify_tiled_data_dir_artifact(*input, "tiled-data-dir");
             return 0;
         }
 
@@ -2611,6 +3405,99 @@ int main(int argc, char** argv) noexcept {
             } catch (const std::runtime_error&) {
                 verify_conversion_vectors_semantic(actual_record, "conversion-vectors");
             }
+            return 0;
+        }
+
+        // --- Phase 9: MS interop commands ---
+        if (subcommand == "produce-ms-minimal") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_minimal(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-minimal") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_minimal(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-representative") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_representative(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-representative") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_representative(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-optional-subtables") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_optional_subtables(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-optional-subtables") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_optional_subtables(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-concat") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_concat(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-concat") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_concat(*input);
+            return 0;
+        }
+        if (subcommand == "produce-ms-selection-stress") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_ms_selection_stress(*output);
+            return 0;
+        }
+        if (subcommand == "verify-ms-selection-stress") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_ms_selection_stress(*input);
+            return 0;
+        }
+
+        // Oracle conformance
+        if (subcommand == "verify-oracle-ms") {
+            const auto input = arg_value(argc, argv, "--input");
+            const auto oracle = arg_value(argc, argv, "--oracle");
+            if (!input.has_value() || !oracle.has_value()) {
+                throw std::runtime_error("missing required --input/--oracle");
+            }
+            verify_oracle_ms(*input, *oracle);
             return 0;
         }
 

@@ -11,7 +11,7 @@ namespace {
 constexpr double kPi = M_PI;
 constexpr double kTol = 1.0e-10;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
@@ -20,11 +20,11 @@ bool test_identity_rotation() {
     // Same phase center → identity matrix.
     double ra = 1.0;
     double dec = 0.5;
-    auto mat = uvw_rotation_matrix(ra, dec, ra, dec);
+    [[maybe_unused]] auto mat = uvw_rotation_matrix(ra, dec, ra, dec);
     // Diagonal should be 1, off-diagonal 0.
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            double expected = (i == j) ? 1.0 : 0.0;
+            [[maybe_unused]] double expected = (i == j) ? 1.0 : 0.0;
             assert(near(mat[static_cast<std::size_t>(i)][static_cast<std::size_t>(j)], expected,
                         1e-12));
         }
@@ -44,7 +44,7 @@ bool test_roundtrip_rotation() {
 
     UvwValue orig{100.0, 200.0, 300.0};
     auto rotated = rotate_uvw(fwd, orig);
-    auto back = rotate_uvw(rev, rotated);
+    [[maybe_unused]] auto back = rotate_uvw(rev, rotated);
 
     assert(near(back.u_m, orig.u_m));
     assert(near(back.v_m, orig.v_m));
@@ -60,7 +60,7 @@ bool test_known_vector() {
     auto result = rotate_uvw(mat, v);
     // The rotation should produce a non-trivial result.
     // Check that the length is preserved.
-    double len =
+    [[maybe_unused]] double len =
         std::sqrt(result.u_m * result.u_m + result.v_m * result.v_m + result.w_m * result.w_m);
     assert(near(len, 1.0));
     return true;
@@ -70,8 +70,8 @@ bool test_uvw_machine_wrapper() {
     using namespace casacore_mini;
     UvwMachine machine(0.3, -0.2, 0.8, 0.1);
     UvwValue v{10.0, -5.0, 2.0};
-    auto via_class = machine.convert(v);
-    auto via_free = rotate_uvw(machine.rotation_matrix(), v);
+    [[maybe_unused]] auto via_class = machine.convert(v);
+    [[maybe_unused]] auto via_free = rotate_uvw(machine.rotation_matrix(), v);
     assert(near(via_class.u_m, via_free.u_m));
     assert(near(via_class.v_m, via_free.v_m));
     assert(near(via_class.w_m, via_free.w_m));
@@ -81,7 +81,7 @@ bool test_uvw_machine_wrapper() {
 bool test_parallactic_angle_at_transit() {
     using namespace casacore_mini;
     // At transit (ha=0), parallactic angle is always 0.
-    double pa = parallactic_angle(0.0, 0.5, 0.8);
+    [[maybe_unused]] double pa = parallactic_angle(0.0, 0.5, 0.8);
     assert(near(pa, 0.0));
     return true;
 }
@@ -89,7 +89,7 @@ bool test_parallactic_angle_at_transit() {
 bool test_parallactic_angle_known() {
     using namespace casacore_mini;
     // Known ERFA result: eraHd2pa(1.0, 0.5, 0.8) ≈ 0.9171400942422210
-    double pa = parallactic_angle(1.0, 0.5, 0.8);
+    [[maybe_unused]] double pa = parallactic_angle(1.0, 0.5, 0.8);
     assert(near(pa, 0.9171400942422210, 1e-12));
     return true;
 }
@@ -97,7 +97,7 @@ bool test_parallactic_angle_known() {
 bool test_parangle_machine_wrapper() {
     using namespace casacore_mini;
     ParAngleMachine machine(0.8);
-    double pa = machine.compute(1.0, 0.5);
+    [[maybe_unused]] double pa = machine.compute(1.0, 0.5);
     assert(near(pa, parallactic_angle(1.0, 0.5, 0.8)));
     return true;
 }

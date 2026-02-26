@@ -4,6 +4,7 @@
 #include "casacore_mini/aipsio_writer.hpp"
 
 #include <algorithm>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -205,6 +206,30 @@ parse_ism_bucket_indices(const std::uint8_t* bucket_data, std::uint32_t /*bucket
         return read_le_f64_buf(p);
     case DataType::tp_int64:
         return static_cast<std::int64_t>(read_le_u64_buf(p));
+    case DataType::tp_complex: {
+        float re = 0;
+        float im = 0;
+        std::memcpy(&re, p, 4);
+        std::memcpy(&im, p + 4, 4);
+        return std::complex<float>(re, im);
+    }
+    case DataType::tp_dcomplex: {
+        double re = 0;
+        double im = 0;
+        std::memcpy(&re, p, 8);
+        std::memcpy(&im, p + 8, 8);
+        return std::complex<double>(re, im);
+    }
+    case DataType::tp_string: {
+        // ISM string format: [total_length_u32][string_bytes].
+        // total_length includes the 4-byte length field itself.
+        const auto total_len = read_le_u32_buf(p);
+        if (total_len <= 4) {
+            return std::string{};
+        }
+        const auto str_len = total_len - 4;
+        return std::string(reinterpret_cast<const char*>(p + 4), str_len);
+    }
     default:
         throw std::runtime_error("unsupported ISM value type");
     }
@@ -319,19 +344,29 @@ CellValue IsmReader::read_cell(const std::string_view col_name, const std::uint6
         throw std::runtime_error("row out of range");
     }
 
-    // Find the last entry with start_row <= row (ISM: value applies forward).
-    const CellValue* result = nullptr;
-    for (const auto& entry : col->entries) {
-        if (entry.start_row <= row) {
-            result = &entry.value;
-        } else {
-            break;
-        }
-    }
-    if (result == nullptr) {
+    // Binary search for the last entry with start_row <= row (ISM: value applies forward).
+    // Entries are sorted by start_row after open().
+    const auto& entries = col->entries;
+    if (entries.empty()) {
         throw std::runtime_error("no ISM value for row " + std::to_string(row));
     }
-    return *result;
+
+    // upper_bound finds first entry with start_row > row; preceding entry is the match.
+    auto it = std::upper_bound(
+        entries.begin(), entries.end(), row,
+        [](std::uint64_t r, const IsmColumnInfo::Entry& e) { return r < e.start_row; });
+    if (it == entries.begin()) {
+        throw std::runtime_error("no ISM value for row " + std::to_string(row));
+    }
+    --it;
+    return it->value;
+}
+
+bool IsmReader::has_column(std::string_view col_name) const noexcept {
+    for (const auto& col : columns_) {
+        if (col.name == col_name) return true;
+    }
+    return false;
 }
 
 std::size_t IsmReader::column_count() const noexcept {
@@ -395,6 +430,10 @@ namespace {
         return 8;
     case DataType::tp_int64:
         return 8;
+    case DataType::tp_complex:
+        return 8;
+    case DataType::tp_dcomplex:
+        return 16;
     default:
         return 0;
     }
@@ -434,6 +473,33 @@ void write_ism_value(std::vector<std::uint8_t>& buf, const CellValue& value, Dat
         double val = dv != nullptr ? *dv : 0.0;
         std::memcpy(b, &val, 8);
         buf.insert(buf.end(), b, b + 8);
+        break;
+    }
+    case DataType::tp_int64: {
+        const auto* lv = std::get_if<std::int64_t>(&value);
+        std::int64_t val = lv != nullptr ? *lv : 0;
+        std::uint8_t b8[8];
+        std::memcpy(b8, &val, 8);
+        buf.insert(buf.end(), b8, b8 + 8);
+        break;
+    }
+    case DataType::tp_complex: {
+        const auto* cv = std::get_if<std::complex<float>>(&value);
+        float re = cv != nullptr ? cv->real() : 0.0F;
+        float im = cv != nullptr ? cv->imag() : 0.0F;
+        std::memcpy(b, &re, 4);
+        std::memcpy(b + 4, &im, 4);
+        buf.insert(buf.end(), b, b + 8);
+        break;
+    }
+    case DataType::tp_dcomplex: {
+        const auto* dcv = std::get_if<std::complex<double>>(&value);
+        double re = dcv != nullptr ? dcv->real() : 0.0;
+        double im = dcv != nullptr ? dcv->imag() : 0.0;
+        std::uint8_t b16[16];
+        std::memcpy(b16, &re, 8);
+        std::memcpy(b16 + 8, &im, 8);
+        buf.insert(buf.end(), b16, b16 + 16);
         break;
     }
     default:

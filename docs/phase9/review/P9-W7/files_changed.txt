@@ -1,0 +1,5 @@
+include/casacore_mini/ms_selection.hpp
+src/ms_selection.cpp
+tests/ms_selection_test.cpp
+tools/check_phase9_w7.sh
+CMakeLists.txt

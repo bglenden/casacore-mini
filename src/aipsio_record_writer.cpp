@@ -76,6 +76,7 @@ constexpr std::int32_t kArrayDouble = 21;
 constexpr std::int32_t kArrayComplex = 22;
 constexpr std::int32_t kArrayDComplex = 23;
 constexpr std::int32_t kArrayString = 24;
+constexpr std::int32_t kTable = 12;
 constexpr std::int32_t kRecord = 25;
 constexpr std::int32_t kInt64 = 29;
 constexpr std::int32_t kArrayInt64 = 30;
@@ -119,6 +120,10 @@ constexpr std::int32_t kArrayInt64 = 30;
         return casacore_type::kDComplex;
     }
     if (std::holds_alternative<std::string>(storage)) {
+        const auto& s = std::get<std::string>(storage);
+        if (s.rfind("Table: ", 0) == 0) {
+            return casacore_type::kTable;
+        }
         return casacore_type::kString;
     }
     if (std::holds_alternative<RecordValue::int16_array>(storage)) {
@@ -263,7 +268,10 @@ void write_record_desc(AipsIoWriter& writer, const Record& record, const std::si
         const bool is_array_type =
             (type_code >= casacore_type::kArrayShort && type_code <= casacore_type::kArrayString) ||
             type_code == casacore_type::kArrayInt64;
-        if (type_code == casacore_type::kRecord) {
+        if (type_code == casacore_type::kTable) {
+            // Table reference: write tableDescName (empty string).
+            writer.write_string("");
+        } else if (type_code == casacore_type::kRecord) {
             // Variable sub-record: empty RecordDesc.
             const auto sub_length_offset = begin_object(writer, "RecordDesc", 2U, false);
             writer.write_i32(0);
@@ -322,7 +330,13 @@ void write_field_value(AipsIoWriter& writer, const RecordValue& value, const std
     } else if (const auto* vdc = std::get_if<std::complex<double>>(&storage)) {
         writer.write_complex128(*vdc);
     } else if (const auto* vs = std::get_if<std::string>(&storage)) {
-        writer.write_string(*vs);
+        // Table references (type code 12): strip the "Table: " prefix —
+        // casacore stores only the path, the type code carries the semantics.
+        if (vs->rfind("Table: ", 0) == 0) {
+            writer.write_string(vs->substr(7));
+        } else {
+            writer.write_string(*vs);
+        }
     } else if (const auto* arr_i16 = std::get_if<RecordValue::int16_array>(&storage)) {
         write_aipsio_array<std::int16_t>(writer, "Array<Short>", *arr_i16,
                                          [](AipsIoWriter& w, std::int16_t e) { w.write_i16(e); });

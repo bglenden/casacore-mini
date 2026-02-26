@@ -9,14 +9,14 @@ namespace {
 
 constexpr double kTol = 1.0e-10;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
 bool test_radio_velocity_roundtrip() {
     using namespace casacore_mini;
     double radio = 0.01; // 1% radio Doppler
-    double vel = radio_doppler_to_velocity(radio);
+    [[maybe_unused]] double vel = radio_doppler_to_velocity(radio);
     assert(near(vel, kSpeedOfLight * 0.01));
     assert(near(velocity_to_radio_doppler(vel), radio));
     return true;
@@ -25,7 +25,7 @@ bool test_radio_velocity_roundtrip() {
 bool test_z_velocity_roundtrip() {
     using namespace casacore_mini;
     double z = 0.5;
-    double vel = z_doppler_to_velocity(z);
+    [[maybe_unused]] double vel = z_doppler_to_velocity(z);
     assert(near(vel, kSpeedOfLight * 0.5));
     assert(near(velocity_to_z_doppler(vel), z));
     return true;
@@ -34,7 +34,7 @@ bool test_z_velocity_roundtrip() {
 bool test_beta_velocity_roundtrip() {
     using namespace casacore_mini;
     double beta = 0.3;
-    double vel = beta_to_velocity(beta);
+    [[maybe_unused]] double vel = beta_to_velocity(beta);
     assert(near(vel, kSpeedOfLight * 0.3));
     assert(near(velocity_to_beta(vel), beta));
     return true;
@@ -46,7 +46,7 @@ bool test_freq_radio_velocity() {
     double freq = 1.42e9;
     double vel = freq_ratio_to_radio_velocity(freq, rest);
     assert(vel > 0.0); // redshifted → positive radio velocity
-    double freq_back = radio_velocity_to_freq(vel, rest);
+    [[maybe_unused]] double freq_back = radio_velocity_to_freq(vel, rest);
     assert(near(freq_back, freq));
     return true;
 }
@@ -57,7 +57,7 @@ bool test_freq_optical_velocity() {
     double freq = 1.42e9;
     double vel = freq_ratio_to_optical_velocity(freq, rest);
     assert(vel > 0.0); // redshifted
-    double freq_back = optical_velocity_to_freq(vel, rest);
+    [[maybe_unused]] double freq_back = optical_velocity_to_freq(vel, rest);
     assert(near(freq_back, freq));
     return true;
 }
@@ -66,7 +66,7 @@ bool test_radio_z_conversion() {
     using namespace casacore_mini;
     // At low velocities, radio ≈ z.
     double radio = 0.001;
-    double z = radio_to_z(radio);
+    [[maybe_unused]] double z = radio_to_z(radio);
     assert(near(z, radio, 1.0e-5)); // close for small values
 
     // Round-trip.
@@ -74,7 +74,7 @@ bool test_radio_z_conversion() {
 
     // At high z, they diverge.
     double high_z = 1.0;
-    double high_radio = z_to_radio(high_z);
+    [[maybe_unused]] double high_radio = z_to_radio(high_z);
     assert(near(radio_to_z(high_radio), high_z));
     return true;
 }
@@ -82,7 +82,7 @@ bool test_radio_z_conversion() {
 bool test_radio_beta_conversion() {
     using namespace casacore_mini;
     double radio = 0.1;
-    double beta = radio_to_beta(radio);
+    [[maybe_unused]] double beta = radio_to_beta(radio);
     // For small values, radio ≈ beta ≈ z.
     assert(std::abs(beta - radio) < 0.01);
 
@@ -109,7 +109,7 @@ bool test_velocity_machine_wrapper() {
     assert(near(z, radio_to_z(radio)));
 
     VelocityMachine z_to_radio_machine(DopplerRef::z, DopplerRef::radio);
-    double radio_back = z_to_radio_machine.convert(z);
+    [[maybe_unused]] double radio_back = z_to_radio_machine.convert(z);
     assert(near(radio_back, radio));
     return true;
 }

@@ -270,8 +270,11 @@ RecordValue read_field_value(AipsIoReader& reader, const FieldDesc& field, std::
     case CasacoreType::tp_dcomplex:
         return RecordValue(reader.read_complex128());
     case CasacoreType::tp_string:
-    case CasacoreType::tp_table:
         return RecordValue(reader.read_string());
+    case CasacoreType::tp_table:
+        // Reconstruct the "Table: " prefix so in-memory values match the
+        // convention used at creation time (casacore_type_for() relies on it).
+        return RecordValue(std::string("Table: " + reader.read_string()));
 
     case CasacoreType::tp_record: {
         if (field.sub_fields.empty()) {

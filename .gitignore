@@ -66,5 +66,10 @@ casacore-original/
 tests/fixtures/**/table.lock
 tests/fixtures/**/table.info
 
+# Local generated table outputs (perf/integration scratch data)
+bench_tables/
+test_full_write/
+test_table_out/
+
 # Personal workspace files
 .obsidian/

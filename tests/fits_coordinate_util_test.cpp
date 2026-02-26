@@ -15,7 +15,7 @@ using namespace casacore_mini;
 constexpr double kTol = 1.0e-6;
 constexpr double kDeg2Rad = M_PI / 180.0;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
@@ -48,14 +48,15 @@ bool test_ra_dec_freq_stokes() {
 
     auto dir_idx = find_direction_coordinate(cs);
     assert(dir_idx.has_value());
-    const auto& dc = static_cast<const DirectionCoordinate&>(cs.coordinate(*dir_idx));
+    [[maybe_unused]] const auto& dc =
+        static_cast<const DirectionCoordinate&>(cs.coordinate(*dir_idx));
     assert(dc.ref_frame() == DirectionRef::j2000);
     assert(dc.projection().type == ProjectionType::sin);
 
-    auto spec_idx = find_spectral_coordinate(cs);
+    [[maybe_unused]] auto spec_idx = find_spectral_coordinate(cs);
     assert(spec_idx.has_value());
 
-    auto stokes_idx = find_stokes_coordinate(cs);
+    [[maybe_unused]] auto stokes_idx = find_stokes_coordinate(cs);
     assert(stokes_idx.has_value());
 
     // Verify direction reference pixel maps to reference value.
@@ -79,9 +80,10 @@ bool test_galactic_projection() {
     fits.set("CDELT2", RecordValue(0.01));
 
     CoordinateSystem cs = coordinate_system_from_fits_header(fits);
-    auto idx = find_direction_coordinate(cs);
+    [[maybe_unused]] auto idx = find_direction_coordinate(cs);
     assert(idx.has_value());
-    const auto& dc = static_cast<const DirectionCoordinate&>(cs.coordinate(*idx));
+    [[maybe_unused]] const auto& dc =
+        static_cast<const DirectionCoordinate&>(cs.coordinate(*idx));
     assert(dc.ref_frame() == DirectionRef::galactic);
     assert(dc.projection().type == ProjectionType::tan);
     return true;
@@ -97,11 +99,11 @@ bool test_roundtrip() {
     Record fits = coordinate_system_to_fits_header(cs);
 
     // Check that FITS keywords exist.
-    const auto* ct1 = fits.find("CTYPE1");
+    [[maybe_unused]] const auto* ct1 = fits.find("CTYPE1");
     assert(ct1 != nullptr);
-    const auto* ct2 = fits.find("CTYPE2");
+    [[maybe_unused]] const auto* ct2 = fits.find("CTYPE2");
     assert(ct2 != nullptr);
-    const auto* ct3 = fits.find("CTYPE3");
+    [[maybe_unused]] const auto* ct3 = fits.find("CTYPE3");
     assert(ct3 != nullptr);
 
     return true;

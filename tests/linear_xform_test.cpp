@@ -12,7 +12,7 @@ using namespace casacore_mini;
 
 constexpr double kTol = 1.0e-10;
 
-bool near(double a, double b) {
+[[maybe_unused]] bool near(double a, double b) {
     return std::abs(a - b) < kTol * std::max(1.0, std::abs(a));
 }
 

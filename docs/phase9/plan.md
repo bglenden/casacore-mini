@@ -1,7 +1,7 @@
 # Phase 9 Plan (Full MeasurementSet)
 
 Date: 2026-02-24
-Status: Pending (`Not Started`, queued behind Phase-8 completion)
+Status: In Progress (W1-W12 done; W13 oracle conformance + W14 closeout remaining)
 
 ## Objective
 
@@ -46,6 +46,35 @@ Phase 9 is complete only when all are true:
 9. no required verifier path crashes/segfaults
 10. all Phase-9 waves have complete review packets
 11. all API-affecting waves include Doxygen updates
+
+## Data access architecture mandate
+
+All access to table cell values — reads and writes — MUST go through the
+high-level `Table` abstraction (`Table::read_scalar_cell`,
+`Table::read_array_*_cell`, `Table::write_*_cell`, `TableRow`, etc.).
+
+Storage managers (`SsmReader`, `IsmReader`, `TiledStManReader`,
+`SsmWriter`, etc.) are internal implementation details of the `Table` class.
+They may be specified at table creation time (via `TableCreateOptions`) to
+control on-disk layout, but **no code outside of `Table` and its private
+`Impl` should directly instantiate or call storage manager reader/writer
+objects to get or set cell values**.
+
+This applies to:
+
+1. All MS-layer code (`MeasurementSet`, `MsWriter`, `MsColumns`, etc.)
+2. All interop tool code (`interop_mini_tool`, `casacore_interop_tool`)
+3. All test code that exercises table data access
+4. The oracle conformance verifier (`verify-oracle-ms`)
+
+Rationale: the `Table` class owns the column-to-SM dispatch logic. Bypassing
+it duplicates routing logic, breaks when SM assignments change, and defeats
+the abstraction that makes storage manager internals swappable. The oracle
+verifier crash (Bus error in W13) was a direct consequence of hand-rolling SM
+dispatch outside of `Table`.
+
+Any existing code that directly uses SM readers for cell access must be
+refactored to use `Table` APIs as part of Phase 9 closeout.
 
 ## Scope boundaries
 
@@ -125,6 +154,8 @@ Waves are sequential and executed in this order:
     `MSValidIds`, `MSHistoryHandler`)
 11. `P9-W11` strict interoperability matrix + hardening
 12. `P9-W12` closeout and Phase-10 handoff
+13. `P9-W13` oracle conformance gate (real MS cell-by-cell verification)
+14. `P9-W14` final closeout (update exit report, reconcile status)
 
 No user confirmation pauses between waves during normal execution.
 
@@ -158,18 +189,20 @@ Gate rules:
 
 | ID | Status | Scope | Required deliverables |
 |---|---|---|---|
-| `P9-W1` | Pending | API/corpus/contract freeze | API surface map, artifact inventory, selection/operation coverage specs, check scaffolding |
-| `P9-W2` | Pending | MS core model | `MeasurementSet`/`MSTable` lifecycle and persistent tree wiring |
-| `P9-W3` | Pending | Subtable schemas | required `MS*` subtable classes and enum compatibility |
-| `P9-W4` | Pending | Typed column wrappers | `MSColumns`, `MSMainColumns`, all required `MS*Columns` wrappers |
-| `P9-W5` | Pending | Write/update integrity | create/update/delete flows and subtable-link consistency |
-| `P9-W6` | Pending | Utility layer | iter/range/stokes/doppler/tile/history utility behavior |
-| `P9-W7` | Pending | Selection foundation | core selection objects, keyword parsing, error semantics |
-| `P9-W8` | Pending | Selection completeness | required selection categories and row-set parity |
-| `P9-W9` | Pending | Read/introspection ops | metadata/reader/summary/derived-values parity |
-| `P9-W10` | Pending | Mutation ops | concat/flagger/valid-id/history mutation semantics |
-| `P9-W11` | Pending | Matrix + hardening | strict 2x2 matrix, malformed-input hardening, crash resilience |
-| `P9-W12` | Pending | Closeout | exit report, status reconciliation, Phase-10 entry gate declaration |
+| `P9-W1` | Done | API/corpus/contract freeze | API surface map, artifact inventory, selection/operation coverage specs, check scaffolding |
+| `P9-W2` | Done | MS core model | `MeasurementSet`/`MSTable` lifecycle and persistent tree wiring |
+| `P9-W3` | Done | Subtable schemas | required `MS*` subtable classes and enum compatibility |
+| `P9-W4` | Done | Typed column wrappers | `MSColumns`, `MSMainColumns`, all required `MS*Columns` wrappers |
+| `P9-W5` | Done | Write/update integrity | create/update/delete flows and subtable-link consistency |
+| `P9-W6` | Done | Utility layer | iter/range/stokes/doppler/tile/history utility behavior |
+| `P9-W7` | Done | Selection foundation | core selection objects, keyword parsing, error semantics |
+| `P9-W8` | Done | Selection completeness | required selection categories and row-set parity |
+| `P9-W9` | Done | Read/introspection ops | MsMetaData, MsSummary |
+| `P9-W10` | Done | Mutation ops | MsConcat, MsFlagger, subtable dedup/remap |
+| `P9-W11` | Done | Matrix + hardening | 5 interop artifacts, malformed-input hardening |
+| `P9-W12` | Done | Closeout (preliminary) | exit report (draft), status reconciliation, Phase-10 entry gate declaration |
+| `P9-W13` | In Progress | Oracle conformance gate | cell-by-cell verification of real MS against upstream casacore oracle dump (`docs/phase9/oracle_conformance_plan.md`); refactor verifier to use Table API; fix Table-layer bugs |
+| `P9-W14` | Pending | Final closeout | update exit report, fix build failures, fresh reruns, reconcile all status |
 
 ## Wave details (implementation-ready)
 
@@ -445,7 +478,49 @@ Wave gate:
 2. required matrix cells pass; no required skips/expected-fails
 3. zero required verifier crashes
 
-### `P9-W12` closeout and Phase-10 handoff
+### `P9-W13` oracle conformance gate
+
+See `docs/phase9/oracle_conformance_plan.md` for full specification.
+
+Implementation tasks:
+
+1. implement `dump-oracle-ms` subcommand in `casacore_interop_tool.cpp`:
+   dump structure, keywords, and every cell value of the pre-built
+   `mssel_test_small_multifield_spw.ms` to a deterministic line-based text file
+2. generate and commit the oracle dump to `data/corpus/oracle/`
+3. implement `verify-oracle-ms` subcommand in `interop_mini_tool.cpp`:
+   parse the oracle dump, open the same MS via casacore-mini, verify every
+   value matches cell-by-cell.
+   **CRITICAL**: the verifier MUST use `Table::open()` and the `Table` cell-read
+   APIs (`read_scalar_cell`, `read_array_*_cell`) for all value access. It must
+   NOT directly instantiate SM readers (`SsmReader`, `IsmReader`,
+   `TiledStManReader`). If `Table` cannot read a cell type, that is a `Table`
+   bug to be fixed — not a reason to bypass the abstraction.
+4. refactor the existing `verify-oracle-ms` implementation to use `Table` APIs
+   instead of raw SM dispatch (the current implementation hand-rolls SM routing
+   and crashes on real-world MS data as a direct consequence)
+5. fix any `Table`-layer bugs surfaced by the oracle verifier (e.g. missing
+   indirect array read support, ISM column handling)
+6. create `tools/check_oracle.sh` phase gate script
+7. fix any casacore-mini reader bugs surfaced by the oracle verifier
+
+Expected touchpoints:
+
+1. `tools/interop/casacore_interop_tool.cpp`
+2. `src/interop_mini_tool.cpp`
+3. `include/casacore_mini/table.hpp` / `src/table.cpp` (Table API gaps)
+4. `data/corpus/oracle/`
+5. `tools/check_oracle.sh`
+6. `docs/phase9/oracle_format.md`
+
+Wave gate:
+
+1. `tools/check_oracle.sh` passes (zero failures, skips only for allowed items)
+2. oracle dump is committed and reproducible via `tools/interop/generate_oracle.sh`
+3. skip allow-list matches `docs/phase9/known_differences.md` exactly
+4. `verify-oracle-ms` uses only `Table` APIs for cell access (no direct SM use)
+
+### `P9-W14` closeout and Phase-10 handoff
 
 Implementation tasks:
 
@@ -551,6 +626,9 @@ Phase 9 must explicitly avoid known miss patterns:
 9. do not mark API surface complete unless API-map rows are backed by
    symbol-level and test-level evidence
 10. keep wave checks exit-status-driven (no grep-only pass/fail logic)
+11. never access table cell data via raw SM readers/writers outside of `Table`;
+    all cell access must go through `Table` APIs (see `Data access architecture
+    mandate` above)
 
 ## Immediate next step
 

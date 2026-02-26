@@ -1,0 +1,5 @@
+tests/ms_malformed_test.cpp              (new)   7 hardening tests
+src/interop_mini_tool.cpp                (mod)   +496 lines: 5 produce + 5 verify MS commands
+tools/interop/casacore_interop_tool.cpp  (mod)   +610 lines: 5 produce + 5 verify MS commands
+tools/check_phase9_w11.sh               (new)   W11 gate script
+CMakeLists.txt                           (mod)   Added ms_malformed_test target

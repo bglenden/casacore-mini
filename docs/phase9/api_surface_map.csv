@@ -1,0 +1,77 @@
+group,upstream_class,casacore_mini_symbol,header,status,exercising_test
+core,MeasurementSet,MeasurementSet,measurement_set.hpp,pending,measurement_set_test
+core,MSTable,MeasurementSet,measurement_set.hpp,pending,measurement_set_test
+core,MSTableImpl,MeasurementSet,measurement_set.hpp,pending,measurement_set_test
+subtable,MSAntenna,MsAntennaColumn enum + make_antenna_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSDataDescription,MsDataDescColumn enum + make_data_description_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSDoppler,MsDopplerColumn enum + make_doppler_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSFeed,MsFeedColumn enum + make_feed_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSField,MsFieldColumn enum + make_field_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSFlagCmd,MsFlagCmdColumn enum + make_flag_cmd_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSFreqOffset,MsFreqOffsetColumn enum + make_freq_offset_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSHistory,MsHistoryColumn enum + make_history_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSObservation,MsObservationColumn enum + make_observation_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSPointing,MsPointingColumn enum + make_pointing_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSPolarization,MsPolarizationColumn enum + make_polarization_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSProcessor,MsProcessorColumn enum + make_processor_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSSource,MsSourceColumn enum + make_source_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSSpectralWindow,MsSpWindowColumn enum + make_spectral_window_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSState,MsStateColumn enum + make_state_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSSysCal,MsSysCalColumn enum + make_syscal_desc(),ms_subtables.hpp,pending,ms_subtables_test
+subtable,MSWeather,MsWeatherColumn enum + make_weather_desc(),ms_subtables.hpp,pending,ms_subtables_test
+enums,MSMainEnums,MsMainColumn enum,ms_enums.hpp,pending,measurement_set_test
+enums,MSAntennaEnums,MsAntennaColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSDataDescriptionEnums,MsDataDescColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSDopplerEnums,MsDopplerColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSFeedEnums,MsFeedColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSFieldEnums,MsFieldColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSFlagCmdEnums,MsFlagCmdColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSFreqOffsetEnums,MsFreqOffsetColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSHistoryEnums,MsHistoryColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSObservationEnums,MsObservationColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSPointingEnums,MsPointingColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSPolarizationEnums,MsPolarizationColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSProcessorEnums,MsProcessorColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSSourceEnums,MsSourceColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSSpWindowEnums,MsSpWindowColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSStateEnums,MsStateColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSSysCalEnums,MsSysCalColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+enums,MSWeatherEnums,MsWeatherColumn enum,ms_subtables.hpp,pending,ms_subtables_test
+columns,MSMainColumns,MsMainColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSColumns,MsMainColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSAntennaColumns,MsAntennaColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSDataDescColumns,MsDataDescColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSDopplerColumns,MsDopplerColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSFeedColumns,MsFeedColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSFieldColumns,MsFieldColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSFlagCmdColumns,MsFlagCmdColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSFreqOffsetColumns,MsFreqOffsetColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSHistoryColumns,MsHistoryColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSObservationColumns,MsObservationColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSPointingColumns,MsPointingColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSPolarizationColumns,MsPolarizationColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSProcessorColumns,MsProcessorColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSSourceColumns,MsSourceColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSSpWindowColumns,MsSpWindowColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSStateColumns,MsStateColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSSysCalColumns,MsSysCalColumns,ms_columns.hpp,pending,ms_columns_test
+columns,MSWeatherColumns,MsWeatherColumns,ms_columns.hpp,pending,ms_columns_test
+utility,MSIter,MsIter,ms_iter.hpp,pending,ms_iter_test
+utility,MSRange,MsRange,ms_util.hpp,pending,ms_util_test
+utility,StokesConverter,StokesConverter,ms_util.hpp,pending,ms_util_test
+utility,MSDopplerUtil,MsDopplerUtil,ms_util.hpp,pending,ms_util_test
+utility,MSTileLayout,MsTileLayout,ms_util.hpp,pending,ms_util_test
+utility,MSHistoryHandler,MsHistoryHandler,ms_util.hpp,pending,ms_util_test
+selection,MSSelection,MsSelection,ms_selection.hpp,pending,ms_selection_test
+selection,MSSelectionKeywords,MsSelection,ms_selection.hpp,pending,ms_selection_test
+selection,MSSelector,MsSelection,ms_selection.hpp,pending,ms_selection_test
+operations,MSMetaData,MsMetaData,ms_metadata.hpp,pending,ms_metadata_test
+operations,MSReader,MsMetaData,ms_metadata.hpp,pending,ms_metadata_test
+operations,MSSummary,MsSummary,ms_summary.hpp,pending,ms_summary_test
+operations,MSDerivedValues,MsMetaData,ms_metadata.hpp,pending,ms_metadata_test
+operations,MSConcat,MsConcat,ms_concat.hpp,pending,ms_concat_test
+operations,MSFlagger,MsFlagger,ms_flagger.hpp,pending,ms_flagger_test
+operations,MSValidIds,MsWriter::validate_foreign_keys(),ms_writer.hpp,pending,ms_writer_test
+operations,MSKeys,MsMetaData,ms_metadata.hpp,pending,ms_metadata_test
+operations,MSLister,MsSummary,ms_summary.hpp,pending,ms_summary_test
+writer,MsWriter,MsWriter,ms_writer.hpp,pending,ms_writer_test

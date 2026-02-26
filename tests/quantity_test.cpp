@@ -11,7 +11,7 @@ namespace {
 
 constexpr double kTol = 1.0e-12;
 
-bool near(double a, double b) {
+[[maybe_unused]] bool near(double a, double b) {
     return std::abs(a - b) < kTol * std::max(1.0, std::abs(a));
 }
 
@@ -20,7 +20,7 @@ bool test_identity_conversion() {
     Quantity q{1.5, "rad"};
     auto r = convert_quantity(q, "rad");
     assert(r.value == q.value);
-    assert(r.unit == "rad");
+    assert(r.get_unit() == "rad");
     return true;
 }
 
@@ -30,7 +30,7 @@ bool test_angle_rad_deg() {
         Quantity q{M_PI, "rad"};
         auto r = convert_quantity(q, "deg");
         assert(near(r.value, 180.0));
-        assert(r.unit == "deg");
+        assert(r.get_unit() == "deg");
     }
     {
         Quantity q{90.0, "deg"};

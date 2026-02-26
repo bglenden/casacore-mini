@@ -9,11 +9,11 @@
 
 namespace {
 
-constexpr double kDayTol = 1.0e-12;  // ~0.1 microsecond
-constexpr double kRadTol = 1.0e-9;   // ~0.2 mas
-constexpr double kMeterTol = 1.0e-3; // 1 mm
+[[maybe_unused]] constexpr double kDayTol = 1.0e-12;  // ~0.1 microsecond
+[[maybe_unused]] constexpr double kRadTol = 1.0e-9;   // ~0.2 mas
+[[maybe_unused]] constexpr double kMeterTol = 1.0e-3; // 1 mm
 
-bool near(double a, double b, double tol) {
+[[maybe_unused]] bool near(double a, double b, double tol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
@@ -29,9 +29,9 @@ bool test_epoch_utc_to_tai() {
     auto result = convert_measure(m, EpochRef::tai);
     const auto& ev = std::get<EpochValue>(result.value);
     // TAI-UTC = 37 seconds = 37/86400 days
-    double expected_offset = 37.0 / 86400.0;
-    double result_mjd = ev.day + ev.fraction;
-    double input_mjd = 59000.5;
+    [[maybe_unused]] double expected_offset = 37.0 / 86400.0;
+    [[maybe_unused]] double result_mjd = ev.day + ev.fraction;
+    [[maybe_unused]] double input_mjd = 59000.5;
     assert(near(result_mjd - input_mjd, expected_offset, 1.0e-10));
     return true;
 }
@@ -43,9 +43,9 @@ bool test_epoch_utc_to_tt() {
     auto result = convert_measure(m, EpochRef::tdt);
     const auto& ev = std::get<EpochValue>(result.value);
     // TT-UTC = 37 + 32.184 = 69.184 seconds
-    double expected_offset = 69.184 / 86400.0;
-    double result_mjd = ev.day + ev.fraction;
-    double input_mjd = 59000.5;
+    [[maybe_unused]] double expected_offset = 69.184 / 86400.0;
+    [[maybe_unused]] double result_mjd = ev.day + ev.fraction;
+    [[maybe_unused]] double input_mjd = 59000.5;
     assert(near(result_mjd - input_mjd, expected_offset, 1.0e-8));
     return true;
 }
@@ -56,7 +56,7 @@ bool test_epoch_round_trip_utc_tai_utc() {
               EpochValue{59000.0, 0.5}};
     auto tai = convert_measure(m, EpochRef::tai);
     auto back = convert_measure(tai, EpochRef::utc);
-    const auto& ev = std::get<EpochValue>(back.value);
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(back.value);
     assert(near(ev.day + ev.fraction, 59000.5, kDayTol));
     return true;
 }
@@ -68,13 +68,13 @@ bool test_epoch_utc_to_tdb() {
     auto tdb = convert_measure(m, EpochRef::tdb);
     // TDB ≈ TT + small periodic term (~1.6ms max).
     // TT-UTC = 69.184s, so TDB-UTC ≈ 69.184s ± 0.002s
-    const auto& ev = std::get<EpochValue>(tdb.value);
-    double diff_s = (ev.day + ev.fraction - 59000.5) * 86400.0;
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(tdb.value);
+    [[maybe_unused]] double diff_s = (ev.day + ev.fraction - 59000.5) * 86400.0;
     assert(std::abs(diff_s - 69.184) < 0.005);
 
     // Round-trip.
     auto back = convert_measure(tdb, EpochRef::utc);
-    const auto& bv = std::get<EpochValue>(back.value);
+    [[maybe_unused]] const auto& bv = std::get<EpochValue>(back.value);
     assert(near(bv.day + bv.fraction, 59000.5, 1.0e-10));
     return true;
 }
@@ -87,13 +87,13 @@ bool test_epoch_utc_to_ut1() {
     Measure m{MeasureType::epoch, MeasureRef{EpochRef::utc, std::nullopt},
               EpochValue{59000.0, 0.5}};
     auto ut1 = convert_measure(m, EpochRef::ut1, frame);
-    const auto& ev = std::get<EpochValue>(ut1.value);
-    double diff_s = (ev.day + ev.fraction - 59000.5) * 86400.0;
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(ut1.value);
+    [[maybe_unused]] double diff_s = (ev.day + ev.fraction - 59000.5) * 86400.0;
     assert(near(diff_s, -0.17, 0.001));
 
     // Round-trip.
     auto back = convert_measure(ut1, EpochRef::utc, frame);
-    const auto& bv = std::get<EpochValue>(back.value);
+    [[maybe_unused]] const auto& bv = std::get<EpochValue>(back.value);
     assert(near(bv.day + bv.fraction, 59000.5, kDayTol));
     return true;
 }
@@ -109,7 +109,7 @@ bool test_position_itrf_to_wgs84_round_trip() {
     Measure m{MeasureType::position, MeasureRef{PositionRef::itrf, std::nullopt}, itrf};
     auto wgs84 = convert_measure(m, PositionRef::wgs84);
     auto back = convert_measure(wgs84, PositionRef::itrf);
-    const auto& bv = std::get<PositionValue>(back.value);
+    [[maybe_unused]] const auto& bv = std::get<PositionValue>(back.value);
     assert(near(bv.x_m, itrf.x_m, kMeterTol));
     assert(near(bv.y_m, itrf.y_m, kMeterTol));
     assert(near(bv.z_m, itrf.z_m, kMeterTol));
@@ -123,8 +123,8 @@ bool test_position_wgs84_values() {
     Measure m{MeasureType::position, MeasureRef{PositionRef::itrf, std::nullopt}, itrf};
     auto wgs84 = convert_measure(m, PositionRef::wgs84);
     const auto& pv = std::get<PositionValue>(wgs84.value);
-    double lon_deg = pv.x_m * 180.0 / M_PI;
-    double lat_deg = pv.y_m * 180.0 / M_PI;
+    [[maybe_unused]] double lon_deg = pv.x_m * 180.0 / M_PI;
+    [[maybe_unused]] double lat_deg = pv.y_m * 180.0 / M_PI;
     assert(std::abs(lon_deg - (-107.618)) < 0.01);
     assert(std::abs(lat_deg - 34.079) < 0.01);
     assert(std::abs(pv.z_m - 2124.0) < 50.0); // height within 50 meters (approx coords)
@@ -145,7 +145,7 @@ bool test_direction_j2000_to_galactic() {
     auto gal = convert_measure(m, DirectionRef::galactic);
     // Round-trip.
     auto back = convert_measure(gal, DirectionRef::j2000);
-    const auto& dv = std::get<DirectionValue>(back.value);
+    [[maybe_unused]] const auto& dv = std::get<DirectionValue>(back.value);
     assert(near(dv.lon_rad, ra, kRadTol));
     assert(near(dv.lat_rad, dec, kRadTol));
     return true;
@@ -158,8 +158,8 @@ bool test_direction_galactic_center() {
               DirectionValue{0.0, 0.0}};
     auto j2000 = convert_measure(m, DirectionRef::j2000);
     const auto& dv = std::get<DirectionValue>(j2000.value);
-    double ra_deg = dv.lon_rad * 180.0 / M_PI;
-    double dec_deg = dv.lat_rad * 180.0 / M_PI;
+    [[maybe_unused]] double ra_deg = dv.lon_rad * 180.0 / M_PI;
+    [[maybe_unused]] double dec_deg = dv.lat_rad * 180.0 / M_PI;
     assert(std::abs(ra_deg - 266.405) < 0.01);
     assert(std::abs(dec_deg - (-28.936)) < 0.01);
     return true;
@@ -173,7 +173,7 @@ bool test_direction_j2000_to_ecliptic() {
               DirectionValue{ra, dec}};
     auto ecl = convert_measure(m, DirectionRef::ecliptic);
     auto back = convert_measure(ecl, DirectionRef::j2000);
-    const auto& dv = std::get<DirectionValue>(back.value);
+    [[maybe_unused]] const auto& dv = std::get<DirectionValue>(back.value);
     assert(near(dv.lon_rad, ra, kRadTol));
     assert(near(dv.lat_rad, dec, kRadTol));
     return true;
@@ -193,13 +193,13 @@ bool test_direction_j2000_to_app() {
     auto app = convert_measure(m, DirectionRef::app, frame);
 
     // APP differs from J2000 due to precession/nutation (~20y offset → several arcmin).
-    const auto& dv = std::get<DirectionValue>(app.value);
+    [[maybe_unused]] const auto& dv = std::get<DirectionValue>(app.value);
     assert(std::abs(dv.lon_rad - ra) < 0.01); // within ~0.6 degrees
     assert(std::abs(dv.lat_rad - dec) < 0.01);
 
     // Round-trip.
     auto back = convert_measure(app, DirectionRef::j2000, frame);
-    const auto& bv = std::get<DirectionValue>(back.value);
+    [[maybe_unused]] const auto& bv = std::get<DirectionValue>(back.value);
     assert(near(bv.lon_rad, ra, kRadTol));
     assert(near(bv.lat_rad, dec, kRadTol));
     return true;

@@ -1,0 +1,5 @@
+include/casacore_mini/ms_subtables.hpp
+src/ms_subtables.cpp
+tests/ms_subtables_test.cpp
+tools/check_phase9_w3.sh
+CMakeLists.txt

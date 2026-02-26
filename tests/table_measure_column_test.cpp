@@ -16,7 +16,7 @@ using namespace casacore_mini;
 
 constexpr double kTol = 1.0e-12;
 
-bool near(double a, double b) {
+[[maybe_unused]] bool near(double a, double b) {
     return std::abs(a - b) < kTol * std::max(1.0, std::abs(a));
 }
 
@@ -75,7 +75,7 @@ bool test_read_scalar_epoch() {
     assert(m.type == MeasureType::epoch);
     assert(std::holds_alternative<EpochRef>(m.ref.ref_type));
     assert(std::get<EpochRef>(m.ref.ref_type) == EpochRef::utc);
-    const auto& ev = std::get<EpochValue>(m.value);
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(m.value);
     assert(near(ev.day, 59000.5));
     return true;
 }
@@ -96,7 +96,7 @@ bool test_read_scalar_frequency() {
     Measure m = read_scalar_measure(desc, table.make_scalar_reader(), 0);
     assert(m.type == MeasureType::frequency);
     assert(std::get<FrequencyRef>(m.ref.ref_type) == FrequencyRef::lsrk);
-    const auto& fv = std::get<FrequencyValue>(m.value);
+    [[maybe_unused]] const auto& fv = std::get<FrequencyValue>(m.value);
     assert(near(fv.hz, 1.42e9));
     return true;
 }
@@ -119,12 +119,12 @@ bool test_read_array_uvw() {
         read_array_measures(desc, table.make_array_reader(), table.make_scalar_reader(), 0);
     assert(measures.size() == 2);
 
-    const auto& uvw0 = std::get<UvwValue>(measures[0].value);
+    [[maybe_unused]] const auto& uvw0 = std::get<UvwValue>(measures[0].value);
     assert(near(uvw0.u_m, 100.0));
     assert(near(uvw0.v_m, 200.0));
     assert(near(uvw0.w_m, 300.0));
 
-    const auto& uvw1 = std::get<UvwValue>(measures[1].value);
+    [[maybe_unused]] const auto& uvw1 = std::get<UvwValue>(measures[1].value);
     assert(near(uvw1.u_m, 400.0));
     assert(near(uvw1.v_m, 500.0));
     assert(near(uvw1.w_m, 600.0));
@@ -150,11 +150,11 @@ bool test_read_array_direction() {
         read_array_measures(desc, table.make_array_reader(), table.make_scalar_reader(), 0);
     assert(measures.size() == 3);
 
-    const auto& d0 = std::get<DirectionValue>(measures[0].value);
+    [[maybe_unused]] const auto& d0 = std::get<DirectionValue>(measures[0].value);
     assert(near(d0.lon_rad, 1.0));
     assert(near(d0.lat_rad, 0.5));
 
-    const auto& d2 = std::get<DirectionValue>(measures[2].value);
+    [[maybe_unused]] const auto& d2 = std::get<DirectionValue>(measures[2].value);
     assert(near(d2.lon_rad, 3.0));
     assert(near(d2.lat_rad, 0.1));
 
@@ -223,7 +223,7 @@ bool test_write_scalar_epoch() {
 
     write_scalar_measure(desc, writer, 0, 0, m);
     assert(written.size() == 1);
-    const auto* dp = std::get_if<double>(&written[0].second);
+    [[maybe_unused]] const auto* dp = std::get_if<double>(&written[0].second);
     assert(dp != nullptr);
     assert(near(*dp, 59000.5));
     return true;
@@ -306,12 +306,12 @@ bool test_write_read_roundtrip() {
         read_array_measures(desc, table.make_array_reader(), table.make_scalar_reader(), 0);
 
     assert(read_back.size() == 2);
-    const auto& u0 = std::get<UvwValue>(read_back[0].value);
+    [[maybe_unused]] const auto& u0 = std::get<UvwValue>(read_back[0].value);
     assert(near(u0.u_m, 1.1));
     assert(near(u0.v_m, 2.2));
     assert(near(u0.w_m, 3.3));
 
-    const auto& u1 = std::get<UvwValue>(read_back[1].value);
+    [[maybe_unused]] const auto& u1 = std::get<UvwValue>(read_back[1].value);
     assert(near(u1.u_m, 4.4));
     assert(near(u1.v_m, 5.5));
     assert(near(u1.w_m, 6.6));

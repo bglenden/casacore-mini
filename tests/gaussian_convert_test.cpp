@@ -15,7 +15,7 @@ constexpr double kTol = 0.05; // 5% tolerance for numerical Jacobian
 constexpr double kDeg2Rad = M_PI / 180.0;
 constexpr double kArcsec2Rad = kDeg2Rad / 3600.0;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0e-10, std::abs(a));
 }
 
@@ -28,7 +28,7 @@ bool test_circular_gaussian() {
     double minor = 10.0 * kArcsec2Rad;
     double pa = 0.0;
 
-    auto [maj_pix, min_pix, pa_pix] = gaussian_world_to_pixel(major, minor, pa, dc, {100.0, 100.0});
+    [[maybe_unused]] auto [maj_pix, min_pix, pa_pix] = gaussian_world_to_pixel(major, minor, pa, dc, {100.0, 100.0});
 
     // At Dec=45, the pixel scale in RA is cos(Dec) * cdelt.
     // So a 10 arcsec circular Gaussian in world should be elliptical in pixels
@@ -55,7 +55,7 @@ bool test_world_pixel_roundtrip() {
 
     std::vector<double> pixel = {100.0, 100.0};
 
-    auto [maj_pix, min_pix, pa_pix] = gaussian_world_to_pixel(major, minor, pa, dc, pixel);
+    [[maybe_unused]] auto [maj_pix, min_pix, pa_pix] = gaussian_world_to_pixel(major, minor, pa, dc, pixel);
 
     auto [maj_back, min_back, pa_back] =
         gaussian_pixel_to_world(maj_pix, min_pix, pa_pix, dc, pixel);
@@ -81,7 +81,7 @@ bool test_elongated_gaussian() {
     double minor = 2.0 * kArcsec2Rad;
     double pa = M_PI / 4.0; // 45 degrees
 
-    auto [maj_pix, min_pix, pa_pix] = gaussian_world_to_pixel(major, minor, pa, dc, {50.0, 50.0});
+    [[maybe_unused]] auto [maj_pix, min_pix, pa_pix] = gaussian_world_to_pixel(major, minor, pa, dc, {50.0, 50.0});
 
     // Major should be much larger than minor in pixel space too.
     assert(maj_pix > min_pix * 2.0);

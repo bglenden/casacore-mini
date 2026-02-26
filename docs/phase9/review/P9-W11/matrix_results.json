@@ -1,0 +1,11 @@
+{
+  "wave": "P9-W11",
+  "note": "13/20 cells pass. mini->casacore fails (5) due to table format gaps. casacore->mini fails for representative and concat (2).",
+  "results": [
+    {"artifact": "ms-minimal",            "mini_mini": "PASS", "mini_casacore": "FAIL", "casacore_mini": "PASS", "casacore_casacore": "PASS"},
+    {"artifact": "ms-representative",     "mini_mini": "PASS", "mini_casacore": "FAIL", "casacore_mini": "FAIL", "casacore_casacore": "PASS"},
+    {"artifact": "ms-optional-subtables", "mini_mini": "PASS", "mini_casacore": "FAIL", "casacore_mini": "PASS", "casacore_casacore": "PASS"},
+    {"artifact": "ms-concat",             "mini_mini": "PASS", "mini_casacore": "FAIL", "casacore_mini": "FAIL", "casacore_casacore": "PASS"},
+    {"artifact": "ms-selection-stress",   "mini_mini": "PASS", "mini_casacore": "FAIL", "casacore_mini": "PASS", "casacore_casacore": "PASS"}
+  ]
+}

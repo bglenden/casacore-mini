@@ -24,7 +24,7 @@ bool test_all_types_to_string() {
     for (auto t : types) {
         std::string s = projection_type_to_string(t);
         assert(s.size() == 3);
-        ProjectionType rt = string_to_projection_type(s);
+        [[maybe_unused]] ProjectionType rt = string_to_projection_type(s);
         assert(rt == t);
     }
     return true;

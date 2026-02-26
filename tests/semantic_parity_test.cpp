@@ -192,13 +192,12 @@ bool test_wrong_table_keyword_detected() {
     wrong.set("telescope", casacore_mini::RecordValue(std::string("VLA")));
     wrong.set("version", casacore_mini::RecordValue(std::int32_t{2}));
 
-    bool threw = false;
     try {
         verify_lines_equal("test", canonical_record_lines(expected), canonical_record_lines(wrong));
+        assert(false && "expected exception for wrong keyword");
     } catch (const std::runtime_error&) {
-        threw = true;
+        // expected
     }
-    assert(threw);
     std::cerr << "  PASS: test_wrong_table_keyword_detected\n";
     return true;
 }
@@ -207,13 +206,12 @@ bool test_missing_col_keyword_detected() {
     auto expected = build_ssm_value_col_keywords();
     casacore_mini::Record empty;
 
-    bool threw = false;
     try {
         verify_lines_equal("test", canonical_record_lines(expected), canonical_record_lines(empty));
+        assert(false && "expected exception for missing keyword");
     } catch (const std::runtime_error&) {
-        threw = true;
+        // expected
     }
-    assert(threw);
     std::cerr << "  PASS: test_missing_col_keyword_detected\n";
     return true;
 }
@@ -226,13 +224,12 @@ bool test_extra_keyword_detected() {
     extra.set("version", casacore_mini::RecordValue(std::int32_t{2}));
     extra.set("spurious", casacore_mini::RecordValue(std::string("extra")));
 
-    bool threw = false;
     try {
         verify_lines_equal("test", canonical_record_lines(expected), canonical_record_lines(extra));
+        assert(false && "expected exception for extra keyword");
     } catch (const std::runtime_error&) {
-        threw = true;
+        // expected
     }
-    assert(threw);
     std::cerr << "  PASS: test_extra_keyword_detected\n";
     return true;
 }
@@ -283,8 +280,7 @@ bool test_wrong_sm_type_detected() {
     assert(td.table_dat.storage_managers[0].type_name == "IncrementalStMan");
 
     // A strict check for "StandardStMan" should detect this mismatch.
-    const auto& sm_type = td.table_dat.storage_managers[0].type_name;
-    assert(sm_type != "StandardStMan");
+    assert(td.table_dat.storage_managers[0].type_name != "StandardStMan");
 
     fs::remove_all(tmp);
     std::cerr << "  PASS: test_wrong_sm_type_detected\n";

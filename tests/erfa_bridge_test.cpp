@@ -9,7 +9,7 @@ namespace {
 
 constexpr double kTol = 1.0e-9;
 
-bool near(double a, double b, double tol = kTol) {
+[[maybe_unused]] bool near(double a, double b, double tol = kTol) {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
@@ -25,15 +25,15 @@ bool test_utc_tai_round_trip() {
 
     // TAI-UTC = 37 leap seconds as of 2020.
     // In days: 37/86400 ≈ 0.000428...
-    double tai_mjd = (tai1 - kTestMjd0) + tai2;
-    double diff_seconds = (tai_mjd - kTestMjd) * 86400.0;
+    [[maybe_unused]] double tai_mjd = (tai1 - kTestMjd0) + tai2;
+    [[maybe_unused]] double diff_seconds = (tai_mjd - kTestMjd) * 86400.0;
     assert(near(diff_seconds, 37.0, 0.1)); // 37 leap seconds
 
     // Round-trip back to UTC.
     double utc1 = 0.0;
     double utc2 = 0.0;
     tai_to_utc(tai1, tai2, utc1, utc2);
-    double utc_mjd = (utc1 - kTestMjd0) + utc2;
+    [[maybe_unused]] double utc_mjd = (utc1 - kTestMjd0) + utc2;
     assert(near(utc_mjd, kTestMjd, 1.0e-12));
     return true;
 }
@@ -45,14 +45,14 @@ bool test_tai_tt_round_trip() {
     tai_to_tt(kTestMjd0, kTestMjd, tt1, tt2);
 
     // TT-TAI = 32.184 seconds always.
-    double tt_mjd = (tt1 - kTestMjd0) + tt2;
-    double diff_seconds = (tt_mjd - kTestMjd) * 86400.0;
+    [[maybe_unused]] double tt_mjd = (tt1 - kTestMjd0) + tt2;
+    [[maybe_unused]] double diff_seconds = (tt_mjd - kTestMjd) * 86400.0;
     assert(near(diff_seconds, 32.184, 0.001));
 
     double tai1 = 0.0;
     double tai2 = 0.0;
     tt_to_tai(tt1, tt2, tai1, tai2);
-    double tai_mjd = (tai1 - kTestMjd0) + tai2;
+    [[maybe_unused]] double tai_mjd = (tai1 - kTestMjd0) + tai2;
     assert(near(tai_mjd, kTestMjd, 1.0e-12));
     return true;
 }
@@ -146,7 +146,7 @@ bool test_bias_precession_nutation() {
 bool test_approx_dtdb() {
     using namespace casacore_mini;
     // TDB-TT is periodic with amplitude ~1.6 ms.
-    double dtr = approx_dtdb(2451545.0, 0.0);
+    [[maybe_unused]] double dtr = approx_dtdb(2451545.0, 0.0);
     assert(std::abs(dtr) < 0.002); // within 2 ms
     return true;
 }

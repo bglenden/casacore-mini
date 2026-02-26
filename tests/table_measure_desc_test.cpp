@@ -113,7 +113,7 @@ bool test_fixed_offset_roundtrip() {
     assert(parsed->has_offset());
     assert(parsed->offset.has_value());
     assert(parsed->offset->type == MeasureType::epoch);
-    const auto& ev = std::get<EpochValue>(parsed->offset->value);
+    [[maybe_unused]] const auto& ev = std::get<EpochValue>(parsed->offset->value);
     assert(ev.day == 50000.0);
     return true;
 }
