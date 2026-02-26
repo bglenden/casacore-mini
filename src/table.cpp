@@ -83,23 +83,24 @@ struct SmLookup {
 
 struct Table::Impl {
     std::filesystem::path path;
-    TableDirectory dir;
-    bool writable = false;
 
     // Lazy SM readers (one per SM instance, like TSM already does).
     mutable std::vector<SsmReader> ssm_readers;
-    mutable bool ssm_readers_initialized = false;
     mutable std::vector<IsmReader> ism_readers;
-    mutable bool ism_readers_initialized = false;
     mutable std::vector<TiledStManReader> tsm_readers;
-    mutable bool tsm_readers_initialized = false;
+    std::vector<ColumnDesc> writer_columns; // columns bound to active writer
 
     // For writable tables
-    std::optional<SsmWriter> ssm_writer;
     std::optional<IsmWriter> ism_writer;
     std::optional<TiledStManWriter> tsm_writer;
-    std::uint32_t tsm_writer_seq = 0;       // SM sequence number for TSM writer
-    std::vector<ColumnDesc> writer_columns; // columns bound to active writer
+    std::optional<SsmWriter> ssm_writer;
+
+    TableDirectory dir;
+    std::uint32_t tsm_writer_seq = 0; // SM sequence number for TSM writer
+    bool writable = false;
+    mutable bool ssm_readers_initialized = false;
+    mutable bool ism_readers_initialized = false;
+    mutable bool tsm_readers_initialized = false;
 
     void ensure_ssm_readers() const {
         if (ssm_readers_initialized)
@@ -150,7 +151,13 @@ struct Table::Impl {
                 try {
                     tsm_readers.emplace_back();
                     tsm_readers.back().open(path.string(), i, dir.table_dat);
+                } catch (const std::exception& ex) {
+                    std::cerr << "warning: TSM reader open failed for SM[" << i
+                              << "]: " << ex.what() << "\n";
+                    tsm_readers.pop_back();
                 } catch (...) {
+                    std::cerr << "warning: TSM reader open failed for SM[" << i
+                              << "] (unknown error)\n";
                     tsm_readers.pop_back();
                 }
             }

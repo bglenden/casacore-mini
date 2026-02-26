@@ -703,6 +703,7 @@ void write_table_dir_artifact(const std::filesystem::path& output_dir) {
         {"dval", DataType::tp_double, ColumnKind::scalar, {}, ""},
     };
 
+    // For StandardStMan tables this public Table API path delegates writes to SsmWriter.
     auto table = Table::create(output_dir, columns, 5, opts);
     ScalarColumn<std::int32_t> id_col(table, "id");
     ScalarColumn<float> value_col(table, "value");
@@ -846,6 +847,7 @@ void dump_table_dir_artifact(const std::filesystem::path& input_dir,
 void verify_tiled_col_dir_artifact(const std::filesystem::path& input_dir,
                                    const std::string_view label) {
     using namespace casacore_mini;
+    // For tiled managers this public Table API read path delegates to TiledStManReader.
     auto table = Table::open(input_dir);
 
     if (table.nrow() != 10) {
@@ -1112,6 +1114,7 @@ void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
         {"flag", DataType::tp_bool, ColumnKind::scalar, {}, ""},
     };
 
+    // For IncrementalStMan tables this public Table API path delegates writes to IsmWriter.
     auto table = Table::create(output_dir, columns, 10, opts);
     ScalarColumn<double> time_col(table, "time");
     ScalarColumn<std::int32_t> antenna_col(table, "antenna");
@@ -1128,6 +1131,7 @@ void write_ism_dir_artifact(const std::filesystem::path& output_dir) {
 void verify_ism_dir_artifact(const std::filesystem::path& input_dir, const std::string_view label,
                              const bool relaxed_keywords) {
     using namespace casacore_mini;
+    // For IncrementalStMan tables this public Table API read path delegates to IsmReader.
     auto table = Table::open(input_dir);
 
     // --- Structure verification ---
@@ -1237,6 +1241,7 @@ void write_tiled_col_dir_artifact(const std::filesystem::path& output_dir) {
         {"flags", DataType::tp_int, ColumnKind::array, {4, 8}, ""},
     };
 
+    // For tiled managers this public Table API write path delegates to TiledStManWriter.
     auto table = Table::create(output_dir, columns, 10, opts);
     ArrayColumn<float> data_col(table, "data");
     ArrayColumn<std::int32_t> flags_col(table, "flags");

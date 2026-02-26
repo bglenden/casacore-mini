@@ -750,6 +750,9 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
 
     // Build per-cube row/file mapping when present.
     if (have_header && !tsm_header.cubes.empty()) {
+        const auto expected_cell_ndim =
+            columns_.empty() ? std::size_t{0} : columns_[0].shape.size();
+        const bool is_cell_sm = (tsm_header.sm_type == "TiledCellStMan");
         std::uint64_t row_start = 0;
         for (std::size_t cube_index = 0; cube_index < tsm_header.cubes.size(); ++cube_index) {
             const auto& cube = tsm_header.cubes[cube_index];
@@ -760,11 +763,27 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
             CubeLayout layout;
             layout.original_cube_index = cube_index;
             layout.row_start = row_start;
-            layout.row_count = static_cast<std::uint64_t>(cube.cube_shape.back());
             layout.file_nr = cube.file_nr;
             layout.file_offset = cube.file_offset;
-            layout.cell_shape.assign(cube.cube_shape.begin(), cube.cube_shape.end() - 1);
-            layout.tile_shape = cube.tile_shape;
+
+            const bool cell_cube_omits_row_dim =
+                is_cell_sm && cube.cube_shape.size() == expected_cell_ndim;
+            if (cell_cube_omits_row_dim) {
+                // TiledCellStMan stores one cube per row without an explicit row dimension.
+                layout.row_count = 1;
+                layout.cell_shape = cube.cube_shape;
+                layout.tile_shape = cube.tile_shape;
+                if (layout.tile_shape.size() == layout.cell_shape.size()) {
+                    layout.tile_shape.push_back(1);
+                } else if (layout.tile_shape.size() != layout.cell_shape.size() + 1 ||
+                           layout.tile_shape.back() != 1) {
+                    throw std::runtime_error("invalid TiledCellStMan tile shape");
+                }
+            } else {
+                layout.row_count = static_cast<std::uint64_t>(cube.cube_shape.back());
+                layout.cell_shape.assign(cube.cube_shape.begin(), cube.cube_shape.end() - 1);
+                layout.tile_shape = cube.tile_shape;
+            }
             layout.tile_pixels = shape_product(layout.tile_shape);
             layout.tile_rows = layout.tile_shape.empty() ? 0 : layout.tile_shape.back();
 

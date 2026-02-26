@@ -392,7 +392,6 @@ read_ssm_string_payload(const std::vector<std::uint8_t>& bucket_data, std::uint3
         if (ncopy > 0) {
             const auto* src = sbkt + kStrBucketHeader + offset;
             payload.insert(payload.end(), src, src + ncopy);
-            offset += ncopy;
             remaining -= ncopy;
         }
 

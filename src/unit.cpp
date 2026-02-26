@@ -77,7 +77,7 @@ constexpr double kArcsec = kDegree / 3600.0;
 constexpr double kSquareDegree = kDegree * kDegree;
 constexpr double kSquareArcmin = kArcmin * kArcmin;
 constexpr double kSquareArcsec = kArcsec * kArcsec;
-constexpr double kC_light = 299792458.0; // m/s
+constexpr double kCLight = 299792458.0; // m/s
 
 // Time constants.
 constexpr double kMinute = 60.0;
@@ -87,8 +87,8 @@ constexpr double kYear = 24.0 * 3600.0 * 365.25;
 constexpr double kCentury = 24.0 * 3600.0 * 36525.0;
 
 // IAU constants.
-constexpr double kIAU_tauA = 499.0047837; // light-time for 1 AU in seconds
-constexpr double kIAU_k = 0.01720209895;  // Gaussian gravitational constant
+constexpr double kIauTauA = 499.0047837; // light-time for 1 AU in seconds
+constexpr double kIauK = 0.01720209895;  // Gaussian gravitational constant
 
 struct PrefixEntry {
     std::string_view name;
@@ -176,8 +176,8 @@ struct UnitMaps {
         units["W"] = watt;
 
         // Pressure: N/m^2 = kg.m^-1.s^-2
-        UnitVal pascal_ = newton / dim_val(1.0, UnitVal::LENGTH).pow(2);
-        units["Pa"] = pascal_;
+        UnitVal pascal = newton / dim_val(1.0, UnitVal::LENGTH).pow(2);
+        units["Pa"] = pascal;
 
         // Charge: A.s
         UnitVal coulomb = dim_val(1.0, UnitVal::CURRENT) * dim_val(1.0, UnitVal::TIME);
@@ -274,7 +274,7 @@ struct UnitMaps {
         units["WU"] = make_val(5e-29, {0, 1, -2, 0, 0, 0, 0, 0, 0}); // 5 mJy
 
         // Astronomical Unit.
-        double au_m = kC_light * kIAU_tauA;
+        double au_m = kCLight * kIauTauA;
         units["AU"] = dim_val(au_m, UnitVal::LENGTH);
         units["UA"] = units["AU"];
         units["AE"] = units["AU"];
@@ -289,7 +289,7 @@ struct UnitMaps {
         // Solar mass: IAU_k^2 / G * AU^3/d^2 ... use computed value.
         // S0 = IAU_k^2 / 6.67259e-11 in units of (AU^3/d^2)/(m^3/kg/s^2).
         // For simplicity, store the computed SI mass in kg.
-        double s0_kg = (kIAU_k * kIAU_k * au_m * au_m * au_m) / (6.67259e-11 * kDay * kDay);
+        double s0_kg = (kIauK * kIauK * au_m * au_m * au_m) / (6.67259e-11 * kDay * kDay);
         units["S0"] = dim_val(s0_kg, UnitVal::MASS);
         units["M0"] = units["S0"];
     }
@@ -299,17 +299,17 @@ struct UnitMaps {
         units["Angstrom"] = dim_val(1e-10, UnitVal::LENGTH);
 
         // Length conversions.
-        constexpr double kInch_m = 2.54e-2;
-        constexpr double kFoot_m = 12.0 * kInch_m;
-        constexpr double kYard_m = 3.0 * kFoot_m;
-        constexpr double kMile_m = 5280.0 * kFoot_m;
-        constexpr double kNMile_cm = 6080.0 * 12.0 * 2.54;
+        constexpr double kInchM = 2.54e-2;
+        constexpr double kFootM = 12.0 * kInchM;
+        constexpr double kYardM = 3.0 * kFootM;
+        constexpr double kMileM = 5280.0 * kFootM;
+        constexpr double kNMileCm = 6080.0 * 12.0 * 2.54;
 
-        units["in"] = dim_val(kInch_m, UnitVal::LENGTH);
-        units["ft"] = dim_val(kFoot_m, UnitVal::LENGTH);
-        units["yd"] = dim_val(kYard_m, UnitVal::LENGTH);
-        units["mile"] = dim_val(kMile_m, UnitVal::LENGTH);
-        units["n_mile"] = dim_val(kNMile_cm * 0.01, UnitVal::LENGTH);
+        units["in"] = dim_val(kInchM, UnitVal::LENGTH);
+        units["ft"] = dim_val(kFootM, UnitVal::LENGTH);
+        units["yd"] = dim_val(kYardM, UnitVal::LENGTH);
+        units["mile"] = dim_val(kMileM, UnitVal::LENGTH);
+        units["n_mile"] = dim_val(kNMileCm * 0.01, UnitVal::LENGTH);
         units["fur"] = dim_val(220.0 * 3.0 * 12.0 * 2.54 * 0.01, UnitVal::LENGTH);
 
         // Area.
@@ -318,10 +318,10 @@ struct UnitMaps {
         units["ha"] = make_val(1e4, {2, 0, 0, 0, 0, 0, 0, 0, 0});
 
         // Mass.
-        constexpr double kPound_kg = 0.45359237;
-        units["lb"] = dim_val(kPound_kg, UnitVal::MASS);
-        units["oz"] = dim_val(kPound_kg / 16.0, UnitVal::MASS);
-        units["cwt"] = dim_val(4.0 * 2.0 * 14.0 * kPound_kg, UnitVal::MASS);
+        constexpr double kPoundKg = 0.45359237;
+        units["lb"] = dim_val(kPoundKg, UnitVal::MASS);
+        units["oz"] = dim_val(kPoundKg / 16.0, UnitVal::MASS);
+        units["cwt"] = dim_val(4.0 * 2.0 * 14.0 * kPoundKg, UnitVal::MASS);
         units["u"] = dim_val(1.661e-27, UnitVal::MASS);
         units["CM"] = dim_val(1e-3 / 5.0, UnitVal::MASS);
 
@@ -352,7 +352,7 @@ struct UnitMaps {
         units["St"] = make_val(1e-4, {2, 0, -1, 0, 0, 0, 0, 0, 0});
 
         // Speed.
-        units["kn"] = make_val(kNMile_cm * 0.01 / kHour, {1, 0, -1, 0, 0, 0, 0, 0, 0});
+        units["kn"] = make_val(kNMileCm * 0.01 / kHour, {1, 0, -1, 0, 0, 0, 0, 0, 0});
 
         // Charge/current.
         units["Ah"] = make_val(kHour, {0, 0, 1, 1, 0, 0, 0, 0, 0});
@@ -365,15 +365,15 @@ struct UnitMaps {
         units["abOhm"] = make_val(1e-9, {2, 1, -3, -2, 0, 0, 0, 0, 0});
         units["abV"] = make_val(1e-8, {2, 1, -3, -1, 0, 0, 0, 0, 0});
 
-        units["statA"] = dim_val(0.1 / kC_light, UnitVal::CURRENT);
-        units["statC"] = make_val(0.1 / kC_light, {0, 0, 1, 1, 0, 0, 0, 0, 0});
-        units["statF"] = make_val(1.0 / (3.0e+3 * kC_light), {-2, -1, 4, 2, 0, 0, 0, 0, 0});
-        units["statH"] = make_val(3.0e+3 * kC_light, {2, 1, -2, -2, 0, 0, 0, 0, 0});
-        units["statOhm"] = make_val(3.0e+3 * kC_light, {2, 1, -3, -2, 0, 0, 0, 0, 0});
-        units["statV"] = make_val(kC_light * 1e-6, {2, 1, -3, -1, 0, 0, 0, 0, 0});
+        units["statA"] = dim_val(0.1 / kCLight, UnitVal::CURRENT);
+        units["statC"] = make_val(0.1 / kCLight, {0, 0, 1, 1, 0, 0, 0, 0, 0});
+        units["statF"] = make_val(1.0 / (3.0e+3 * kCLight), {-2, -1, 4, 2, 0, 0, 0, 0, 0});
+        units["statH"] = make_val(3.0e+3 * kCLight, {2, 1, -2, -2, 0, 0, 0, 0, 0});
+        units["statOhm"] = make_val(3.0e+3 * kCLight, {2, 1, -3, -2, 0, 0, 0, 0, 0});
+        units["statV"] = make_val(kCLight * 1e-6, {2, 1, -3, -1, 0, 0, 0, 0, 0});
 
         // Debye: 10e-18 statC.cm = 10e-18 * (0.1/c) * 0.01 A.s.m
-        units["debye"] = make_val(1e-18 * (0.1 / kC_light) * 0.01, {1, 0, 1, 1, 0, 0, 0, 0, 0});
+        units["debye"] = make_val(1e-18 * (0.1 / kCLight) * 0.01, {1, 0, 1, 1, 0, 0, 0, 0, 0});
 
         // Magnetic (CGS).
         units["G"] = make_val(1e-4, {0, 1, -2, -1, 0, 0, 0, 0, 0});
@@ -386,14 +386,14 @@ struct UnitMaps {
         units["R"] = make_val(2.58e-4, {0, -1, 1, 1, 0, 0, 0, 0, 0});
 
         // Volume.
-        constexpr double kGalImp_cm3 = 277.4193 * 2.54 * 2.54 * 2.54;
-        constexpr double kGalUS_cm3 = 231.0 * 2.54 * 2.54 * 2.54;
-        units["gal"] = make_val(kGalImp_cm3 * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
-        units["USgal"] = make_val(kGalUS_cm3 * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
+        constexpr double kGalImpCm3 = 277.4193 * 2.54 * 2.54 * 2.54;
+        constexpr double kGalUsCm3 = 231.0 * 2.54 * 2.54 * 2.54;
+        units["gal"] = make_val(kGalImpCm3 * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
+        units["USgal"] = make_val(kGalUsCm3 * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
         units["fl_oz"] =
-            make_val(kGalImp_cm3 / (5.0 * 4.0 * 2.0 * 4.0) * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
+            make_val(kGalImpCm3 / (5.0 * 4.0 * 2.0 * 4.0) * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
         units["USfl_oz"] =
-            make_val(kGalUS_cm3 / (4.0 * 4.0 * 2.0 * 4.0) * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
+            make_val(kGalUsCm3 / (4.0 * 4.0 * 2.0 * 4.0) * 1e-6, {3, 0, 0, 0, 0, 0, 0, 0, 0});
 
         // Dimensionless pseudo-units.
         units["beam"] = UnitVal(1.0);
@@ -643,20 +643,20 @@ UnitVal parse_compound(std::string_view str, std::size_t& pos) {
         char sep = str[pos];
         bool divide = false;
 
-        if (sep == '.') {
-            ++pos;
-        } else if (sep == '*' && (pos + 1 >= str.size() || str[pos + 1] != '*')) {
-            ++pos;
-        } else if (sep == '/') {
-            divide = true;
-            ++pos;
-        } else if (sep == ')') {
+        if (sep == ')') {
             // End of parenthesized group.
             break;
-        } else if (is_unit_start(sep) || sep == '(') {
-            // Implicit multiplication (space-separated).
-        } else {
+        }
+
+        if (sep == '/') {
+            divide = true;
+            ++pos;
+        } else if (sep == '.' || (sep == '*' && (pos + 1 >= str.size() || str[pos + 1] != '*'))) {
+            ++pos;
+        } else if (!(is_unit_start(sep) || sep == '(')) {
             break;
+        } else {
+            // Implicit multiplication (space-separated).
         }
 
         UnitVal atom = parse_atom(str, pos);

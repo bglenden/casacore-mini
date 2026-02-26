@@ -330,26 +330,62 @@ static void test_flush_round_trip() {
                             .offset = {0, 0, 0},
                             .dish_diameter = 25.0});
         writer.add_spectral_window({.num_chan = 1,
+                                    .name = "SPW0",
                                     .ref_frequency = 1e9,
                                     .chan_freq = {1e9},
                                     .chan_width = {1e6},
                                     .effective_bw = {1e6},
                                     .resolution = {1e6},
-                                    .total_bandwidth = 1e6});
+                                    .meas_freq_ref = 0,
+                                    .total_bandwidth = 1e6,
+                                    .net_sideband = 0,
+                                    .if_conv_chain = 0,
+                                    .freq_group = 0,
+                                    .freq_group_name = "",
+                                    .flag_row = false});
         writer.add_polarization({.num_corr = 1, .corr_type = {5}});
         writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0});
-        writer.add_observation({.telescope_name = "TEST"});
-        writer.add_state({.obs_mode = "OBSERVE"});
-        writer.add_field({.name = "SRC"});
+        writer.add_observation({.telescope_name = "TEST",
+                                .observer = "",
+                                .project = "",
+                                .release_date = 0.0,
+                                .flag_row = false});
+        writer.add_state({.sig = true,
+                          .ref = false,
+                          .cal = 0.0,
+                          .load = 0.0,
+                          .sub_scan = 0,
+                          .obs_mode = "OBSERVE",
+                          .flag_row = false});
+        writer.add_field({.name = "SRC",
+                          .code = "",
+                          .time = 0.0,
+                          .num_poly = 0,
+                          .source_id = -1,
+                          .flag_row = false});
 
         for (int i = 0; i < 3; ++i) {
             writer.add_row({.antenna1 = 0,
                             .antenna2 = 1,
+                            .array_id = 0,
+                            .data_desc_id = 0,
+                            .exposure = 0.0,
+                            .feed1 = 0,
+                            .feed2 = 0,
+                            .field_id = 0,
+                            .flag_row = false,
+                            .interval = 0.0,
+                            .observation_id = 0,
+                            .processor_id = 0,
+                            .scan_number = 0,
+                            .state_id = 0,
                             .time = 4.8e9,
                             .time_centroid = 4.8e9,
                             .uvw = {1, 2, 3},
                             .sigma = {1.0F},
-                            .weight = {1.0F}});
+                            .weight = {1.0F},
+                            .data = {},
+                            .flag = {}});
         }
         writer.flush();
     }
