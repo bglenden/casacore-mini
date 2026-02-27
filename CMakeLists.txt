@@ -222,7 +222,8 @@ add_library(
   src/image.cpp
   src/lattice_region.cpp
   src/image_region.cpp
-  src/lattice_expr.cpp)
+  src/lattice_expr.cpp
+  src/taql.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -584,6 +585,14 @@ add_test(NAME image_coverage_test COMMAND image_coverage_test)
 add_executable(image_regrid_test tests/image_regrid_test.cpp)
 target_link_libraries(image_regrid_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME image_regrid_test COMMAND image_regrid_test)
+
+add_executable(taql_parser_test tests/taql_parser_test.cpp)
+target_link_libraries(taql_parser_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_parser_test COMMAND taql_parser_test)
+
+add_executable(taql_malformed_test tests/taql_malformed_test.cpp)
+target_link_libraries(taql_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_malformed_test COMMAND taql_malformed_test)
 
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)

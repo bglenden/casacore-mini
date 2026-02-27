@@ -1,0 +1,16 @@
+ CMakeLists.txt                          | 11 ++++++++++-
+ docs/phase11/review/phase11_status.json | 20 +++++---------------
+ 2 files changed, 15 insertions(+), 16 deletions(-)
+
+New files:
+docs/phase11/review/P11-W3/check_results.txt
+docs/phase11/review/P11-W3/decisions.md
+docs/phase11/review/P11-W3/files_changed.txt
+docs/phase11/review/P11-W3/matrix_results.json
+docs/phase11/review/P11-W3/open_issues.md
+docs/phase11/review/P11-W3/summary.md
+include/casacore_mini/taql.hpp
+src/taql.cpp
+tests/taql_malformed_test.cpp
+tests/taql_parser_test.cpp
+tools/check_phase11_w3.sh

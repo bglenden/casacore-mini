@@ -1,0 +1,70 @@
+=== P11-W3 Gate: TaQL parser + AST foundation ===
+--- Artifact checks ---
+  PASS: taql.hpp exists
+  PASS: TaqlCommand enum in header
+  PASS: ExprType enum in header
+  PASS: TaqlOp enum in header
+  PASS: TaqlExprNode struct in header
+  PASS: TaqlAst struct in header
+  PASS: taql_parse declared
+  PASS: taql_show declared
+  PASS: taql_execute declared
+  PASS: taql_calc declared
+  PASS: TaqlValue type in header
+  PASS: taql.cpp exists
+  PASS: TaqlLexer class
+  PASS: TaqlParser class
+  PASS: parse_select method
+  PASS: parse_update method
+  PASS: parse_insert method
+  PASS: parse_delete method
+  PASS: parse_calc method
+  PASS: parse_create_table method
+  PASS: parse_alter_table method
+  PASS: parse_drop_table method
+  PASS: parse_show method
+  PASS: parse_count method
+  PASS: taql_parser_test.cpp exists
+  PASS: taql_malformed_test.cpp exists
+  PASS: taql.cpp in CMakeLists
+  PASS: taql_parser_test in CMakeLists
+  PASS: taql_malformed_test in CMakeLists
+--- Command families ---
+  PASS: select_cmd in TaqlCommand
+  PASS: update_cmd in TaqlCommand
+  PASS: insert_cmd in TaqlCommand
+  PASS: delete_cmd in TaqlCommand
+  PASS: count_cmd in TaqlCommand
+  PASS: calc_cmd in TaqlCommand
+  PASS: create_table_cmd in TaqlCommand
+  PASS: alter_table_cmd in TaqlCommand
+  PASS: drop_table_cmd in TaqlCommand
+  PASS: show_cmd in TaqlCommand
+--- Expression types ---
+  PASS: ExprType::literal
+  PASS: ExprType::column_ref
+  PASS: ExprType::keyword_ref
+  PASS: ExprType::unary_op
+  PASS: ExprType::binary_op
+  PASS: ExprType::comparison
+  PASS: ExprType::logical_op
+  PASS: ExprType::func_call
+  PASS: ExprType::aggregate_call
+  PASS: ExprType::in_expr
+  PASS: ExprType::between_expr
+  PASS: ExprType::like_expr
+  PASS: ExprType::regex_expr
+  PASS: ExprType::exists_expr
+  PASS: ExprType::subscript
+  PASS: ExprType::set_expr
+  PASS: ExprType::range_expr
+  PASS: ExprType::unit_expr
+  PASS: ExprType::iif_expr
+  PASS: ExprType::wildcard
+  PASS: ExprType::subquery
+  PASS: ExprType::record_literal
+--- Prerequisites ---
+  PASS: W1 gate exists
+  PASS: W2 gate exists
+
+=== P11-W3 Result: 63 passed, 0 failed out of 63 ===

@@ -1,18 +1,8 @@
 {
   "phase": 11,
-  "wave": 2,
-  "timestamp_utc": "2026-02-27T17:10:24Z",
-  "gate_results": {
-    "check_phase11_w1.sh": {"pass": true},
-    "check_phase11_w2.sh": {
-      "pass": 10,
-      "fail": 0,
-      "command": "bash tools/check_phase11_w2.sh"
-    }
-  },
-  "checklist_totals": {
-    "taql_pending": 115,
-    "mssel_pending": 93
-  },
-  "open_blockers": []
+  "wave": "W3",
+  "gate_pass": 63,
+  "gate_fail": 0,
+  "gate_total": 63,
+  "status": "pass"
 }
