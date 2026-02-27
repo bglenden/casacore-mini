@@ -227,14 +227,14 @@ bool test_direction_b1950_to_j2000_roundtrip() {
     Measure m{MeasureType::direction, MeasureRef{DirectionRef::b1950, std::nullopt},
               DirectionValue{b1950_ra, b1950_dec}};
     auto j2k = convert_measure(m, DirectionRef::j2000);
-    const auto& j2k_val = std::get<DirectionValue>(j2k.value);
-    assert(near_angle(j2k_val.lon_rad, j2000_ra, 5.0e-6));
-    assert(near(j2k_val.lat_rad, j2000_dec, 5.0e-6));
+    auto j2k_val = std::get<DirectionValue>(j2k.value);
+    if (!near_angle(j2k_val.lon_rad, j2000_ra, 5.0e-6)) return false;
+    if (!near(j2k_val.lat_rad, j2000_dec, 5.0e-6)) return false;
 
     auto back = convert_measure(j2k, DirectionRef::b1950);
-    const auto& back_val = std::get<DirectionValue>(back.value);
-    assert(near_angle(back_val.lon_rad, b1950_ra, 5.0e-6));
-    assert(near(back_val.lat_rad, b1950_dec, 5.0e-6));
+    auto back_val = std::get<DirectionValue>(back.value);
+    if (!near_angle(back_val.lon_rad, b1950_ra, 5.0e-6)) return false;
+    if (!near(back_val.lat_rad, b1950_dec, 5.0e-6)) return false;
     return true;
 }
 
