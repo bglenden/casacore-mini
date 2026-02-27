@@ -1,5 +1,6 @@
 #include "casacore_mini/ms_selection.hpp"
 #include "casacore_mini/ms_columns.hpp"
+#include "casacore_mini/taql.hpp"
 
 #include <cmath>
 #include <set>
@@ -176,9 +177,45 @@ void MsSelection::set_state_expr(std::string_view expr) {
     state_expr_ = std::string(expr);
 }
 
+void MsSelection::set_observation_expr(std::string_view expr) {
+    observation_expr_ = std::string(expr);
+}
+
+void MsSelection::set_array_expr(std::string_view expr) {
+    array_expr_ = std::string(expr);
+}
+
+void MsSelection::set_feed_expr(std::string_view expr) {
+    feed_expr_ = std::string(expr);
+}
+
+void MsSelection::set_taql_expr(std::string_view expr) {
+    taql_expr_ = std::string(expr);
+}
+
 bool MsSelection::has_selection() const noexcept {
     return antenna_expr_ || field_expr_ || spw_expr_ || scan_expr_ || time_expr_ || uvdist_expr_ ||
-           corr_expr_ || state_expr_;
+           corr_expr_ || state_expr_ || observation_expr_ || array_expr_ || feed_expr_ ||
+           taql_expr_;
+}
+
+void MsSelection::clear() noexcept {
+    antenna_expr_.reset();
+    field_expr_.reset();
+    spw_expr_.reset();
+    scan_expr_.reset();
+    time_expr_.reset();
+    uvdist_expr_.reset();
+    corr_expr_.reset();
+    state_expr_.reset();
+    observation_expr_.reset();
+    array_expr_.reset();
+    feed_expr_.reset();
+    taql_expr_.reset();
+}
+
+void MsSelection::reset() noexcept {
+    clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -478,16 +515,35 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             expr = trim(expr.substr(1));
         }
 
-        auto scan_ids = parse_int_list_or_range(expr, "Scan");
-        result.scans.assign(scan_ids.begin(), scan_ids.end());
-
-        for (std::uint64_t r = 0; r < nrow; ++r) {
-            bool match = scan_ids.count(cols.scan_number(r)) > 0;
-            if (negate) {
-                match = !match;
+        // Check for bound operators < >
+        if (!negate && (expr.front() == '<' || expr.front() == '>')) {
+            char op = expr.front();
+            auto val = try_parse_int(expr.substr(1));
+            if (!val) {
+                throw std::runtime_error("Scan: invalid bound value '" +
+                                         std::string(expr.substr(1)) + "'");
             }
-            if (!match) {
-                selected[r] = false;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto s = cols.scan_number(r);
+                bool match = (op == '<') ? (s < *val) : (s > *val);
+                if (!match) selected[r] = false;
+                else result.scans.push_back(s);
+            }
+            // Deduplicate scans
+            std::set<std::int32_t> uniq(result.scans.begin(), result.scans.end());
+            result.scans.assign(uniq.begin(), uniq.end());
+        } else {
+            auto scan_ids = parse_int_list_or_range(expr, "Scan");
+            result.scans.assign(scan_ids.begin(), scan_ids.end());
+
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                bool match = scan_ids.count(cols.scan_number(r)) > 0;
+                if (negate) {
+                    match = !match;
+                }
+                if (!match) {
+                    selected[r] = false;
+                }
             }
         }
     }
@@ -659,6 +715,193 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
 
         for (std::uint64_t r = 0; r < nrow; ++r) {
             if (state_ids.count(cols.state_id(r)) == 0) {
+                selected[r] = false;
+            }
+        }
+    }
+
+    // --- Observation selection ---
+    if (observation_expr_) {
+        auto expr = trim(*observation_expr_);
+        if (expr.empty()) {
+            throw std::runtime_error("Observation: empty expression");
+        }
+
+        // Bound operators < >
+        if (expr.front() == '<' || expr.front() == '>') {
+            char op = expr.front();
+            auto val = try_parse_int(expr.substr(1));
+            if (!val) {
+                throw std::runtime_error("Observation: invalid bound value '" +
+                                         std::string(expr.substr(1)) + "'");
+            }
+            std::set<std::int32_t> matched;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto oid = cols.observation_id(r);
+                bool match = (op == '<') ? (oid < *val) : (oid > *val);
+                if (!match) { // NOLINT(bugprone-branch-clone)
+                    selected[r] = false;
+                } else {
+                    matched.insert(oid);
+                }
+            }
+            result.observations.assign(matched.begin(), matched.end());
+        } else {
+            auto obs_ids = parse_int_list_or_range(expr, "Observation");
+            result.observations.assign(obs_ids.begin(), obs_ids.end());
+
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                if (obs_ids.count(cols.observation_id(r)) == 0) {
+                    selected[r] = false;
+                }
+            }
+        }
+    }
+
+    // --- Array (subarray) selection ---
+    if (array_expr_) {
+        auto expr = trim(*array_expr_);
+        if (expr.empty()) {
+            throw std::runtime_error("Array: empty expression");
+        }
+
+        // Bound operators < >
+        if (expr.front() == '<' || expr.front() == '>') {
+            char op = expr.front();
+            auto val = try_parse_int(expr.substr(1));
+            if (!val) {
+                throw std::runtime_error("Array: invalid bound value '" +
+                                         std::string(expr.substr(1)) + "'");
+            }
+            std::set<std::int32_t> matched;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto aid = cols.array_id(r);
+                bool match = (op == '<') ? (aid < *val) : (aid > *val);
+                if (!match) { // NOLINT(bugprone-branch-clone)
+                    selected[r] = false;
+                } else {
+                    matched.insert(aid);
+                }
+            }
+            result.arrays.assign(matched.begin(), matched.end());
+        } else {
+            auto arr_ids = parse_int_list_or_range(expr, "Array");
+            result.arrays.assign(arr_ids.begin(), arr_ids.end());
+
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                if (arr_ids.count(cols.array_id(r)) == 0) {
+                    selected[r] = false;
+                }
+            }
+        }
+    }
+
+    // --- Feed selection ---
+    if (feed_expr_) {
+        auto expr = trim(*feed_expr_);
+        if (expr.empty()) {
+            throw std::runtime_error("Feed: empty expression");
+        }
+
+        // Check for negation prefix "!".
+        bool negate = false;
+        if (expr.front() == '!') {
+            negate = true;
+            expr = trim(expr.substr(1));
+        }
+
+        // Check for feed pair expression "f1&f2", "f1&&f2", "f1&&&".
+        auto amp = expr.find('&');
+        if (amp != std::string_view::npos) {
+            auto lhs_sv = trim(expr.substr(0, amp));
+            auto rest = expr.substr(amp + 1);
+
+            // Detect &&& (auto-only), && (with auto), & (cross-only)
+            bool auto_only = false;
+            bool with_auto = false;
+            if (rest.size() >= 2 && rest[0] == '&' && rest[1] == '&') {
+                auto_only = true;
+                rest = trim(rest.substr(2));
+            } else if (!rest.empty() && rest[0] == '&') {
+                with_auto = true;
+                rest = trim(rest.substr(1));
+            }
+
+            auto lhs = try_parse_int(lhs_sv);
+            if (!lhs) {
+                throw std::runtime_error("Feed: invalid feed ID '" + std::string(lhs_sv) + "'");
+            }
+
+            result.feeds.push_back(*lhs);
+
+            if (auto_only) {
+                // Self-feeds only: f1 == f2 == lhs
+                for (std::uint64_t r = 0; r < nrow; ++r) {
+                    bool match = (cols.feed1(r) == *lhs && cols.feed2(r) == *lhs);
+                    if (negate) match = !match;
+                    if (!match) selected[r] = false;
+                }
+            } else if (rest.empty() || rest == "*") {
+                // Wildcard: any row containing lhs as feed1 or feed2
+                for (std::uint64_t r = 0; r < nrow; ++r) {
+                    bool match = (cols.feed1(r) == *lhs || cols.feed2(r) == *lhs);
+                    if (negate) match = !match;
+                    if (!match) selected[r] = false;
+                }
+            } else {
+                // Specific pair
+                auto rhs = try_parse_int(rest);
+                if (!rhs) {
+                    throw std::runtime_error("Feed: invalid feed ID '" + std::string(rest) + "'");
+                }
+                result.feeds.push_back(*rhs);
+
+                for (std::uint64_t r = 0; r < nrow; ++r) {
+                    auto f1 = cols.feed1(r);
+                    auto f2 = cols.feed2(r);
+                    bool match = false;
+                    if (with_auto) {
+                        // Cross + auto: (f1,f2) pair plus self-correlations
+                        match = (f1 == *lhs && f2 == *rhs) || (f1 == *rhs && f2 == *lhs) ||
+                                (f1 == *lhs && f2 == *lhs) || (f1 == *rhs && f2 == *rhs);
+                    } else {
+                        // Cross-only
+                        match = (f1 == *lhs && f2 == *rhs) || (f1 == *rhs && f2 == *lhs);
+                    }
+                    if (negate) match = !match;
+                    if (!match) selected[r] = false;
+                }
+            }
+        } else {
+            // Simple feed ID list/range
+            auto feed_ids = parse_int_list_or_range(expr, "Feed");
+            result.feeds.assign(feed_ids.begin(), feed_ids.end());
+
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                bool match = feed_ids.count(cols.feed1(r)) > 0 || feed_ids.count(cols.feed2(r)) > 0;
+                if (negate) match = !match;
+                if (!match) selected[r] = false;
+            }
+        }
+    }
+
+    // --- TaQL expression injection ---
+    if (taql_expr_) {
+        auto expr_str = trim(*taql_expr_);
+        if (expr_str.empty()) {
+            throw std::runtime_error("TaQL: empty expression");
+        }
+
+        // Build a SELECT WHERE query and execute it via taql_execute.
+        auto query = "SELECT FROM t WHERE " + std::string(expr_str);
+        auto& main_table = ms.main_table();
+        auto taql_result = taql_execute(query, main_table);
+
+        // Convert the TaQL result rows to a set for fast lookup.
+        std::set<std::uint64_t> taql_rows(taql_result.rows.begin(), taql_result.rows.end());
+
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            if (taql_rows.count(r) == 0) {
                 selected[r] = false;
             }
         }

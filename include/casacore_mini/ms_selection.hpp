@@ -11,9 +11,9 @@
 namespace casacore_mini {
 
 /// @file
-/// @brief MS row selection via simplified casacore-compatible expressions.
+/// @brief MS row selection via casacore-compatible expressions.
 ///
-/// MsSelection supports 8 selection categories that can be combined (AND logic).
+/// MsSelection supports 12 selection categories that can be combined (AND logic).
 /// Each category filters the row set by a different criterion. The final result
 /// is the intersection of all active category selections.
 
@@ -35,6 +35,12 @@ struct MsSelectionResult {
     std::vector<std::int32_t> states;
     /// Selected correlation names or indices.
     std::vector<std::string> correlations;
+    /// Selected observation IDs.
+    std::vector<std::int32_t> observations;
+    /// Selected (sub)array IDs.
+    std::vector<std::int32_t> arrays;
+    /// Selected feed IDs.
+    std::vector<std::int32_t> feeds;
 };
 
 /// Row selection engine for MeasurementSet data.
@@ -50,7 +56,8 @@ struct MsSelectionResult {
 class MsSelection {
   public:
     /// Set antenna selection expression.
-    /// Syntax: "0", "0,1,2", "0~3" (range), "0&1" (baseline), "!5" (negate).
+    /// Syntax: "0", "0,1,2", "0~3" (range), "0&1" (baseline),
+    /// "0&&1" (with auto), "0&&&" (auto-only), "!5" (negate).
     void set_antenna_expr(std::string_view expr);
 
     /// Set field selection expression.
@@ -62,7 +69,7 @@ class MsSelection {
     void set_spw_expr(std::string_view expr);
 
     /// Set scan number selection expression.
-    /// Syntax: "1", "1,3,5", "1~5" (range), "!3" (negate).
+    /// Syntax: "1", "1,3,5", "1~5" (range), "!3" (negate), "<5", ">3".
     void set_scan_expr(std::string_view expr);
 
     /// Set time selection expression.
@@ -77,9 +84,26 @@ class MsSelection {
     /// Syntax: "XX,YY", "RR,LL", "I,Q,U,V", "0,3" (indices).
     void set_corr_expr(std::string_view expr);
 
-    /// Set state/observation/array selection expression.
+    /// Set state selection expression.
     /// Syntax: "0,1" (state IDs), "*REFERENCE*" (obs_mode pattern).
     void set_state_expr(std::string_view expr);
+
+    /// Set observation ID selection expression.
+    /// Syntax: "0", "0,1", "0~3" (range), "<5", ">2".
+    void set_observation_expr(std::string_view expr);
+
+    /// Set (sub)array ID selection expression.
+    /// Syntax: "0", "0,1", "0~2" (range), "<3", ">0".
+    void set_array_expr(std::string_view expr);
+
+    /// Set feed selection expression.
+    /// Syntax: "0", "0,1", "0&1" (feed pair cross), "0&&1" (with auto),
+    /// "0&&&" (auto-only), "!0&1" (negate pair).
+    void set_feed_expr(std::string_view expr);
+
+    /// Set raw TaQL expression for direct injection.
+    /// The expression is ANDed with other category selections during evaluation.
+    void set_taql_expr(std::string_view expr);
 
     /// Evaluate all set expressions against an MS.
     /// Returns the selected row indices and per-category results.
@@ -88,6 +112,12 @@ class MsSelection {
 
     /// Check if any selection category has been set.
     [[nodiscard]] bool has_selection() const noexcept;
+
+    /// Clear all selection expressions.
+    void clear() noexcept;
+
+    /// Reset to default state (same as clear).
+    void reset() noexcept;
 
   private:
     std::optional<std::string> antenna_expr_;
@@ -98,6 +128,10 @@ class MsSelection {
     std::optional<std::string> uvdist_expr_;
     std::optional<std::string> corr_expr_;
     std::optional<std::string> state_expr_;
+    std::optional<std::string> observation_expr_;
+    std::optional<std::string> array_expr_;
+    std::optional<std::string> feed_expr_;
+    std::optional<std::string> taql_expr_;
 };
 
 } // namespace casacore_mini
