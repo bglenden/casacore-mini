@@ -36,6 +36,7 @@ struct layout_left {};
 template <typename T, typename Extents, typename LayoutPolicy = layout_left> class mdspan {
   public:
     static constexpr std::size_t kRank = Extents::rank();
+    using index_type = typename Extents::index_type;
 
     template <typename... Dims>
     explicit mdspan(T* data, Dims... dims)
@@ -47,6 +48,14 @@ template <typename T, typename Extents, typename LayoutPolicy = layout_left> cla
                 strides_[i] = strides_[i - 1] * extents_[i - 1];
             }
         }
+    }
+
+    [[nodiscard]] static constexpr std::size_t rank() noexcept {
+        return kRank;
+    }
+
+    [[nodiscard]] constexpr std::size_t extent(std::size_t dim) const noexcept {
+        return extents_[dim];
     }
 
     template <typename... Indices> [[nodiscard]] T& operator[](Indices... indices) const {
