@@ -3,10 +3,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
-#include <mdspan>
 #include <span>
 #include <string>
 #include <vector>
+
+#include "casacore_mini/mdspan_compat.hpp"
 
 namespace casacore_mini {
 
@@ -34,16 +35,26 @@ class IPosition {
     explicit IPosition(std::vector<std::int64_t> values);
 
     /// Number of dimensions.
-    [[nodiscard]] std::size_t ndim() const noexcept { return values_.size(); }
+    [[nodiscard]] std::size_t ndim() const noexcept {
+        return values_.size();
+    }
     /// Same as `ndim()`.
-    [[nodiscard]] std::size_t size() const noexcept { return values_.size(); }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return values_.size();
+    }
     /// True if rank is 0.
-    [[nodiscard]] bool empty() const noexcept { return values_.empty(); }
+    [[nodiscard]] bool empty() const noexcept {
+        return values_.empty();
+    }
 
     /// Mutable axis access.
-    std::int64_t& operator[](std::size_t axis) { return values_[axis]; }
+    std::int64_t& operator[](std::size_t axis) {
+        return values_[axis];
+    }
     /// Const axis access.
-    const std::int64_t& operator[](std::size_t axis) const { return values_[axis]; }
+    const std::int64_t& operator[](std::size_t axis) const {
+        return values_[axis];
+    }
 
     /// Product of all axis extents. Returns 1 for rank-0.
     [[nodiscard]] std::int64_t product() const noexcept;
@@ -62,14 +73,24 @@ class IPosition {
     [[nodiscard]] bool operator!=(const IPosition& other) const = default;
 
     /// Const iterator support.
-    [[nodiscard]] auto begin() const noexcept { return values_.begin(); }
-    [[nodiscard]] auto end() const noexcept { return values_.end(); }
+    [[nodiscard]] auto begin() const noexcept {
+        return values_.begin();
+    }
+    [[nodiscard]] auto end() const noexcept {
+        return values_.end();
+    }
     /// Mutable iterator support.
-    auto begin() noexcept { return values_.begin(); }
-    auto end() noexcept { return values_.end(); }
+    auto begin() noexcept {
+        return values_.begin();
+    }
+    auto end() noexcept {
+        return values_.end();
+    }
 
     /// Raw data pointer for mdspan extent construction.
-    [[nodiscard]] const std::int64_t* data() const noexcept { return values_.data(); }
+    [[nodiscard]] const std::int64_t* data() const noexcept {
+        return values_.data();
+    }
 
     /// String representation for diagnostics: "(a, b, c)".
     [[nodiscard]] std::string to_string() const;
@@ -92,10 +113,18 @@ class Slicer {
     /// Construct with unit stride.
     Slicer(IPosition start, IPosition length);
 
-    [[nodiscard]] const IPosition& start() const noexcept { return start_; }
-    [[nodiscard]] const IPosition& length() const noexcept { return length_; }
-    [[nodiscard]] const IPosition& stride() const noexcept { return stride_; }
-    [[nodiscard]] std::size_t ndim() const noexcept { return start_.ndim(); }
+    [[nodiscard]] const IPosition& start() const noexcept {
+        return start_;
+    }
+    [[nodiscard]] const IPosition& length() const noexcept {
+        return length_;
+    }
+    [[nodiscard]] const IPosition& stride() const noexcept {
+        return stride_;
+    }
+    [[nodiscard]] std::size_t ndim() const noexcept {
+        return start_.ndim();
+    }
 
     [[nodiscard]] bool operator==(const Slicer& other) const = default;
 
@@ -116,12 +145,13 @@ inline constexpr std::size_t kMaxLatticeRank = 8;
 /// This is the primary view type for lattice data. Data pointers are
 /// non-owning; ownership lives in `LatticeArray<T>`.
 template <typename T, std::size_t Rank>
-using LatticeSpan = std::mdspan<T, std::dextents<std::size_t, Rank>, std::layout_left>;
+using LatticeSpan = mdspan_compat::mdspan<T, mdspan_compat::dextents<std::size_t, Rank>,
+                                          mdspan_compat::layout_left>;
 
 /// Const version.
 template <typename T, std::size_t Rank>
-using ConstLatticeSpan =
-    std::mdspan<const T, std::dextents<std::size_t, Rank>, std::layout_left>;
+using ConstLatticeSpan = mdspan_compat::mdspan<const T, mdspan_compat::dextents<std::size_t, Rank>,
+                                               mdspan_compat::layout_left>;
 
 // ── free functions ─────────────────────────────────────────────────────
 
@@ -133,8 +163,7 @@ using ConstLatticeSpan =
 /// Linearize a multidimensional index to a flat Fortran-order offset.
 ///
 /// @pre `index.ndim() == strides.ndim()`
-[[nodiscard]] std::int64_t linear_index(const IPosition& index,
-                                        const IPosition& strides) noexcept;
+[[nodiscard]] std::int64_t linear_index(const IPosition& index, const IPosition& strides) noexcept;
 
 /// Convert a flat Fortran-order offset back to a multidimensional index.
 ///
