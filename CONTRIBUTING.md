@@ -77,6 +77,40 @@ bash tools/check_ci_fast_build_test.sh build-fast
 
 This mirrors fast CI on push/PR (`.github/workflows/quality.yml`).
 
+## Worktree Merge Gate (Recommended Solo Flow)
+
+When developing in a worktree branch and fast-forwarding into `main`, run:
+
+```bash
+bash tools/preflight_worktree_merge.sh
+```
+
+This executes:
+
+1. Host fast CI parity (`check_ci_fast_build_test.sh`)
+2. Linux container fast CI parity (`check_ci_fast_build_test_linux_container.sh`, includes format check)
+
+To validate a different worktree from the current checkout:
+
+```bash
+bash tools/preflight_worktree_merge.sh \
+  --repo-root ../casacore-mini-worktrees/phase11
+```
+
+If Linux container tools are not yet installed locally:
+
+```bash
+bash tools/preflight_worktree_merge.sh --skip-linux
+```
+
+Then install container tooling and re-run without `--skip-linux` before merge.
+
+If you also want a host-side format check (in addition to Linux parity), add:
+
+```bash
+bash tools/preflight_worktree_merge.sh --host-format
+```
+
 For full-quality parity (nightly/manual CI), run:
 
 ```bash
@@ -94,8 +128,10 @@ This performs full checks:
 These scripts are the source of truth for CI/local parity:
 
 - `tools/check_ci_fast_build_test.sh`: fast configure/build/ctest path used on push/PR
+- `tools/check_ci_fast_build_test_linux_container.sh`: Linux container parity for fast CI (clang/libstdc++)
 - `tools/check_ci_build_lint_test_coverage.sh`: phase checks + configure/build + `ctest` + coverage gate
 - `tools/check_docs.sh`: docs configure + Doxygen build + output verification
+- `tools/preflight_worktree_merge.sh`: single command merge gate for worktree branches
 
 `quality.yml` and `quality-full.yml` call these scripts directly.
 

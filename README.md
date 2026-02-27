@@ -182,6 +182,16 @@ This runs `tools/pre_push_quality.sh` before every push, which executes the
 full-quality checks (`format`, `build-lint-test-coverage`, and `docs`) locally
 before upload.
 
+## Worktree merge preflight (recommended for solo branch/worktree flow)
+
+Before fast-forwarding a worktree branch into `main`, run:
+
+```bash
+bash tools/preflight_worktree_merge.sh
+```
+
+This adds Linux container parity (`clang` + `libstdc++`) on top of host checks.
+
 ## Phase 0 Interop Tooling
 
 Phase 0 interoperability artifacts and tooling are in:
