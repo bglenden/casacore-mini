@@ -246,17 +246,22 @@ Record DirectionCoordinate::save() const {
     rec.set("coordinate_type", RecordValue(std::string("direction")));
     rec.set("system", RecordValue(std::string(direction_ref_to_string(ref_))));
     rec.set("projection", RecordValue(projection_type_to_string(proj_.type)));
-    if (!proj_.parameters.empty()) {
-        rec.set("projection_parameters",
-                RecordValue(RecordValue::double_array{
-                    {static_cast<std::uint64_t>(proj_.parameters.size())}, proj_.parameters}));
-    }
+    // casacore requires projection_parameters even when empty.
+    rec.set("projection_parameters",
+            RecordValue(RecordValue::double_array{
+                {static_cast<std::uint64_t>(proj_.parameters.size())}, proj_.parameters}));
     rec.set("crval", RecordValue(RecordValue::double_array{{2}, {ref_lon_rad_, ref_lat_rad_}}));
     rec.set("crpix", RecordValue(RecordValue::double_array{{2}, {crpix_x_, crpix_y_}}));
     rec.set("cdelt", RecordValue(RecordValue::double_array{{2}, {inc_lon_rad_, inc_lat_rad_}}));
-    if (!pc_.empty()) {
-        rec.set("pc", RecordValue(RecordValue::double_array{
-                          {static_cast<std::uint64_t>(pc_.size())}, pc_}));
+    // PC matrix — casacore requires 2D (2×2).
+    {
+        std::vector<double> pc_data;
+        if (pc_.size() >= 4) {
+            pc_data = pc_;
+        } else {
+            pc_data = {1.0, 0.0, 0.0, 1.0};
+        }
+        rec.set("pc", RecordValue(RecordValue::double_array{{2, 2}, std::move(pc_data)}));
     }
     rec.set("axes", RecordValue(RecordValue::string_array{{2}, world_axis_names()}));
     rec.set("units", RecordValue(RecordValue::string_array{{2}, {"rad", "rad"}}));

@@ -1,0 +1,16 @@
+## New files
+tests/mutation_persist_test.cpp         — 54-assertion mutation/persistence test suite
+
+## Modified files
+include/casacore_mini/tiled_stman.hpp   — write_double_cell, write_complex_cell, read-back methods
+include/casacore_mini/lattice.hpp       — PagedArray writable open param
+include/casacore_mini/image.hpp         — PagedImage writable open param
+src/tiled_stman.cpp                     — TSM writer double/complex/read-back implementations
+src/table.cpp                           — open_rw TSM support, read-after-write consistency,
+                                          double/complex write TSM routing
+src/lattice.cpp                         — PagedArray writable open constructor
+src/image.cpp                           — PagedImage writable open constructor
+CMakeLists.txt                          — mutation_persist_test target
+
+## Check script
+tools/check_phase10_w8.sh               — W8 gate script

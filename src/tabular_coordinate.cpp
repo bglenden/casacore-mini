@@ -113,8 +113,20 @@ std::vector<double> TabularCoordinate::to_pixel(const std::vector<double>& world
 Record TabularCoordinate::save() const {
     Record rec;
     rec.set("coordinate_type", RecordValue(std::string("tabular")));
-    rec.set("name", RecordValue(name_));
-    rec.set("unit", RecordValue(unit_));
+    // Write fields in the order casacore expects.
+    auto rv = reference_value();
+    auto rp = reference_pixel();
+    auto inc = increment();
+    rec.set("crval", RecordValue(RecordValue::double_array{
+                         {static_cast<std::uint64_t>(rv.size())}, rv}));
+    rec.set("crpix", RecordValue(RecordValue::double_array{
+                         {static_cast<std::uint64_t>(rp.size())}, rp}));
+    rec.set("cdelt", RecordValue(RecordValue::double_array{
+                         {static_cast<std::uint64_t>(inc.size())}, inc}));
+    // PC matrix: 1×1 identity for a single-axis coordinate.
+    rec.set("pc", RecordValue(RecordValue::double_array{{1, 1}, {1.0}}));
+    rec.set("axes", RecordValue(RecordValue::string_array{{1}, {name_}}));
+    rec.set("units", RecordValue(RecordValue::string_array{{1}, {unit_}}));
     rec.set("pixelvalues", RecordValue(RecordValue::double_array{
                                {static_cast<std::uint64_t>(pixel_values_.size())}, pixel_values_}));
     rec.set("worldvalues", RecordValue(RecordValue::double_array{
@@ -138,16 +150,31 @@ std::unique_ptr<TabularCoordinate> TabularCoordinate::from_record(const Record& 
         return {};
     };
 
+    // Accept both casacore ("axes"/"units" arrays) and legacy mini ("name"/"unit" scalars).
     std::string name;
-    if (const auto* v = rec.find("name")) {
-        if (const auto* sp = std::get_if<std::string>(&v->storage())) {
-            name = *sp;
+    if (const auto* v = rec.find("axes")) {
+        if (const auto* a = std::get_if<RecordValue::string_array>(&v->storage())) {
+            if (!a->elements.empty()) name = a->elements[0];
+        }
+    }
+    if (name.empty()) {
+        if (const auto* v = rec.find("name")) {
+            if (const auto* sp = std::get_if<std::string>(&v->storage())) {
+                name = *sp;
+            }
         }
     }
     std::string unit;
-    if (const auto* v = rec.find("unit")) {
-        if (const auto* sp = std::get_if<std::string>(&v->storage())) {
-            unit = *sp;
+    if (const auto* v = rec.find("units")) {
+        if (const auto* a = std::get_if<RecordValue::string_array>(&v->storage())) {
+            if (!a->elements.empty()) unit = a->elements[0];
+        }
+    }
+    if (unit.empty()) {
+        if (const auto* v = rec.find("unit")) {
+            if (const auto* sp = std::get_if<std::string>(&v->storage())) {
+                unit = *sp;
+            }
         }
     }
 

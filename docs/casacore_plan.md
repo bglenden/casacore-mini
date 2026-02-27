@@ -237,9 +237,9 @@ Required feature coverage:
   13/20 interop matrix cells pass (self-roundtrips + most casacore→mini;
   mini→casacore blocked by table format gap). 57 unit tests, 1 hardening
   test suite. See `docs/phase9/exit_report.md`.
-- Phase 10 (pending): full Lattices + Images implementation, including lattice
-  expression language compatibility. Detailed wave plan:
-  `docs/phase10/plan.md`.
+- Phase 10 (complete): full Lattices + Images implementation, including LEL
+  compatibility, region/mask persistence, 20/20 interop matrix, 78 tests.
+  See `docs/phase10/exit_report.md`.
 - Phase 11 (pending, planned terminal phase): remaining capabilities closure;
   first wave is a full missing-capabilities audit with explicit
   include/exclude decisions, followed by implementation of accepted remainder.

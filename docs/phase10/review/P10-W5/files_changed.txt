@@ -1,0 +1,16 @@
+New files:
+  include/casacore_mini/lattice_region.hpp
+  include/casacore_mini/image_region.hpp
+  src/lattice_region.cpp
+  src/image_region.cpp
+  tests/lattice_region_test.cpp
+  tests/image_region_test.cpp
+  tools/check_phase10_w5.sh
+  docs/phase10/review/P10-W5/summary.md
+  docs/phase10/review/P10-W5/files_changed.txt
+  docs/phase10/review/P10-W5/decisions.md
+  docs/phase10/review/P10-W5/open_issues.md
+
+Modified files:
+  CMakeLists.txt  (added lattice_region.cpp, image_region.cpp to library;
+                   added lattice_region_test, image_region_test targets)

@@ -57,13 +57,9 @@ CoordinateType string_to_coordinate_type(std::string_view s) {
     throw std::invalid_argument("Unknown coordinate type: " + std::string(s));
 }
 
-std::unique_ptr<Coordinate> Coordinate::restore(const Record& rec) {
-    const auto* type_str = find_string(rec, "coordinate_type");
-    if (type_str == nullptr) {
-        throw std::invalid_argument("Coordinate::restore: missing 'coordinate_type' field");
-    }
+namespace {
 
-    CoordinateType ct = string_to_coordinate_type(*type_str);
+std::unique_ptr<Coordinate> restore_by_type(const Record& rec, CoordinateType ct) {
     switch (ct) {
     case CoordinateType::direction:
         return DirectionCoordinate::from_record(rec);
@@ -78,8 +74,25 @@ std::unique_ptr<Coordinate> Coordinate::restore(const Record& rec) {
     case CoordinateType::quality:
         return QualityCoordinate::from_record(rec);
     }
+    throw std::invalid_argument("Coordinate::restore: unhandled coordinate type");
+}
 
-    throw std::invalid_argument("Coordinate::restore: unhandled type " + *type_str);
+} // namespace
+
+std::unique_ptr<Coordinate> Coordinate::restore(const Record& rec) {
+    const auto* type_str = find_string(rec, "coordinate_type");
+    if (type_str == nullptr) {
+        throw std::invalid_argument("Coordinate::restore: missing 'coordinate_type' field");
+    }
+    return restore_by_type(rec, string_to_coordinate_type(*type_str));
+}
+
+std::unique_ptr<Coordinate> Coordinate::restore(const Record& rec,
+                                                 CoordinateType type_hint) {
+    // Prefer the embedded type string if present; fall back to the hint.
+    const auto* type_str = find_string(rec, "coordinate_type");
+    CoordinateType ct = (type_str != nullptr) ? string_to_coordinate_type(*type_str) : type_hint;
+    return restore_by_type(rec, ct);
 }
 
 } // namespace casacore_mini

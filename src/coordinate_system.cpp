@@ -129,6 +129,70 @@ CoordinateSystem::find_pixel_axis(std::size_t pixel_axis) const {
     return std::nullopt;
 }
 
+std::vector<double> CoordinateSystem::to_world(
+    const std::vector<double>& pixel) const {
+    std::vector<double> world(total_world_, 0.0);
+    // For each coordinate, extract its pixel axes, convert, and scatter
+    // results to the system-level world axes.
+    for (const auto& entry : coords_) {
+        const auto n_pix = entry.coord->n_pixel_axes();
+        const auto n_wld = entry.coord->n_world_axes();
+
+        // Gather pixel values for this coordinate.
+        std::vector<double> coord_pixel(n_pix, 0.0);
+        for (std::size_t a = 0; a < n_pix; ++a) {
+            auto sys_axis = entry.pixel_map[a];
+            if (sys_axis >= 0 && static_cast<std::size_t>(sys_axis) < pixel.size()) {
+                coord_pixel[a] = pixel[static_cast<std::size_t>(sys_axis)];
+            } else if (a < entry.pixel_replace.size()) {
+                coord_pixel[a] = entry.pixel_replace[a];
+            }
+        }
+
+        auto coord_world = entry.coord->to_world(coord_pixel);
+
+        // Scatter world values to system axes.
+        for (std::size_t a = 0; a < n_wld && a < coord_world.size(); ++a) {
+            auto sys_axis = entry.world_map[a];
+            if (sys_axis >= 0 && static_cast<std::size_t>(sys_axis) < world.size()) {
+                world[static_cast<std::size_t>(sys_axis)] = coord_world[a];
+            }
+        }
+    }
+    return world;
+}
+
+std::vector<double> CoordinateSystem::to_pixel(
+    const std::vector<double>& world) const {
+    std::vector<double> pixel(total_pixel_, 0.0);
+    for (const auto& entry : coords_) {
+        const auto n_pix = entry.coord->n_pixel_axes();
+        const auto n_wld = entry.coord->n_world_axes();
+
+        // Gather world values for this coordinate.
+        std::vector<double> coord_world(n_wld, 0.0);
+        for (std::size_t a = 0; a < n_wld; ++a) {
+            auto sys_axis = entry.world_map[a];
+            if (sys_axis >= 0 && static_cast<std::size_t>(sys_axis) < world.size()) {
+                coord_world[a] = world[static_cast<std::size_t>(sys_axis)];
+            } else if (a < entry.world_replace.size()) {
+                coord_world[a] = entry.world_replace[a];
+            }
+        }
+
+        auto coord_pixel = entry.coord->to_pixel(coord_world);
+
+        // Scatter pixel values to system axes.
+        for (std::size_t a = 0; a < n_pix && a < coord_pixel.size(); ++a) {
+            auto sys_axis = entry.pixel_map[a];
+            if (sys_axis >= 0 && static_cast<std::size_t>(sys_axis) < pixel.size()) {
+                pixel[static_cast<std::size_t>(sys_axis)] = coord_pixel[a];
+            }
+        }
+    }
+    return pixel;
+}
+
 Record CoordinateSystem::save() const {
     Record rec;
 
@@ -142,17 +206,23 @@ Record CoordinateSystem::save() const {
 
         rec.set(prefix, RecordValue::from_record(entry.coord->save()));
 
-        // Axis maps.
-        auto to_int64_arr = [](const std::vector<std::int64_t>& v) -> RecordValue {
-            return RecordValue(RecordValue::int64_array{{static_cast<std::uint64_t>(v.size())}, v});
+        // Axis maps — written as Int32 arrays for upstream casacore compatibility.
+        auto to_int32_arr = [](const std::vector<std::int64_t>& v) -> RecordValue {
+            RecordValue::int32_array arr;
+            arr.shape = {static_cast<std::uint64_t>(v.size())};
+            arr.elements.reserve(v.size());
+            for (auto x : v) {
+                arr.elements.push_back(static_cast<std::int32_t>(x));
+            }
+            return RecordValue(std::move(arr));
         };
         auto to_double_arr = [](const std::vector<double>& v) -> RecordValue {
             return RecordValue(
                 RecordValue::double_array{{static_cast<std::uint64_t>(v.size())}, v});
         };
 
-        rec.set("worldmap" + std::to_string(i), to_int64_arr(entry.world_map));
-        rec.set("pixelmap" + std::to_string(i), to_int64_arr(entry.pixel_map));
+        rec.set("worldmap" + std::to_string(i), to_int32_arr(entry.world_map));
+        rec.set("pixelmap" + std::to_string(i), to_int32_arr(entry.pixel_map));
         rec.set("worldreplace" + std::to_string(i), to_double_arr(entry.world_replace));
         rec.set("pixelreplace" + std::to_string(i), to_double_arr(entry.pixel_replace));
     }
@@ -169,18 +239,26 @@ CoordinateSystem CoordinateSystem::restore(const Record& rec) {
     // Scan entries for coordinate sub-records.
     // Keys are like "direction0", "spectral1", "stokes2", etc.
     // We iterate numerically from 0 until we stop finding coordinates.
+    struct PrefixType {
+        const char* prefix;
+        CoordinateType type;
+    };
+    static const PrefixType prefix_types[] = {
+        {"direction", CoordinateType::direction}, {"spectral", CoordinateType::spectral},
+        {"stokes", CoordinateType::stokes},       {"linear", CoordinateType::linear},
+        {"tabular", CoordinateType::tabular},      {"quality", CoordinateType::quality},
+    };
+
     for (std::size_t i = 0;; ++i) {
         // Try all known type prefixes.
         const Record* coord_rec = nullptr;
-        std::string found_key;
+        CoordinateType found_type{};
 
-        static const char* prefixes[] = {"direction", "spectral", "stokes",
-                                         "linear",    "tabular",  "quality"};
-        for (const auto* pfx : prefixes) {
-            std::string key = std::string(pfx) + std::to_string(i);
+        for (const auto& pt : prefix_types) {
+            std::string key = std::string(pt.prefix) + std::to_string(i);
             coord_rec = find_sub_record(rec, key);
             if (coord_rec != nullptr) {
-                found_key = key;
+                found_type = pt.type;
                 break;
             }
         }
@@ -189,7 +267,10 @@ CoordinateSystem CoordinateSystem::restore(const Record& rec) {
             break; // No more coordinates.
         }
 
-        auto coord = Coordinate::restore(*coord_rec);
+        // Pass the type hint so upstream casacore records (which lack
+        // the 'coordinate_type' field inside the sub-record) can still
+        // be restored correctly.
+        auto coord = Coordinate::restore(*coord_rec, found_type);
         std::size_t idx = cs.add_coordinate(std::move(coord));
 
         // Override axis maps if present.

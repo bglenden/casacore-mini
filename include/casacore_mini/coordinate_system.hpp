@@ -61,6 +61,14 @@ class CoordinateSystem {
         obs_info_ = std::move(info);
     }
 
+    /// Convert pixel coordinates to world coordinates.
+    /// The input vector must have n_pixel_axes() elements.
+    [[nodiscard]] std::vector<double> to_world(const std::vector<double>& pixel) const;
+
+    /// Convert world coordinates to pixel coordinates.
+    /// The input vector must have n_world_axes() elements.
+    [[nodiscard]] std::vector<double> to_pixel(const std::vector<double>& world) const;
+
     /// Serialize to Record matching upstream CoordinateSystem::save format.
     [[nodiscard]] Record save() const;
     /// Restore from Record.

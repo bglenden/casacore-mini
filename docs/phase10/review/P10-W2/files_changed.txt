@@ -1,0 +1,7 @@
+CMakeLists.txt
+include/casacore_mini/lattice_shape.hpp
+include/casacore_mini/lattice_array.hpp
+include/casacore_mini/ms_writer.hpp
+src/lattice_shape.cpp
+tests/lattice_shape_test.cpp
+tools/check_phase10_w2.sh

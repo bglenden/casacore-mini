@@ -1,0 +1,8 @@
+New:
+  tests/lel_parser_test.cpp
+
+Modified:
+  include/casacore_mini/lattice_expr.hpp  (added parser, complex nodes, value/mask, promotion)
+  src/lattice_expr.cpp  (parser implementation, complex/mask/promote/bool-reduce impls)
+  CMakeLists.txt  (added lel_parser_test target)
+  tools/check_phase10_w7.sh  (updated from stub to real gates)

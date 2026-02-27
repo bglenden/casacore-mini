@@ -46,12 +46,25 @@ std::vector<double> SpectralCoordinate::to_pixel(const std::vector<double>& worl
 Record SpectralCoordinate::save() const {
     Record rec;
     rec.set("coordinate_type", RecordValue(std::string("spectral")));
+
+    // Version 2 format expected by casacore's SpectralCoordinate::restore().
+    rec.set("version", RecordValue(static_cast<std::int32_t>(2)));
     rec.set("system", RecordValue(std::string(frequency_ref_to_string(ref_frame_))));
-    rec.set("crval", RecordValue(crval_hz_));
-    rec.set("crpix", RecordValue(crpix_));
-    rec.set("cdelt", RecordValue(cdelt_hz_));
     rec.set("restfreq", RecordValue(rest_freq_hz_));
+    rec.set("restfreqs",
+            RecordValue(RecordValue::double_array{{1}, {rest_freq_hz_}}));
     rec.set("unit", RecordValue(std::string("Hz")));
+    rec.set("name", RecordValue(std::string("Frequency")));
+
+    // WCS sub-record with scalar crval/crpix/cdelt/pc/ctype.
+    Record wcs;
+    wcs.set("crval", RecordValue(crval_hz_));
+    wcs.set("crpix", RecordValue(crpix_));
+    wcs.set("cdelt", RecordValue(cdelt_hz_));
+    wcs.set("pc", RecordValue(1.0));
+    wcs.set("ctype", RecordValue(std::string("FREQ")));
+    rec.set("wcs", RecordValue::from_record(wcs));
+
     return rec;
 }
 
@@ -68,8 +81,8 @@ std::unique_ptr<SpectralCoordinate> SpectralCoordinate::from_record(const Record
         }
     }
 
-    auto get_double = [&](const char* key, double dflt) -> double {
-        const auto* v = rec.find(key);
+    auto get_double = [](const Record& r, const char* key, double dflt) -> double {
+        const auto* v = r.find(key);
         if (v == nullptr) {
             return dflt;
         }
@@ -79,9 +92,24 @@ std::unique_ptr<SpectralCoordinate> SpectralCoordinate::from_record(const Record
         return dflt;
     };
 
-    return std::make_unique<SpectralCoordinate>(ref, get_double("crval", 0.0),
-                                                get_double("cdelt", 1.0), get_double("crpix", 0.0),
-                                                get_double("restfreq", 0.0));
+    double restfreq = get_double(rec, "restfreq", 0.0);
+
+    // Version 2: read from "wcs" sub-record if present.
+    if (const auto* wv = rec.find("wcs")) {
+        if (const auto* wp = std::get_if<RecordValue::record_ptr>(&wv->storage());
+            wp != nullptr && *wp != nullptr) {
+            const auto& wrec = **wp;
+            return std::make_unique<SpectralCoordinate>(
+                ref, get_double(wrec, "crval", 0.0),
+                get_double(wrec, "cdelt", 1.0),
+                get_double(wrec, "crpix", 0.0), restfreq);
+        }
+    }
+
+    // Legacy / v1 fallback: crval/cdelt/crpix at top level.
+    return std::make_unique<SpectralCoordinate>(ref, get_double(rec, "crval", 0.0),
+                                                get_double(rec, "cdelt", 1.0),
+                                                get_double(rec, "crpix", 0.0), restfreq);
 }
 
 } // namespace casacore_mini

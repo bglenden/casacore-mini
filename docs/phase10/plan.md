@@ -155,18 +155,18 @@ Gate rules:
 
 | ID | Status | Scope | Required deliverables |
 |---|---|---|---|
-| `P10-W1` | Pending | Contract freeze | API map, artifact inventory, LEL coverage contract, dependency decisions, check scaffolding |
-| `P10-W2` | Pending | Storage/view substrate | shape, stride, slicing, alignment, shared-storage semantics |
-| `P10-W3` | Pending | Lattice core | lattice model classes, traversal semantics, baseline lattice persistence tests |
-| `P10-W4` | Pending | Image core | image interfaces/models, metadata lifecycle, table persistence integration |
-| `P10-W5` | Pending | Regions/masks | region representations, mask persistence, region subset behavior |
-| `P10-W6` | Pending | LEL evaluator foundation | expression AST and evaluator core with deterministic semantics |
-| `P10-W7` | Pending | LEL completeness | required parser/operator/function categories and diagnostics |
-| `P10-W8` | Pending | Mutation integrity | image/lattice updates, persistence roundtrips, corruption guards |
-| `P10-W9` | Pending | Utility parity | required utility behaviors used by image/lattice workflows |
-| `P10-W10` | Pending | Matrix parity | strict 2x2 interop matrix for required image/lattice artifacts |
-| `P10-W11` | Pending | Hardening | malformed/corrupt input hardening, docs/API convergence, coverage expansion |
-| `P10-W12` | Pending | Closeout | exit report, status reconciliation, Phase-11 entry gate declaration |
+| `P10-W1` | Done | Contract freeze | API map, artifact inventory, LEL coverage contract, dependency decisions, check scaffolding |
+| `P10-W2` | Done | Storage/view substrate | shape, stride, slicing, alignment, shared-storage semantics |
+| `P10-W3` | Done | Lattice core | lattice model classes, traversal semantics, baseline lattice persistence tests |
+| `P10-W4` | Done | Image core | image interfaces/models, metadata lifecycle, table persistence integration |
+| `P10-W5` | Done | Regions/masks | region representations, mask persistence, region subset behavior |
+| `P10-W6` | Done | LEL evaluator foundation | expression AST and evaluator core with deterministic semantics |
+| `P10-W7` | Done | LEL completeness | required parser/operator/function categories and diagnostics |
+| `P10-W8` | Done | Mutation integrity | image/lattice updates, persistence roundtrips, corruption guards |
+| `P10-W9` | Done | Utility parity | required utility behaviors used by image/lattice workflows |
+| `P10-W10` | Done | Matrix parity | strict 2x2 interop matrix for required image/lattice artifacts |
+| `P10-W11` | Done | Hardening | malformed/corrupt input hardening, docs/API convergence, coverage expansion |
+| `P10-W12` | Done | Closeout | exit report, status reconciliation, Phase-11 entry gate declaration |
 
 ## Wave details (implementation-ready)
 

@@ -21,20 +21,34 @@ Record LinearCoordinate::save() const {
     Record rec;
     rec.set("coordinate_type", RecordValue(std::string("linear")));
 
-    rec.set("names", RecordValue(RecordValue::string_array{
-                         {static_cast<std::uint64_t>(names_.size())}, names_}));
-    rec.set("units", RecordValue(RecordValue::string_array{
-                         {static_cast<std::uint64_t>(units_.size())}, units_}));
     rec.set("crval", RecordValue(RecordValue::double_array{
                          {static_cast<std::uint64_t>(xform_.crval.size())}, xform_.crval}));
     rec.set("crpix", RecordValue(RecordValue::double_array{
                          {static_cast<std::uint64_t>(xform_.crpix.size())}, xform_.crpix}));
     rec.set("cdelt", RecordValue(RecordValue::double_array{
                          {static_cast<std::uint64_t>(xform_.cdelt.size())}, xform_.cdelt}));
-    if (!xform_.pc.empty()) {
-        rec.set("pc", RecordValue(RecordValue::double_array{
-                          {static_cast<std::uint64_t>(xform_.pc.size())}, xform_.pc}));
+
+    // PC matrix — casacore requires this field as a 2D (n×n) array.
+    // Generate identity if absent.
+    {
+        const auto n = static_cast<std::uint64_t>(xform_.crval.size());
+        std::vector<double> pc_data;
+        if (!xform_.pc.empty()) {
+            pc_data = xform_.pc;
+        } else {
+            pc_data.resize(n * n, 0.0);
+            for (std::uint64_t i = 0; i < n; ++i) {
+                pc_data[i * n + i] = 1.0;
+            }
+        }
+        rec.set("pc", RecordValue(RecordValue::double_array{{n, n}, std::move(pc_data)}));
     }
+
+    // casacore uses "axes" (not "names") for world axis names.
+    rec.set("axes", RecordValue(RecordValue::string_array{
+                        {static_cast<std::uint64_t>(names_.size())}, names_}));
+    rec.set("units", RecordValue(RecordValue::string_array{
+                         {static_cast<std::uint64_t>(units_.size())}, units_}));
     return rec;
 }
 
@@ -70,7 +84,12 @@ std::unique_ptr<LinearCoordinate> LinearCoordinate::from_record(const Record& re
     xf.cdelt = get_doubles("cdelt");
     xf.pc = get_doubles("pc");
 
-    return std::make_unique<LinearCoordinate>(get_strings("names"), get_strings("units"),
+    // casacore uses "axes"; accept "names" as fallback for older mini images.
+    auto axis_names = get_strings("axes");
+    if (axis_names.empty()) {
+        axis_names = get_strings("names");
+    }
+    return std::make_unique<LinearCoordinate>(std::move(axis_names), get_strings("units"),
                                               std::move(xf));
 }
 

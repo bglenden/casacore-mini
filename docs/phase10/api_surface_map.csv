@@ -1,0 +1,65 @@
+group,upstream_class,casacore_mini_symbol,header,status,exercising_test
+lattice_core,Lattice<T>,Lattice<T>,lattice.hpp,done,lattice_test
+lattice_core,MaskedLattice<T>,MaskedLattice<T>,lattice.hpp,done,lattice_test
+lattice_core,ArrayLattice<T>,ArrayLattice<T>,lattice.hpp,done,lattice_test
+lattice_core,PagedArray<T>,PagedArray<T>,lattice.hpp,done,lattice_test
+lattice_core,SubLattice<T>,SubLattice<T>,lattice.hpp,done,lattice_test
+lattice_core,TempLattice<T>,TempLattice<T>,lattice.hpp,done,lattice_test
+lattice_core,LatticeConcat<T>,LatticeConcat<T>,lattice.hpp,done,lattice_test
+lattice_core,RebinLattice<T>,RebinLattice<T>,lattice.hpp,done,lattice_test
+lattice_traversal,LatticeIterator<T>,LatticeIterator<T>,lattice.hpp,done,lattice_test
+lattice_traversal,RO_LatticeIterator<T>,LatticeIterator<T> (const),lattice.hpp,done,lattice_test
+lattice_traversal,LatticeNavigator,collapsed into LatticeIterator<T>,lattice.hpp,done,lattice_test
+lattice_traversal,LatticeStepper,collapsed into LatticeIterator<T>,lattice.hpp,done,lattice_test
+lattice_traversal,TileStepper,collapsed into LatticeIterator<T>,lattice.hpp,done,lattice_test
+lattice_traversal,TiledLineStepper,collapsed into LatticeIterator<T>,lattice.hpp,done,lattice_test
+lattice_traversal,TiledShape,collapsed into IPosition,lattice.hpp,done,lattice_test
+lel_core,LatticeExpr<T>,LatticeExpr<T>,lattice_expr.hpp,done,lattice_expr_test
+lel_core,LatticeExprNode,LatticeExprNode,lattice_expr.hpp,done,lattice_expr_test
+lel_core,LELInterface<T>,LelNode<T>,lattice_expr.hpp,done,lattice_expr_test
+lel_ops,LELBinary,LelBinaryOp,lattice_expr.hpp,done,lattice_expr_test
+lel_ops,LELUnary,LelUnaryOp,lattice_expr.hpp,done,lattice_expr_test
+lel_ops,LELFunction,LelFunction,lattice_expr.hpp,done,lattice_expr_test
+lel_ops,LELCondition,LelCondition,lattice_expr.hpp,done,lattice_expr_test
+lel_ops,LELScalar<T>,LelScalar<T>,lattice_expr.hpp,done,lattice_expr_test
+lel_ops,LELArray<T>,LelArray<T>,lattice_expr.hpp,done,lattice_expr_test
+lel_enums,LELBinaryEnums,LelBinaryOp enum,lattice_expr.hpp,done,lattice_expr_test
+lel_enums,LELUnaryEnums,LelUnaryOp enum,lattice_expr.hpp,done,lattice_expr_test
+lel_enums,LELFunctionEnums,LelFunction enum,lattice_expr.hpp,done,lattice_expr_test
+image_core,ImageInterface<T>,ImageInterface<T>,image.hpp,done,image_test
+image_core,PagedImage<T>,PagedImage<T>,image.hpp,done,image_test
+image_core,TempImage<T>,TempImage<T>,image.hpp,done,image_test
+image_core,SubImage<T>,SubImage<T>,image.hpp,done,image_test
+image_core,ImageExpr<T>,ImageExpr<T>,image.hpp,done,image_test
+image_core,ImageConcat<T>,ImageConcat<T>,image.hpp,done,image_test
+image_meta,ImageInfo,ImageInfo,image.hpp,done,image_test
+image_meta,ImageBeamSet,ImageBeamSet,image.hpp,done,image_test
+image_meta,MaskSpecifier,MaskSpecifier,image.hpp,done,image_test
+image_meta,ImageSummary,ImageSummary,image.hpp,done,image_test
+image_utility,ImageUtilities,image_utilities(),image.hpp,done,image_test
+image_utility,ImageRegrid<T>,image_regrid(),image.hpp,done,image_test
+lc_region,LCRegion,LcRegion,lattice_region.hpp,done,lattice_region_test
+lc_region,LCBox,LcBox,lattice_region.hpp,done,lattice_region_test
+lc_region,LCPixelSet,LcPixelSet,lattice_region.hpp,done,lattice_region_test
+lc_region,LCPolygon,LcPolygon,lattice_region.hpp,done,lattice_region_test
+lc_region,LCEllipsoid,LcEllipsoid,lattice_region.hpp,done,lattice_region_test
+lc_region,LCMask,LcMask,lattice_region.hpp,done,lattice_region_test
+lc_region,LCPagedMask,LcPagedMask,lattice_region.hpp,done,lattice_region_test
+lc_region,LCIntersection,LcIntersection,lattice_region.hpp,done,lattice_region_test
+lc_region,LCUnion,LcUnion,lattice_region.hpp,done,lattice_region_test
+lc_region,LCDifference,LcDifference,lattice_region.hpp,done,lattice_region_test
+lc_region,LCComplement,LcComplement,lattice_region.hpp,done,lattice_region_test
+lc_region,LCExtension,LcExtension,lattice_region.hpp,done,lattice_region_test
+lc_region,LatticeRegion,LatticeRegion,lattice_region.hpp,done,lattice_region_test
+wc_region,WCRegion,WcRegion,image_region.hpp,done,image_region_test
+wc_region,WCBox,WcBox,image_region.hpp,done,image_region_test
+wc_region,WCPolygon,WcPolygon,image_region.hpp,done,image_region_test
+wc_region,WCEllipsoid,WcEllipsoid,image_region.hpp,done,image_region_test
+wc_region,WCIntersection,WcIntersection,image_region.hpp,done,image_region_test
+wc_region,WCUnion,WcUnion,image_region.hpp,done,image_region_test
+wc_region,WCDifference,WcDifference,image_region.hpp,done,image_region_test
+wc_region,WCComplement,WcComplement,image_region.hpp,done,image_region_test
+wc_region,WCLELMask,lel_mask() free function,lattice_expr.hpp,done,lel_parser_test
+wc_region,ImageRegion,ImageRegion,image_region.hpp,done,image_region_test
+wc_region,RegionManager,RegionManager,image_region.hpp,done,image_region_test
+wc_region,RegionHandler,RegionHandler,image_region.hpp,done,image_region_test

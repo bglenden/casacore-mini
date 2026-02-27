@@ -1,0 +1,5 @@
+Phase 10 W3 gate: lattice core model and traversal
+lattice_test: 58 passed, 0 failed
+Phase 10 W3 gate passed
+
+Full regression: 69/69 tests passed, 0 tests failed

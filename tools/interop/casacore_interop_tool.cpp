@@ -35,6 +35,20 @@
 #include <casacore/ms/MeasurementSets/MSStateColumns.h>
 #include <casacore/ms/MeasurementSets/MeasurementSet.h>
 
+#include <casacore/coordinates/Coordinates/CoordinateSystem.h>
+#include <casacore/coordinates/Coordinates/DirectionCoordinate.h>
+#include <casacore/coordinates/Coordinates/LinearCoordinate.h>
+#include <casacore/coordinates/Coordinates/Projection.h>
+#include <casacore/coordinates/Coordinates/SpectralCoordinate.h>
+#include <casacore/images/Images/PagedImage.h>
+#include <casacore/images/Images/SubImage.h>
+#include <casacore/images/Regions/ImageRegion.h>
+#include <casacore/lattices/LRegions/LCBox.h>
+#include <casacore/lattices/LRegions/LCPagedMask.h>
+#include <casacore/lattices/Lattices/ArrayLattice.h>
+#include <casacore/measures/Measures/MDirection.h>
+#include <casacore/measures/Measures/MFrequency.h>
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -3044,6 +3058,414 @@ void dump_oracle_ms(const std::string& ms_path, const std::string& output_path) 
 }
 
 // =====================================================================
+// Phase 10: Image interop produce/verify
+// =====================================================================
+
+void img_verify_check(bool cond, const std::string& artifact, const std::string& detail) {
+    if (!cond)
+        throw std::runtime_error(artifact + ": " + detail);
+}
+
+// Helper: build a 2D linear CoordinateSystem.
+[[nodiscard]] casacore::CoordinateSystem make_linear_cs_2d() {
+    casacore::CoordinateSystem cs;
+    casacore::Vector<casacore::String> names(2);
+    names[0] = "Axis1";
+    names[1] = "Axis2";
+    casacore::Vector<casacore::String> units(2, casacore::String("pixel"));
+    casacore::Vector<casacore::Double> refVal(2, 0.0);
+    casacore::Vector<casacore::Double> inc(2, 1.0);
+    casacore::Matrix<casacore::Double> pc(2, 2, 0.0);
+    pc.diagonal() = 1.0;
+    casacore::Vector<casacore::Double> refPix(2, 0.0);
+    casacore::LinearCoordinate lc(names, units, refVal, inc, pc, refPix);
+    cs.addCoordinate(lc);
+    return cs;
+}
+
+// Helper: build a 3D CoordinateSystem with Direction + Spectral.
+[[nodiscard]] casacore::CoordinateSystem make_dir_spectral_cs_3d() {
+    casacore::CoordinateSystem cs;
+    casacore::Matrix<casacore::Double> xform(2, 2, 0.0);
+    xform.diagonal() = 1.0;
+    casacore::DirectionCoordinate dc(
+        casacore::MDirection::J2000,
+        casacore::Projection(casacore::Projection::SIN),
+        0.0, 0.0,
+        -1e-5, 1e-5,
+        xform,
+        0.0, 0.0);
+    cs.addCoordinate(dc);
+    casacore::SpectralCoordinate sc(
+        casacore::MFrequency::LSRK,
+        1.4e9, 1e6, 0.0);
+    cs.addCoordinate(sc);
+    return cs;
+}
+
+// --------------- img-minimal ---------------
+
+void produce_img_minimal(const std::string& output) {
+    const std::string path = output + "/img_minimal.img";
+    std::filesystem::remove_all(path);
+    std::filesystem::create_directories(output);
+
+    casacore::CoordinateSystem cs = make_linear_cs_2d();
+    casacore::TiledShape tshape(casacore::IPosition(2, 64, 64));
+    casacore::PagedImage<casacore::Float> img(tshape, cs, path);
+    img.setUnits(casacore::Unit("Jy/beam"));
+
+    casacore::Array<casacore::Float> data(casacore::IPosition(2, 64, 64));
+    // Fortran order: first index varies fastest.
+    // data(col, row) = row*64+col+1
+    casacore::Bool deleteIt = casacore::False;
+    casacore::Float* ptr = data.getStorage(deleteIt);
+    for (casacore::Int row = 0; row < 64; ++row) {
+        for (casacore::Int col = 0; col < 64; ++col) {
+            ptr[static_cast<std::size_t>(row * 64 + col)] =
+                static_cast<casacore::Float>(row * 64 + col + 1);
+        }
+    }
+    data.putStorage(ptr, deleteIt);
+    img.put(data);
+    img.flush();
+    std::cout << path << '\n';
+}
+
+void verify_img_minimal(const std::string& output) {
+    const std::string art = "img-minimal";
+    const std::string path = output + "/img_minimal.img";
+    casacore::PagedImage<casacore::Float> img(path);
+    const casacore::IPosition shape = img.shape();
+    img_verify_check(shape.isEqual(casacore::IPosition(2, 64, 64)), art,
+                     "expected shape (64,64), got (" + join_shape(shape) + ")");
+
+    img_verify_check(img.units().getName() == "Jy/beam", art,
+                     "expected units Jy/beam, got " + img.units().getName());
+
+    casacore::Array<casacore::Float> data = img.get();
+    casacore::Bool deleteIt = casacore::False;
+    const casacore::Float* ptr = data.getStorage(deleteIt);
+    for (casacore::Int row = 0; row < 64; ++row) {
+        for (casacore::Int col = 0; col < 64; ++col) {
+            const auto idx = static_cast<std::size_t>(row * 64 + col);
+            const casacore::Float expected =
+                static_cast<casacore::Float>(row * 64 + col + 1);
+            img_verify_check(
+                std::fabs(ptr[idx] - expected) < kFloat32Tolerance, art,
+                "pixel (" + std::to_string(col) + "," + std::to_string(row) +
+                    ") expected " + std::to_string(expected) + " got " +
+                    std::to_string(ptr[idx]));
+        }
+    }
+    data.freeStorage(ptr, deleteIt);
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- img-cube-masked ---------------
+
+void produce_img_cube_masked(const std::string& output) {
+    const std::string path = output + "/img_cube_masked.img";
+    std::filesystem::remove_all(path);
+    std::filesystem::create_directories(output);
+
+    casacore::CoordinateSystem cs = make_dir_spectral_cs_3d();
+    casacore::IPosition shape(3, 32, 32, 16);
+    casacore::TiledShape tshape(shape);
+    casacore::PagedImage<casacore::Float> img(tshape, cs, path);
+
+    // Fill pixels: val = z*1024 + y*32 + x + 1 (Fortran order: x varies fastest)
+    casacore::Array<casacore::Float> data(shape);
+    casacore::Bool deleteIt = casacore::False;
+    casacore::Float* ptr = data.getStorage(deleteIt);
+    for (casacore::Int z = 0; z < 16; ++z) {
+        for (casacore::Int y = 0; y < 32; ++y) {
+            for (casacore::Int x = 0; x < 32; ++x) {
+                const auto idx = static_cast<std::size_t>(
+                    z * 1024 + y * 32 + x);
+                ptr[idx] = static_cast<casacore::Float>(
+                    z * 1024 + y * 32 + x + 1);
+            }
+        }
+    }
+    data.putStorage(ptr, deleteIt);
+    img.put(data);
+
+    // Create and store a pixel mask: mask[i] = ((i%4) != 0)
+    casacore::ImageRegion maskReg = img.makeMask("mask0", casacore::True, casacore::True);
+    casacore::Lattice<casacore::Bool>& maskLatt = img.pixelMask();
+    casacore::Array<casacore::Bool> maskArr(shape);
+    casacore::Bool deleteMask = casacore::False;
+    casacore::Bool* mptr = maskArr.getStorage(deleteMask);
+    const auto npix = static_cast<std::size_t>(shape.product());
+    for (std::size_t i = 0; i < npix; ++i) {
+        mptr[i] = ((i % 4) != 0);
+    }
+    maskArr.putStorage(mptr, deleteMask);
+    maskLatt.put(maskArr);
+
+    // Store mask_pattern in misc_info for cross-interop compatibility.
+    casacore::TableRecord misc;
+    misc.define("mask_pattern", casacore::String("mod4"));
+    img.setMiscInfo(misc);
+
+    img.flush();
+    std::cout << path << '\n';
+}
+
+void verify_img_cube_masked(const std::string& output) {
+    const std::string art = "img-cube-masked";
+    const std::string path = output + "/img_cube_masked.img";
+    casacore::PagedImage<casacore::Float> img(path);
+    const casacore::IPosition shape = img.shape();
+    img_verify_check(shape.isEqual(casacore::IPosition(3, 32, 32, 16)), art,
+                     "expected shape (32,32,16), got (" + join_shape(shape) + ")");
+
+    // Verify pixels
+    casacore::Array<casacore::Float> data = img.get();
+    casacore::Bool deleteIt = casacore::False;
+    const casacore::Float* ptr = data.getStorage(deleteIt);
+    for (casacore::Int z = 0; z < 16; ++z) {
+        for (casacore::Int y = 0; y < 32; ++y) {
+            for (casacore::Int x = 0; x < 32; ++x) {
+                const auto idx = static_cast<std::size_t>(
+                    z * 1024 + y * 32 + x);
+                const casacore::Float expected = static_cast<casacore::Float>(
+                    z * 1024 + y * 32 + x + 1);
+                img_verify_check(
+                    std::fabs(ptr[idx] - expected) < kFloat32Tolerance, art,
+                    "pixel (" + std::to_string(x) + "," + std::to_string(y) +
+                        "," + std::to_string(z) + ") mismatch");
+            }
+        }
+    }
+    data.freeStorage(ptr, deleteIt);
+
+    // Verify mask
+    img_verify_check(img.hasPixelMask(), art, "expected pixel mask");
+    casacore::Array<casacore::Bool> maskArr =
+        img.pixelMask().get();
+    casacore::Bool deleteMask = casacore::False;
+    const casacore::Bool* mptr = maskArr.getStorage(deleteMask);
+    const auto npix = static_cast<std::size_t>(shape.product());
+    for (std::size_t i = 0; i < npix; ++i) {
+        const casacore::Bool expected = ((i % 4) != 0);
+        img_verify_check(mptr[i] == expected, art,
+                         "mask[" + std::to_string(i) + "] expected " +
+                             std::to_string(static_cast<int>(expected)) +
+                             " got " + std::to_string(static_cast<int>(mptr[i])));
+    }
+    maskArr.freeStorage(mptr, deleteMask);
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- img-region-subset ---------------
+
+void produce_img_region_subset(const std::string& output) {
+    const std::string path = output + "/img_region_subset.img";
+    std::filesystem::remove_all(path);
+    std::filesystem::create_directories(output);
+
+    casacore::CoordinateSystem cs = make_linear_cs_2d();
+    casacore::IPosition shape(2, 64, 64);
+    casacore::TiledShape tshape(shape);
+    casacore::PagedImage<casacore::Float> img(tshape, cs, path);
+
+    // Pixels: val = y*64 + x + 1 (Fortran order: x varies fastest)
+    casacore::Array<casacore::Float> data(shape);
+    casacore::Bool deleteIt = casacore::False;
+    casacore::Float* ptr = data.getStorage(deleteIt);
+    for (casacore::Int y = 0; y < 64; ++y) {
+        for (casacore::Int x = 0; x < 64; ++x) {
+            ptr[static_cast<std::size_t>(y * 64 + x)] =
+                static_cast<casacore::Float>(y * 64 + x + 1);
+        }
+    }
+    data.putStorage(ptr, deleteIt);
+    img.put(data);
+
+    // Store region params in misc keywords
+    casacore::TableRecord misc = img.miscInfo();
+    misc.define("blc_x", static_cast<casacore::Double>(10.0));
+    misc.define("blc_y", static_cast<casacore::Double>(10.0));
+    misc.define("trc_x", static_cast<casacore::Double>(29.0));
+    misc.define("trc_y", static_cast<casacore::Double>(29.0));
+    img.setMiscInfo(misc);
+
+    img.flush();
+    std::cout << path << '\n';
+}
+
+void verify_img_region_subset(const std::string& output) {
+    const std::string art = "img-region-subset";
+    const std::string path = output + "/img_region_subset.img";
+    casacore::PagedImage<casacore::Float> img(path);
+
+    // Read region params from misc keywords
+    const casacore::TableRecord& misc = img.miscInfo();
+    img_verify_check(misc.isDefined("blc_x"), art, "missing blc_x keyword");
+    img_verify_check(misc.isDefined("blc_y"), art, "missing blc_y keyword");
+    img_verify_check(misc.isDefined("trc_x"), art, "missing trc_x keyword");
+    img_verify_check(misc.isDefined("trc_y"), art, "missing trc_y keyword");
+
+    const auto blc_x = static_cast<casacore::Int>(misc.asDouble("blc_x"));
+    const auto blc_y = static_cast<casacore::Int>(misc.asDouble("blc_y"));
+    const auto trc_x = static_cast<casacore::Int>(misc.asDouble("trc_x"));
+    const auto trc_y = static_cast<casacore::Int>(misc.asDouble("trc_y"));
+
+    img_verify_check(blc_x == 10 && blc_y == 10 && trc_x == 29 && trc_y == 29,
+                     art, "region params mismatch");
+
+    // Build a SubImage over the box region
+    casacore::IPosition blc(2, blc_x, blc_y);
+    casacore::IPosition trc(2, trc_x, trc_y);
+    casacore::Slicer slicer(blc, trc, casacore::Slicer::endIsLast);
+    casacore::SubImage<casacore::Float> sub(img, slicer);
+
+    const casacore::IPosition subShape = sub.shape();
+    img_verify_check(subShape.isEqual(casacore::IPosition(2, 20, 20)), art,
+                     "expected subimage shape (20,20), got (" +
+                         join_shape(subShape) + ")");
+
+    // Verify pixel values in the subimage
+    casacore::Array<casacore::Float> subData = sub.get();
+    casacore::Bool deleteIt = casacore::False;
+    const casacore::Float* sptr = subData.getStorage(deleteIt);
+    for (casacore::Int sy = 0; sy < 20; ++sy) {
+        for (casacore::Int sx = 0; sx < 20; ++sx) {
+            const casacore::Int ox = blc_x + sx;
+            const casacore::Int oy = blc_y + sy;
+            const casacore::Float expected =
+                static_cast<casacore::Float>(oy * 64 + ox + 1);
+            const auto idx = static_cast<std::size_t>(sy * 20 + sx);
+            img_verify_check(
+                std::fabs(sptr[idx] - expected) < kFloat32Tolerance, art,
+                "subimage pixel (" + std::to_string(sx) + "," +
+                    std::to_string(sy) + ") expected " +
+                    std::to_string(expected) + " got " +
+                    std::to_string(sptr[idx]));
+        }
+    }
+    subData.freeStorage(sptr, deleteIt);
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- img-expression ---------------
+
+void produce_img_expression(const std::string& output) {
+    const std::string path = output + "/img_expression.img";
+    std::filesystem::remove_all(path);
+    std::filesystem::create_directories(output);
+
+    casacore::CoordinateSystem cs = make_linear_cs_2d();
+    casacore::IPosition shape(2, 32, 32);
+    casacore::TiledShape tshape(shape);
+    casacore::PagedImage<casacore::Float> img(tshape, cs, path);
+
+    // Pixels: for flat index i, val = (i+1) + 2.0*(100-i)
+    // = i + 1 + 200 - 2i = 201 - i
+    casacore::Array<casacore::Float> data(shape);
+    casacore::Bool deleteIt = casacore::False;
+    casacore::Float* ptr = data.getStorage(deleteIt);
+    const auto npix = static_cast<std::size_t>(shape.product());
+    for (std::size_t i = 0; i < npix; ++i) {
+        const auto fi = static_cast<casacore::Float>(i);
+        ptr[i] = (fi + 1.0F) + 2.0F * (100.0F - fi);
+    }
+    data.putStorage(ptr, deleteIt);
+    img.put(data);
+    img.flush();
+    std::cout << path << '\n';
+}
+
+void verify_img_expression(const std::string& output) {
+    const std::string art = "img-expression";
+    const std::string path = output + "/img_expression.img";
+    casacore::PagedImage<casacore::Float> img(path);
+    const casacore::IPosition shape = img.shape();
+    img_verify_check(shape.isEqual(casacore::IPosition(2, 32, 32)), art,
+                     "expected shape (32,32), got (" + join_shape(shape) + ")");
+
+    casacore::Array<casacore::Float> data = img.get();
+    casacore::Bool deleteIt = casacore::False;
+    const casacore::Float* ptr = data.getStorage(deleteIt);
+    const auto npix = static_cast<std::size_t>(shape.product());
+    for (std::size_t i = 0; i < npix; ++i) {
+        const auto fi = static_cast<casacore::Float>(i);
+        const casacore::Float expected = (fi + 1.0F) + 2.0F * (100.0F - fi);
+        img_verify_check(
+            std::fabs(ptr[i] - expected) < kFloat32Tolerance, art,
+            "pixel[" + std::to_string(i) + "] expected " +
+                std::to_string(expected) + " got " + std::to_string(ptr[i]));
+    }
+    data.freeStorage(ptr, deleteIt);
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// --------------- img-complex ---------------
+
+void produce_img_complex(const std::string& output) {
+    const std::string path = output + "/img_complex.img";
+    std::filesystem::remove_all(path);
+    std::filesystem::create_directories(output);
+
+    casacore::CoordinateSystem cs = make_linear_cs_2d();
+    casacore::IPosition shape(2, 32, 32);
+    casacore::TiledShape tshape(shape);
+    casacore::PagedImage<casacore::Complex> img(tshape, cs, path);
+
+    // Pixels: Complex(x+1, y+1) — Fortran order: x varies fastest
+    casacore::Array<casacore::Complex> data(shape);
+    casacore::Bool deleteIt = casacore::False;
+    casacore::Complex* ptr = data.getStorage(deleteIt);
+    for (casacore::Int y = 0; y < 32; ++y) {
+        for (casacore::Int x = 0; x < 32; ++x) {
+            const auto idx = static_cast<std::size_t>(y * 32 + x);
+            ptr[idx] = casacore::Complex(
+                static_cast<casacore::Float>(x + 1),
+                static_cast<casacore::Float>(y + 1));
+        }
+    }
+    data.putStorage(ptr, deleteIt);
+    img.put(data);
+    img.flush();
+    std::cout << path << '\n';
+}
+
+void verify_img_complex(const std::string& output) {
+    const std::string art = "img-complex";
+    const std::string path = output + "/img_complex.img";
+    casacore::PagedImage<casacore::Complex> img(path);
+    const casacore::IPosition shape = img.shape();
+    img_verify_check(shape.isEqual(casacore::IPosition(2, 32, 32)), art,
+                     "expected shape (32,32), got (" + join_shape(shape) + ")");
+
+    casacore::Array<casacore::Complex> data = img.get();
+    casacore::Bool deleteIt = casacore::False;
+    const casacore::Complex* ptr = data.getStorage(deleteIt);
+    for (casacore::Int y = 0; y < 32; ++y) {
+        for (casacore::Int x = 0; x < 32; ++x) {
+            const auto idx = static_cast<std::size_t>(y * 32 + x);
+            const casacore::Float expectedR =
+                static_cast<casacore::Float>(x + 1);
+            const casacore::Float expectedI =
+                static_cast<casacore::Float>(y + 1);
+            img_verify_check(
+                std::fabs(ptr[idx].real() - expectedR) < kFloat32Tolerance &&
+                    std::fabs(ptr[idx].imag() - expectedI) < kFloat32Tolerance,
+                art,
+                "pixel (" + std::to_string(x) + "," + std::to_string(y) +
+                    ") expected (" + std::to_string(expectedR) + "," +
+                    std::to_string(expectedI) + ") got (" +
+                    std::to_string(ptr[idx].real()) + "," +
+                    std::to_string(ptr[idx].imag()) + ")");
+        }
+    }
+    data.freeStorage(ptr, deleteIt);
+    std::cout << "  " << art << ": [PASS]\n";
+}
+
+// =====================================================================
 
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
@@ -3101,6 +3523,16 @@ void dump_oracle_ms(const std::string& ms_path, const std::string& output_path) 
            "  casacore_interop_tool verify-ms-concat --input <dir>\n"
            "  casacore_interop_tool produce-ms-selection-stress --output <dir>\n"
            "  casacore_interop_tool verify-ms-selection-stress --input <dir>\n"
+           "  casacore_interop_tool produce-img-minimal --output <dir>\n"
+           "  casacore_interop_tool verify-img-minimal --input <dir>\n"
+           "  casacore_interop_tool produce-img-cube-masked --output <dir>\n"
+           "  casacore_interop_tool verify-img-cube-masked --input <dir>\n"
+           "  casacore_interop_tool produce-img-region-subset --output <dir>\n"
+           "  casacore_interop_tool verify-img-region-subset --input <dir>\n"
+           "  casacore_interop_tool produce-img-expression --output <dir>\n"
+           "  casacore_interop_tool verify-img-expression --input <dir>\n"
+           "  casacore_interop_tool produce-img-complex --output <dir>\n"
+           "  casacore_interop_tool verify-img-complex --input <dir>\n"
            "  casacore_interop_tool dump-oracle-ms --input <ms_dir> --output <path>\n";
 }
 
@@ -3659,6 +4091,88 @@ int main(int argc, char** argv) {
                 throw std::runtime_error("missing required --input/--output");
             }
             dump_oracle_ms(*input, *output);
+            return 0;
+        }
+
+        // Phase 10: Image interop
+        if (subcommand == "produce-img-minimal") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_minimal(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-minimal") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_minimal(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-cube-masked") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_cube_masked(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-cube-masked") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_cube_masked(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-region-subset") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_region_subset(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-region-subset") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_region_subset(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-expression") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_expression(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-expression") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_expression(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-complex") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_complex(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-complex") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_complex(*input);
             return 0;
         }
 
