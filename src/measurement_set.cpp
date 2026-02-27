@@ -734,9 +734,7 @@ MeasurementSet MeasurementSet::create(const std::filesystem::path& path, bool in
     write_table_info(path, "Measurement Set", "");
 
     // Write table.lock (empty).
-    {
-        std::ofstream(path / "table.lock");
-    }
+    std::ofstream(path / "table.lock");
 
     // Create required subtable directories.
     for (const auto& st_name : ms_required_subtable_names()) {

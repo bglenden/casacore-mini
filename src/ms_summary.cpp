@@ -23,8 +23,7 @@ std::string ms_summary(MeasurementSet& ms) {
     oss << "\n  Antennas: " << md.n_antennas() << "\n";
     for (std::uint64_t i = 0; i < md.n_antennas(); ++i) {
         oss << "    [" << i << "] " << md.antenna_names()[i] << " (" << md.antenna_stations()[i]
-            << ")"
-            << "  diam=" << md.antenna_diameters()[i] << "m\n";
+            << ")  diam=" << md.antenna_diameters()[i] << "m\n";
     }
 
     // Fields.
