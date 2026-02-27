@@ -20,6 +20,7 @@ bash tools/check_phase9_w9.sh "${BUILD_DIR}"
 bash tools/check_phase9_w10.sh "${BUILD_DIR}"
 bash tools/check_phase9_w11.sh "${BUILD_DIR}"
 bash tools/check_phase9_w12.sh "${BUILD_DIR}"
+bash tools/check_phase9_w13.sh "${BUILD_DIR}"
 
 # Run the full interop matrix when casacore is available.
 if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists casacore; then
@@ -29,13 +30,6 @@ else
   echo "casacore not detected — skipping Phase 9 interop matrix"
 fi
 
-# P9-W13: Oracle conformance gate (requires casacore test MS on disk).
-ORACLE_TGZ="/Users/brianglendenning/SoftwareProjects/casacore/main/ms/MSSel/test/mssel_test_small_multifield_spw.ms.tgz"
-if [[ -f "${ORACLE_TGZ}" ]]; then
-  echo "Oracle test MS found — running P9-W13 oracle conformance gate"
-  bash tools/check_oracle.sh "${BUILD_DIR}"
-else
-  echo "Oracle test MS not found — skipping P9-W13 oracle conformance gate"
-fi
+bash tools/check_phase9_w14.sh "${BUILD_DIR}"
 
 echo "Phase 9 full acceptance suite passed"

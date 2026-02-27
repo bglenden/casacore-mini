@@ -6,7 +6,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${1:-build-ci-local}"
-TGZFILE="${ROOT_DIR}/casacore-original/ms/MSSel/test/mssel_test_small_multifield_spw.ms.tgz"
+TGZFILE_DEFAULT="${ROOT_DIR}/casacore-original/ms/MSSel/test/mssel_test_small_multifield_spw.ms.tgz"
+TGZFILE_LEGACY="/Users/brianglendenning/SoftwareProjects/casacore/main/ms/MSSel/test/mssel_test_small_multifield_spw.ms.tgz"
+TGZFILE="${CASACORE_MINI_ORACLE_TGZ:-${TGZFILE_DEFAULT}}"
 ORACLE_FILE="${ROOT_DIR}/data/corpus/oracle/mssel_multifield_spw_oracle.txt"
 
 cd "${ROOT_DIR}"
@@ -20,8 +22,12 @@ if [[ ! -f "${ORACLE_FILE}" ]]; then
 fi
 
 if [[ ! -f "${TGZFILE}" ]]; then
-  echo "ERROR: test MS tarball not found: ${TGZFILE}"
-  exit 1
+  if [[ -f "${TGZFILE_LEGACY}" ]]; then
+    TGZFILE="${TGZFILE_LEGACY}"
+  else
+    echo "ERROR: test MS tarball not found: ${TGZFILE}"
+    exit 1
+  fi
 fi
 
 MINI_TOOL="${BUILD_DIR}/interop_mini_tool"
