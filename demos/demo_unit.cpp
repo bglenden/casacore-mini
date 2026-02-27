@@ -22,6 +22,7 @@
 
 #include "demo_check.hpp"
 #include <cmath>
+#include <exception>
 #include <iostream>
 
 using namespace casacore_mini;
@@ -153,13 +154,18 @@ void demo_astronomical_units() {
 } // namespace
 
 int main() {
-    std::cout << "=== casacore-mini Demo: Unit System ===\n";
+    try {
+        std::cout << "=== casacore-mini Demo: Unit System ===\n";
 
-    demo_unit_basics();
-    demo_quantity_arithmetic();
-    demo_prefix_system();
-    demo_astronomical_units();
+        demo_unit_basics();
+        demo_quantity_arithmetic();
+        demo_prefix_system();
+        demo_astronomical_units();
 
-    std::cout << "\n=== All Unit demos passed. ===\n";
+        std::cout << "\n=== All Unit demos passed. ===\n";
+    } catch (const std::exception& e) {
+        std::cerr << "FAIL: " << e.what() << "\n";
+        return 1;
+    }
     return 0;
 }

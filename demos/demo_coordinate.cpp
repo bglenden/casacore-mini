@@ -33,8 +33,10 @@
 
 #include "demo_check.hpp"
 #include <cmath>
+#include <exception>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 using namespace casacore_mini;
@@ -180,14 +182,20 @@ static void demo_coordinate_system() {
 
     // Axis mapping.
     auto dir_axis = cs.find_world_axis(0);
-    DEMO_CHECK(dir_axis.has_value());
-    std::cout << "  World axis 0 -> coordinate " << dir_axis->first << " (direction)\n";
-    DEMO_CHECK(dir_axis->first == 0);
+    if (!dir_axis.has_value()) {
+        throw std::runtime_error("world axis 0 not found");
+    }
+    const auto dir_axis_loc = dir_axis.value();
+    std::cout << "  World axis 0 -> coordinate " << dir_axis_loc.first << " (direction)\n";
+    DEMO_CHECK(dir_axis_loc.first == 0);
 
     auto spec_axis = cs.find_world_axis(2);
-    DEMO_CHECK(spec_axis.has_value());
-    std::cout << "  World axis 2 -> coordinate " << spec_axis->first << " (spectral)\n";
-    DEMO_CHECK(spec_axis->first == 1);
+    if (!spec_axis.has_value()) {
+        throw std::runtime_error("world axis 2 not found");
+    }
+    const auto spec_axis_loc = spec_axis.value();
+    std::cout << "  World axis 2 -> coordinate " << spec_axis_loc.first << " (spectral)\n";
+    DEMO_CHECK(spec_axis_loc.first == 1);
 
     // Per-coordinate transforms work.
     auto w_dir = cs.coordinate(0).to_world({128.0, 128.0});
@@ -229,13 +237,18 @@ static void demo_coordinate_system() {
 }
 
 int main() {
-    std::cout << "=== casacore-mini Demo: Coordinates (Phase 8) ===\n";
+    try {
+        std::cout << "=== casacore-mini Demo: Coordinates (Phase 8) ===\n";
 
-    demo_direction_coordinate();
-    demo_stokes_coordinate();
-    demo_spectral_coordinate();
-    demo_coordinate_system();
+        demo_direction_coordinate();
+        demo_stokes_coordinate();
+        demo_spectral_coordinate();
+        demo_coordinate_system();
 
-    std::cout << "\n=== All Coordinate demos passed. ===\n";
+        std::cout << "\n=== All Coordinate demos passed. ===\n";
+    } catch (const std::exception& e) {
+        std::cerr << "FAIL: " << e.what() << "\n";
+        return 1;
+    }
     return 0;
 }

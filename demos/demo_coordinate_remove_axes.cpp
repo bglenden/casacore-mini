@@ -22,6 +22,7 @@
 #include "demo_check.hpp"
 #include <iostream>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -55,7 +56,8 @@ CoordinateSystem remove_world_axes(const CoordinateSystem& src, const std::vecto
     for (const auto axis : axes) {
         const auto loc = src.find_world_axis(axis);
         if (loc.has_value()) {
-            drop_coords.insert(loc->first);
+            const auto loc_value = loc.value();
+            drop_coords.insert(loc_value.first);
         }
     }
     return remove_coords(src, drop_coords);
@@ -66,7 +68,8 @@ CoordinateSystem remove_pixel_axes(const CoordinateSystem& src, const std::vecto
     for (const auto axis : axes) {
         const auto loc = src.find_pixel_axis(axis);
         if (loc.has_value()) {
-            drop_coords.insert(loc->first);
+            const auto loc_value = loc.value();
+            drop_coords.insert(loc_value.first);
         }
     }
     return remove_coords(src, drop_coords);
@@ -77,9 +80,12 @@ std::vector<std::string> world_axis_names(const CoordinateSystem& cs) {
     names.reserve(cs.n_world_axes());
     for (std::size_t w = 0; w < cs.n_world_axes(); ++w) {
         const auto loc = cs.find_world_axis(w);
-        DEMO_CHECK(loc.has_value());
-        const auto coord_names = cs.coordinate(loc->first).world_axis_names();
-        names.push_back(coord_names[loc->second]);
+        if (!loc.has_value()) {
+            throw std::runtime_error("world axis lookup failed");
+        }
+        const auto loc_value = loc.value();
+        const auto coord_names = cs.coordinate(loc_value.first).world_axis_names();
+        names.push_back(coord_names[loc_value.second]);
     }
     return names;
 }

@@ -21,6 +21,7 @@
 
 #include "demo_check.hpp"
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -73,20 +74,26 @@ std::vector<int> build_world_map(const CoordinateSystem& from, const CoordinateS
 
     for (std::size_t wf = 0; wf < from.n_world_axes(); ++wf) {
         const auto floc = from.find_world_axis(wf);
-        DEMO_CHECK(floc.has_value());
-        const auto& fcoord = from.coordinate(floc->first);
+        if (!floc.has_value()) {
+            throw std::runtime_error("source world axis not found");
+        }
+        const auto floc_value = floc.value();
+        const auto& fcoord = from.coordinate(floc_value.first);
         const auto fnames = fcoord.world_axis_names();
-        const auto fname = fnames[floc->second];
+        const std::string& fname = fnames[floc_value.second];
 
         for (std::size_t wt = 0; wt < to.n_world_axes(); ++wt) {
             if (used[wt]) {
                 continue;
             }
             const auto tloc = to.find_world_axis(wt);
-            DEMO_CHECK(tloc.has_value());
-            const auto& tcoord = to.coordinate(tloc->first);
+            if (!tloc.has_value()) {
+                throw std::runtime_error("target world axis not found");
+            }
+            const auto tloc_value = tloc.value();
+            const auto& tcoord = to.coordinate(tloc_value.first);
             const auto tnames = tcoord.world_axis_names();
-            if (fcoord.type() == tcoord.type() && fname == tnames[tloc->second]) {
+            if (fcoord.type() == tcoord.type() && fname == tnames[tloc_value.second]) {
                 map[wf] = static_cast<int>(wt);
                 used[wt] = true;
                 break;
@@ -102,17 +109,23 @@ std::vector<int> build_pixel_map(const CoordinateSystem& from, const CoordinateS
 
     for (std::size_t pf = 0; pf < from.n_pixel_axes(); ++pf) {
         const auto floc = from.find_pixel_axis(pf);
-        DEMO_CHECK(floc.has_value());
-        const auto& fcoord = from.coordinate(floc->first);
+        if (!floc.has_value()) {
+            throw std::runtime_error("source pixel axis not found");
+        }
+        const auto floc_value = floc.value();
+        const auto& fcoord = from.coordinate(floc_value.first);
 
         for (std::size_t pt = 0; pt < to.n_pixel_axes(); ++pt) {
             if (used[pt]) {
                 continue;
             }
             const auto tloc = to.find_pixel_axis(pt);
-            DEMO_CHECK(tloc.has_value());
-            const auto& tcoord = to.coordinate(tloc->first);
-            if (fcoord.type() == tcoord.type() && floc->second == tloc->second) {
+            if (!tloc.has_value()) {
+                throw std::runtime_error("target pixel axis not found");
+            }
+            const auto tloc_value = tloc.value();
+            const auto& tcoord = to.coordinate(tloc_value.first);
+            if (fcoord.type() == tcoord.type() && floc_value.second == tloc_value.second) {
                 map[pf] = static_cast<int>(pt);
                 used[pt] = true;
                 break;
