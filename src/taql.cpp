@@ -6,6 +6,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <random>
+#include <regex>
 #include <stdexcept>
 #include <unordered_set>
 
@@ -2017,8 +2019,22 @@ struct EvalContext {
 TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx);
 
 /// Evaluate a math built-in function.
-TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& args) {
+TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& args,
+                         const EvalContext& ctx) {
     auto upper = to_upper(name);
+
+    // rownr() / rowid() — return current row number from context (0 or more args)
+    if (upper == "ROWNR" || upper == "ROWID") {
+        return static_cast<std::int64_t>(ctx.row);
+    }
+
+    // rand() — return random double in [0, 1)
+    if (upper == "RAND") {
+        static std::mt19937 gen{std::random_device{}()};  // NOLINT(cert-msc51-cpp)
+        static std::uniform_real_distribution<double> dist(0.0, 1.0);
+        return TaqlValue{dist(gen)};
+    }
+
     if (args.empty()) {
         if (upper == "PI") return TaqlValue{static_cast<double>(3.14159265358979323846L)};
         if (upper == "E") return TaqlValue{static_cast<double>(2.71828182845904523536L)};
@@ -2045,6 +2061,61 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             auto end = s.find_last_not_of(" \t\n\r");
             if (start == std::string::npos) return std::string{};
             return s.substr(start, end - start + 1);
+        }
+        if (upper == "LTRIM") {
+            auto s = as_string(args[0]);
+            auto start = s.find_first_not_of(" \t\n\r");
+            if (start == std::string::npos) return std::string{};
+            return s.substr(start);
+        }
+        if (upper == "RTRIM") {
+            auto s = as_string(args[0]);
+            auto end = s.find_last_not_of(" \t\n\r");
+            if (end == std::string::npos) return std::string{};
+            return s.substr(0, end + 1);
+        }
+        if (upper == "CAPITALIZE") {
+            auto s = as_string(args[0]);
+            bool next_upper = true;
+            for (auto& c : s) {
+                auto uc = static_cast<unsigned char>(c);
+                if (std::isalpha(uc)) {
+                    c = next_upper ? static_cast<char>(std::toupper(uc))
+                                   : static_cast<char>(std::tolower(uc));
+                    next_upper = false;
+                } else {
+                    next_upper = (c == ' ' || c == '\t');
+                }
+            }
+            return s;
+        }
+        if (upper == "SREVERSE") {
+            auto s = as_string(args[0]);
+            std::reverse(s.begin(), s.end());
+            return s;
+        }
+
+        // Predicate functions that need table context
+        if (upper == "ISCOLUMN") {
+            if (ctx.table == nullptr) return TaqlValue{false};
+            auto col_name = as_string(args[0]);
+            for (auto& col : ctx.table->columns()) {
+                if (col.name == col_name) return TaqlValue{true};
+            }
+            return TaqlValue{false};
+        }
+        if (upper == "ISKEYWORD") {
+            if (ctx.table == nullptr) return TaqlValue{false};
+            auto key_name = as_string(args[0]);
+            return TaqlValue{ctx.table->keywords().find(key_name) != nullptr};
+        }
+        if (upper == "ISDEF") {
+            // isdef checks if a column value is defined (non-null).
+            // For scalar cells, they are always defined.
+            return TaqlValue{true};
+        }
+        if (upper == "ISNULL") {
+            return TaqlValue{std::holds_alternative<std::monostate>(args[0])};
         }
 
         // Numeric functions
@@ -2074,6 +2145,8 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         if (upper == "IMAG") return TaqlValue{0.0};
         if (upper == "NORM") return TaqlValue{x * x};
         if (upper == "ARG") return TaqlValue{0.0};
+        if (upper == "BOOL") { bool r = (x != 0.0); return TaqlValue{r}; }
+        if (upper == "STRING") return as_string(args[0]);
     }
 
     if (args.size() == 2) {
@@ -2086,11 +2159,45 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             bool r = std::abs(as_double(args[0]) - as_double(args[1])) < 1e-13;
             return TaqlValue{r};
         }
+        // SUBSTR(str, start) — return from position start to end
+        if (upper == "SUBSTR") {
+            auto s = as_string(args[0]);
+            auto start = static_cast<std::size_t>(as_int(args[1]));
+            if (start >= s.size()) return std::string{};
+            return s.substr(start);
+        }
     }
 
-    // rownr() / rowid()
-    if (upper == "ROWNR" || upper == "ROWID") {
-        return static_cast<std::int64_t>(0); // Placeholder; real impl requires context
+    if (args.size() == 3) {
+        if (upper == "NEAR" || upper == "NEARABS") {
+            bool r = std::abs(as_double(args[0]) - as_double(args[1])) < as_double(args[2]);
+            return TaqlValue{r};
+        }
+        // SUBSTR(str, start, len)
+        if (upper == "SUBSTR") {
+            auto s = as_string(args[0]);
+            auto start = static_cast<std::size_t>(as_int(args[1]));
+            auto len = static_cast<std::size_t>(as_int(args[2]));
+            if (start >= s.size()) return std::string{};
+            return s.substr(start, len);
+        }
+        // REPLACE(str, old, new)
+        if (upper == "REPLACE") {
+            auto s = as_string(args[0]);
+            auto old_str = as_string(args[1]);
+            auto new_str = as_string(args[2]);
+            if (old_str.empty()) return s;
+            std::string result;
+            std::size_t pos = 0;
+            while (true) {
+                auto found = s.find(old_str, pos);
+                if (found == std::string::npos) { result += s.substr(pos); break; }
+                result += s.substr(pos, found - pos);
+                result += new_str;
+                pos = found + old_str.size();
+            }
+            return result;
+        }
     }
 
     throw std::runtime_error("TaQL: unknown function '" + name + "'");
@@ -2218,7 +2325,7 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         args.reserve(node.children.size());
         for (auto& child : node.children)
             args.push_back(eval_expr(child, ctx));
-        return eval_math_func(node.name, args);
+        return eval_math_func(node.name, args, ctx);
     }
 
     case ExprType::iif_expr: {
@@ -2255,36 +2362,49 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
     case ExprType::like_expr: {
         auto val = as_string(eval_expr(node.children[0], ctx));
         auto pat = as_string(eval_expr(node.children[1], ctx));
-        // Simple glob: * -> .*, ? -> ., % -> .*
         bool case_insensitive = (node.op == TaqlOp::ilike || node.op == TaqlOp::not_ilike);
-        // Very simple substring match for the common case
-        // Full regex would be added for complete parity
         std::string target = val;
         std::string pattern = pat;
         if (case_insensitive) {
             for (auto& c : target) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             for (auto& c : pattern) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
-        // If pattern has no wildcards, exact match
-        bool match = false;
-        if (pattern.find('%') == std::string::npos &&
-            pattern.find('*') == std::string::npos &&
-            pattern.find('?') == std::string::npos) {
-            match = (target == pattern);
-        } else {
-            // Simple: treat * and % as wildcards for "starts with" / "ends with"
-            if (pattern.front() == '*' || pattern.front() == '%') {
-                auto suffix = pattern.substr(1);
-                match = target.size() >= suffix.size() &&
-                        target.compare(target.size() - suffix.size(), suffix.size(), suffix) == 0;
-            } else if (pattern.back() == '*' || pattern.back() == '%') {
-                auto prefix = pattern.substr(0, pattern.size() - 1);
-                match = target.compare(0, prefix.size(), prefix) == 0;
-            } else {
-                match = (target == pattern);
+        // Convert SQL/glob pattern to regex: % and * -> .*, ? and _ -> .
+        std::string re_str;
+        re_str.reserve(pattern.size() * 2);
+        for (auto c : pattern) {
+            switch (c) {
+            case '%': case '*': re_str += ".*"; break;
+            case '?': case '_': re_str += '.'; break;
+            case '.': case '(': case ')': case '[': case ']':
+            case '{': case '}': case '^': case '$': case '|':
+            case '+': case '\\':
+                re_str += '\\'; re_str += c; break;
+            default: re_str += c; break;
             }
         }
+        bool match = false;
+        try {
+            std::regex re(re_str, std::regex::ECMAScript);
+            match = std::regex_match(target, re);
+        } catch (...) {
+            match = (target == pattern);
+        }
         bool r = (node.op == TaqlOp::like || node.op == TaqlOp::ilike) ? match : !match;
+        return TaqlValue{r};
+    }
+
+    case ExprType::regex_expr: {
+        auto val = as_string(eval_expr(node.children[0], ctx));
+        auto pat = as_string(eval_expr(node.children[1], ctx));
+        bool match = false;
+        try {
+            std::regex re(pat, std::regex::ECMAScript);
+            match = std::regex_search(val, re);
+        } catch (...) {
+            match = false;
+        }
+        bool r = (node.op == TaqlOp::regex_match) ? match : !match;
         return TaqlValue{r};
     }
 
