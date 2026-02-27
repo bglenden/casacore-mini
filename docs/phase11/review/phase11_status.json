@@ -1,26 +1,18 @@
 {
   "phase": 11,
-  "wave": 1,
-  "timestamp_utc": "2026-02-27T17:08:34Z",
+  "wave": 2,
+  "timestamp_utc": "2026-02-27T17:10:24Z",
   "gate_results": {
-    "check_phase11_w1.sh": {
-      "pass": 16,
+    "check_phase11_w1.sh": {"pass": true},
+    "check_phase11_w2.sh": {
+      "pass": 10,
       "fail": 0,
-      "command": "bash tools/check_phase11_w1.sh"
+      "command": "bash tools/check_phase11_w2.sh"
     }
   },
   "checklist_totals": {
-    "taql": {
-      "Pending": 115,
-      "Done": 0
-0
-    },
-    "mssel": {
-      "Pending": 93,
-      "Done": 0
-0
-    }
+    "taql_pending": 115,
+    "mssel_pending": 93
   },
-  "open_blockers": [],
-  "new_evidence_paths": ["docs/phase11/missing_capabilities_audit.csv","docs/phase11/disposition_decisions.md","docs/phase11/api_surface_map.csv","docs/phase11/storage_manager_fidelity_audit.md","docs/phase11/taql_command_checklist.csv","docs/phase11/msselection_capability_checklist.csv"]
+  "open_blockers": []
 }
