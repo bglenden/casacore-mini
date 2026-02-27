@@ -527,6 +527,10 @@ add_executable(taql_w7_closure_test tests/taql_w7_closure_test.cpp)
 target_link_libraries(taql_w7_closure_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME taql_w7_closure_test COMMAND taql_w7_closure_test)
 
+add_executable(phase11_integration_test tests/phase11_integration_test.cpp)
+target_link_libraries(phase11_integration_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME phase11_integration_test COMMAND phase11_integration_test)
+
 add_executable(ms_metadata_test tests/ms_metadata_test.cpp)
 target_link_libraries(ms_metadata_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME ms_metadata_test COMMAND ms_metadata_test)
