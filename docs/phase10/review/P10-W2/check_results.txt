@@ -1,0 +1,5 @@
+Phase 10 W2 gate: lattice storage/view substrate
+lattice_shape_test: 90 passed, 0 failed
+Phase 10 W2 gate passed
+
+Full regression: 68/68 tests passed, 0 tests failed

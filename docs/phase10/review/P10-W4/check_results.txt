@@ -1,0 +1,5 @@
+Phase 10 W4 gate: image core models and metadata lifecycle
+image_test: 74 passed, 0 failed
+Phase 10 W4 gate passed
+
+Full regression: 70/70 tests passed, 0 tests failed

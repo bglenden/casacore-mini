@@ -239,9 +239,9 @@ Required feature coverage:
   20/20 interop matrix cells pass and oracle verification passes with
   `pass=330811, fail=0`. 67 unit tests pass. See
   `docs/phase9/exit_report.md`.
-- Phase 10 (pending): full Lattices + Images implementation, including lattice
-  expression language compatibility. Detailed wave plan:
-  `docs/phase10/plan.md`.
+- Phase 10 (complete): full Lattices + Images implementation, including LEL
+  compatibility, region/mask persistence, 20/20 interop matrix, 80 tests.
+  TSM Bool bit-packing fix. See `docs/phase10/exit_report.md`.
 - Phase 11 (pending, planned terminal phase): remaining capabilities closure;
   first wave is a full missing-capabilities audit with explicit
   include/exclude decisions, followed by implementation of accepted remainder.

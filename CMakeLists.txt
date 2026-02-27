@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 
 project(casacore_mini VERSION 0.1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -56,7 +56,7 @@ configure_file(
   @ONLY)
 
 add_library(casacore_mini_project_options INTERFACE)
-target_compile_features(casacore_mini_project_options INTERFACE cxx_std_20)
+target_compile_features(casacore_mini_project_options INTERFACE cxx_std_23)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(
@@ -216,7 +216,13 @@ add_library(
   src/ms_summary.cpp
   src/ms_concat.cpp
   src/ms_flagger.cpp
-  src/table.cpp)
+  src/table.cpp
+  src/lattice_shape.cpp
+  src/lattice.cpp
+  src/image.cpp
+  src/lattice_region.cpp
+  src/image_region.cpp
+  src/lattice_expr.cpp)
 target_include_directories(
   casacore_mini_core
   PUBLIC
@@ -523,6 +529,61 @@ add_test(NAME ms_flagger_test COMMAND ms_flagger_test)
 add_executable(ms_malformed_test tests/ms_malformed_test.cpp)
 target_link_libraries(ms_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME ms_malformed_test COMMAND ms_malformed_test)
+
+add_executable(lattice_shape_test tests/lattice_shape_test.cpp)
+target_link_libraries(lattice_shape_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME lattice_shape_test COMMAND lattice_shape_test)
+
+add_executable(lattice_test tests/lattice_test.cpp)
+target_link_libraries(lattice_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME lattice_test COMMAND lattice_test)
+
+add_executable(image_test tests/image_test.cpp)
+target_link_libraries(image_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME image_test COMMAND image_test)
+
+add_executable(image_malformed_test tests/image_malformed_test.cpp)
+target_link_libraries(image_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME image_malformed_test COMMAND image_malformed_test)
+
+add_executable(lel_malformed_test tests/lel_malformed_test.cpp)
+target_link_libraries(lel_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME lel_malformed_test COMMAND lel_malformed_test)
+
+add_executable(lattice_region_test tests/lattice_region_test.cpp)
+target_link_libraries(lattice_region_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME lattice_region_test COMMAND lattice_region_test)
+
+add_executable(image_region_test tests/image_region_test.cpp)
+target_link_libraries(image_region_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME image_region_test COMMAND image_region_test)
+
+add_executable(lattice_expr_test tests/lattice_expr_test.cpp)
+target_link_libraries(lattice_expr_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME lattice_expr_test COMMAND lattice_expr_test)
+
+add_executable(lel_parser_test tests/lel_parser_test.cpp)
+target_link_libraries(lel_parser_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME lel_parser_test COMMAND lel_parser_test)
+
+add_executable(mutation_persist_test tests/mutation_persist_test.cpp)
+target_link_libraries(mutation_persist_test PRIVATE casacore_mini_core casacore_mini_project_options)
+target_compile_definitions(
+  mutation_persist_test
+  PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME mutation_persist_test COMMAND mutation_persist_test)
+
+add_executable(utility_parity_test tests/utility_parity_test.cpp)
+target_link_libraries(utility_parity_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME utility_parity_test COMMAND utility_parity_test)
+
+add_executable(image_coverage_test tests/image_coverage_test.cpp)
+target_link_libraries(image_coverage_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME image_coverage_test COMMAND image_coverage_test)
+
+add_executable(image_regrid_test tests/image_regrid_test.cpp)
+target_link_libraries(image_regrid_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME image_regrid_test COMMAND image_regrid_test)
 
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)

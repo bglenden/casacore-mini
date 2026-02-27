@@ -1,0 +1,8 @@
+New:
+  include/casacore_mini/lattice_expr.hpp
+  src/lattice_expr.cpp
+  tests/lattice_expr_test.cpp
+
+Modified:
+  CMakeLists.txt  (added lattice_expr.cpp to library, lattice_expr_test target)
+  tools/check_phase10_w6.sh  (updated from stub to real gates)

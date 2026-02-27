@@ -299,39 +299,84 @@ Table Table::open_rw(const std::filesystem::path& path) {
         }
     }
 
-    if (ssm_cols.empty()) {
-        return t;
-    }
-
-    // Set up readers and writer.
-    t.impl_->ensure_ssm_readers();
-
-    SsmWriter writer;
-    writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
-
-    // Copy all cell data from readers to writer.
-    for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
-        const auto& col = ssm_cols[ci];
-        auto* reader = t.impl_->find_ssm_for_column(col.name);
-        if (reader == nullptr)
-            continue;
-        for (std::uint64_t r = 0; r < nrow; ++r) {
-            if (col.kind == ColumnKind::scalar) {
-                writer.write_cell(ci, reader->read_cell(col.name, r), r);
-            } else if (col.kind == ColumnKind::array) {
-                if (reader->is_indirect(col.name)) {
-                    auto offset = reader->read_indirect_offset(col.name, r);
-                    writer.write_indirect_offset(ci, r, offset);
-                } else {
-                    auto raw = reader->read_array_raw(col.name, r);
-                    writer.write_array_raw(ci, raw, r);
-                }
+    // Find TSM columns.
+    std::vector<ColumnDesc> tsm_cols;
+    std::string tsm_sm_type;
+    std::string tsm_dm_name;
+    for (const auto& col : td.table_desc.columns) {
+        auto lookup = find_sm_for_column(td, col.name);
+        if (lookup.sm_type.find("Tiled") != std::string::npos) {
+            tsm_cols.push_back(col);
+            if (tsm_sm_type.empty()) {
+                tsm_sm_type = std::string(lookup.sm_type);
+                tsm_dm_name = col.dm_group;
             }
         }
     }
 
-    t.impl_->ssm_writer = std::move(writer);
-    t.impl_->writer_columns = ssm_cols;
+    if (ssm_cols.empty() && tsm_cols.empty()) {
+        return t;
+    }
+
+    // Set up SSM writer if needed.
+    if (!ssm_cols.empty()) {
+        t.impl_->ensure_ssm_readers();
+
+        SsmWriter writer;
+        writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
+
+        // Copy all cell data from readers to writer.
+        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+            const auto& col = ssm_cols[ci];
+            auto* reader = t.impl_->find_ssm_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                if (col.kind == ColumnKind::scalar) {
+                    writer.write_cell(ci, reader->read_cell(col.name, r), r);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, r);
+                        writer.write_indirect_offset(ci, r, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, r);
+                        writer.write_array_raw(ci, raw, r);
+                    }
+                }
+            }
+        }
+
+        t.impl_->ssm_writer = std::move(writer);
+        t.impl_->writer_columns = ssm_cols;
+    }
+
+    // Set up TSM writer if needed.
+    if (!tsm_cols.empty()) {
+        t.impl_->ensure_tsm_readers();
+
+        TiledStManWriter tsm_wr;
+        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, nrow, td.big_endian);
+
+        // Copy existing data from TSM reader into writer.
+        for (std::size_t ci = 0; ci < tsm_cols.size(); ++ci) {
+            const auto& col = tsm_cols[ci];
+            auto* reader = t.impl_->find_tsm_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto raw = reader->read_raw_cell(col.name, r);
+                tsm_wr.write_raw_cell(ci, raw, r);
+            }
+        }
+
+        t.impl_->tsm_writer = std::move(tsm_wr);
+        t.impl_->tsm_writer_seq = 0;
+        // Merge TSM columns into writer_columns.
+        for (const auto& col : tsm_cols) {
+            t.impl_->writer_columns.push_back(col);
+        }
+    }
+
     return t;
 }
 
@@ -513,7 +558,8 @@ Table Table::create(const std::filesystem::path& path, const std::vector<TableCo
     if (is_tsm) {
         // TSM path.
         TiledStManWriter tsm_wr;
-        tsm_wr.setup(options.sm_type, options.sm_group, td.table_desc.columns, nrows);
+        tsm_wr.setup(options.sm_type, options.sm_group, td.table_desc.columns, nrows,
+                     td.big_endian);
 
         td.storage_managers[0].data_blob = tsm_wr.make_blob();
         write_table_directory(path.string(), td);
@@ -695,6 +741,13 @@ CellValue Table::read_scalar_cell(std::string_view col_name, std::uint64_t row) 
 
 std::vector<double> Table::read_array_double_cell(std::string_view col_name,
                                                   std::uint64_t row) const {
+    // Check TSM writer first for read-after-write consistency.
+    if (impl_->writable && impl_->tsm_writer.has_value()) {
+        auto ci = impl_->tsm_writer->find_column(col_name);
+        if (ci != SIZE_MAX) {
+            return impl_->tsm_writer->read_double_cell(ci, row);
+        }
+    }
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_double(col_name, row);
@@ -713,6 +766,13 @@ std::vector<double> Table::read_array_double_cell(std::string_view col_name,
 
 std::vector<float> Table::read_array_float_cell(std::string_view col_name,
                                                 std::uint64_t row) const {
+    // Check TSM writer first for read-after-write consistency.
+    if (impl_->writable && impl_->tsm_writer.has_value()) {
+        auto ci = impl_->tsm_writer->find_column(col_name);
+        if (ci != SIZE_MAX) {
+            return impl_->tsm_writer->read_float_cell(ci, row);
+        }
+    }
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_float(col_name, row);
@@ -792,6 +852,22 @@ std::vector<std::uint8_t> Table::read_array_raw_cell(std::string_view col_name,
 
 std::vector<std::complex<float>> Table::read_array_complex_cell(std::string_view col_name,
                                                                 std::uint64_t row) const {
+    // Check TSM writer first for read-after-write consistency.
+    if (impl_->writable && impl_->tsm_writer.has_value()) {
+        auto ci = impl_->tsm_writer->find_column(col_name);
+        if (ci != SIZE_MAX) {
+            auto raw = impl_->tsm_writer->read_raw_cell(ci, row);
+            std::vector<std::complex<float>> result(raw.size() / 8);
+            for (std::size_t i = 0; i < result.size(); ++i) {
+                float re{};
+                float im{};
+                std::memcpy(&re, raw.data() + i * 8, 4);
+                std::memcpy(&im, raw.data() + i * 8 + 4, 4);
+                result[i] = {re, im};
+            }
+            return result;
+        }
+    }
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
         if (ssm->is_indirect(col_name)) {
             return ssm->read_indirect_complex(col_name, row);
@@ -964,12 +1040,18 @@ void Table::write_array_float_cell(std::string_view col_name, std::uint64_t row,
 
 void Table::write_array_double_cell(std::string_view col_name, std::uint64_t row,
                                     const std::vector<double>& values) {
-    if (!impl_->writable || !impl_->ssm_writer.has_value()) {
+    if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
-            impl_->ssm_writer->write_array_double(i, values, row);
+            if (impl_->ssm_writer.has_value()) {
+                impl_->ssm_writer->write_array_double(i, values, row);
+            } else if (impl_->tsm_writer.has_value()) {
+                impl_->tsm_writer->write_double_cell(i, values, row);
+            } else {
+                throw std::runtime_error("Table: no double array writer available");
+            }
             return;
         }
     }
@@ -979,17 +1061,23 @@ void Table::write_array_double_cell(std::string_view col_name, std::uint64_t row
 void Table::write_array_bool_cell(std::string_view col_name, std::uint64_t row,
                                   const std::vector<bool>& values,
                                   const std::vector<std::int32_t>& shape) {
-    if (!impl_->writable || !impl_->ssm_writer.has_value()) {
+    if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
-            // Bool arrays stored as 1 byte per element in indirect file.
-            std::vector<std::uint8_t> raw(values.size());
-            for (std::size_t j = 0; j < values.size(); ++j) {
-                raw[j] = values[j] ? 1 : 0;
+            if (impl_->tsm_writer.has_value()) {
+                impl_->tsm_writer->write_bool_cell(i, values, row);
+            } else if (impl_->ssm_writer.has_value()) {
+                // Bool arrays stored as 1 byte per element in indirect file.
+                std::vector<std::uint8_t> raw(values.size());
+                for (std::size_t j = 0; j < values.size(); ++j) {
+                    raw[j] = values[j] ? 1 : 0;
+                }
+                impl_->ssm_writer->write_indirect_array(i, shape, raw, row);
+            } else {
+                throw std::runtime_error("Table: no bool array writer available");
             }
-            impl_->ssm_writer->write_indirect_array(i, shape, raw, row);
             return;
         }
     }
@@ -999,22 +1087,28 @@ void Table::write_array_bool_cell(std::string_view col_name, std::uint64_t row,
 void Table::write_array_complex_cell(std::string_view col_name, std::uint64_t row,
                                      const std::vector<std::complex<float>>& values,
                                      const std::vector<std::int32_t>& shape) {
-    if (!impl_->writable || !impl_->ssm_writer.has_value()) {
+    if (!impl_->writable) {
         throw std::runtime_error("Table: not writable");
     }
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
-            // Complex = 2 floats = 8 bytes per element.
-            std::vector<std::uint8_t> raw(values.size() * 8);
-            auto* p = raw.data();
-            for (const auto& c : values) {
-                float re = c.real();
-                float im = c.imag();
-                std::memcpy(p, &re, 4);
-                std::memcpy(p + 4, &im, 4);
-                p += 8;
+            if (impl_->tsm_writer.has_value()) {
+                impl_->tsm_writer->write_complex_cell(i, values, row);
+            } else if (impl_->ssm_writer.has_value()) {
+                // Complex = 2 floats = 8 bytes per element.
+                std::vector<std::uint8_t> raw(values.size() * 8);
+                auto* p = raw.data();
+                for (const auto& c : values) {
+                    float re = c.real();
+                    float im = c.imag();
+                    std::memcpy(p, &re, 4);
+                    std::memcpy(p + 4, &im, 4);
+                    p += 8;
+                }
+                impl_->ssm_writer->write_indirect_array(i, shape, raw, row);
+            } else {
+                throw std::runtime_error("Table: no complex array writer available");
             }
-            impl_->ssm_writer->write_indirect_array(i, shape, raw, row);
             return;
         }
     }

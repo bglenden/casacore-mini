@@ -5,7 +5,12 @@
 #include "casacore_mini/coordinate_system.hpp"
 #include "casacore_mini/coordinate_util.hpp"
 #include "casacore_mini/direction_coordinate.hpp"
+#include "casacore_mini/image.hpp"
+#include "casacore_mini/image_region.hpp"
 #include "casacore_mini/incremental_stman.hpp"
+#include "casacore_mini/lattice.hpp"
+#include "casacore_mini/lattice_expr.hpp"
+#include "casacore_mini/lattice_region.hpp"
 #include "casacore_mini/linear_coordinate.hpp"
 #include "casacore_mini/measure_convert.hpp"
 #include "casacore_mini/measure_record.hpp"
@@ -3156,6 +3161,573 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
 }
 
 // =====================================================================
+// --- Phase 10: Image interop helpers ---
+// =====================================================================
+
+void img_verify_check(bool cond, const std::string& artifact, const std::string& detail) {
+    if (!cond) {
+        throw std::runtime_error(artifact + ": " + detail);
+    }
+}
+
+casacore_mini::CoordinateSystem make_linear_cs(std::size_t ndim) {
+    casacore_mini::CoordinateSystem cs;
+    std::vector<std::string> names(ndim, "Axis");
+    std::vector<std::string> units(ndim, "pixel");
+    casacore_mini::LinearXform xform;
+    xform.crval.assign(ndim, 0.0);
+    xform.cdelt.assign(ndim, 1.0);
+    xform.crpix.assign(ndim, 0.0);
+    cs.add_coordinate(std::make_unique<casacore_mini::LinearCoordinate>(
+        std::move(names), std::move(units), std::move(xform)));
+    return cs;
+}
+
+casacore_mini::CoordinateSystem make_direction_spectral_cs() {
+    casacore_mini::CoordinateSystem cs;
+    cs.add_coordinate(std::make_unique<casacore_mini::DirectionCoordinate>(
+        casacore_mini::DirectionRef::j2000,
+        casacore_mini::Projection{casacore_mini::ProjectionType::sin, {}},
+        0.0, 0.0, -1e-5, 1e-5,
+        std::vector<double>{1, 0, 0, 1}, 0.0, 0.0));
+    cs.add_coordinate(std::make_unique<casacore_mini::SpectralCoordinate>(
+        casacore_mini::FrequencyRef::lsrk, 1.4e9, 1e6, 0.0));
+    return cs;
+}
+
+// --- produce-img-minimal ---
+
+void produce_img_minimal(const std::string& output) {
+    namespace fs = std::filesystem;
+    fs::create_directories(output);
+
+    const auto img_path = fs::path(output) / "img_minimal.img";
+    if (fs::exists(img_path)) {
+        fs::remove_all(img_path);
+    }
+
+    casacore_mini::IPosition shape{64, 64};
+    casacore_mini::PagedImage<float> img(shape, make_linear_cs(2), img_path);
+
+    casacore_mini::LatticeArray<float> data(shape);
+    data.make_unique();
+    for (std::int64_t row = 0; row < 64; ++row) {
+        for (std::int64_t col = 0; col < 64; ++col) {
+            data.put(casacore_mini::IPosition{col, row},
+                     static_cast<float>(row * 64 + col + 1));
+        }
+    }
+    img.put(data);
+    img.set_units("Jy/beam");
+    img.flush();
+
+    std::cout << "  produce-img-minimal: wrote " << img_path.string() << '\n';
+}
+
+void verify_img_minimal(const std::string& input) {
+    const std::string label = "img-minimal";
+    namespace fs = std::filesystem;
+
+    const auto img_path = fs::path(input) / "img_minimal.img";
+    casacore_mini::PagedImage<float> img(img_path);
+
+    img_verify_check(img.shape() == casacore_mini::IPosition({64, 64}),
+                     label, "expected shape (64,64)");
+    img_verify_check(img.units() == "Jy/beam", label, "expected units Jy/beam");
+    img_verify_check(!img.has_pixel_mask(), label, "expected no pixel mask");
+
+    auto data = img.get();
+    for (std::int64_t row = 0; row < 64; ++row) {
+        for (std::int64_t col = 0; col < 64; ++col) {
+            const float expected = static_cast<float>(row * 64 + col + 1);
+            const float actual = data.at(casacore_mini::IPosition{col, row});
+            img_verify_check(
+                std::abs(actual - expected) < kFloat32Tolerance, label,
+                "pixel mismatch at (" + std::to_string(col) + "," +
+                    std::to_string(row) + "): got " + std::to_string(actual) +
+                    " expected " + std::to_string(expected));
+        }
+    }
+
+    // Verify coordinate system is present and consistent.
+    const auto& cs = img.coordinates();
+    img_verify_check(cs.n_coordinates() >= 1, label,
+                     "expected at least 1 coordinate in CS");
+
+    // Coordinate roundtrip: to_world(crpix) ≈ crval.
+    {
+        const auto n_pix = cs.n_pixel_axes();
+        const auto& coord0 = cs.coordinate(0);
+        auto crpix = coord0.reference_pixel();
+        auto crval = coord0.reference_value();
+        auto world = cs.to_world(std::vector<double>(crpix.begin(), crpix.end()));
+        for (std::size_t i = 0; i < std::min(crval.size(), world.size()); ++i) {
+            img_verify_check(
+                std::abs(world[i] - crval[i]) < kFloat64Tolerance, label,
+                "to_world(crpix)[" + std::to_string(i) + "] != crval: " +
+                    std::to_string(world[i]) + " vs " + std::to_string(crval[i]));
+        }
+
+        // Pixel roundtrip: to_pixel(to_world(test_pixel)) ≈ test_pixel.
+        std::vector<double> test_pixel(n_pix, 5.0);
+        auto w = cs.to_world(test_pixel);
+        auto p_back = cs.to_pixel(w);
+        for (std::size_t i = 0; i < n_pix; ++i) {
+            img_verify_check(
+                std::abs(p_back[i] - test_pixel[i]) < kFloat64Tolerance, label,
+                "pixel roundtrip axis " + std::to_string(i) + ": " +
+                    std::to_string(p_back[i]) + " vs " + std::to_string(test_pixel[i]));
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-img-cube-masked ---
+
+void produce_img_cube_masked(const std::string& output) {
+    namespace fs = std::filesystem;
+    fs::create_directories(output);
+
+    const auto img_path = fs::path(output) / "img_cube_masked.img";
+    if (fs::exists(img_path)) {
+        fs::remove_all(img_path);
+    }
+
+    casacore_mini::IPosition shape{32, 32, 16};
+    casacore_mini::PagedImage<float> img(shape, make_direction_spectral_cs(), img_path);
+
+    casacore_mini::LatticeArray<float> data(shape);
+    data.make_unique();
+    for (std::int64_t z = 0; z < 16; ++z) {
+        for (std::int64_t y = 0; y < 32; ++y) {
+            for (std::int64_t x = 0; x < 32; ++x) {
+                data.put(casacore_mini::IPosition{x, y, z},
+                         static_cast<float>(z * 1024 + y * 32 + x + 1));
+            }
+        }
+    }
+    img.put(data);
+    img.set_units("Jy/beam");
+
+    // Create and store pixel mask: mask[i] = ((i % 4) != 0)
+    auto npix = static_cast<std::size_t>(shape.product());
+    std::vector<bool> mask_vec(npix);
+    for (std::size_t i = 0; i < npix; ++i) {
+        mask_vec[i] = ((i % 4) != 0);
+    }
+    casacore_mini::LatticeArray<bool> mask_data(shape, std::move(mask_vec));
+    img.make_mask("mask0", mask_data);
+
+    // Store mask pattern indicator in misc_info.
+    casacore_mini::Record misc;
+    misc.set("mask_pattern", casacore_mini::RecordValue(std::string("mod4")));
+    img.set_misc_info(std::move(misc));
+    img.flush();
+
+    std::cout << "  produce-img-cube-masked: wrote " << img_path.string() << '\n';
+}
+
+void verify_img_cube_masked(const std::string& input) {
+    const std::string label = "img-cube-masked";
+    namespace fs = std::filesystem;
+
+    const auto img_path = fs::path(input) / "img_cube_masked.img";
+    casacore_mini::PagedImage<float> img(img_path);
+
+    img_verify_check(img.shape() == casacore_mini::IPosition({32, 32, 16}),
+                     label, "expected shape (32,32,16)");
+
+    // Verify pixel values.
+    auto data = img.get();
+    for (std::int64_t z = 0; z < 16; ++z) {
+        for (std::int64_t y = 0; y < 32; ++y) {
+            for (std::int64_t x = 0; x < 32; ++x) {
+                const float expected =
+                    static_cast<float>(z * 1024 + y * 32 + x + 1);
+                const float actual =
+                    data.at(casacore_mini::IPosition{x, y, z});
+                img_verify_check(
+                    std::abs(actual - expected) < kFloat32Tolerance, label,
+                    "pixel mismatch at (" + std::to_string(x) + "," +
+                        std::to_string(y) + "," + std::to_string(z) + ")");
+            }
+        }
+    }
+
+    // Verify mask pattern is stored in misc_info (when produced by mini).
+    // When reading casacore-produced images, mask_pattern may be absent because
+    // casacore stores the mask as an actual pixel mask lattice, not as metadata.
+    const auto& misc = img.misc_info();
+    const auto* mp_rv = misc.find("mask_pattern");
+    if (mp_rv != nullptr) {
+        const auto* mp_str = std::get_if<std::string>(&mp_rv->storage());
+        img_verify_check(mp_str != nullptr && *mp_str == "mod4", label,
+                         "expected mask_pattern == \"mod4\"");
+    }
+
+    // Verify has_pixel_mask() is true.
+    img_verify_check(img.has_pixel_mask(), label,
+                     "expected has_pixel_mask() == true");
+
+    // Element-by-element mask verification.
+    auto mask = img.get_mask();
+    const auto total = static_cast<std::size_t>(data.nelements());
+    img_verify_check(mask.nelements() == total, label,
+                     "mask nelements mismatch: " + std::to_string(mask.nelements()) +
+                         " vs " + std::to_string(total));
+    std::size_t mask_mismatches = 0;
+    for (std::size_t i = 0; i < total; ++i) {
+        bool expected = ((i % 4) != 0);
+        if (mask[i] != expected) {
+            ++mask_mismatches;
+        }
+    }
+    img_verify_check(mask_mismatches == 0, label,
+                     "element-by-element mask mismatches: " + std::to_string(mask_mismatches));
+
+    // Also verify the old fraction check as sanity.
+    std::size_t true_count = 0;
+    for (std::size_t i = 0; i < total; ++i) {
+        if (mask[i]) ++true_count;
+    }
+    const double frac = static_cast<double>(true_count) / static_cast<double>(total);
+    img_verify_check(frac > 0.70 && frac < 0.80, label,
+                     "mask ~75% true fraction check failed: " +
+                         std::to_string(frac));
+
+    // Verify coordinate system has direction + spectral axes (3 pixel axes total).
+    const auto& cs = img.coordinates();
+    img_verify_check(cs.n_pixel_axes() == 3, label,
+                     "expected 3 pixel axes in CS");
+
+    // Coordinate roundtrip verification.
+    {
+        const auto& coord0 = cs.coordinate(0);
+        auto crpix = coord0.reference_pixel();
+        auto crval = coord0.reference_value();
+        // Pad to n_pixel_axes for to_world call.
+        std::vector<double> pixel_vec(cs.n_pixel_axes(), 0.0);
+        for (std::size_t i = 0; i < std::min(crpix.size(), pixel_vec.size()); ++i) {
+            pixel_vec[i] = crpix[i];
+        }
+        auto world = cs.to_world(pixel_vec);
+        // First two world axes should match crval of direction coordinate.
+        for (std::size_t i = 0; i < crval.size(); ++i) {
+            img_verify_check(
+                std::abs(world[i] - crval[i]) < kFloat64Tolerance, label,
+                "coord roundtrip: to_world(crpix)[" + std::to_string(i) + "] != crval");
+        }
+
+        // Pixel roundtrip at test point.
+        std::vector<double> test_pixel(cs.n_pixel_axes(), 5.0);
+        auto w = cs.to_world(test_pixel);
+        auto p_back = cs.to_pixel(w);
+        for (std::size_t i = 0; i < cs.n_pixel_axes(); ++i) {
+            img_verify_check(
+                std::abs(p_back[i] - test_pixel[i]) < kFloat64Tolerance, label,
+                "pixel roundtrip axis " + std::to_string(i));
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-img-region-subset ---
+
+void produce_img_region_subset(const std::string& output) {
+    namespace fs = std::filesystem;
+    fs::create_directories(output);
+
+    const auto img_path = fs::path(output) / "img_region_subset.img";
+    if (fs::exists(img_path)) {
+        fs::remove_all(img_path);
+    }
+
+    casacore_mini::IPosition shape{64, 64};
+    casacore_mini::PagedImage<float> img(shape, make_linear_cs(2), img_path);
+
+    casacore_mini::LatticeArray<float> data(shape);
+    data.make_unique();
+    for (std::int64_t y = 0; y < 64; ++y) {
+        for (std::int64_t x = 0; x < 64; ++x) {
+            data.put(casacore_mini::IPosition{x, y},
+                     static_cast<float>(y * 64 + x + 1));
+        }
+    }
+    img.put(data);
+
+    // Store region parameters in misc_info as doubles.
+    casacore_mini::Record misc;
+    misc.set("blc_x", casacore_mini::RecordValue(10.0));
+    misc.set("blc_y", casacore_mini::RecordValue(10.0));
+    misc.set("trc_x", casacore_mini::RecordValue(29.0));
+    misc.set("trc_y", casacore_mini::RecordValue(29.0));
+    img.set_misc_info(std::move(misc));
+    img.flush();
+
+    std::cout << "  produce-img-region-subset: wrote " << img_path.string() << '\n';
+}
+
+void verify_img_region_subset(const std::string& input) {
+    const std::string label = "img-region-subset";
+    namespace fs = std::filesystem;
+
+    const auto img_path = fs::path(input) / "img_region_subset.img";
+    casacore_mini::PagedImage<float> img(img_path);
+
+    img_verify_check(img.shape() == casacore_mini::IPosition({64, 64}),
+                     label, "expected shape (64,64)");
+
+    // Verify base image pixels round-trip.
+    auto data = img.get();
+    for (std::int64_t y = 0; y < 64; ++y) {
+        for (std::int64_t x = 0; x < 64; ++x) {
+            const float expected = static_cast<float>(y * 64 + x + 1);
+            const float actual = data.at(casacore_mini::IPosition{x, y});
+            img_verify_check(
+                std::abs(actual - expected) < kFloat32Tolerance, label,
+                "base pixel mismatch at (" + std::to_string(x) + "," +
+                    std::to_string(y) + ")");
+        }
+    }
+
+    // Retrieve region parameters from misc_info.
+    const auto& misc = img.misc_info();
+    const auto* blc_x_rv = misc.find("blc_x");
+    const auto* blc_y_rv = misc.find("blc_y");
+    const auto* trc_x_rv = misc.find("trc_x");
+    const auto* trc_y_rv = misc.find("trc_y");
+    img_verify_check(blc_x_rv != nullptr && blc_y_rv != nullptr &&
+                         trc_x_rv != nullptr && trc_y_rv != nullptr,
+                     label, "missing region parameters in misc_info");
+
+    const auto* blc_x_ptr = std::get_if<double>(&blc_x_rv->storage());
+    const auto* blc_y_ptr = std::get_if<double>(&blc_y_rv->storage());
+    const auto* trc_x_ptr = std::get_if<double>(&trc_x_rv->storage());
+    const auto* trc_y_ptr = std::get_if<double>(&trc_y_rv->storage());
+
+    img_verify_check(blc_x_ptr != nullptr && blc_y_ptr != nullptr &&
+                         trc_x_ptr != nullptr && trc_y_ptr != nullptr,
+                     label, "region parameter types must be double");
+
+    const auto blc_x = static_cast<std::int64_t>(*blc_x_ptr);
+    const auto blc_y = static_cast<std::int64_t>(*blc_y_ptr);
+    const auto trc_x = static_cast<std::int64_t>(*trc_x_ptr);
+    const auto trc_y = static_cast<std::int64_t>(*trc_y_ptr);
+
+    img_verify_check(blc_x == 10 && blc_y == 10 && trc_x == 29 && trc_y == 29,
+                     label, "region parameters do not match expected blc=(10,10) trc=(29,29)");
+
+    // Construct a SubImage over the region and verify shape + values.
+    const auto sub_width = trc_x - blc_x + 1;
+    const auto sub_height = trc_y - blc_y + 1;
+    casacore_mini::SubImage<float> sub(
+        img, casacore_mini::Slicer(
+                 casacore_mini::IPosition{blc_x, blc_y},
+                 casacore_mini::IPosition{sub_width, sub_height}));
+
+    img_verify_check(
+        sub.shape() == casacore_mini::IPosition({sub_width, sub_height}),
+        label,
+        "SubImage shape mismatch: expected (" + std::to_string(sub_width) +
+            "," + std::to_string(sub_height) + ")");
+
+    auto sub_data = sub.get();
+    for (std::int64_t sy = 0; sy < sub_height; ++sy) {
+        for (std::int64_t sx = 0; sx < sub_width; ++sx) {
+            const auto gx = blc_x + sx;
+            const auto gy = blc_y + sy;
+            const float expected = static_cast<float>(gy * 64 + gx + 1);
+            const float actual =
+                sub_data.at(casacore_mini::IPosition{sx, sy});
+            img_verify_check(
+                std::abs(actual - expected) < kFloat32Tolerance, label,
+                "SubImage pixel mismatch at local (" + std::to_string(sx) +
+                    "," + std::to_string(sy) + ")");
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-img-expression ---
+
+void produce_img_expression(const std::string& output) {
+    namespace fs = std::filesystem;
+    fs::create_directories(output);
+
+    const auto img_path = fs::path(output) / "img_expression.img";
+    if (fs::exists(img_path)) {
+        fs::remove_all(img_path);
+    }
+
+    // Compute expression: result[i] = (i+1) + 2.0*(100.0 - i)
+    // which simplifies to: 201.0 - i
+    constexpr std::int64_t nx = 32;
+    constexpr std::int64_t ny = 32;
+    casacore_mini::IPosition shape{nx, ny};
+
+    casacore_mini::LatticeArray<float> result(shape);
+    result.make_unique();
+    const auto total = static_cast<std::size_t>(nx * ny);
+    for (std::size_t i = 0; i < total; ++i) {
+        const auto fi = static_cast<float>(i);
+        result.mutable_data()[i] = (fi + 1.0F) + 2.0F * (100.0F - fi);
+    }
+
+    casacore_mini::PagedImage<float> img(shape, make_linear_cs(2), img_path);
+    img.put(result);
+    img.set_units("Jy/beam");
+
+    // Store expression metadata.
+    casacore_mini::Record misc;
+    misc.set("expression", casacore_mini::RecordValue(std::string("lat1 + 2.0 * lat2")));
+    img.set_misc_info(std::move(misc));
+    img.flush();
+
+    std::cout << "  produce-img-expression: wrote " << img_path.string() << '\n';
+}
+
+void verify_img_expression(const std::string& input) {
+    const std::string label = "img-expression";
+    namespace fs = std::filesystem;
+
+    const auto img_path = fs::path(input) / "img_expression.img";
+    casacore_mini::PagedImage<float> img(img_path);
+
+    img_verify_check(img.shape() == casacore_mini::IPosition({32, 32}),
+                     label, "expected shape (32,32)");
+
+    auto data = img.get();
+    const auto total = data.nelements();
+    for (std::size_t i = 0; i < total; ++i) {
+        const auto fi = static_cast<float>(i);
+        const float expected = (fi + 1.0F) + 2.0F * (100.0F - fi);
+        const float actual = data[i];
+        img_verify_check(
+            std::abs(actual - expected) < kFloat32Tolerance, label,
+            "expression pixel mismatch at flat index " + std::to_string(i) +
+                ": got " + std::to_string(actual) + " expected " +
+                std::to_string(expected));
+    }
+
+    // Verify units survived roundtrip.
+    img_verify_check(img.units() == "Jy/beam", label,
+                     "expected units Jy/beam, got: " + img.units());
+
+    // Verify misc_info expression metadata survived.
+    const auto& misc = img.misc_info();
+    const auto* expr_rv = misc.find("expression");
+    img_verify_check(expr_rv != nullptr, label,
+                     "misc_info missing 'expression' key");
+    if (expr_rv != nullptr) {
+        const auto* expr_str = std::get_if<std::string>(&expr_rv->storage());
+        img_verify_check(expr_str != nullptr && *expr_str == "lat1 + 2.0 * lat2",
+                         label,
+                         "expression metadata mismatch");
+    }
+
+    // Coordinate verification.
+    const auto& cs = img.coordinates();
+    img_verify_check(cs.n_coordinates() >= 1, label,
+                     "expected at least 1 coordinate in CS");
+    {
+        std::vector<double> test_pixel(cs.n_pixel_axes(), 3.0);
+        auto w = cs.to_world(test_pixel);
+        auto p_back = cs.to_pixel(w);
+        for (std::size_t i = 0; i < cs.n_pixel_axes(); ++i) {
+            img_verify_check(
+                std::abs(p_back[i] - test_pixel[i]) < kFloat64Tolerance, label,
+                "pixel roundtrip axis " + std::to_string(i));
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// --- produce-img-complex ---
+
+void produce_img_complex(const std::string& output) {
+    namespace fs = std::filesystem;
+    fs::create_directories(output);
+
+    const auto img_path = fs::path(output) / "img_complex.img";
+    if (fs::exists(img_path)) {
+        fs::remove_all(img_path);
+    }
+
+    casacore_mini::IPosition shape{32, 32};
+    casacore_mini::PagedImage<std::complex<float>> img(
+        shape, make_linear_cs(2), img_path);
+
+    casacore_mini::LatticeArray<std::complex<float>> data(shape);
+    data.make_unique();
+    for (std::int64_t y = 0; y < 32; ++y) {
+        for (std::int64_t x = 0; x < 32; ++x) {
+            data.put(casacore_mini::IPosition{x, y},
+                     std::complex<float>(static_cast<float>(x + 1),
+                                         static_cast<float>(y + 1)));
+        }
+    }
+    img.put(data);
+    img.flush();
+
+    std::cout << "  produce-img-complex: wrote " << img_path.string() << '\n';
+}
+
+void verify_img_complex(const std::string& input) {
+    const std::string label = "img-complex";
+    namespace fs = std::filesystem;
+
+    const auto img_path = fs::path(input) / "img_complex.img";
+    casacore_mini::PagedImage<std::complex<float>> img(img_path);
+
+    img_verify_check(img.shape() == casacore_mini::IPosition({32, 32}),
+                     label, "expected shape (32,32)");
+
+    auto data = img.get();
+    for (std::int64_t y = 0; y < 32; ++y) {
+        for (std::int64_t x = 0; x < 32; ++x) {
+            const auto actual = data.at(casacore_mini::IPosition{x, y});
+            const float expected_real = static_cast<float>(x + 1);
+            const float expected_imag = static_cast<float>(y + 1);
+            img_verify_check(
+                std::abs(actual.real() - expected_real) < kFloat32Tolerance,
+                label,
+                "real part mismatch at (" + std::to_string(x) + "," +
+                    std::to_string(y) + "): got " +
+                    std::to_string(actual.real()) + " expected " +
+                    std::to_string(expected_real));
+            img_verify_check(
+                std::abs(actual.imag() - expected_imag) < kFloat32Tolerance,
+                label,
+                "imag part mismatch at (" + std::to_string(x) + "," +
+                    std::to_string(y) + "): got " +
+                    std::to_string(actual.imag()) + " expected " +
+                    std::to_string(expected_imag));
+        }
+    }
+
+    // Verify coordinate system and roundtrip.
+    const auto& cs = img.coordinates();
+    img_verify_check(cs.n_coordinates() >= 1, label,
+                     "expected at least 1 coordinate in CS");
+    {
+        std::vector<double> test_pixel(cs.n_pixel_axes(), 3.0);
+        auto w = cs.to_world(test_pixel);
+        auto p_back = cs.to_pixel(w);
+        for (std::size_t i = 0; i < cs.n_pixel_axes(); ++i) {
+            img_verify_check(
+                std::abs(p_back[i] - test_pixel[i]) < kFloat64Tolerance, label,
+                "pixel roundtrip axis " + std::to_string(i));
+        }
+    }
+
+    std::cout << "  " << label << ": [PASS]\n";
+}
+
+// =====================================================================
 
 [[nodiscard]] std::string usage() {
     return "Usage:\n"
@@ -3213,7 +3785,17 @@ void verify_oracle_ms(const std::string& ms_path, const std::string& oracle_path
            "  interop_mini_tool verify-ms-optional-subtables --input <dir>\n"
            "  interop_mini_tool verify-ms-concat --input <dir>\n"
            "  interop_mini_tool verify-ms-selection-stress --input <dir>\n"
-           "  interop_mini_tool verify-oracle-ms --input <ms_dir> --oracle <dump>\n";
+           "  interop_mini_tool verify-oracle-ms --input <ms_dir> --oracle <dump>\n"
+           "  interop_mini_tool produce-img-minimal --output <dir>\n"
+           "  interop_mini_tool produce-img-cube-masked --output <dir>\n"
+           "  interop_mini_tool produce-img-region-subset --output <dir>\n"
+           "  interop_mini_tool produce-img-expression --output <dir>\n"
+           "  interop_mini_tool produce-img-complex --output <dir>\n"
+           "  interop_mini_tool verify-img-minimal --input <dir>\n"
+           "  interop_mini_tool verify-img-cube-masked --input <dir>\n"
+           "  interop_mini_tool verify-img-region-subset --input <dir>\n"
+           "  interop_mini_tool verify-img-expression --input <dir>\n"
+           "  interop_mini_tool verify-img-complex --input <dir>\n";
 }
 
 } // namespace
@@ -3709,6 +4291,88 @@ int main(int argc, char** argv) noexcept {
                 throw std::runtime_error("missing required --input/--oracle");
             }
             verify_oracle_ms(*input, *oracle);
+            return 0;
+        }
+
+        // --- Phase 10: Image interop commands ---
+        if (subcommand == "produce-img-minimal") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_minimal(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-minimal") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_minimal(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-cube-masked") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_cube_masked(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-cube-masked") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_cube_masked(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-region-subset") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_region_subset(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-region-subset") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_region_subset(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-expression") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_expression(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-expression") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_expression(*input);
+            return 0;
+        }
+        if (subcommand == "produce-img-complex") {
+            const auto output = arg_value(argc, argv, "--output");
+            if (!output.has_value()) {
+                throw std::runtime_error("missing required --output");
+            }
+            produce_img_complex(*output);
+            return 0;
+        }
+        if (subcommand == "verify-img-complex") {
+            const auto input = arg_value(argc, argv, "--input");
+            if (!input.has_value()) {
+                throw std::runtime_error("missing required --input");
+            }
+            verify_img_complex(*input);
             return 0;
         }
 

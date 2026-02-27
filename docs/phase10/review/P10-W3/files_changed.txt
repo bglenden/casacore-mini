@@ -1,0 +1,6 @@
+CMakeLists.txt
+include/casacore_mini/lattice.hpp
+include/casacore_mini/lattice_array.hpp
+src/lattice.cpp
+tests/lattice_test.cpp
+tools/check_phase10_w3.sh

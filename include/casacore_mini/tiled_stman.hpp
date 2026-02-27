@@ -2,6 +2,7 @@
 
 #include "casacore_mini/table_desc.hpp"
 
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -143,12 +144,27 @@ class TiledStManWriter {
     /// @param dm_name  Data manager name (e.g. "TiledCol")
     /// @param columns  Column descriptors (must have shape set)
     /// @param row_count Number of rows
+    /// @param big_endian  If true, flag data as big-endian (casacore default).
     void setup(std::string_view sm_type, std::string_view dm_name,
-               const std::vector<ColumnDesc>& columns, std::uint64_t row_count);
+               const std::vector<ColumnDesc>& columns, std::uint64_t row_count,
+               bool big_endian = true);
 
     /// Write all array elements for a cell.
     void write_float_cell(std::size_t col_index, const std::vector<float>& values,
                           std::uint64_t row);
+
+    /// Write all array elements for a cell (Double).
+    void write_double_cell(std::size_t col_index, const std::vector<double>& values,
+                           std::uint64_t row);
+
+    /// Write all array elements for a cell (Complex = pairs of float).
+    void write_complex_cell(std::size_t col_index,
+                            const std::vector<std::complex<float>>& values,
+                            std::uint64_t row);
+
+    /// Write all array elements for a cell (Bool = 1 byte each).
+    void write_bool_cell(std::size_t col_index, const std::vector<bool>& values,
+                         std::uint64_t row);
 
     /// Write all array elements for a cell (Int).
     void write_int_cell(std::size_t col_index, const std::vector<std::int32_t>& values,
@@ -158,6 +174,24 @@ class TiledStManWriter {
     /// @p data must be exactly element_size * cell_elements bytes.
     void write_raw_cell(std::size_t col_index, const std::vector<std::uint8_t>& data,
                         std::uint64_t row);
+
+    /// Read back float data from writer buffer (for read-after-write consistency).
+    [[nodiscard]] std::vector<float> read_float_cell(std::size_t col_index,
+                                                     std::uint64_t row) const;
+
+    /// Read back double data from writer buffer.
+    [[nodiscard]] std::vector<double> read_double_cell(std::size_t col_index,
+                                                       std::uint64_t row) const;
+
+    /// Read back raw bytes from writer buffer.
+    [[nodiscard]] std::vector<std::uint8_t> read_raw_cell(std::size_t col_index,
+                                                          std::uint64_t row) const;
+
+    /// Check if this writer has a column by name.
+    [[nodiscard]] bool has_column(std::string_view name) const;
+
+    /// Find column index by name; returns SIZE_MAX if not found.
+    [[nodiscard]] std::size_t find_column(std::string_view name) const;
 
     /// Produce the TSM blob for inclusion in table.dat.
     [[nodiscard]] std::vector<std::uint8_t> make_blob() const;
@@ -177,6 +211,7 @@ class TiledStManWriter {
     };
 
     bool is_setup_ = false;
+    bool big_endian_ = true;
     std::string sm_type_;
     std::string dm_name_;
     std::uint64_t row_count_ = 0;

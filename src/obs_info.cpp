@@ -1,6 +1,7 @@
 #include "casacore_mini/obs_info.hpp"
 #include "casacore_mini/measure_record.hpp"
 
+#include <stdexcept>
 #include <string>
 
 namespace casacore_mini {
@@ -68,12 +69,21 @@ ObsInfo obs_info_from_record(const Record& rec) {
 
     const auto* date_rec = find_sub_record(rec, "obsdate");
     if (date_rec != nullptr) {
-        info.obs_date = measure_from_record(*date_rec);
+        try {
+            info.obs_date = measure_from_record(*date_rec);
+        } catch (const std::exception&) {
+            // Upstream casacore may write measure records in a format we
+            // don't fully support yet.  Skip gracefully.
+        }
     }
 
     const auto* pos_rec = find_sub_record(rec, "telescopeposition");
     if (pos_rec != nullptr) {
-        info.telescope_position = measure_from_record(*pos_rec);
+        try {
+            info.telescope_position = measure_from_record(*pos_rec);
+        } catch (const std::exception&) {
+            // Gracefully skip unsupported measure format.
+        }
     }
 
     const auto* pc_rec = find_sub_record(rec, "pointingcenter");

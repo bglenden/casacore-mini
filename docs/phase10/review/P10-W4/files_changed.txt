@@ -1,0 +1,6 @@
+A include/casacore_mini/image.hpp
+A src/image.cpp
+A tests/image_test.cpp
+M CMakeLists.txt (added src/image.cpp to library, added image_test target)
+M tools/check_phase10_w4.sh (stub -> real gates)
+A docs/phase10/review/P10-W4/ (review packet)

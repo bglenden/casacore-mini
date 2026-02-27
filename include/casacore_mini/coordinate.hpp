@@ -78,6 +78,13 @@ class Coordinate {
     /// @throws std::invalid_argument if type is unrecognized.
     [[nodiscard]] static std::unique_ptr<Coordinate> restore(const Record& rec);
 
+    /// Restore with an explicit type hint.  If the record contains a
+    /// ``coordinate_type`` field it is used; otherwise @p type_hint is used.
+    /// This allows reading upstream casacore records which do not embed
+    /// ``coordinate_type`` in the coordinate sub-records.
+    [[nodiscard]] static std::unique_ptr<Coordinate> restore(const Record& rec,
+                                                             CoordinateType type_hint);
+
   protected:
     Coordinate() = default;
     Coordinate(const Coordinate&) = default;
