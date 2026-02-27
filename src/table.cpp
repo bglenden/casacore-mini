@@ -669,32 +669,37 @@ void Table::flush() {
     if (!impl_->writable)
         return;
 
+    // Use local references from .value() after has_value() checks so clang-tidy
+    // can prove optional accesses are checked.
     if (impl_->ssm_writer.has_value()) {
-        impl_->ssm_writer->write_file(impl_->path.string(), 0);
-        impl_->ssm_writer->write_indirect_file(impl_->path.string(), 0);
+        auto& ssm_writer = impl_->ssm_writer.value();
+        ssm_writer.write_file(impl_->path.string(), 0);
+        ssm_writer.write_indirect_file(impl_->path.string(), 0);
 
         // Re-write table.dat with updated blob.
-        impl_->dir.table_dat.storage_managers[0].data_blob = impl_->ssm_writer->make_blob();
+        impl_->dir.table_dat.storage_managers[0].data_blob = ssm_writer.make_blob();
         write_table_directory(impl_->path.string(), impl_->dir.table_dat);
 
         // Reset reader cache.
         impl_->ssm_readers.clear();
         impl_->ssm_readers_initialized = false;
     } else if (impl_->ism_writer.has_value()) {
-        impl_->ism_writer->write_file(impl_->path.string(), 0);
+        auto& ism_writer = impl_->ism_writer.value();
+        ism_writer.write_file(impl_->path.string(), 0);
 
         // Re-write table.dat with updated blob.
-        impl_->dir.table_dat.storage_managers[0].data_blob = impl_->ism_writer->make_blob();
+        impl_->dir.table_dat.storage_managers[0].data_blob = ism_writer.make_blob();
         write_table_directory(impl_->path.string(), impl_->dir.table_dat);
 
         // Reset reader cache.
         impl_->ism_readers.clear();
         impl_->ism_readers_initialized = false;
     } else if (impl_->tsm_writer.has_value()) {
-        impl_->tsm_writer->write_files(impl_->path.string(), impl_->tsm_writer_seq);
+        auto& tsm_writer = impl_->tsm_writer.value();
+        tsm_writer.write_files(impl_->path.string(), impl_->tsm_writer_seq);
 
         // Re-write table.dat with updated blob.
-        impl_->dir.table_dat.storage_managers[0].data_blob = impl_->tsm_writer->make_blob();
+        impl_->dir.table_dat.storage_managers[0].data_blob = tsm_writer.make_blob();
         write_table_directory(impl_->path.string(), impl_->dir.table_dat);
 
         // Reset TSM reader cache.
@@ -743,9 +748,10 @@ std::vector<double> Table::read_array_double_cell(std::string_view col_name,
                                                   std::uint64_t row) const {
     // Check TSM writer first for read-after-write consistency.
     if (impl_->writable && impl_->tsm_writer.has_value()) {
-        auto ci = impl_->tsm_writer->find_column(col_name);
+        const auto& tsm_writer = impl_->tsm_writer.value();
+        auto ci = tsm_writer.find_column(col_name);
         if (ci != SIZE_MAX) {
-            return impl_->tsm_writer->read_double_cell(ci, row);
+            return tsm_writer.read_double_cell(ci, row);
         }
     }
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
@@ -768,9 +774,10 @@ std::vector<float> Table::read_array_float_cell(std::string_view col_name,
                                                 std::uint64_t row) const {
     // Check TSM writer first for read-after-write consistency.
     if (impl_->writable && impl_->tsm_writer.has_value()) {
-        auto ci = impl_->tsm_writer->find_column(col_name);
+        const auto& tsm_writer = impl_->tsm_writer.value();
+        auto ci = tsm_writer.find_column(col_name);
         if (ci != SIZE_MAX) {
-            return impl_->tsm_writer->read_float_cell(ci, row);
+            return tsm_writer.read_float_cell(ci, row);
         }
     }
     if (auto* ssm = impl_->find_ssm_for_column(col_name)) {
@@ -854,9 +861,10 @@ std::vector<std::complex<float>> Table::read_array_complex_cell(std::string_view
                                                                 std::uint64_t row) const {
     // Check TSM writer first for read-after-write consistency.
     if (impl_->writable && impl_->tsm_writer.has_value()) {
-        auto ci = impl_->tsm_writer->find_column(col_name);
+        const auto& tsm_writer = impl_->tsm_writer.value();
+        auto ci = tsm_writer.find_column(col_name);
         if (ci != SIZE_MAX) {
-            auto raw = impl_->tsm_writer->read_raw_cell(ci, row);
+            auto raw = tsm_writer.read_raw_cell(ci, row);
             std::vector<std::complex<float>> result(raw.size() / 8);
             for (std::size_t i = 0; i < result.size(); ++i) {
                 float re{};
@@ -1005,9 +1013,11 @@ void Table::write_scalar_cell(std::string_view col_name, std::uint64_t row,
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->ssm_writer.has_value()) {
-                impl_->ssm_writer->write_cell(i, value, row);
+                auto& ssm_writer = impl_->ssm_writer.value();
+                ssm_writer.write_cell(i, value, row);
             } else if (impl_->ism_writer.has_value()) {
-                impl_->ism_writer->write_cell(i, value, row);
+                auto& ism_writer = impl_->ism_writer.value();
+                ism_writer.write_cell(i, value, row);
             } else {
                 throw std::runtime_error("Table: no scalar writer available");
             }
@@ -1026,9 +1036,11 @@ void Table::write_array_float_cell(std::string_view col_name, std::uint64_t row,
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->ssm_writer.has_value()) {
-                impl_->ssm_writer->write_array_float(i, values, row);
+                auto& ssm_writer = impl_->ssm_writer.value();
+                ssm_writer.write_array_float(i, values, row);
             } else if (impl_->tsm_writer.has_value()) {
-                impl_->tsm_writer->write_float_cell(i, values, row);
+                auto& tsm_writer = impl_->tsm_writer.value();
+                tsm_writer.write_float_cell(i, values, row);
             } else {
                 throw std::runtime_error("Table: no float array writer available");
             }
@@ -1046,9 +1058,11 @@ void Table::write_array_double_cell(std::string_view col_name, std::uint64_t row
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->ssm_writer.has_value()) {
-                impl_->ssm_writer->write_array_double(i, values, row);
+                auto& ssm_writer = impl_->ssm_writer.value();
+                ssm_writer.write_array_double(i, values, row);
             } else if (impl_->tsm_writer.has_value()) {
-                impl_->tsm_writer->write_double_cell(i, values, row);
+                auto& tsm_writer = impl_->tsm_writer.value();
+                tsm_writer.write_double_cell(i, values, row);
             } else {
                 throw std::runtime_error("Table: no double array writer available");
             }
@@ -1067,14 +1081,16 @@ void Table::write_array_bool_cell(std::string_view col_name, std::uint64_t row,
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->tsm_writer.has_value()) {
-                impl_->tsm_writer->write_bool_cell(i, values, row);
+                auto& tsm_writer = impl_->tsm_writer.value();
+                tsm_writer.write_bool_cell(i, values, row);
             } else if (impl_->ssm_writer.has_value()) {
+                auto& ssm_writer = impl_->ssm_writer.value();
                 // Bool arrays stored as 1 byte per element in indirect file.
                 std::vector<std::uint8_t> raw(values.size());
                 for (std::size_t j = 0; j < values.size(); ++j) {
                     raw[j] = values[j] ? 1 : 0;
                 }
-                impl_->ssm_writer->write_indirect_array(i, shape, raw, row);
+                ssm_writer.write_indirect_array(i, shape, raw, row);
             } else {
                 throw std::runtime_error("Table: no bool array writer available");
             }
@@ -1093,8 +1109,10 @@ void Table::write_array_complex_cell(std::string_view col_name, std::uint64_t ro
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->tsm_writer.has_value()) {
-                impl_->tsm_writer->write_complex_cell(i, values, row);
+                auto& tsm_writer = impl_->tsm_writer.value();
+                tsm_writer.write_complex_cell(i, values, row);
             } else if (impl_->ssm_writer.has_value()) {
+                auto& ssm_writer = impl_->ssm_writer.value();
                 // Complex = 2 floats = 8 bytes per element.
                 std::vector<std::uint8_t> raw(values.size() * 8);
                 auto* p = raw.data();
@@ -1105,7 +1123,7 @@ void Table::write_array_complex_cell(std::string_view col_name, std::uint64_t ro
                     std::memcpy(p + 4, &im, 4);
                     p += 8;
                 }
-                impl_->ssm_writer->write_indirect_array(i, shape, raw, row);
+                ssm_writer.write_indirect_array(i, shape, raw, row);
             } else {
                 throw std::runtime_error("Table: no complex array writer available");
             }
@@ -1123,7 +1141,8 @@ void Table::write_array_int_cell(std::string_view col_name, std::uint64_t row,
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->tsm_writer.has_value()) {
-                impl_->tsm_writer->write_int_cell(i, values, row);
+                auto& tsm_writer = impl_->tsm_writer.value();
+                tsm_writer.write_int_cell(i, values, row);
             } else {
                 throw std::runtime_error("Table: no int array writer available");
             }
@@ -1141,7 +1160,8 @@ void Table::write_array_raw_cell(std::string_view col_name, std::uint64_t row,
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
             if (impl_->tsm_writer.has_value()) {
-                impl_->tsm_writer->write_raw_cell(i, data, row);
+                auto& tsm_writer = impl_->tsm_writer.value();
+                tsm_writer.write_raw_cell(i, data, row);
             } else {
                 throw std::runtime_error("Table: no raw array writer available");
             }
@@ -1157,9 +1177,10 @@ void Table::write_indirect_array(std::string_view col_name, std::uint64_t row,
     if (!impl_->writable || !impl_->ssm_writer.has_value()) {
         throw std::runtime_error("Table: not writable");
     }
+    auto& ssm_writer = impl_->ssm_writer.value();
     for (std::size_t i = 0; i < impl_->writer_columns.size(); ++i) {
         if (impl_->writer_columns[i].name == col_name) {
-            impl_->ssm_writer->write_indirect_array(i, shape, data, row);
+            ssm_writer.write_indirect_array(i, shape, data, row);
             return;
         }
     }
