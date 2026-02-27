@@ -823,7 +823,8 @@ LatticeArray<T> RebinLattice<T>::get() const {
             ++count;
         }
 
-        result.put(out_pos, count > 0 ? static_cast<T>(sum / count) : T{});
+        const double denom = static_cast<double>(count);
+        result.put(out_pos, count > 0 ? static_cast<T>(sum / denom) : T{});
     }
     return result;
 }
@@ -864,7 +865,8 @@ T RebinLattice<T>::get_at(const IPosition& where) const {
         sum += static_cast<double>(parent_->get_at(src_pos));
         ++count;
     }
-    return count > 0 ? static_cast<T>(sum / count) : T{};
+    const double denom = static_cast<double>(count);
+    return count > 0 ? static_cast<T>(sum / denom) : T{};
 }
 
 template <typename T>
