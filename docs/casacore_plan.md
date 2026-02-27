@@ -247,10 +247,15 @@ Required feature coverage:
   include/exclude decisions, followed by implementation of accepted remainder.
   Phase 11 also includes a full storage-manager fidelity audit to identify
   and remove any simplified/heuristic behavior versus upstream casacore.
+  Phase 11 must also deliver full `tables/TaQL` command/expression support and
+  full `ms/MSSel` selection parity (including `MSSelection::toTableExprNode`
+  semantics), not a reduced subset.
   Includes: integrate ISM and TSM writers into `Table::create()` so that
   casacore-mini can produce tables with all 6 required storage managers,
   not only StandardStMan.
   Detailed wave plan: `docs/phase11/plan.md`.
+  TaQL+MSSelection implementation blueprint:
+  `docs/phase11/taql_msselection_full_support_plan.md`.
 - Phase 12 (pending): multidimensional in-memory array model modernization.
   Introduce `mdspan`-based internal array views and ownership adapters
   (`vector`/allocator-backed), replacing ad-hoc shape+stride indexing in
