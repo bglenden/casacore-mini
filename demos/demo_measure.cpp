@@ -1,21 +1,28 @@
-// demo_measure.cpp -- Phase 8: Measure creation + conversions
+// demo_measure.cpp -- Phase 8: measure conversion transliteration demo
 //
-// casacore-original equivalent (dMeasure.cc partial):
-//   MEpoch ep(Quantity(59000.5, "d"), MEpoch::UTC);
-//   MEpoch::Convert toTAI(ep, MEpoch::TAI);
-//   MEpoch tai = toTAI();
-//   // TAI-UTC = 37 seconds
+// casacore-original reference excerpts:
+//   Source: casacore-original/measures/Measures/test/tMeasure.cc
+//     MEpoch::Ref tmref(MEpoch::TAI);
+//     MEpoch::Convert tconv(tm2, tmref);
+//     cout << "Converted " << tm2 << " to " << tmref << " as " << tconv() << endl;
 //
-//   MDirection dir(Quantity(180, "deg"), Quantity(45, "deg"), MDirection::J2000);
-//   MDirection::Convert toGal(dir, MDirection::GALACTIC);
-//   MDirection gal = toGal();
+//     MDirection::Convert toGal(lsr1900, MDirection::J2000);
+//     cout << toGal().getValue() << endl;
+//
+//   Source: casacore-original/measures/Measures/test/tVelocityMachine.cc
+//     VelocityMachine vm(frqref, Unit("GHz"), restfrq, velref, Unit("km/s"), frame);
+//     cout << vm.makeVelocity(1.41) << endl;
+//     cout << vm.makeFrequency(bck) << endl;
+//
+// This casacore-mini demo transliterates the same families of operations:
+// epoch conversion, direction conversion, Doppler conversions, and position conversion.
 
 #include <casacore_mini/measure_convert.hpp>
 #include <casacore_mini/measure_types.hpp>
 #include <casacore_mini/quantity.hpp>
 #include <casacore_mini/velocity_machine.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <iostream>
 
@@ -45,21 +52,21 @@ static void demo_epoch() {
     const auto& tai_val = std::get<EpochValue>(tai.value);
     double tai_offset_s = (tai_val.day + tai_val.fraction - 59000.5) * 86400.0;
     std::cout << "  UTC -> TAI: offset = " << tai_offset_s << " s (expected ~37.0 s)\n";
-    assert(near(tai_offset_s, 37.0, 1e-6));
+    DEMO_CHECK(near(tai_offset_s, 37.0, 1e-6));
 
     // UTC -> TT: +69.184 seconds (TAI + 32.184)
     auto tt = convert_measure(epoch_utc, EpochRef::tdt);
     const auto& tt_val = std::get<EpochValue>(tt.value);
     double tt_offset_s = (tt_val.day + tt_val.fraction - 59000.5) * 86400.0;
     std::cout << "  UTC -> TT:  offset = " << tt_offset_s << " s (expected ~69.184 s)\n";
-    assert(near(tt_offset_s, 69.184, 1e-4));
+    DEMO_CHECK(near(tt_offset_s, 69.184, 1e-4));
 
     // Round-trip TAI -> UTC
     auto back = convert_measure(tai, EpochRef::utc);
     const auto& back_val = std::get<EpochValue>(back.value);
     double back_mjd = back_val.day + back_val.fraction;
     std::cout << "  TAI -> UTC: MJD = " << back_mjd << " (expected 59000.5)\n";
-    assert(near(back_mjd, 59000.5, 1e-12));
+    DEMO_CHECK(near(back_mjd, 59000.5, 1e-12));
 
     std::cout << "  [OK] Epoch conversions verified.\n";
 }
@@ -90,8 +97,8 @@ static void demo_direction() {
     double back_ra = Quantity(back_val.lon_rad, "rad").get_value("deg");
     double back_dec = Quantity(back_val.lat_rad, "rad").get_value("deg");
     std::cout << "  Galactic -> J2000: RA=" << back_ra << " deg, Dec=" << back_dec << " deg\n";
-    assert(near(back_ra, 180.0, 1e-6));
-    assert(near(back_dec, 45.0, 1e-6));
+    DEMO_CHECK(near(back_ra, 180.0, 1e-6));
+    DEMO_CHECK(near(back_dec, 45.0, 1e-6));
 
     std::cout << "  [OK] Direction conversions verified.\n";
 }
@@ -111,7 +118,7 @@ static void demo_doppler() {
     std::cout << "  radio -> z    = " << z_val << "\n";
     // For radio: v/c = radio, z = 1/(1-v/c) - 1 = 1/(1-radio) - 1
     double expected_z = 1.0 / (1.0 - radio_val) - 1.0;
-    assert(near(z_val, expected_z, 1e-10));
+    DEMO_CHECK(near(z_val, expected_z, 1e-10));
 
     // radio -> beta
     double beta_val = radio_to_beta(radio_val);
@@ -121,13 +128,13 @@ static void demo_doppler() {
     VelocityMachine radio_to_z_m(DopplerRef::radio, DopplerRef::z);
     double z_via_machine = radio_to_z_m.convert(radio_val);
     std::cout << "  VelocityMachine(radio->z).convert(0.1) = " << z_via_machine << "\n";
-    assert(near(z_via_machine, z_val, 1e-10));
+    DEMO_CHECK(near(z_via_machine, z_val, 1e-10));
 
     // Round-trip: z -> radio
     VelocityMachine z_to_radio_m(DopplerRef::z, DopplerRef::radio);
     double radio_back = z_to_radio_m.convert(z_val);
     std::cout << "  z -> radio round-trip = " << radio_back << "\n";
-    assert(near(radio_back, radio_val, 1e-10));
+    DEMO_CHECK(near(radio_back, radio_val, 1e-10));
 
     std::cout << "  [OK] Doppler conversions verified.\n";
 }

@@ -1,25 +1,27 @@
-// demo_table_write.cpp -- Phase 7: Create table, write/read cells
+// demo_table_write.cpp -- Phase 7: table creation/write transliteration demo
 //
-// casacore-original equivalent:
-//   TableDesc td("demoTable", "1", TableDesc::Scratch);
-//   td.addColumn(ScalarColumnDesc<Int>("ID"));
-//   td.addColumn(ScalarColumnDesc<Float>("VALUE"));
-//   td.addColumn(ScalarColumnDesc<Double>("DVAL"));
-//   td.addColumn(ScalarColumnDesc<String>("LABEL"));
-//   SetupNewTable setup("demo.tab", td, Table::New);
-//   Table table(setup, 10);
-//   ScalarColumn<Int> idCol(table, "ID");
-//   idCol.put(0, 42);
-//   TableRow row(table);
-//   Record rec;
-//   rec.define("ID", 43);
-//   rec.define("VALUE", 2.5f);
-//   row.put(1, rec);
+// casacore-original reference excerpts:
+//   Source: casacore-original/tables/Tables/test/tTable.cc
+//     TableDesc td("", "1", TableDesc::Scratch);
+//     td.addColumn(ScalarColumnDesc<Int>("ab"));
+//     td.addColumn(ScalarColumnDesc<uInt>("ad"));
+//     SetupNewTable newtab("tTable_tmp.data", td, Table::New, stopt);
+//     Table tab(newtab, 10);
+//     ScalarColumn<Int> ab1(tab, "ab");
+//     ab1.put(i, i);
+//
+//   Source: casacore-original/tables/Tables/test/tTableRow.cc
+//     TableRow row(tab, stringToVector("ab,ad,ag,arr1,arr2,rec"));
+//     TableRecord rec(row.record().description(), RecordInterface::Variable);
+//     row.put(i, rec);
+//
+// This casacore-mini demo follows the same pattern: define schema, create
+// table, write via typed scalar columns, and write via row records.
 
 #include <casacore_mini/table.hpp>
 #include <casacore_mini/table_column.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -70,8 +72,8 @@ int main() {
         std::cout << "  Created: " << table.table_name() << " at " << table.path() << "\n";
         std::cout << "  Rows:    " << table.nrow() << "\n";
         std::cout << "  Columns: " << table.ncolumn() << "\n";
-        assert(table.nrow() == 10);
-        assert(table.ncolumn() == 4);
+        DEMO_CHECK(table.nrow() == 10);
+        DEMO_CHECK(table.ncolumn() == 4);
 
         // 2. Write first 5 rows via ScalarColumn<T>::put().
         std::cout << "\n--- Writing rows 0-4 via ScalarColumn ---\n";
@@ -109,8 +111,8 @@ int main() {
         // 5. Read back and verify.
         std::cout << "\n--- Reading back via Table::open ---\n";
         auto table2 = Table::open(table_path);
-        assert(table2.nrow() == 10);
-        assert(table2.ncolumn() == 4);
+        DEMO_CHECK(table2.nrow() == 10);
+        DEMO_CHECK(table2.ncolumn() == 4);
 
         ScalarColumn<std::int32_t> id2(table2, "ID");
         ScalarColumn<float> val2(table2, "VALUE");
@@ -123,10 +125,10 @@ int main() {
             auto expected_dval = static_cast<double>(r) * 3.14;
             auto expected_label = "row_" + std::to_string(r);
 
-            assert(id2.get(r) == expected_id);
-            assert(std::fabs(val2.get(r) - expected_val) < 1e-6F);
-            assert(std::fabs(dval2.get(r) - expected_dval) < 1e-10);
-            assert(label2.get(r) == expected_label);
+            DEMO_CHECK(id2.get(r) == expected_id);
+            DEMO_CHECK(std::fabs(val2.get(r) - expected_val) < 1e-6F);
+            DEMO_CHECK(std::fabs(dval2.get(r) - expected_dval) < 1e-10);
+            DEMO_CHECK(label2.get(r) == expected_label);
 
             std::cout << "  row " << r << ": ID=" << id2.get(r) << " VALUE=" << val2.get(r)
                       << " DVAL=" << dval2.get(r) << " LABEL=\"" << label2.get(r) << "\"\n";
@@ -138,8 +140,8 @@ int main() {
         TableRow row2(table2);
         for (std::uint64_t r = 0; r < 10; ++r) {
             Record rec = row2.get(r);
-            assert(rec.size() == 4);
-            assert(std::get<std::int32_t>(rec.find("ID")->storage()) ==
+            DEMO_CHECK(rec.size() == 4);
+            DEMO_CHECK(std::get<std::int32_t>(rec.find("ID")->storage()) ==
                    static_cast<std::int32_t>(r * 10));
         }
         std::cout << "  [OK] All 10 rows verified (row-oriented read).\n";

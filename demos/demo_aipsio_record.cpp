@@ -1,23 +1,23 @@
-// demo_aipsio_record.cpp -- Phases 1-2 + 4: AipsIO primitives, Record, keywords
+// demo_aipsio_record.cpp -- Phases 1-2 + 4: AipsIO/Record transliteration demo
 //
-// casacore-original equivalent:
-//   AipsIO aos("test.dat", ByteIO::New);
-//   aos << (Int)42 << (Double)3.14 << String("hello");
-//   RecordDesc rd;
-//   rd.addField("id",    TpInt);
-//   rd.addField("value", TpDouble);
-//   rd.addField("label", TpString);
-//   Record rec(rd);
-//   rec.define("id",    42);
-//   rec.define("value", 3.14);
-//   rec.define("label", String("hello"));
-//   AipsIO aos2("rec.dat", ByteIO::New);
-//   aos2 << rec;
-//   // Read back
-//   AipsIO ais("rec.dat");
-//   Record rec2;
-//   ais >> rec2;
-//   AlwaysAssert(rec2.asInt("id") == 42, AipsError);
+// casacore-original reference excerpts:
+//   Source: casacore-original/casa/IO/test/tAipsIO.cc
+//     AipsIO io("tAipsIO_tmp.data", ByteIO::New);
+//     io << tbi << tci << tuci << tsi << tusi << tii << tuii;
+//     io << tli << tuli << tfi << tdi << toi << tdoi;
+//     io.close();
+//     io.open("tAipsIO_tmp.data");
+//     io >> tbo >> tco >> tuco >> tso >> tuso >> tio >> tuio;
+//
+//   Source: casacore-original/casa/Containers/test/tRecord.cc
+//     RecordDesc rd;
+//     rd.addField("TpInt", TpInt);
+//     Record record(rd, RecordInterface::Variable, nameCallBack, &extraArgument);
+//     record.define("TpInt2", Int(3));
+//     RecordFieldPtr<Int> intField(record, 3);
+//
+// This casacore-mini demo transliterates primitive AipsIO round-trip,
+// Record field operations, nested records, and AipsIO-backed Record I/O.
 
 #include <casacore_mini/aipsio_reader.hpp>
 #include <casacore_mini/aipsio_record_reader.hpp>
@@ -25,7 +25,7 @@
 #include <casacore_mini/aipsio_writer.hpp>
 #include <casacore_mini/record.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -64,10 +64,10 @@ static void demo_aipsio_primitives() {
     std::cout << "  string = \"" << s << "\"\n";
     std::cout << "  complex = (" << c.real() << ", " << c.imag() << ")\n";
 
-    assert(i == 42);
-    assert(std::fabs(d - 3.14159265358979) < 1e-14);
-    assert(s == "hello world");
-    assert(c == std::complex<float>(1.0F, -2.5F));
+    DEMO_CHECK(i == 42);
+    DEMO_CHECK(std::fabs(d - 3.14159265358979) < 1e-14);
+    DEMO_CHECK(s == "hello world");
+    DEMO_CHECK(c == std::complex<float>(1.0F, -2.5F));
 
     std::cout << "  [OK] All primitives round-tripped correctly.\n";
 }
@@ -85,24 +85,24 @@ static void demo_record_basics() {
     rec.set("flag", RecordValue(true));
 
     std::cout << "  Record has " << rec.size() << " fields\n";
-    assert(rec.size() == 4);
+    DEMO_CHECK(rec.size() == 4);
 
     // Access fields by name.
     const auto* id_val = rec.find("id");
-    assert(id_val != nullptr);
-    assert(std::get<std::int32_t>(id_val->storage()) == 42);
+    DEMO_CHECK(id_val != nullptr);
+    DEMO_CHECK(std::get<std::int32_t>(id_val->storage()) == 42);
     std::cout << "  id    = " << std::get<std::int32_t>(id_val->storage()) << "\n";
 
     const auto* val = rec.find("value");
-    assert(val != nullptr);
+    DEMO_CHECK(val != nullptr);
     std::cout << "  value = " << std::get<double>(val->storage()) << "\n";
 
     const auto* lbl = rec.find("label");
-    assert(lbl != nullptr);
+    DEMO_CHECK(lbl != nullptr);
     std::cout << "  label = \"" << std::get<std::string>(lbl->storage()) << "\"\n";
 
     const auto* flg = rec.find("flag");
-    assert(flg != nullptr);
+    DEMO_CHECK(flg != nullptr);
     std::cout << "  flag  = " << std::boolalpha << std::get<bool>(flg->storage()) << "\n";
 
     // Iterate over entries.
@@ -142,19 +142,19 @@ static void demo_nested_records() {
 
     // Navigate into sub-record.
     const auto* sub = top.find("obs_info");
-    assert(sub != nullptr);
+    DEMO_CHECK(sub != nullptr);
     const auto* sub_rec = std::get_if<RecordValue::record_ptr>(&sub->storage());
-    assert(sub_rec != nullptr && *sub_rec != nullptr);
+    DEMO_CHECK(sub_rec != nullptr && *sub_rec != nullptr);
 
     const auto* mjd = (*sub_rec)->find("mjd");
-    assert(mjd != nullptr);
+    DEMO_CHECK(mjd != nullptr);
     std::cout << "  obs_info.mjd     = " << std::get<double>(mjd->storage()) << "\n";
-    assert(std::fabs(std::get<double>(mjd->storage()) - 59000.5) < 1e-10);
+    DEMO_CHECK(std::fabs(std::get<double>(mjd->storage()) - 59000.5) < 1e-10);
 
     const auto* proj = (*sub_rec)->find("project");
-    assert(proj != nullptr);
+    DEMO_CHECK(proj != nullptr);
     std::cout << "  obs_info.project = \"" << std::get<std::string>(proj->storage()) << "\"\n";
-    assert(std::get<std::string>(proj->storage()) == "VLASS");
+    DEMO_CHECK(std::get<std::string>(proj->storage()) == "VLASS");
 
     std::cout << "  [OK] Nested record traversal verified.\n";
 }
@@ -198,56 +198,56 @@ static void demo_record_roundtrip() {
     Record restored = read_aipsio_record(reader);
 
     std::cout << "  Restored record has " << restored.size() << " fields\n";
-    assert(restored.size() == original.size());
+    DEMO_CHECK(restored.size() == original.size());
 
     // Verify scalar fields.
     auto check_int = [&](const char* name, std::int32_t expected) {
         const auto* v = restored.find(name);
-        assert(v != nullptr);
-        assert(std::get<std::int32_t>(v->storage()) == expected);
+        DEMO_CHECK(v != nullptr);
+        DEMO_CHECK(std::get<std::int32_t>(v->storage()) == expected);
     };
     check_int("int_field", -7);
 
     const auto* ff = restored.find("float_field");
-    assert(ff != nullptr);
-    assert(std::fabs(std::get<float>(ff->storage()) - 2.5F) < 1e-6F);
+    DEMO_CHECK(ff != nullptr);
+    DEMO_CHECK(std::fabs(std::get<float>(ff->storage()) - 2.5F) < 1e-6F);
 
     const auto* df = restored.find("double_field");
-    assert(df != nullptr);
-    assert(std::fabs(std::get<double>(df->storage()) - 99.99) < 1e-10);
+    DEMO_CHECK(df != nullptr);
+    DEMO_CHECK(std::fabs(std::get<double>(df->storage()) - 99.99) < 1e-10);
 
     const auto* sf = restored.find("string_field");
-    assert(sf != nullptr);
-    assert(std::get<std::string>(sf->storage()) == "casacore-mini");
+    DEMO_CHECK(sf != nullptr);
+    DEMO_CHECK(std::get<std::string>(sf->storage()) == "casacore-mini");
 
     const auto* cf = restored.find("complex_field");
-    assert(cf != nullptr);
+    DEMO_CHECK(cf != nullptr);
     auto cval = std::get<std::complex<double>>(cf->storage());
-    assert(std::fabs(cval.real() - 1.0) < 1e-10);
-    assert(std::fabs(cval.imag() - (-3.0)) < 1e-10);
+    DEMO_CHECK(std::fabs(cval.real() - 1.0) < 1e-10);
+    DEMO_CHECK(std::fabs(cval.imag() - (-3.0)) < 1e-10);
 
     // Verify array field.
     const auto* af = restored.find("array_field");
-    assert(af != nullptr);
+    DEMO_CHECK(af != nullptr);
     const auto& restored_arr = std::get<RecordValue::double_array>(af->storage());
-    assert(restored_arr.shape.size() == 1);
-    assert(restored_arr.shape[0] == 3);
-    assert(restored_arr.elements.size() == 3);
-    assert(std::fabs(restored_arr.elements[0] - 1.1) < 1e-10);
-    assert(std::fabs(restored_arr.elements[1] - 2.2) < 1e-10);
-    assert(std::fabs(restored_arr.elements[2] - 3.3) < 1e-10);
+    DEMO_CHECK(restored_arr.shape.size() == 1);
+    DEMO_CHECK(restored_arr.shape[0] == 3);
+    DEMO_CHECK(restored_arr.elements.size() == 3);
+    DEMO_CHECK(std::fabs(restored_arr.elements[0] - 1.1) < 1e-10);
+    DEMO_CHECK(std::fabs(restored_arr.elements[1] - 2.2) < 1e-10);
+    DEMO_CHECK(std::fabs(restored_arr.elements[2] - 3.3) < 1e-10);
 
     // Verify nested sub-record.
     const auto* sr = restored.find("sub_record");
-    assert(sr != nullptr);
+    DEMO_CHECK(sr != nullptr);
     const auto* sr_ptr = std::get_if<RecordValue::record_ptr>(&sr->storage());
-    assert(sr_ptr != nullptr && *sr_ptr != nullptr);
+    DEMO_CHECK(sr_ptr != nullptr && *sr_ptr != nullptr);
     const auto* si = (*sr_ptr)->find("sub_int");
-    assert(si != nullptr);
-    assert(std::get<std::int32_t>(si->storage()) == 100);
+    DEMO_CHECK(si != nullptr);
+    DEMO_CHECK(std::get<std::int32_t>(si->storage()) == 100);
     const auto* ss = (*sr_ptr)->find("sub_str");
-    assert(ss != nullptr);
-    assert(std::get<std::string>(ss->storage()) == "nested value");
+    DEMO_CHECK(ss != nullptr);
+    DEMO_CHECK(std::get<std::string>(ss->storage()) == "nested value");
 
     std::cout << "  [OK] Full record round-trip verified (7 fields incl. array + nested).\n";
 }
@@ -270,8 +270,8 @@ static void demo_record_equality() {
     c.set("x", RecordValue(std::int32_t{1}));
     c.set("y", RecordValue(3.0)); // different
 
-    assert(a == b);
-    assert(!(a == c));
+    DEMO_CHECK(a == b);
+    DEMO_CHECK(!(a == c));
 
     std::cout << "  a == b: true  (identical)\n";
     std::cout << "  a == c: false (different y value)\n";

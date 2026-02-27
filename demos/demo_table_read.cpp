@@ -1,18 +1,24 @@
-// demo_table_read.cpp -- Phase 7: Read table structure + cells
+// demo_table_read.cpp -- Phase 7: table read/introspection transliteration demo
 //
-// casacore-original equivalent:
-//   Table table("my.tab");
-//   cout << table.nrow() << " rows, " << table.tableDesc().ncolumn() << " columns\n";
-//   ScalarColumn<Int> idCol(table, "id");
-//   cout << "id[0] = " << idCol(0) << "\n";
-//   ROTableRow row(table);
-//   const TableRecord& rec = row.get(0);
-//   cout << "row 0: " << rec << "\n";
+// casacore-original reference excerpts:
+//   Source: casacore-original/tables/Tables/test/tTable.cc
+//     Table tab("tTable_tmp.data");
+//     ScalarColumn<Int> ab2(tab, "ab");
+//     ArrayColumn<float> arr1(tab, "arr1");
+//     ab2.get(i, abval);
+//
+//   Source: casacore-original/tables/Tables/test/tTableRow.cc
+//     ROTableRow rowx(tab, stringToVector("ab,arr1"));
+//     rowx.get(i);
+//     RORecordFieldPtr<Int> ab(rowx.record(), 0);
+//
+// This casacore-mini demo transliterates the same access modes: schema
+// introspection, typed column reads, and row-oriented record reads.
 
 #include <casacore_mini/table.hpp>
 #include <casacore_mini/table_column.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -37,8 +43,8 @@ int main() {
         std::cout << "  Name:    " << table.table_name() << "\n";
         std::cout << "  Rows:    " << table.nrow() << "\n";
         std::cout << "  Columns: " << table.ncolumn() << "\n";
-        assert(table.nrow() == 5);
-        assert(table.ncolumn() == 4);
+        DEMO_CHECK(table.nrow() == 5);
+        DEMO_CHECK(table.ncolumn() == 4);
 
         std::cout << "\n  Column details:\n";
         for (const auto& col : table.columns()) {
@@ -60,12 +66,12 @@ int main() {
         }
 
         // Verify expected values.
-        assert(id_col.get(0) == 0);
-        assert(id_col.get(2) == 20);
-        assert(id_col.get(4) == 40);
-        assert(std::fabs(val_col.get(1) - 1.5F) < 1e-6F);
-        assert(label_col.get(3) == "row_3");
-        assert(std::fabs(dval_col.get(2) - 6.28) < 1e-10);
+        DEMO_CHECK(id_col.get(0) == 0);
+        DEMO_CHECK(id_col.get(2) == 20);
+        DEMO_CHECK(id_col.get(4) == 40);
+        DEMO_CHECK(std::fabs(val_col.get(1) - 1.5F) < 1e-6F);
+        DEMO_CHECK(label_col.get(3) == "row_3");
+        DEMO_CHECK(std::fabs(dval_col.get(2) - 6.28) < 1e-10);
 
         std::cout << "  [OK] ScalarColumn values verified.\n";
 
@@ -98,9 +104,9 @@ int main() {
 
         // Verify TableRow row 0.
         Record r0 = row.get(0);
-        assert(r0.size() == 4);
-        assert(std::get<std::int32_t>(r0.find("id")->storage()) == 0);
-        assert(std::get<std::string>(r0.find("label")->storage()) == "row_0");
+        DEMO_CHECK(r0.size() == 4);
+        DEMO_CHECK(std::get<std::int32_t>(r0.find("id")->storage()) == 0);
+        DEMO_CHECK(std::get<std::string>(r0.find("label")->storage()) == "row_0");
 
         std::cout << "  [OK] TableRow access verified.\n";
 

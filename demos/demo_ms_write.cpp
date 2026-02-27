@@ -1,21 +1,32 @@
-// demo_ms_write.cpp -- Phase 9: Create MeasurementSet from scratch
+// demo_ms_write.cpp -- Phase 9: MeasurementSet creation/transliteration demo
 //
-// casacore-original equivalent (writems.cc simplified):
-//   MeasurementSet ms(MeasurementSet::requiredTableDesc(), SetupNewTable("test.ms",
-//       MeasurementSet::requiredTableDesc(), Table::New));
-//   ms.createDefaultSubtables(Table::New);
-//   MSAntennaColumns antcols(ms.antenna());
-//   antcols.name().put(0, "ANT0");
-//   MSMainColumns mcols(ms);
-//   mcols.antenna1().put(0, 0);
-//   mcols.time().put(0, 4.8e9);
-//   ...
+// casacore-original reference excerpts:
+//   Source: casacore-original/ms/apps/writems.cc
+//     itsMS = MeasurementSet(newTab);
+//     itsMSCol = new MSMainColumns(itsMS);
+//     itsMS.createDefaultSubtables(Table::New);
+//
+//     MSAntenna msant = itsMS.antenna();
+//     msant.addRow(itsNrAnt);
+//     MSAntennaColumns msantCol(msant);
+//     msantCol.name().put(i, "ST_" + String::toString(i));
+//
+//     itsMS.addRow(nrow);
+//     itsMSCol->time().put(itsNrRow, time);
+//     itsMSCol->antenna1().put(itsNrRow, j);
+//     itsMSCol->antenna2().put(itsNrRow, i);
+//     itsMSCol->dataDescId().put(itsNrRow, band);
+//     itsMSCol->fieldId().put(itsNrRow, field);
+//     itsMSCol->uvw().put(itsNrRow, myuvw);
+//
+// This casacore-mini demo follows the same lifecycle: create MS + subtables,
+// fill key subtables, then write and verify main-table rows.
 
 #include <casacore_mini/measurement_set.hpp>
 #include <casacore_mini/ms_columns.hpp>
 #include <casacore_mini/ms_writer.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -158,7 +169,7 @@ int main() {
         std::cout << "\n--- Verifying MS ---\n";
         auto ms2 = MeasurementSet::open(ms_path);
         std::cout << "  Main table rows: " << ms2.row_count() << "\n";
-        assert(ms2.row_count() == 6);
+        DEMO_CHECK(ms2.row_count() == 6);
 
         std::cout << "  Subtables: ";
         for (const auto& name : ms2.subtable_names()) {
@@ -169,31 +180,31 @@ int main() {
         // Verify antenna subtable.
         MsAntennaColumns ant_cols(ms2);
         std::cout << "  Antennas: " << ant_cols.row_count() << "\n";
-        assert(ant_cols.row_count() == 3);
-        assert(ant_cols.name(0) == "ANT0");
-        assert(ant_cols.name(1) == "ANT1");
-        assert(ant_cols.name(2) == "ANT2");
-        assert(std::fabs(ant_cols.dish_diameter(0) - 25.0) < 1e-10);
+        DEMO_CHECK(ant_cols.row_count() == 3);
+        DEMO_CHECK(ant_cols.name(0) == "ANT0");
+        DEMO_CHECK(ant_cols.name(1) == "ANT1");
+        DEMO_CHECK(ant_cols.name(2) == "ANT2");
+        DEMO_CHECK(std::fabs(ant_cols.dish_diameter(0) - 25.0) < 1e-10);
 
         // Verify main table scalars.
         MsMainColumns main_cols(ms2);
-        assert(main_cols.antenna1(0) == 0);
-        assert(main_cols.antenna2(0) == 1);
-        assert(main_cols.scan_number(0) == 1);
-        assert(main_cols.scan_number(3) == 2);
-        assert(std::fabs(main_cols.time(0) - t0) < 1e-6);
+        DEMO_CHECK(main_cols.antenna1(0) == 0);
+        DEMO_CHECK(main_cols.antenna2(0) == 1);
+        DEMO_CHECK(main_cols.scan_number(0) == 1);
+        DEMO_CHECK(main_cols.scan_number(3) == 2);
+        DEMO_CHECK(std::fabs(main_cols.time(0) - t0) < 1e-6);
 
         // Verify spectral window.
         MsSpWindowColumns spw_cols(ms2);
-        assert(spw_cols.row_count() == 1);
-        assert(spw_cols.num_chan(0) == 64);
-        assert(spw_cols.name(0) == "L-band");
-        assert(std::fabs(spw_cols.ref_frequency(0) - 1.4e9) < 1e-3);
+        DEMO_CHECK(spw_cols.row_count() == 1);
+        DEMO_CHECK(spw_cols.num_chan(0) == 64);
+        DEMO_CHECK(spw_cols.name(0) == "L-band");
+        DEMO_CHECK(std::fabs(spw_cols.ref_frequency(0) - 1.4e9) < 1e-3);
 
         // Verify field.
         MsFieldColumns field_cols(ms2);
-        assert(field_cols.row_count() == 1);
-        assert(field_cols.name(0) == "3C286");
+        DEMO_CHECK(field_cols.row_count() == 1);
+        DEMO_CHECK(field_cols.name(0) == "3C286");
 
         std::cout << "  [OK] All MS structure verified.\n";
 

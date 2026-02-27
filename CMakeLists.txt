@@ -547,7 +547,9 @@ add_test(NAME table_test COMMAND table_test)
 
 # Demo programs (also serve as integration tests)
 foreach(demo demo_aipsio_record demo_table_read demo_table_write
-        demo_measure demo_coordinate demo_unit demo_ms_write demo_ms_read)
+        demo_measure demo_measure_m1950_2000 demo_coordinate demo_coordinate_world_map
+        demo_coordinate_remove_axes demo_unit demo_ms_write demo_ms_read
+        demo_ms_select)
   add_executable(${demo} demos/${demo}.cpp)
   target_link_libraries(${demo} PRIVATE casacore_mini_core casacore_mini_project_options)
   add_test(NAME ${demo} COMMAND ${demo})

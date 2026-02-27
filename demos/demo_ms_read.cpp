@@ -1,18 +1,29 @@
-// demo_ms_read.cpp -- Phase 9: Read MS, iterate, select
+// demo_ms_read.cpp -- Phase 9: MeasurementSet read/iterate/select demo
 //
-// casacore-original equivalent:
-//   MeasurementSet ms("test.ms");
-//   MSMainColumns mcols(ms);
-//   cout << mcols.antenna1()(0) << endl;
+// casacore-original reference excerpts:
+//   Source: casacore-original/ms/apps/readms.cc
+//     MeasurementSet ms(tab);
+//     TableIterator iter1(ms, itercols1, TableIterator::Ascending, TableIterator::NoSort);
+//     while (!iter1.pastEnd()) {
+//       Table tab1(iter1.table());
+//       TableIterator iter2(tab1, itercols2, TableIterator::Ascending, TableIterator::NoSort);
+//       while (!iter2.pastEnd()) {
+//         Table tab2(iter2.table());
+//         ArrayColumn<Bool> flagCol(tab2, "FLAG");
+//         iter2.next();
+//       }
+//       iter1.next();
+//     }
 //
-//   MSIter iter(ms, {"ARRAY_ID", "FIELD_ID", "DATA_DESC_ID"});
-//   for (iter.origin(); iter.more(); iter++) { ... }
+//   Source: casacore-original/ms/apps/msselect.cc
+//     MeasurementSet ms(msin);
+//     MSSelection select;
+//     select.setAntennaExpr(baseline);
+//     TableExprNode node = select.toTableExprNode(&ms);
+//     Table mssel = ms(node);
 //
-//   MSSelection sel;
-//   sel.setAntennaExpr("0,1");
-//   sel.toTableExprNode(&ms);
-//   // NOTE: casacore returns a filtered Table view; casacore-mini returns
-//   // row indices. This is a documented API gap.
+// This casacore-mini demo transliterates that flow with typed column reads,
+// chunked iteration helpers, and antenna/scan selection evaluation.
 
 #include <casacore_mini/measurement_set.hpp>
 #include <casacore_mini/ms_columns.hpp>
@@ -20,7 +31,7 @@
 #include <casacore_mini/ms_selection.hpp>
 #include <casacore_mini/ms_writer.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <filesystem>
 #include <iostream>
 
@@ -137,7 +148,7 @@ int main() {
         auto ms = MeasurementSet::open(ms_path);
         std::cout << "  Opened MS: " << ms.path() << "\n";
         std::cout << "  Main rows: " << ms.row_count() << "\n";
-        assert(ms.row_count() == 6);
+        DEMO_CHECK(ms.row_count() == 6);
 
         // 2. Typed column access.
         std::cout << "\n--- Typed Column Access (MsMainColumns) ---\n";
@@ -168,8 +179,8 @@ int main() {
                       << " rows=" << chunk.rows.size() << "\n";
         }
         // All 6 rows should be in one chunk (same array/field/ddid).
-        assert(chunks.size() == 1);
-        assert(chunks[0].rows.size() == 6);
+        DEMO_CHECK(chunks.size() == 1);
+        DEMO_CHECK(chunks[0].rows.size() == 6);
 
         // Time-based iteration.
         std::cout << "\n--- Time-Based Iteration (ms_time_chunks, 10s bins) ---\n";
@@ -180,9 +191,9 @@ int main() {
                       << " rows=" << time_chunks[i].rows.size() << "\n";
         }
         // 2 timestamps -> 2 time chunks.
-        assert(time_chunks.size() == 2);
-        assert(time_chunks[0].rows.size() == 3);
-        assert(time_chunks[1].rows.size() == 3);
+        DEMO_CHECK(time_chunks.size() == 2);
+        DEMO_CHECK(time_chunks[0].rows.size() == 3);
+        DEMO_CHECK(time_chunks[1].rows.size() == 3);
 
         // 5. Selection: antenna expression.
         std::cout << "\n--- Selection (MsSelection) ---\n";
@@ -192,7 +203,7 @@ int main() {
             auto result = sel.evaluate(ms);
             std::cout << "  antenna='0': " << result.rows.size() << " rows selected\n";
             // Antenna 0 appears in baselines 0-1 and 0-2, so 4 rows (2 timestamps).
-            assert(result.rows.size() == 4);
+            DEMO_CHECK(result.rows.size() == 4);
         }
 
         // Selection: scan expression.
@@ -201,7 +212,7 @@ int main() {
             sel.set_scan_expr("1");
             auto result = sel.evaluate(ms);
             std::cout << "  scan='1':    " << result.rows.size() << " rows selected\n";
-            assert(result.rows.size() == 3);
+            DEMO_CHECK(result.rows.size() == 3);
         }
 
         // Combined selection.
@@ -211,7 +222,7 @@ int main() {
             sel.set_scan_expr("1");
             auto result = sel.evaluate(ms);
             std::cout << "  antenna='0&1' AND scan='1': " << result.rows.size() << " rows\n";
-            assert(result.rows.size() == 1);
+            DEMO_CHECK(result.rows.size() == 1);
         }
 
         std::cout << "\n  NOTE: casacore-original MsSelection returns a filtered Table\n"

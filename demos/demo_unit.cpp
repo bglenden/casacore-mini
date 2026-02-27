@@ -1,15 +1,26 @@
-// demo_unit.cpp -- Unit system showcase
+// demo_unit.cpp -- Unit/Quantity transliteration demo
 //
-// Demonstrates the Unit/UnitVal/UnitMap/Quantity classes:
-//   - Unit parsing (simple, prefixed, compound)
-//   - Quantity construction, conversion, and arithmetic
-//   - Astronomical unit conversions
-//   - SI prefix system
+// casacore-original reference excerpts:
+//   Source: casacore-original/casa/Quanta/test/tUnit.cc
+//     UnitMap::putUser("beam", UnitVal(M_PI * 0.1, "\"_2"), "telescope beam");
+//     UnitName jypb("Jypb", UnitVal(1., "Jy/beam"), "Jansky/beam");
+//     UnitVal myVal(3.2, "W");
+//     UnitVal myVal1(2.1, "mg");
+//     cout << "A*B = " << myVal*myVal1 << endl;
+//
+//   Source: casacore-original/casa/Quanta/test/tQuantum.cc
+//     Quantity A(5, "m"), B(2., "yd");
+//     cout << "A+B = " << A+B << endl;
+//     cout << "A/B = " << A/B << endl;
+//     cout << "D to Watt " << D.get("W") << endl;
+//
+// This casacore-mini demo transliterates unit parsing, quantity arithmetic,
+// conversions, and astronomical-unit checks.
 
 #include <casacore_mini/quantity.hpp>
 #include <casacore_mini/unit.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <iostream>
 
@@ -35,22 +46,22 @@ void demo_unit_basics() {
         std::cout << static_cast<int>(kms.value().dims()[static_cast<std::size_t>(i)]);
     }
     std::cout << "]\n";
-    assert(near(kms.value().factor(), 1000.0));
-    assert(kms.value().dim(UnitVal::LENGTH) == 1);
-    assert(kms.value().dim(UnitVal::TIME) == -1);
+    DEMO_CHECK(near(kms.value().factor(), 1000.0));
+    DEMO_CHECK(kms.value().dim(UnitVal::LENGTH) == 1);
+    DEMO_CHECK(kms.value().dim(UnitVal::TIME) == -1);
 
     Unit jy("Jy");
     std::cout << "  Unit(\"Jy\") factor=" << jy.value().factor() << " (MASS*TIME^-2)\n";
-    assert(near(jy.value().factor(), 1e-26));
+    DEMO_CHECK(near(jy.value().factor(), 1e-26));
 
     Unit ms("m/s");
     std::cout << "  Conforms check: km/s ~ m/s -> " << (kms.conforms(ms) ? "true" : "false")
               << "\n";
-    assert(kms.conforms(ms));
+    DEMO_CHECK(kms.conforms(ms));
 
     Unit hz("Hz");
     std::cout << "  Conforms check: km/s ~ Hz -> " << (kms.conforms(hz) ? "true" : "false") << "\n";
-    assert(!kms.conforms(hz));
+    DEMO_CHECK(!kms.conforms(hz));
 
     std::cout << "  [OK] Unit basics verified.\n";
 }
@@ -62,14 +73,14 @@ void demo_quantity_arithmetic() {
     Quantity deg180(180.0, "deg");
     auto rad = deg180.convert("rad");
     std::cout << "  Quantity(180, \"deg\") -> convert(\"rad\") = " << rad.value << " rad\n";
-    assert(near(rad.value, M_PI));
+    DEMO_CHECK(near(rad.value, M_PI));
 
     // Parsec to meters.
     Quantity pc1(1.0, "pc");
     auto pm = pc1.convert("m");
     std::cout << "  Quantity(1, \"pc\") -> convert(\"m\") = " << std::scientific << pm.value
               << std::fixed << " m\n";
-    assert(near(pm.value, 3.0857e16, 1e-3));
+    DEMO_CHECK(near(pm.value, 3.0857e16, 1e-3));
 
     // Jansky.
     Quantity jy1(1.0, "Jy");
@@ -81,14 +92,14 @@ void demo_quantity_arithmetic() {
     Quantity b(3000.0, "m");
     auto sum = a + b;
     std::cout << "  5 km + 3000 m = " << sum.value << " km\n";
-    assert(near(sum.value, 8.0));
+    DEMO_CHECK(near(sum.value, 8.0));
 
     // Division for speed.
     Quantity dist(100.0, "km");
     Quantity time(2.0, "h");
     auto speed = dist / time;
     std::cout << "  100 km / 2 h = " << speed.value << " " << speed.get_unit() << "\n";
-    assert(near(speed.value, 50.0));
+    DEMO_CHECK(near(speed.value, 50.0));
 
     std::cout << "  [OK] Quantity arithmetic verified.\n";
 }
@@ -101,14 +112,14 @@ void demo_prefix_system() {
     Unit ujy("uJy");
 
     std::cout << "  1 km = " << km.value().factor() << " m\n";
-    assert(near(km.value().factor(), 1000.0));
+    DEMO_CHECK(near(km.value().factor(), 1000.0));
 
     std::cout << "  1 MHz = " << std::scientific << mhz.value().factor() << std::fixed << " Hz\n";
-    assert(near(mhz.value().factor(), 1e6));
+    DEMO_CHECK(near(mhz.value().factor(), 1e6));
 
     std::cout << "  1 uJy = " << std::scientific << ujy.value().factor() << std::fixed
               << " W.m-2.Hz-1 equivalent\n";
-    assert(near(ujy.value().factor(), 1e-32));
+    DEMO_CHECK(near(ujy.value().factor(), 1e-32));
 
     std::cout << "  [OK] Prefix system verified.\n";
 }
@@ -119,22 +130,22 @@ void demo_astronomical_units() {
     Quantity au1(1.0, "AU");
     auto au_m = au1.convert("m");
     std::cout << "  1 AU = " << std::scientific << au_m.value << std::fixed << " m\n";
-    assert(near(au_m.value, 299792458.0 * 499.0047837));
+    DEMO_CHECK(near(au_m.value, 299792458.0 * 499.0047837));
 
     Quantity pc1(1.0, "pc");
     auto pc_m = pc1.convert("m");
     std::cout << "  1 pc = " << std::scientific << pc_m.value << std::fixed << " m\n";
-    assert(near(pc_m.value, 3.0857e16, 1e-3));
+    DEMO_CHECK(near(pc_m.value, 3.0857e16, 1e-3));
 
     Quantity ly1(1.0, "ly");
     auto ly_m = ly1.convert("m");
     std::cout << "  1 ly = " << std::scientific << ly_m.value << std::fixed << " m\n";
-    assert(near(ly_m.value, 9.46073047e+15));
+    DEMO_CHECK(near(ly_m.value, 9.46073047e+15));
 
     Quantity jy1(1.0, "Jy");
     std::cout << "  1 Jy = " << std::scientific << jy1.unit_value().factor() << std::fixed
               << " W/m^2/Hz\n";
-    assert(near(jy1.unit_value().factor(), 1e-26));
+    DEMO_CHECK(near(jy1.unit_value().factor(), 1e-26));
 
     std::cout << "  [OK] Astronomical units verified.\n";
 }

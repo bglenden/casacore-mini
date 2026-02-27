@@ -1,23 +1,27 @@
-// demo_coordinate.cpp -- Phase 8: Coordinate system + transforms
+// demo_coordinate.cpp -- Phase 8: coordinate-system/transforms transliteration demo
 //
-// casacore-original equivalent (dCoordinates.cc partial):
-//   Matrix<Double> xform(2,2); xform = 0.0; xform(0,0)=1; xform(1,1)=1;
-//   DirectionCoordinate dc(MDirection::J2000, Projection::SIN,
-//       135*C::degree, 60*C::degree, -1*C::degree, 1*C::degree,
-//       xform, 128, 128);
-//   Vector<Double> pixel(2), world(2);
-//   pixel(0) = 138; pixel(1) = 138;
-//   dc.toWorld(world, pixel);
+// casacore-original reference excerpts:
+//   Source: casacore-original/coordinates/Coordinates/test/dCoordinates.cc
+//     Matrix<Double> xform(2,2); xform = 0.0; xform.diagonal() = 1.0;
+//     DirectionCoordinate radec(MDirection::J2000, Projection(Projection::SIN),
+//                               135*M_PI/180.0, 60*M_PI/180.0,
+//                               -1*M_PI/180.0, 1*M_PI/180.0,
+//                               xform, 128.0, 128.0, 999.0, 999.0);
+//     radec.toWorld(world, pixel);
+//     radec.toPixel(pixel, world);
 //
-//   StokesCoordinate stokes(Vector<Int>(4, {Stokes::I, Q, U, V}));
-//   SpectralCoordinate spec(MFrequency::TOPO, 1400e6, 20e3, 0.0);
+//     StokesCoordinate stokes(iquv);
+//     SpectralCoordinate spectral(MFrequency::TOPO, 1400e6, 20e3, 0, 1420.40575e6);
 //
-//   CoordinateSystem cs;
-//   cs.addCoordinate(dc); cs.addCoordinate(stokes); cs.addCoordinate(spec);
-//   Record rec;
-//   cs.save(rec, "");
-//   CoordinateSystem cs2;
-//   cs2.restore(rec, "");
+//     CoordinateSystem coordsys;
+//     coordsys.addCoordinate(radec);
+//     coordsys.addCoordinate(stokes);
+//     coordsys.addCoordinate(spectral);
+//     coordsys.save(rec, "CS");
+//     CoordinateSystem* pCoordSys = CoordinateSystem::restore(rec, "CS");
+//
+// This casacore-mini demo transliterates those coordinate construction,
+// transform, composition, and save/restore flows.
 
 #include <casacore_mini/coordinate_system.hpp>
 #include <casacore_mini/direction_coordinate.hpp>
@@ -27,7 +31,7 @@
 #include <casacore_mini/spectral_coordinate.hpp>
 #include <casacore_mini/stokes_coordinate.hpp>
 
-#include <cassert>
+#include "demo_check.hpp"
 #include <cmath>
 #include <iostream>
 #include <memory>
@@ -69,8 +73,8 @@ static void demo_direction_coordinate() {
     auto w_ref = dc.to_world({128.0, 128.0});
     std::cout << "  pixel(128,128) -> world: RA=" << Quantity(w_ref[0], "rad").get_value("deg")
               << " deg, Dec=" << Quantity(w_ref[1], "rad").get_value("deg") << " deg\n";
-    assert(near(w_ref[0], ref_ra.get_value("rad"), 1e-4));
-    assert(near(w_ref[1], ref_dec.get_value("rad"), 1e-4));
+    DEMO_CHECK(near(w_ref[0], ref_ra.get_value("rad"), 1e-4));
+    DEMO_CHECK(near(w_ref[1], ref_dec.get_value("rad"), 1e-4));
 
     // Offset pixel -> world -> round-trip.
     auto w138 = dc.to_world({138.0, 138.0});
@@ -79,8 +83,8 @@ static void demo_direction_coordinate() {
 
     auto p_back = dc.to_pixel(w138);
     std::cout << "  world -> pixel round-trip: (" << p_back[0] << ", " << p_back[1] << ")\n";
-    assert(near(p_back[0], 138.0, 1e-3));
-    assert(near(p_back[1], 138.0, 1e-3));
+    DEMO_CHECK(near(p_back[0], 138.0, 1e-3));
+    DEMO_CHECK(near(p_back[1], 138.0, 1e-3));
 
     std::cout << "  [OK] DirectionCoordinate verified.\n";
 }
@@ -103,15 +107,15 @@ static void demo_stokes_coordinate() {
     std::cout << "  pixel 2 -> Stokes " << w2[0] << " (U)\n";
     std::cout << "  pixel 3 -> Stokes " << w3[0] << " (V)\n";
 
-    assert(w0[0] == 1.0);
-    assert(w1[0] == 2.0);
-    assert(w2[0] == 3.0);
-    assert(w3[0] == 4.0);
+    DEMO_CHECK(w0[0] == 1.0);
+    DEMO_CHECK(w1[0] == 2.0);
+    DEMO_CHECK(w2[0] == 3.0);
+    DEMO_CHECK(w3[0] == 4.0);
 
     // Reverse: Stokes Q -> pixel 1
     auto p_q = sc.to_pixel({2.0});
     std::cout << "  Stokes Q -> pixel " << p_q[0] << "\n";
-    assert(std::abs(p_q[0] - 1.0) < 0.01);
+    DEMO_CHECK(std::abs(p_q[0] - 1.0) < 0.01);
 
     std::cout << "  [OK] StokesCoordinate verified.\n";
 }
@@ -130,17 +134,17 @@ static void demo_spectral_coordinate() {
     // Channel 0 -> 1400 MHz
     auto w0 = sc.to_world({0.0});
     std::cout << "  channel 0 -> " << w0[0] / 1e6 << " MHz\n";
-    assert(near(w0[0], 1400.0e6));
+    DEMO_CHECK(near(w0[0], 1400.0e6));
 
     // Channel 50 -> 1400 MHz + 50*20 kHz = 1401 MHz
     auto w50 = sc.to_world({50.0});
     std::cout << "  channel 50 -> " << w50[0] / 1e6 << " MHz\n";
-    assert(near(w50[0], 1401.0e6, 1e-6));
+    DEMO_CHECK(near(w50[0], 1401.0e6, 1e-6));
 
     // Round-trip.
     auto p_back = sc.to_pixel(w50);
     std::cout << "  1401 MHz -> channel " << p_back[0] << "\n";
-    assert(near(p_back[0], 50.0, 1e-8));
+    DEMO_CHECK(near(p_back[0], 50.0, 1e-8));
 
     std::cout << "  [OK] SpectralCoordinate verified.\n";
 }
@@ -170,30 +174,30 @@ static void demo_coordinate_system() {
     std::cout << "  Coordinates: " << cs.n_coordinates() << "\n";
     std::cout << "  Pixel axes:  " << cs.n_pixel_axes() << " (2 dir + 1 spec + 1 stokes)\n";
     std::cout << "  World axes:  " << cs.n_world_axes() << "\n";
-    assert(cs.n_coordinates() == 3);
-    assert(cs.n_pixel_axes() == 4);
-    assert(cs.n_world_axes() == 4);
+    DEMO_CHECK(cs.n_coordinates() == 3);
+    DEMO_CHECK(cs.n_pixel_axes() == 4);
+    DEMO_CHECK(cs.n_world_axes() == 4);
 
     // Axis mapping.
     auto dir_axis = cs.find_world_axis(0);
-    assert(dir_axis.has_value());
+    DEMO_CHECK(dir_axis.has_value());
     std::cout << "  World axis 0 -> coordinate " << dir_axis->first << " (direction)\n";
-    assert(dir_axis->first == 0);
+    DEMO_CHECK(dir_axis->first == 0);
 
     auto spec_axis = cs.find_world_axis(2);
-    assert(spec_axis.has_value());
+    DEMO_CHECK(spec_axis.has_value());
     std::cout << "  World axis 2 -> coordinate " << spec_axis->first << " (spectral)\n";
-    assert(spec_axis->first == 1);
+    DEMO_CHECK(spec_axis->first == 1);
 
     // Per-coordinate transforms work.
     auto w_dir = cs.coordinate(0).to_world({128.0, 128.0});
     std::cout << "  Direction at crpix: RA=" << Quantity(w_dir[0], "rad").get_value("deg")
               << " deg, Dec=" << Quantity(w_dir[1], "rad").get_value("deg") << " deg\n";
-    assert(near(w_dir[0], Quantity(135.0, "deg").get_value("rad"), 1e-4));
+    DEMO_CHECK(near(w_dir[0], Quantity(135.0, "deg").get_value("rad"), 1e-4));
 
     auto w_spec = cs.coordinate(1).to_world({50.0});
     std::cout << "  Spectral at chan 50: " << w_spec[0] / 1e6 << " MHz\n";
-    assert(near(w_spec[0], 1401.0e6, 1e-6));
+    DEMO_CHECK(near(w_spec[0], 1401.0e6, 1e-6));
 
     // Save/restore round-trip.
     std::cout << "\n  --- Save/Restore Round-Trip ---\n";
@@ -201,19 +205,19 @@ static void demo_coordinate_system() {
     std::cout << "  Saved to Record with " << rec.size() << " fields\n";
 
     CoordinateSystem restored = CoordinateSystem::restore(rec);
-    assert(restored.n_coordinates() == 3);
-    assert(restored.n_pixel_axes() == 4);
+    DEMO_CHECK(restored.n_coordinates() == 3);
+    DEMO_CHECK(restored.n_pixel_axes() == 4);
 
     // Verify restored coordinate transforms match original.
     auto w_dir2 = restored.coordinate(0).to_world({128.0, 128.0});
-    assert(near(w_dir2[0], w_dir[0]));
-    assert(near(w_dir2[1], w_dir[1]));
+    DEMO_CHECK(near(w_dir2[0], w_dir[0]));
+    DEMO_CHECK(near(w_dir2[1], w_dir[1]));
 
     auto w_spec2 = restored.coordinate(1).to_world({50.0});
-    assert(near(w_spec2[0], w_spec[0]));
+    DEMO_CHECK(near(w_spec2[0], w_spec[0]));
 
     auto w_stokes2 = restored.coordinate(2).to_world({2.0});
-    assert(w_stokes2[0] == 3.0); // U
+    DEMO_CHECK(w_stokes2[0] == 3.0); // U
 
     std::cout << "  [OK] Save/restore verified.\n";
 
