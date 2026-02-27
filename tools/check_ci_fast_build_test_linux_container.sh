@@ -104,9 +104,10 @@ echo "Running Linux fast-parity checks in container (${CONTAINER_ENGINE})"
   --user "${uid}:${gid}" \
   -e HOME=/tmp \
   -e CASACORE_MINI_FORMAT_SCOPE="${format_scope}" \
+  -e CASACORE_MINI_REPO_ROOT="${REPO_ROOT}" \
   -v "${REPO_ROOT}:${REPO_ROOT}" \
   -w "${REPO_ROOT}" \
   "${IMAGE_TAG}" \
-  bash -lc "bash tools/check_format.sh && bash tools/check_ci_fast_build_test.sh ${BUILD_DIR}"
+  bash -lc "git config --global --add safe.directory \"\$CASACORE_MINI_REPO_ROOT\" >/dev/null 2>&1 || true; bash tools/check_format.sh && bash tools/check_ci_fast_build_test.sh ${BUILD_DIR}"
 
 echo "Linux container parity checks passed"
