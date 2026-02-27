@@ -50,7 +50,7 @@ done
 
 # 4. Build and run tests.
 cmake -B "${BUILD_DIR}" -DCASACORE_MINI_WARNINGS_AS_ERRORS=ON -DCASACORE_MINI_ENABLE_CLANG_TIDY=OFF
-cmake --build "${BUILD_DIR}" --target lattice_region_test image_region_test -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+cmake --build "${BUILD_DIR}" -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
 
 echo "--- lattice_region_test ---"
 "${BUILD_DIR}/lattice_region_test"

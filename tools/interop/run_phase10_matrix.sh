@@ -69,8 +69,8 @@ run_cell() {
   local label="${artifact}: ${producer_name}->${verifier_name}"
   local outdir="${ARTIFACT_DIR}/${producer_name}_${artifact}"
 
-  if "${producer_tool}" "produce-${artifact}" --output "${outdir}" 2>/dev/null \
-     && "${verifier_tool}" "verify-${artifact}" --input "${outdir}" 2>/dev/null; then
+  if "${producer_tool}" "produce-${artifact}" --output "${outdir}" \
+     && "${verifier_tool}" "verify-${artifact}" --input "${outdir}"; then
     record_pass "${label}"
   else
     record_fail "${label}"

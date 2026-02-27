@@ -3361,6 +3361,7 @@ void produce_img_expression(const std::string& output) {
     casacore::IPosition shape(2, 32, 32);
     casacore::TiledShape tshape(shape);
     casacore::PagedImage<casacore::Float> img(tshape, cs, path);
+    img.setUnits(casacore::Unit("Jy/beam"));
 
     // Pixels: for flat index i, val = (i+1) + 2.0*(100-i)
     // = i + 1 + 200 - 2i = 201 - i
@@ -3374,6 +3375,12 @@ void produce_img_expression(const std::string& output) {
     }
     data.putStorage(ptr, deleteIt);
     img.put(data);
+
+    // Match mini interop artifact contract for expression images.
+    casacore::TableRecord misc;
+    misc.define("expression", casacore::String("lat1 + 2.0 * lat2"));
+    img.setMiscInfo(misc);
+
     img.flush();
     std::cout << path << '\n';
 }

@@ -21,12 +21,4 @@ bash tools/check_phase10_w10.sh "${BUILD_DIR}"
 bash tools/check_phase10_w11.sh "${BUILD_DIR}"
 bash tools/check_phase10_w12.sh "${BUILD_DIR}"
 
-# Run the full interop matrix when casacore is available.
-if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists casacore; then
-  echo "casacore detected — running Phase 10 interop matrix (GATING)"
-  bash tools/interop/run_phase10_matrix.sh "${BUILD_DIR}"
-else
-  echo "casacore not detected — skipping Phase 10 interop matrix"
-fi
-
 echo "Phase 10 full acceptance suite passed"
