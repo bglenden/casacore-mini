@@ -230,13 +230,15 @@ Required feature coverage:
   utility layer (CoordinateUtil, FITSCoordinateUtil, GaussianConvert).
   24/24 interop matrix cells pass. 43 unit tests, 3 hardening test suites.
   See `docs/phase8/exit_report.md`.
-- Phase 9 (complete 2026-02-24): full MeasurementSet implementation.
+- Phase 9 (complete 2026-02-26): full MeasurementSet implementation with
+  closeout parity recovery.
   MS lifecycle, 17 subtable schemas, typed column wrappers, write/update,
   utility layer (MsIter, StokesConverter, MsDopplerUtil), 8-category
-  selection API, MsMetaData/MsSummary, MsConcat/MsFlagger operations.
-  13/20 interop matrix cells pass (self-roundtrips + most casacore→mini;
-  mini→casacore blocked by table format gap). 57 unit tests, 1 hardening
-  test suite. See `docs/phase9/exit_report.md`.
+  selection API, MsMetaData/MsSummary, MsConcat/MsFlagger operations, plus
+  W13 oracle conformance and W14 final closeout.
+  20/20 interop matrix cells pass and oracle verification passes with
+  `pass=330811, fail=0`. 67 unit tests pass. See
+  `docs/phase9/exit_report.md`.
 - Phase 10 (pending): full Lattices + Images implementation, including lattice
   expression language compatibility. Detailed wave plan:
   `docs/phase10/plan.md`.
@@ -249,6 +251,13 @@ Required feature coverage:
   casacore-mini can produce tables with all 6 required storage managers,
   not only StandardStMan.
   Detailed wave plan: `docs/phase11/plan.md`.
+- Phase 12 (pending): multidimensional in-memory array model modernization.
+  Introduce `mdspan`-based internal array views and ownership adapters
+  (`vector`/allocator-backed), replacing ad-hoc shape+stride indexing in
+  internal implementation paths while preserving external API behavior and
+  storage-format compatibility. This is intentionally deferred until after
+  current Phase 9/10 stability/parity recovery work to avoid cross-cutting
+  refactor risk during active correctness closure.
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
 Phase-1 completion summary lives in `docs/phase1/exit_report.md`.
@@ -266,6 +275,8 @@ Phase-8 detailed execution tracking lives in `docs/phase8/plan.md`.
 Phase-9 detailed execution tracking lives in `docs/phase9/plan.md`.
 Phase-10 detailed execution tracking lives in `docs/phase10/plan.md`.
 Phase-11 detailed execution tracking lives in `docs/phase11/plan.md`.
+Phase-12 detailed execution tracking will live in `docs/phase12/plan.md` at
+Phase-12 kickoff.
 
 ### Mandatory structure for all future phase plans
 

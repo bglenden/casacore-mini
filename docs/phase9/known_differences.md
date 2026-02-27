@@ -4,98 +4,55 @@
 
 ### No MSTable template hierarchy
 - Upstream casacore uses `MSTable<Enum>` template class hierarchy with
-  compile-time column enum binding. casacore-mini uses schema definition
-  functions that produce `TableDesc`/`TableDatFull` structs, with thin
-  wrapper classes composing over SSM/TSM readers/writers.
-- This is a deliberate design choice per the Phase 9 plan; the external
-  API surface is equivalent.
+  compile-time enum binding.
+- casacore-mini uses schema factories plus focused wrapper classes over the
+  `Table` abstraction.
 
-### No TaQL-based selection
-- Upstream casacore uses TaQL (Table Query Language) for complex selection
-  expressions. casacore-mini uses a simplified expression evaluator with
-  casacore-compatible syntax for the 8 required categories (antenna, field,
-  spw, scan, time, uvdist, correlation, state).
-- Supported syntax covers the most common selection patterns. Advanced TaQL
-  features (arbitrary expressions, regex, subquery) are not supported.
+## Selection Surface
 
-## Subtable Coverage
+### Required categories are implemented; full TaQL is not
+- Phase 9 implements the required MS selection categories:
+  antenna, field, spw/channel, correlation, scan, time, uvdist, state.
+- Full TaQL expression parity (arbitrary expressions, regex-heavy forms,
+  subqueries) is not part of this phase scope.
 
-### Required subtables (12): fully implemented
-- ANTENNA, DATA_DESCRIPTION, FEED, FIELD, FLAG_CMD, HISTORY, OBSERVATION,
-  POINTING, POLARIZATION, PROCESSOR, SPECTRAL_WINDOW, STATE.
+## Subtable Population
 
-### Optional subtables (5): not implemented
-- DOPPLER, FREQ_OFFSET, SOURCE, SYSCAL, WEATHER are not implemented.
-- casacore-mini creates only the 12 required subtables. Opening an MS with
-  optional subtables works (they are ignored), but writing optional subtable
-  data is not supported.
+### Optional subtable schemas exist, writer population remains partial
+- Schema factories exist for optional subtables (`DOPPLER`, `FREQ_OFFSET`,
+  `SOURCE`, `SYSCAL`, `WEATHER`).
+- Current `MsWriter` artifact workflows primarily populate required subtables;
+  optional-subtable row population APIs are carry-forward work.
 
-## Column Coverage
+## Column/Artifact Coverage
 
-### DATA column
-- The DATA column (complex visibility array) is supported via TiledStMan.
-  However, interop artifacts do not include DATA columns to keep the
-  artifacts simple and portable.
+### DATA and FLAG_CATEGORY in interop artifacts
+- `DATA` (complex visibilities) is supported in the library, but Phase 9 interop
+  artifacts keep payloads focused on representative required columns.
+- `FLAG_CATEGORY` is declared and readable; artifact population remains minimal.
 
-### FLAG_CATEGORY
-- FLAG_CATEGORY (3D flag array) is declared in the schema but not populated
-  in interop artifacts or exercised in tests.
+## Concatenation Semantics
 
-## Selection Behavior
+### Physical concat only
+- casacore-mini `ms_concat()` currently produces a physical output MS.
+- Upstream casacore also supports virtual concat (`ConcatTable`).
 
-### Antenna expression
-- Supports: ID list, range (`~`), baseline (`&`), negation (`!`), name,
-  glob pattern (`*`, `?`).
-- Not supported: regex patterns, antenna-pair lists with mixed names/IDs
-  in the same expression.
+## Flagger Behavior
 
-### Time expression
-- Supports: `>value`, `<value`, `lo~hi` range in MJD seconds.
-- Not supported: calendar date strings (e.g., `2020/01/01`). Upstream
-  casacore accepts both MJD and calendar formats.
-
-### UV-distance expression
-- Supports: `>value`, `<value`, `lo~hi` range in meters.
-- Not supported: wavelength units. Upstream casacore supports both meters
-  and wavelengths.
-
-## Concatenation
-
-### Subtable deduplication
-- ANTENNA, FIELD, SPECTRAL_WINDOW rows are deduplicated by NAME.
-- DATA_DESCRIPTION rows are deduplicated by (SPW_ID, POL_ID) pair.
-- STATE rows are always appended (no deduplication).
-- Upstream casacore's MSConcat has more sophisticated merging logic,
-  including time-range merging for OBSERVATION rows.
-
-### No virtual concatenation
-- casacore-mini always produces a physical concatenated MS. Upstream
-  casacore supports virtual concatenation (ConcatTable) where the output
-  is a lightweight reference to the input MSes.
-
-## Flagger
-
-### Read-modify-write pattern
-- casacore-mini's `ms_flag_rows()` uses a read-modify-write pattern on
-  the SSM data file. It reads all scalar columns, modifies FLAG_ROW, and
-  rewrites the entire SSM.
-- Upstream casacore's MSFlagger can modify FLAG_ROW in-place via Table's
-  column-level putCell operations.
+### Table-level rewrite path
+- casacore-mini `ms_flag_rows()` currently uses table-level read/modify/write
+  behavior on underlying storage-manager-backed columns.
+- Upstream casacore exposes additional in-place update paths in its broader
+  table operation stack.
 
 ## Numeric Precision
 
-### UVW values
-- UVW coordinates are stored as float64 and round-trip exactly through
-  SSM storage. No precision differences from upstream casacore.
+### No observed precision deltas in required coverage
+- `UVW`, `TIME`, and `TIME_CENTROID` round-trip at expected precision in
+  current Phase 9 tests and interop gates.
 
-### Time values
-- TIME and TIME_CENTROID are stored as float64 MJD seconds and round-trip
-  exactly. No precision differences from upstream casacore.
+## Interop Status (Current)
 
-## Interop Artifacts
-
-- Mini-to-mini round-trip passes for all 5 artifacts.
-- Cross-tool (mini↔casacore) verification checks structural properties
-  (row counts, subtable counts, scan/array_id sets) rather than exact
-  cell values, accommodating implementation differences in default values
-  and column ordering.
+- Phase 9 interop matrix now passes all required cells (`20/20`).
+- Oracle conformance gate passes on the upstream MSSel fixture
+  (`pass=330811, fail=0`).

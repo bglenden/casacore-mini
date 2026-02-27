@@ -1,7 +1,7 @@
 # Phase 9 Plan (Full MeasurementSet)
 
-Date: 2026-02-24
-Status: In Progress (W1-W12 done; W13 oracle conformance + W14 closeout remaining)
+Date: 2026-02-26
+Status: Complete (W1-W14 done)
 
 ## Objective
 
@@ -201,8 +201,8 @@ Gate rules:
 | `P9-W10` | Done | Mutation ops | MsConcat, MsFlagger, subtable dedup/remap |
 | `P9-W11` | Done | Matrix + hardening | 5 interop artifacts, malformed-input hardening |
 | `P9-W12` | Done | Closeout (preliminary) | exit report (draft), status reconciliation, Phase-10 entry gate declaration |
-| `P9-W13` | In Progress | Oracle conformance gate | cell-by-cell verification of real MS against upstream casacore oracle dump (`docs/phase9/oracle_conformance_plan.md`); refactor verifier to use Table API; fix Table-layer bugs |
-| `P9-W14` | Pending | Final closeout | update exit report, fix build failures, fresh reruns, reconcile all status |
+| `P9-W13` | Done | Oracle conformance gate | cell-by-cell verification of real MS against upstream casacore oracle dump (`docs/phase9/oracle_conformance_plan.md`); verifier uses Table API only; oracle gate now passes end-to-end |
+| `P9-W14` | Done | Final closeout | refreshed closeout evidence (`check_phase9`, interop matrix, CI build/lint/test/coverage), reconciled plan/exit/rolling status, and completed review packets W13/W14 |
 
 ## Wave details (implementation-ready)
 

@@ -1,0 +1,11 @@
+{
+  "wave": "P9-W13",
+  "oracle": {
+    "fixture": "mssel_test_small_multifield_spw.ms",
+    "tables": 16,
+    "pass": 330811,
+    "warn": 0,
+    "fail": 0
+  },
+  "status": "PASS"
+}
