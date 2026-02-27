@@ -487,15 +487,29 @@ static bool test_format_parse_error() {
 }
 
 // ---------------------------------------------------------------------------
-// taql_execute / taql_calc stubs
+// taql_calc evaluator
 // ---------------------------------------------------------------------------
 
-static bool test_execute_show() {
-    // Need a Table for execute, but show doesn't really use it.
-    // For now, just test taql_calc
+static bool test_calc_eval() {
     auto result = taql_calc("CALC 1 + 2");
-    // Stub returns empty results (W4 will populate)
-    check(result.values.empty(), "calc stub returns empty");
+    check(result.values.size() == 1, "calc returns 1 value");
+    check(std::holds_alternative<std::int64_t>(result.values[0]), "calc result is int");
+    check(std::get<std::int64_t>(result.values[0]) == 3, "1+2=3");
+
+    auto r2 = taql_calc("CALC 3.14 * 2");
+    check(r2.values.size() == 1, "calc float returns 1 value");
+    check(std::holds_alternative<double>(r2.values[0]), "calc float result is double");
+
+    auto r3 = taql_calc("CALC sin(0)");
+    check(r3.values.size() == 1, "sin(0) returns 1 value");
+    auto sin_val = std::get<double>(r3.values[0]);
+    check(sin_val < 1e-10 && sin_val > -1e-10, "sin(0)=0");
+
+    auto r4 = taql_calc("CALC IIF(TRUE, 10, 20)");
+    check(std::get<std::int64_t>(r4.values[0]) == 10, "IIF true branch");
+
+    auto r5 = taql_calc("CALC 2 ** 10");
+    check(std::get<std::int64_t>(r5.values[0]) == 1024, "2**10=1024");
     return g_fail == 0;
 }
 
@@ -554,7 +568,7 @@ int main() {
     test_timing();
     test_style();
     test_format_parse_error();
-    test_execute_show();
+    test_calc_eval();
 
     std::cout << "taql_parser_test: " << g_pass << " passed, " << g_fail << " failed\n";
     return g_fail == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

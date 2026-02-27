@@ -594,6 +594,14 @@ add_executable(taql_malformed_test tests/taql_malformed_test.cpp)
 target_link_libraries(taql_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME taql_malformed_test COMMAND taql_malformed_test)
 
+add_executable(taql_eval_test tests/taql_eval_test.cpp)
+target_link_libraries(taql_eval_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_eval_test COMMAND taql_eval_test)
+
+add_executable(taql_command_test tests/taql_command_test.cpp)
+target_link_libraries(taql_command_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_command_test COMMAND taql_command_test)
+
 add_executable(aipsio_fixture_gen src/aipsio_fixture_gen.cpp)
 target_link_libraries(aipsio_fixture_gen PRIVATE casacore_mini_core casacore_mini_project_options)
 target_compile_definitions(

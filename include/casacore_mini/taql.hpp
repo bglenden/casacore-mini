@@ -10,7 +10,6 @@
 
 #include <complex>
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -43,7 +42,7 @@ using TaqlValue = std::variant<std::monostate, // null
 // ---------------------------------------------------------------------------
 
 /// TaQL command type.
-enum class TaqlCommand {
+enum class TaqlCommand : std::uint8_t {
     select_cmd,
     update_cmd,
     insert_cmd,
@@ -57,7 +56,7 @@ enum class TaqlCommand {
 };
 
 /// Expression node type tag.
-enum class ExprType {
+enum class ExprType : std::uint8_t {
     literal,        // constant value
     column_ref,     // column name reference
     keyword_ref,    // column::keyword or table keyword
@@ -85,7 +84,7 @@ enum class ExprType {
 };
 
 /// Operator tag for unary/binary operators.
-enum class TaqlOp {
+enum class TaqlOp : std::uint8_t {
     // Arithmetic
     plus,
     minus,
@@ -135,10 +134,10 @@ enum class TaqlOp {
 };
 
 /// Sort order.
-enum class SortOrder { ascending, descending };
+enum class SortOrder : std::uint8_t { ascending, descending };
 
 /// Range inclusion (open/closed).
-enum class RangeIncl { closed, left_open, right_open, open };
+enum class RangeIncl : std::uint8_t { closed, left_open, right_open, open };
 
 // ---------------------------------------------------------------------------
 // AST node
@@ -195,7 +194,7 @@ struct TaqlAssignment {
 };
 
 /// ALTER TABLE sub-command.
-enum class AlterAction {
+enum class AlterAction : std::uint8_t {
     add_column,
     copy_column,
     rename_column,

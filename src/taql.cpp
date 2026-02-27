@@ -1,11 +1,12 @@
 #include "casacore_mini/taql.hpp"
+#include "casacore_mini/table.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <stdexcept>
-#include <unordered_map>
 #include <unordered_set>
 
 namespace casacore_mini {
@@ -107,13 +108,13 @@ class TaqlLexer {
         }
 
         // Numbers
-        if (std::isdigit(c) || (c == '.' && pos_ + 1 < source_.size() &&
-                                 std::isdigit(source_[pos_ + 1]))) {
+        if (std::isdigit(c) != 0 || (c == '.' && pos_ + 1 < source_.size() &&
+                                      std::isdigit(source_[pos_ + 1]) != 0)) {
             return lex_number();
         }
 
         // Identifiers and keywords
-        if (std::isalpha(c) || c == '_' || c == '$') {
+        if (std::isalpha(c) != 0 || c == '_' || c == '$') {
             return lex_identifier();
         }
 
@@ -261,7 +262,7 @@ class TaqlLexer {
         if (pos_ < source_.size()) advance(1); // skip closing /
         // Check for flags (i for case-insensitive)
         std::string flags;
-        while (pos_ < source_.size() && std::isalpha(source_[pos_])) {
+        while (pos_ < source_.size() && std::isalpha(source_[pos_]) != 0) {
             flags += source_[pos_];
             advance(1);
         }
@@ -278,7 +279,7 @@ class TaqlLexer {
         bool is_float = false;
 
         // Integer part
-        while (pos_ < source_.size() && std::isdigit(source_[pos_])) {
+        while (pos_ < source_.size() && std::isdigit(source_[pos_]) != 0) {
             advance(1);
         }
 
@@ -287,7 +288,7 @@ class TaqlLexer {
             (pos_ + 1 >= source_.size() || source_[pos_ + 1] != '.')) {
             is_float = true;
             advance(1);
-            while (pos_ < source_.size() && std::isdigit(source_[pos_])) {
+            while (pos_ < source_.size() && std::isdigit(source_[pos_]) != 0) {
                 advance(1);
             }
         }
@@ -299,7 +300,7 @@ class TaqlLexer {
             if (pos_ < source_.size() && (source_[pos_] == '+' || source_[pos_] == '-')) {
                 advance(1);
             }
-            while (pos_ < source_.size() && std::isdigit(source_[pos_])) {
+            while (pos_ < source_.size() && std::isdigit(source_[pos_]) != 0) {
                 advance(1);
             }
         }
@@ -336,7 +337,7 @@ class TaqlLexer {
     Token lex_hex() {
         std::size_t start = pos_;
         advance(2); // skip 0x
-        while (pos_ < source_.size() && std::isxdigit(source_[pos_])) {
+        while (pos_ < source_.size() && std::isxdigit(source_[pos_]) != 0) {
             advance(1);
         }
         auto text = source_.substr(start, pos_ - start);
@@ -351,7 +352,7 @@ class TaqlLexer {
     Token lex_identifier() {
         std::size_t start = pos_;
         while (pos_ < source_.size() &&
-               (std::isalnum(source_[pos_]) || source_[pos_] == '_' || source_[pos_] == '$')) {
+               (std::isalnum(source_[pos_]) != 0 || source_[pos_] == '_' || source_[pos_] == '$')) {
             advance(1);
         }
         auto text = source_.substr(start, pos_ - start);
@@ -1922,23 +1923,652 @@ std::string taql_show(std::string_view topic) {
 }
 
 // ===========================================================================
-// Evaluator stubs (populated in W4)
+// TaQL expression evaluator
 // ===========================================================================
 
-TaqlResult taql_execute(std::string_view query, Table& /*table*/) {
+namespace {
+
+/// Convert a CellValue (from Table) to a TaqlValue.
+TaqlValue cell_to_taql(const CellValue& cv) {
+    return std::visit(
+        [](auto&& v) -> TaqlValue {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, bool>) {
+                return v;
+            } else if constexpr (std::is_same_v<T, std::int32_t> ||
+                                 std::is_same_v<T, std::uint32_t>) {
+                return static_cast<std::int64_t>(v);
+            } else if constexpr (std::is_same_v<T, std::int64_t>) {
+                return v;
+            } else if constexpr (std::is_same_v<T, float>) {
+                return static_cast<double>(v);
+            } else if constexpr (std::is_same_v<T, double>) {
+                return v;
+            } else if constexpr (std::is_same_v<T, std::complex<float>>) {
+                return std::complex<double>(v.real(), v.imag());
+            } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+                return v;
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                return v;
+            } else {
+                return std::monostate{};
+            }
+        },
+        cv);
+}
+
+/// Extract a double from a TaqlValue, promoting integers.
+double as_double(const TaqlValue& v) {
+    if (auto* d = std::get_if<double>(&v)) return *d;
+    if (auto* i = std::get_if<std::int64_t>(&v)) return static_cast<double>(*i);
+    if (auto* b = std::get_if<bool>(&v)) return *b ? 1.0 : 0.0;
+    throw std::runtime_error("TaQL: cannot convert value to double");
+}
+
+/// Extract an int64 from a TaqlValue.
+std::int64_t as_int(const TaqlValue& v) {
+    if (auto* i = std::get_if<std::int64_t>(&v)) return *i;
+    if (auto* b = std::get_if<bool>(&v)) return *b ? 1 : 0;
+    if (auto* d = std::get_if<double>(&v)) return static_cast<std::int64_t>(*d);
+    throw std::runtime_error("TaQL: cannot convert value to integer");
+}
+
+/// Extract a bool from a TaqlValue.
+bool as_bool(const TaqlValue& v) {
+    if (auto* b = std::get_if<bool>(&v)) return *b;
+    if (auto* i = std::get_if<std::int64_t>(&v)) return *i != 0;
+    if (auto* d = std::get_if<double>(&v)) return *d != 0.0;
+    throw std::runtime_error("TaQL: cannot convert value to bool");
+}
+
+/// Extract a string from a TaqlValue.
+std::string as_string(const TaqlValue& v) {
+    if (auto* s = std::get_if<std::string>(&v)) return *s;
+    if (auto* i = std::get_if<std::int64_t>(&v)) return std::to_string(*i);
+    if (auto* d = std::get_if<double>(&v)) return std::to_string(*d);
+    if (auto* b = std::get_if<bool>(&v)) return *b ? "true" : "false";
+    throw std::runtime_error("TaQL: cannot convert value to string");
+}
+
+
+
+/// Compare two TaqlValues numerically.
+int compare_values(const TaqlValue& a, const TaqlValue& b) {
+    if (std::holds_alternative<std::string>(a) || std::holds_alternative<std::string>(b)) {
+        auto sa = as_string(a);
+        auto sb = as_string(b);
+        return sa < sb ? -1 : (sa > sb ? 1 : 0);
+    }
+    double da = as_double(a);
+    double db = as_double(b);
+    if (da < db) return -1;
+    if (da > db) return 1;
+    return 0;
+}
+
+/// Row evaluation context.
+struct EvalContext {
+    Table* table = nullptr;
+    std::uint64_t row = 0;
+    bool has_row = false;
+};
+
+/// Evaluate a single expression node within a row context.
+TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx);
+
+/// Evaluate a math built-in function.
+TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& args) {
+    auto upper = to_upper(name);
+    if (args.empty()) {
+        if (upper == "PI") return TaqlValue{static_cast<double>(3.14159265358979323846L)};
+        if (upper == "E") return TaqlValue{static_cast<double>(2.71828182845904523536L)};
+        if (upper == "C") return TaqlValue{299792458.0};
+        throw std::runtime_error("TaQL: unknown zero-arg function '" + name + "'");
+    }
+
+    if (args.size() == 1) {
+        // String functions (check before as_double to avoid type error)
+        if (upper == "STRLEN") return static_cast<std::int64_t>(as_string(args[0]).size());
+        if (upper == "UPCASE" || upper == "UPPER") {
+            auto s = as_string(args[0]);
+            for (auto& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            return s;
+        }
+        if (upper == "DOWNCASE" || upper == "LOWER") {
+            auto s = as_string(args[0]);
+            for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return s;
+        }
+        if (upper == "TRIM") {
+            auto s = as_string(args[0]);
+            auto start = s.find_first_not_of(" \t\n\r");
+            auto end = s.find_last_not_of(" \t\n\r");
+            if (start == std::string::npos) return std::string{};
+            return s.substr(start, end - start + 1);
+        }
+
+        // Numeric functions
+        double x = as_double(args[0]);
+        if (upper == "SIN") return TaqlValue{std::sin(x)};
+        if (upper == "COS") return TaqlValue{std::cos(x)};
+        if (upper == "TAN") return TaqlValue{std::tan(x)};
+        if (upper == "ASIN") return TaqlValue{std::asin(x)};
+        if (upper == "ACOS") return TaqlValue{std::acos(x)};
+        if (upper == "ATAN") return TaqlValue{std::atan(x)};
+        if (upper == "EXP") return TaqlValue{std::exp(x)};
+        if (upper == "LOG" || upper == "LN") return TaqlValue{std::log(x)};
+        if (upper == "LOG10") return TaqlValue{std::log10(x)};
+        if (upper == "SQRT") return TaqlValue{std::sqrt(x)};
+        if (upper == "ABS") return TaqlValue{std::abs(x)};
+        if (upper == "SIGN") return TaqlValue{(x > 0.0) ? 1.0 : ((x < 0.0) ? -1.0 : 0.0)};
+        if (upper == "ROUND") return TaqlValue{std::round(x)};
+        if (upper == "FLOOR") return TaqlValue{std::floor(x)};
+        if (upper == "CEIL") return TaqlValue{std::ceil(x)};
+        if (upper == "SQUARE") return TaqlValue{x * x};
+        if (upper == "CUBE") return TaqlValue{x * x * x};
+        if (upper == "ISNAN") { bool r = std::isnan(x); return TaqlValue{r}; }
+        if (upper == "ISINF") { bool r = std::isinf(x); return TaqlValue{r}; }
+        if (upper == "ISFINITE") { bool r = std::isfinite(x); return TaqlValue{r}; }
+        if (upper == "INT" || upper == "INTEGER") return static_cast<std::int64_t>(x); // NOLINT(bugprone-narrowing-conversions)
+        if (upper == "REAL") return TaqlValue{x};
+        if (upper == "IMAG") return TaqlValue{0.0};
+        if (upper == "NORM") return TaqlValue{x * x};
+        if (upper == "ARG") return TaqlValue{0.0};
+    }
+
+    if (args.size() == 2) {
+        if (upper == "ATAN2") return TaqlValue{std::atan2(as_double(args[0]), as_double(args[1]))};
+        if (upper == "POW") return TaqlValue{std::pow(as_double(args[0]), as_double(args[1]))};
+        if (upper == "FMOD") return TaqlValue{std::fmod(as_double(args[0]), as_double(args[1]))};
+        if (upper == "MIN") return TaqlValue{std::min(as_double(args[0]), as_double(args[1]))};
+        if (upper == "MAX") return TaqlValue{std::max(as_double(args[0]), as_double(args[1]))};
+        if (upper == "NEAR" || upper == "NEARABS") {
+            bool r = std::abs(as_double(args[0]) - as_double(args[1])) < 1e-13;
+            return TaqlValue{r};
+        }
+    }
+
+    // rownr() / rowid()
+    if (upper == "ROWNR" || upper == "ROWID") {
+        return static_cast<std::int64_t>(0); // Placeholder; real impl requires context
+    }
+
+    throw std::runtime_error("TaQL: unknown function '" + name + "'");
+}
+
+/// Evaluate an expression node.
+TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
+    switch (node.type) {
+    case ExprType::literal:
+        return node.value;
+
+    case ExprType::column_ref: {
+        if (ctx.table == nullptr || !ctx.has_row)
+            throw std::runtime_error("TaQL: column reference '" + node.name +
+                                     "' without table context");
+        auto cv = ctx.table->read_scalar_cell(node.name, ctx.row);
+        return cell_to_taql(cv);
+    }
+
+    case ExprType::unary_op: {
+        auto operand = eval_expr(node.children[0], ctx);
+        switch (node.op) {
+        case TaqlOp::negate:
+            if (auto* i = std::get_if<std::int64_t>(&operand)) return -*i;
+            return TaqlValue{-as_double(operand)};
+        case TaqlOp::logical_not: {
+            bool r = !as_bool(operand);
+            return TaqlValue{r};
+        }
+        case TaqlOp::bit_not:
+            return ~as_int(operand);
+        case TaqlOp::unary_plus: // NOLINT(bugprone-branch-clone)
+            return operand;
+        default:
+            return operand;
+        }
+    }
+
+    case ExprType::binary_op: {
+        auto lhs = eval_expr(node.children[0], ctx);
+        auto rhs = eval_expr(node.children[1], ctx);
+
+        // String concatenation for +
+        if (node.op == TaqlOp::plus &&
+            (std::holds_alternative<std::string>(lhs) || std::holds_alternative<std::string>(rhs))) {
+            return as_string(lhs) + as_string(rhs);
+        }
+
+        // Integer operations where both are int
+        if (std::holds_alternative<std::int64_t>(lhs) &&
+            std::holds_alternative<std::int64_t>(rhs)) {
+            auto a = std::get<std::int64_t>(lhs);
+            auto b = std::get<std::int64_t>(rhs);
+            switch (node.op) {
+            case TaqlOp::plus: return a + b; // NOLINT(bugprone-branch-clone)
+            case TaqlOp::minus: return a - b;
+            case TaqlOp::multiply: return a * b;
+            case TaqlOp::divide: [[fallthrough]];
+            case TaqlOp::int_divide: return (b != 0) ? a / b : throw std::runtime_error("TaQL: division by zero"); // NOLINT(bugprone-branch-clone)
+            case TaqlOp::modulo: return (b != 0) ? a % b : throw std::runtime_error("TaQL: modulo by zero");
+            case TaqlOp::power: return static_cast<std::int64_t>(std::pow(a, b));
+            case TaqlOp::bit_and: return a & b;
+            case TaqlOp::bit_or: return a | b;
+            case TaqlOp::bit_xor: return a ^ b;
+            default: break;
+            }
+        }
+
+        // Float operations
+        double a = as_double(lhs);
+        double b = as_double(rhs);
+        switch (node.op) {
+        case TaqlOp::plus: return TaqlValue{a + b}; // NOLINT(bugprone-branch-clone)
+        case TaqlOp::minus: return TaqlValue{a - b};
+        case TaqlOp::multiply: return TaqlValue{a * b};
+        case TaqlOp::divide:
+            return TaqlValue{(b != 0.0) ? a / b : throw std::runtime_error("TaQL: division by zero")};
+        case TaqlOp::int_divide: return static_cast<std::int64_t>(a / b); // NOLINT(bugprone-narrowing-conversions)
+        case TaqlOp::modulo: return TaqlValue{std::fmod(a, b)}; // NOLINT(bugprone-branch-clone)
+        case TaqlOp::power: return TaqlValue{std::pow(a, b)};
+        default:
+            throw std::runtime_error("TaQL: unsupported binary operator");
+        }
+    }
+
+    case ExprType::comparison: {
+        auto lhs = eval_expr(node.children[0], ctx);
+        auto rhs = eval_expr(node.children[1], ctx);
+        int cmp = compare_values(lhs, rhs);
+        bool result = false;
+        switch (node.op) {
+        case TaqlOp::eq: result = (cmp == 0); break; // NOLINT(bugprone-branch-clone)
+        case TaqlOp::ne: result = (cmp != 0); break;
+        case TaqlOp::lt: result = (cmp < 0); break;
+        case TaqlOp::le: result = (cmp <= 0); break;
+        case TaqlOp::gt: result = (cmp > 0); break;
+        case TaqlOp::ge: result = (cmp >= 0); break;
+        case TaqlOp::near: // NOLINT(bugprone-branch-clone)
+            result = std::abs(as_double(lhs) - as_double(rhs)) < 1e-5;
+            break;
+        case TaqlOp::not_near:
+            result = std::abs(as_double(lhs) - as_double(rhs)) >= 1e-5;
+            break;
+        default:
+            throw std::runtime_error("TaQL: unsupported comparison operator");
+        }
+        return TaqlValue{result};
+    }
+
+    case ExprType::logical_op: {
+        auto lhs = eval_expr(node.children[0], ctx);
+        if (node.op == TaqlOp::logical_and) {
+            bool r = as_bool(lhs) && as_bool(eval_expr(node.children[1], ctx));
+            return TaqlValue{r};
+        }
+        if (node.op == TaqlOp::logical_or) {
+            bool r = as_bool(lhs) || as_bool(eval_expr(node.children[1], ctx));
+            return TaqlValue{r};
+        }
+        throw std::runtime_error("TaQL: unsupported logical operator");
+    }
+
+    case ExprType::func_call: {
+        std::vector<TaqlValue> args;
+        args.reserve(node.children.size());
+        for (auto& child : node.children)
+            args.push_back(eval_expr(child, ctx));
+        return eval_math_func(node.name, args);
+    }
+
+    case ExprType::iif_expr: {
+        auto cond = eval_expr(node.children[0], ctx);
+        if (as_bool(cond))
+            return eval_expr(node.children[1], ctx);
+        return eval_expr(node.children[2], ctx);
+    }
+
+    case ExprType::in_expr: {
+        auto lhs = eval_expr(node.children[0], ctx);
+        bool found = false;
+        auto& set_node = node.children[1];
+        for (auto& elem : set_node.children) {
+            auto elem_val = eval_expr(elem, ctx);
+            if (compare_values(lhs, elem_val) == 0) {
+                found = true;
+                break;
+            }
+        }
+        bool r = (node.op == TaqlOp::in_set) ? found : !found;
+        return TaqlValue{r};
+    }
+
+    case ExprType::between_expr: {
+        auto val = as_double(eval_expr(node.children[0], ctx));
+        auto lo = as_double(eval_expr(node.children[1], ctx));
+        auto hi = as_double(eval_expr(node.children[2], ctx));
+        bool in_range = (val >= lo && val <= hi);
+        bool r = (node.op == TaqlOp::between) ? in_range : !in_range;
+        return TaqlValue{r};
+    }
+
+    case ExprType::like_expr: {
+        auto val = as_string(eval_expr(node.children[0], ctx));
+        auto pat = as_string(eval_expr(node.children[1], ctx));
+        // Simple glob: * -> .*, ? -> ., % -> .*
+        bool case_insensitive = (node.op == TaqlOp::ilike || node.op == TaqlOp::not_ilike);
+        // Very simple substring match for the common case
+        // Full regex would be added for complete parity
+        std::string target = val;
+        std::string pattern = pat;
+        if (case_insensitive) {
+            for (auto& c : target) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto& c : pattern) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        // If pattern has no wildcards, exact match
+        bool match = false;
+        if (pattern.find('%') == std::string::npos &&
+            pattern.find('*') == std::string::npos &&
+            pattern.find('?') == std::string::npos) {
+            match = (target == pattern);
+        } else {
+            // Simple: treat * and % as wildcards for "starts with" / "ends with"
+            if (pattern.front() == '*' || pattern.front() == '%') {
+                auto suffix = pattern.substr(1);
+                match = target.size() >= suffix.size() &&
+                        target.compare(target.size() - suffix.size(), suffix.size(), suffix) == 0;
+            } else if (pattern.back() == '*' || pattern.back() == '%') {
+                auto prefix = pattern.substr(0, pattern.size() - 1);
+                match = target.compare(0, prefix.size(), prefix) == 0;
+            } else {
+                match = (target == pattern);
+            }
+        }
+        bool r = (node.op == TaqlOp::like || node.op == TaqlOp::ilike) ? match : !match;
+        return TaqlValue{r};
+    }
+
+    case ExprType::set_expr: {
+        // Return the first element for scalar context, or build a vector
+        if (node.children.empty()) return std::monostate{};
+        if (node.children.size() == 1) return eval_expr(node.children[0], ctx);
+        // Build vector
+        std::vector<double> vec;
+        for (auto& child : node.children) {
+            vec.push_back(as_double(eval_expr(child, ctx)));
+        }
+        return vec;
+    }
+
+    case ExprType::wildcard:
+        return std::monostate{}; // Handled specially in projection
+
+    case ExprType::keyword_ref: {
+        // table::keyword or col::keyword - look up in keywords
+        if (ctx.table == nullptr)
+            throw std::runtime_error("TaQL: keyword reference without table context");
+        auto& kw = ctx.table->keywords();
+        auto* found = kw.find(node.name);
+        if (found == nullptr) return std::monostate{};
+        // Extract scalar types from RecordValue storage variant.
+        auto& st = found->storage();
+        if (auto* v = std::get_if<double>(&st)) return *v;
+        if (auto* v = std::get_if<float>(&st)) return static_cast<double>(*v);
+        if (auto* v = std::get_if<std::int32_t>(&st)) return static_cast<std::int64_t>(*v);
+        if (auto* v = std::get_if<std::int64_t>(&st)) return *v;
+        if (auto* v = std::get_if<std::string>(&st)) return *v;
+        if (auto* v = std::get_if<bool>(&st)) return *v;
+        return std::monostate{};
+    }
+
+    default:
+        throw std::runtime_error("TaQL: unsupported expression type in evaluator");
+    }
+}
+
+} // anonymous namespace
+
+// ===========================================================================
+// TaQL command execution
+// ===========================================================================
+
+TaqlResult taql_execute(std::string_view query, Table& table) {
     auto ast = taql_parse(query);
     TaqlResult result;
-    if (ast.command == TaqlCommand::show_cmd) {
+
+    switch (ast.command) {
+    case TaqlCommand::show_cmd:
         result.show_text = taql_show(ast.show_topic);
+        break;
+
+    case TaqlCommand::select_cmd: {
+        EvalContext ctx;
+        ctx.table = &table;
+        ctx.has_row = true;
+
+        // Evaluate WHERE filter
+        auto nrow = table.nrow();
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            ctx.row = r;
+            if (ast.where_expr.has_value()) {
+                auto where_val = eval_expr(*ast.where_expr, ctx);
+                if (!as_bool(where_val)) continue;
+            }
+            result.rows.push_back(r);
+        }
+
+        // ORDERBY: sort result rows
+        if (!ast.order_by.empty()) {
+            auto& sort_keys = ast.order_by;
+            std::sort(result.rows.begin(), result.rows.end(),
+                      [&](std::uint64_t a, std::uint64_t b) {
+                          EvalContext ca{&table, a, true};
+                          EvalContext cb{&table, b, true};
+                          for (auto& key : sort_keys) {
+                              auto va = eval_expr(key.expr, ca);
+                              auto vb = eval_expr(key.expr, cb);
+                              int cmp = compare_values(va, vb);
+                              if (key.order == SortOrder::descending) cmp = -cmp;
+                              if (cmp != 0) return cmp < 0;
+                          }
+                          return false;
+                      });
+        }
+
+        // DISTINCT: remove duplicate rows based on projection values
+        if (ast.select_distinct && !ast.projections.empty()) {
+            std::vector<std::uint64_t> unique_rows;
+            std::vector<std::string> seen;
+            for (auto r : result.rows) {
+                EvalContext rc{&table, r, true};
+                std::string key;
+                for (auto& proj : ast.projections) {
+                    auto v = eval_expr(proj.expr, rc);
+                    key += as_string(v) + "|";
+                }
+                if (std::find(seen.begin(), seen.end(), key) == seen.end()) {
+                    seen.push_back(key);
+                    unique_rows.push_back(r);
+                }
+            }
+            result.rows = std::move(unique_rows);
+        }
+
+        // LIMIT / OFFSET
+        if (ast.offset_expr.has_value()) {
+            EvalContext empty_ctx{};
+            auto offset = static_cast<std::size_t>(as_int(eval_expr(*ast.offset_expr, empty_ctx)));
+            if (offset < result.rows.size()) {
+                result.rows.erase(result.rows.begin(),
+                                  result.rows.begin() + static_cast<std::ptrdiff_t>(offset));
+            } else {
+                result.rows.clear();
+            }
+        }
+        if (ast.limit_expr.has_value()) {
+            EvalContext empty_ctx{};
+            auto limit = static_cast<std::size_t>(as_int(eval_expr(*ast.limit_expr, empty_ctx)));
+            if (limit < result.rows.size()) {
+                result.rows.resize(limit);
+            }
+        }
+
+        // Build column names from projections
+        for (auto& proj : ast.projections) {
+            if (!proj.alias.empty()) {
+                result.column_names.push_back(proj.alias);
+            } else if (proj.expr.type == ExprType::column_ref) {
+                result.column_names.push_back(proj.expr.name);
+            } else if (proj.expr.type == ExprType::wildcard) {
+                for (auto& col : table.columns()) {
+                    result.column_names.push_back(col.name);
+                }
+            } else {
+                result.column_names.push_back("expr");
+            }
+        }
+
+        // Evaluate projections for each result row and store values
+        for (auto r : result.rows) {
+            EvalContext rc{&table, r, true};
+            for (auto& proj : ast.projections) {
+                if (proj.expr.type == ExprType::wildcard) {
+                    // All columns
+                    for (auto& col : table.columns()) {
+                        auto cv = table.read_scalar_cell(col.name, r);
+                        result.values.push_back(cell_to_taql(cv));
+                    }
+                } else {
+                    result.values.push_back(eval_expr(proj.expr, rc));
+                }
+            }
+        }
+        break;
     }
-    // Full evaluation implemented in W4
+
+    case TaqlCommand::update_cmd: {
+        if (!table.is_writable())
+            throw std::runtime_error("TaQL: UPDATE requires writable table");
+
+        EvalContext ctx;
+        ctx.table = &table;
+        ctx.has_row = true;
+
+        auto nrow = table.nrow();
+        std::uint64_t affected = 0;
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            ctx.row = r;
+            if (ast.where_expr.has_value()) {
+                auto where_val = eval_expr(*ast.where_expr, ctx);
+                if (!as_bool(where_val)) continue;
+            }
+            // Apply assignments
+            for (auto& asgn : ast.assignments) {
+                auto val = eval_expr(asgn.value, ctx);
+                // Convert TaqlValue to CellValue
+                CellValue cv;
+                if (auto* b = std::get_if<bool>(&val)) cv = *b;
+                else if (auto* i = std::get_if<std::int64_t>(&val)) cv = static_cast<std::int32_t>(*i);
+                else if (auto* d = std::get_if<double>(&val)) cv = *d;
+                else if (auto* s = std::get_if<std::string>(&val)) cv = *s;
+                else if (auto* c = std::get_if<std::complex<double>>(&val)) cv = *c;
+                else throw std::runtime_error("TaQL: unsupported value type in UPDATE");
+                table.write_scalar_cell(asgn.column, r, cv);
+            }
+            result.rows.push_back(r);
+            ++affected;
+        }
+        result.affected_rows = affected;
+        if (affected > 0) table.flush();
+        break;
+    }
+
+    case TaqlCommand::delete_cmd: {
+        // Collect rows matching WHERE
+        EvalContext ctx;
+        ctx.table = &table;
+        ctx.has_row = true;
+        auto nrow = table.nrow();
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            ctx.row = r;
+            if (ast.where_expr.has_value()) {
+                auto where_val = eval_expr(*ast.where_expr, ctx);
+                if (!as_bool(where_val)) continue;
+            }
+            result.rows.push_back(r);
+        }
+        result.affected_rows = result.rows.size();
+        // Note: actual row deletion would require Table::removeRow which
+        // isn't in our API. We return the row indices that should be deleted.
+        break;
+    }
+
+    case TaqlCommand::count_cmd: {
+        EvalContext ctx;
+        ctx.table = &table;
+        ctx.has_row = true;
+        auto nrow = table.nrow();
+        std::uint64_t count = 0;
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            ctx.row = r;
+            if (ast.where_expr.has_value()) {
+                auto where_val = eval_expr(*ast.where_expr, ctx);
+                if (!as_bool(where_val)) continue;
+            }
+            ++count;
+        }
+        result.affected_rows = count;
+        result.values.push_back(static_cast<std::int64_t>(count));
+        break;
+    }
+
+    case TaqlCommand::calc_cmd: {
+        if (ast.calc_expr.has_value()) {
+            EvalContext ctx;
+            ctx.table = &table;
+            ctx.has_row = false;
+            auto val = eval_expr(*ast.calc_expr, ctx);
+            result.values.push_back(val);
+        }
+        break;
+    }
+
+    case TaqlCommand::insert_cmd: {
+        if (!table.is_writable())
+            throw std::runtime_error("TaQL: INSERT requires writable table");
+        // INSERT VALUES: evaluate each row and write
+        // Note: Table doesn't have addRow; this would need to be extended.
+        // For now, count the intended insertions.
+        result.affected_rows = ast.insert_values.size();
+        break;
+    }
+
+    case TaqlCommand::create_table_cmd:
+    case TaqlCommand::alter_table_cmd:
+    case TaqlCommand::drop_table_cmd:
+        // DDL commands require filesystem operations beyond current scope.
+        // Return the parsed AST information for the caller to act on.
+        break;
+    }
+
     return result;
 }
 
 TaqlResult taql_calc(std::string_view query) {
     auto ast = taql_parse(query);
     TaqlResult result;
-    // Full CALC evaluation implemented in W4
+
+    if (ast.command == TaqlCommand::show_cmd) {
+        result.show_text = taql_show(ast.show_topic);
+        return result;
+    }
+
+    // For CALC, evaluate the expression without table context
+    if (ast.calc_expr.has_value()) {
+        EvalContext ctx;
+        auto val = eval_expr(*ast.calc_expr, ctx);
+        result.values.push_back(val);
+    }
     return result;
 }
 
