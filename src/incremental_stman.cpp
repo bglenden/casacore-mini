@@ -42,6 +42,15 @@ void write_le_i32_buf(std::uint8_t* p, std::int32_t v) noexcept {
     return static_cast<std::int32_t>(read_le_u32_buf(p));
 }
 
+[[nodiscard]] std::uint32_t read_be_u32_buf(const std::uint8_t* p) noexcept {
+    return (static_cast<std::uint32_t>(p[0]) << 24U) | (static_cast<std::uint32_t>(p[1]) << 16U) |
+           (static_cast<std::uint32_t>(p[2]) << 8U) | static_cast<std::uint32_t>(p[3]);
+}
+
+[[nodiscard]] std::int32_t read_be_i32_buf(const std::uint8_t* p) noexcept {
+    return static_cast<std::int32_t>(read_be_u32_buf(p));
+}
+
 [[nodiscard]] std::uint64_t read_le_u64_buf(const std::uint8_t* p) noexcept {
     return static_cast<std::uint64_t>(p[0]) | (static_cast<std::uint64_t>(p[1]) << 8U) |
            (static_cast<std::uint64_t>(p[2]) << 16U) | (static_cast<std::uint64_t>(p[3]) << 24U) |
@@ -49,9 +58,30 @@ void write_le_i32_buf(std::uint8_t* p, std::int32_t v) noexcept {
            (static_cast<std::uint64_t>(p[6]) << 48U) | (static_cast<std::uint64_t>(p[7]) << 56U);
 }
 
+[[nodiscard]] std::uint64_t read_be_u64_buf(const std::uint8_t* p) noexcept {
+    return (static_cast<std::uint64_t>(p[0]) << 56U) | (static_cast<std::uint64_t>(p[1]) << 48U) |
+           (static_cast<std::uint64_t>(p[2]) << 40U) | (static_cast<std::uint64_t>(p[3]) << 32U) |
+           (static_cast<std::uint64_t>(p[4]) << 24U) | (static_cast<std::uint64_t>(p[5]) << 16U) |
+           (static_cast<std::uint64_t>(p[6]) << 8U) | static_cast<std::uint64_t>(p[7]);
+}
+
 [[nodiscard]] double read_le_f64_buf(const std::uint8_t* p) noexcept {
     double v = 0;
     std::memcpy(&v, p, 8);
+    return v;
+}
+
+[[nodiscard]] float read_be_f32_buf(const std::uint8_t* p) noexcept {
+    const auto bits = read_be_u32_buf(p);
+    float v = 0;
+    std::memcpy(&v, &bits, sizeof(float));
+    return v;
+}
+
+[[nodiscard]] double read_be_f64_buf(const std::uint8_t* p) noexcept {
+    const auto bits = read_be_u64_buf(p);
+    double v = 0;
+    std::memcpy(&v, &bits, sizeof(double));
     return v;
 }
 
@@ -101,36 +131,71 @@ struct IsmFileHeader {
         throw std::runtime_error("ISM file header too short");
     }
 
-    // Read AipsIO object header using LE (default for macOS).
-    // Magic is 0xBEBEBEBE (same in any endianness).
-    const auto magic = read_le_u32_buf(header_bytes.data());
+    // Detect header endianness from object length (offset 4).
+    // A plausible AipsIO object header length should fit in the first 512 bytes.
+    const auto be_len = read_be_u32_buf(header_bytes.data() + 4);
+    const auto le_len = read_le_u32_buf(header_bytes.data() + 4);
+    const bool be_plausible = be_len < 512U;
+    const bool le_plausible = le_len < 512U;
+    bool file_be = false;
+    if (be_plausible != le_plausible) {
+        file_be = be_plausible;
+    } else {
+        // Ambiguous; prefer LE for backward compatibility with existing fixtures.
+        file_be = false;
+    }
+
+    const auto read_u32 = [&](const std::uint8_t* p) {
+        return file_be ? read_be_u32_buf(p) : read_le_u32_buf(p);
+    };
+
+    // Magic is endian-neutral (0xBEBEBEBE).
+    const auto magic = read_u32(header_bytes.data());
     if (magic != kAipsIoMagic) {
         throw std::runtime_error("bad AipsIO magic in ISM header");
     }
 
-    // Object length.
-    static_cast<void>(read_le_u32_buf(header_bytes.data() + 4));
-    // String length + string.
-    const auto str_len = read_le_u32_buf(header_bytes.data() + 8);
-    const auto version_offset = 12 + str_len;
+    const auto str_len = read_u32(header_bytes.data() + 8);
+    const std::size_t type_offset = 12;
+    const std::size_t version_offset = type_offset + static_cast<std::size_t>(str_len);
+    if (version_offset + 4 > header_bytes.size()) {
+        throw std::runtime_error("ISM header has invalid object type length");
+    }
+    const std::string type_name(reinterpret_cast<const char*>(header_bytes.data() + type_offset),
+                                static_cast<std::size_t>(str_len));
+    if (type_name != "IncrementalStMan") {
+        throw std::runtime_error("expected IncrementalStMan header, got: " + type_name);
+    }
 
     IsmFileHeader result;
-    result.version = read_le_u32_buf(header_bytes.data() + version_offset);
+    result.version = read_u32(header_bytes.data() + version_offset);
 
-    auto off = version_offset + 4;
+    std::size_t off = version_offset + 4;
 
     // Version >= 5 has endian flag byte.
     if (result.version >= 5) {
+        if (off + 1 > header_bytes.size()) {
+            throw std::runtime_error("ISM header truncated before endian flag");
+        }
         result.big_endian = header_bytes[off] != 0;
         ++off;
+    } else {
+        // Older files encode content in the same endianness as the header framing.
+        result.big_endian = file_be;
     }
 
-    result.bucket_size = read_le_u32_buf(header_bytes.data() + off);
+    if (off + 12 > header_bytes.size()) {
+        throw std::runtime_error("ISM header truncated before core fields");
+    }
+    result.bucket_size = read_u32(header_bytes.data() + off);
     off += 4;
-    result.nr_buckets = read_le_u32_buf(header_bytes.data() + off);
+    result.nr_buckets = read_u32(header_bytes.data() + off);
     off += 4;
-    result.pers_cache_size = read_le_u32_buf(header_bytes.data() + off);
+    result.pers_cache_size = read_u32(header_bytes.data() + off);
     // Additional fields follow but we don't need them all.
+    if (result.bucket_size == 0) {
+        throw std::runtime_error("ISM header has zero bucket size");
+    }
 
     return result;
 }
@@ -150,32 +215,51 @@ struct IsmBucketColIndex {
 ///   row_numbers[nr_entries] (u32 each)
 ///   data_offsets[nr_entries] (u32 each)
 [[nodiscard]] std::vector<IsmBucketColIndex>
-parse_ism_bucket_indices(const std::uint8_t* bucket_data, std::uint32_t /*bucket_size*/,
-                         std::uint32_t nr_columns) {
+parse_ism_bucket_indices(const std::uint8_t* bucket_data, const std::uint32_t bucket_size,
+                         const std::uint32_t nr_columns, const bool big_endian) {
+
+    const auto read_u32 = [&](const std::uint8_t* p) {
+        return big_endian ? read_be_u32_buf(p) : read_le_u32_buf(p);
+    };
 
     // free_offset is the first u32 in the bucket. It is a bucket-relative offset
     // to the start of the column index area (right after the data entries).
     // Data origin is bucket[4]; data area spans bucket[4..free_offset).
-    const auto free_offset = read_le_u32_buf(bucket_data);
+    const auto free_offset = read_u32(bucket_data);
     // Index starts at bucket[free_offset].
+    if (free_offset > bucket_size || free_offset < 4U) {
+        throw std::runtime_error("ISM bucket has invalid free_offset");
+    }
     auto pos = static_cast<std::size_t>(free_offset);
 
     std::vector<IsmBucketColIndex> indices(nr_columns);
 
     for (std::uint32_t c = 0; c < nr_columns; ++c) {
         auto& idx = indices[c];
-        idx.nr_entries = read_le_u32_buf(bucket_data + pos);
+        if (pos + 4 > bucket_size) {
+            throw std::runtime_error("ISM bucket index truncated at entry count");
+        }
+        idx.nr_entries = read_u32(bucket_data + pos);
         pos += 4;
 
+        if (idx.nr_entries > (bucket_size / 8U)) {
+            throw std::runtime_error("ISM bucket index has implausible entry count");
+        }
         idx.row_numbers.resize(idx.nr_entries);
         for (std::uint32_t i = 0; i < idx.nr_entries; ++i) {
-            idx.row_numbers[i] = read_le_u32_buf(bucket_data + pos);
+            if (pos + 4 > bucket_size) {
+                throw std::runtime_error("ISM bucket index truncated in row_numbers");
+            }
+            idx.row_numbers[i] = read_u32(bucket_data + pos);
             pos += 4;
         }
 
         idx.data_offsets.resize(idx.nr_entries);
         for (std::uint32_t i = 0; i < idx.nr_entries; ++i) {
-            idx.data_offsets[i] = read_le_u32_buf(bucket_data + pos);
+            if (pos + 4 > bucket_size) {
+                throw std::runtime_error("ISM bucket index truncated in data_offsets");
+            }
+            idx.data_offsets[i] = read_u32(bucket_data + pos);
             pos += 4;
         }
     }
@@ -188,42 +272,49 @@ parse_ism_bucket_indices(const std::uint8_t* bucket_data, std::uint32_t /*bucket
 /// Bool is stored as 1 byte (uChar), Int/uInt as 4, Double/Int64 as 8.
 // NOLINTBEGIN(bugprone-branch-clone)
 [[nodiscard]] CellValue read_ism_value(const std::uint8_t* data_origin, std::uint32_t offset,
-                                       DataType dtype) {
+                                       DataType dtype, const bool big_endian) {
     const std::uint8_t* p = data_origin + offset;
     switch (dtype) {
     case DataType::tp_bool:
         return p[0] != 0;
     case DataType::tp_int:
-        return read_le_i32_buf(p);
+        return big_endian ? read_be_i32_buf(p) : read_le_i32_buf(p);
     case DataType::tp_uint:
-        return read_le_u32_buf(p);
+        return big_endian ? read_be_u32_buf(p) : read_le_u32_buf(p);
     case DataType::tp_float: {
         float v = 0;
-        std::memcpy(&v, p, 4);
+        if (big_endian) {
+            v = read_be_f32_buf(p);
+        } else {
+            std::memcpy(&v, p, 4);
+        }
         return v;
     }
     case DataType::tp_double:
-        return read_le_f64_buf(p);
+        return big_endian ? read_be_f64_buf(p) : read_le_f64_buf(p);
     case DataType::tp_int64:
-        return static_cast<std::int64_t>(read_le_u64_buf(p));
+        return static_cast<std::int64_t>(big_endian ? read_be_u64_buf(p) : read_le_u64_buf(p));
     case DataType::tp_complex: {
         float re = 0;
         float im = 0;
-        std::memcpy(&re, p, 4);
-        std::memcpy(&im, p + 4, 4);
+        if (big_endian) {
+            re = read_be_f32_buf(p);
+            im = read_be_f32_buf(p + 4);
+        } else {
+            std::memcpy(&re, p, 4);
+            std::memcpy(&im, p + 4, 4);
+        }
         return std::complex<float>(re, im);
     }
     case DataType::tp_dcomplex: {
-        double re = 0;
-        double im = 0;
-        std::memcpy(&re, p, 8);
-        std::memcpy(&im, p + 8, 8);
+        const auto re = big_endian ? read_be_f64_buf(p) : read_le_f64_buf(p);
+        const auto im = big_endian ? read_be_f64_buf(p + 8) : read_le_f64_buf(p + 8);
         return std::complex<double>(re, im);
     }
     case DataType::tp_string: {
         // ISM string format: [total_length_u32][string_bytes].
         // total_length includes the 4-byte length field itself.
-        const auto total_len = read_le_u32_buf(p);
+        const auto total_len = big_endian ? read_be_u32_buf(p) : read_le_u32_buf(p);
         if (total_len <= 4) {
             return std::string{};
         }
@@ -261,6 +352,7 @@ void IsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
     }
 
     const auto header = parse_ism_file_header(std::span<const std::uint8_t>(file_data.data(), 512));
+    big_endian_ = header.big_endian;
 
     // Build column info from table_dat.
     std::vector<DataType> col_types;
@@ -294,7 +386,7 @@ void IsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
         }
 
         const std::uint8_t* bucket = file_data.data() + bucket_offset;
-        auto indices = parse_ism_bucket_indices(bucket, header.bucket_size, nr_columns);
+        auto indices = parse_ism_bucket_indices(bucket, header.bucket_size, nr_columns, big_endian_);
 
         // Data origin is bucket + 4 (after the free_offset u32).
         const std::uint8_t* data_origin = bucket + 4;
@@ -306,7 +398,8 @@ void IsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
                 IsmColumnInfo::Entry entry;
                 entry.start_row = idx.row_numbers[e];
                 entry.value =
-                    read_ism_value(data_origin, idx.data_offsets[e], columns_[c].data_type);
+                    read_ism_value(data_origin, idx.data_offsets[e], columns_[c].data_type,
+                                   big_endian_);
                 columns_[c].entries.push_back(std::move(entry));
             }
         }

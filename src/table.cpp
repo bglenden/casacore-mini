@@ -40,7 +40,19 @@ struct SmLookup {
     const char* base = nullptr;
     switch (dt) {
     case DataType::tp_bool:
-        base = "Bool";
+        base = "Bool    ";
+        break;
+    case DataType::tp_char:
+        base = "Char    ";
+        break;
+    case DataType::tp_uchar:
+        base = "uChar   ";
+        break;
+    case DataType::tp_short:
+        base = "Short   ";
+        break;
+    case DataType::tp_ushort:
+        base = "uShort  ";
         break;
     case DataType::tp_int:
         base = "Int     ";
@@ -52,10 +64,10 @@ struct SmLookup {
         base = "Int64   ";
         break;
     case DataType::tp_float:
-        base = "Float   ";
+        base = "float   ";
         break;
     case DataType::tp_double:
-        base = "Double  ";
+        base = "double  ";
         break;
     case DataType::tp_complex:
         base = "Complex ";
@@ -67,12 +79,13 @@ struct SmLookup {
         base = "String  ";
         break;
     default:
-        base = "Unknown ";
+        base = "unknown ";
         break;
     }
 
     std::string prefix = (kind == ColumnKind::array) ? "ArrayColumnDesc<" : "ScalarColumnDesc<";
-    return prefix + base + ">";
+    // casacore stores this token as prefix + padded type-id (no trailing '>').
+    return prefix + base;
 }
 
 } // namespace
@@ -220,6 +233,28 @@ Table Table::open(const std::filesystem::path& path) {
     t.impl_->path = path;
     t.impl_->dir = read_table_directory(path.string());
     t.impl_->writable = false;
+    if (t.impl_->dir.table_dat.row_count > 0) {
+        for (auto& col : t.impl_->dir.table_dat.table_desc.columns) {
+            if (col.kind != ColumnKind::array || !col.shape.empty() ||
+                !t.impl_->is_tsm_column(col.name)) {
+                continue;
+            }
+            if (auto* tsm = t.impl_->find_tsm_for_column(col.name)) {
+                const auto inferred_shape = tsm->cell_shape(col.name, 0);
+                if (!inferred_shape.empty()) {
+                    col.shape = inferred_shape;
+                    col.ndim = static_cast<std::int32_t>(inferred_shape.size());
+                    for (auto& setup : t.impl_->dir.table_dat.column_setups) {
+                        if (setup.column_name == col.name) {
+                            setup.has_shape = true;
+                            setup.shape = inferred_shape;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
     return t;
 }
 
@@ -229,6 +264,28 @@ Table Table::open_rw(const std::filesystem::path& path) {
     t.impl_->path = path;
     t.impl_->dir = read_table_directory(path.string());
     t.impl_->writable = true;
+    if (t.impl_->dir.table_dat.row_count > 0) {
+        for (auto& col : t.impl_->dir.table_dat.table_desc.columns) {
+            if (col.kind != ColumnKind::array || !col.shape.empty() ||
+                !t.impl_->is_tsm_column(col.name)) {
+                continue;
+            }
+            if (auto* tsm = t.impl_->find_tsm_for_column(col.name)) {
+                const auto inferred_shape = tsm->cell_shape(col.name, 0);
+                if (!inferred_shape.empty()) {
+                    col.shape = inferred_shape;
+                    col.ndim = static_cast<std::int32_t>(inferred_shape.size());
+                    for (auto& setup : t.impl_->dir.table_dat.column_setups) {
+                        if (setup.column_name == col.name) {
+                            setup.has_shape = true;
+                            setup.shape = inferred_shape;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     auto& td = t.impl_->dir.table_dat;
     auto nrow = td.row_count;
@@ -287,7 +344,8 @@ Table Table::create(const std::filesystem::path& path, const std::vector<TableCo
     td.big_endian = true;
     td.table_type = "PlainTable";
     td.table_desc.version = 2;
-    td.table_desc.name = path.filename().string();
+    // casacore writes an empty TableDesc name for on-disk tables.
+    td.table_desc.name = "";
     td.post_td_row_count = nrows;
 
     // Build column descriptors.
@@ -298,12 +356,13 @@ Table Table::create(const std::filesystem::path& path, const std::vector<TableCo
         cd.data_type = cs.data_type;
         cd.comment = cs.comment;
         cd.type_string = make_type_string(cs.data_type, cs.kind);
-        cd.dm_type = "StManAipsIO";
+        cd.dm_type = "StandardStMan";
         cd.dm_group = "StandardStMan";
         if (cs.kind == ColumnKind::array && !cs.shape.empty()) {
             cd.ndim = static_cast<std::int32_t>(cs.shape.size());
             cd.shape = cs.shape;
-            cd.options = 4; // ColumnDesc::FixedShape
+            // Fixed-shape arrays are direct in SSM (Direct|FixedShape).
+            cd.options = 5;
         } else if (cs.kind == ColumnKind::array) {
             cd.ndim = -1; // variable shape
         }
@@ -368,7 +427,8 @@ Table Table::create(const std::filesystem::path& path, const std::vector<TableCo
     td.big_endian = options.big_endian;
     td.table_type = "PlainTable";
     td.table_desc.version = 2;
-    td.table_desc.name = path.filename().string();
+    // casacore writes an empty TableDesc name for on-disk tables.
+    td.table_desc.name = "";
     td.post_td_row_count = nrows;
 
     // Copy keywords.
@@ -389,7 +449,8 @@ Table Table::create(const std::filesystem::path& path, const std::vector<TableCo
         if (cs.kind == ColumnKind::array && !cs.shape.empty()) {
             cd.ndim = static_cast<std::int32_t>(cs.shape.size());
             cd.shape = cs.shape;
-            cd.options = 4; // ColumnDesc::FixedShape
+            // Fixed-shape arrays are direct in SSM (Direct|FixedShape).
+            cd.options = 5;
         } else if (cs.kind == ColumnKind::array) {
             cd.ndim = -1; // variable shape
         }

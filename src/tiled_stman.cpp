@@ -23,6 +23,24 @@ namespace {
 /// Default bucket size used by casacore when no specific size can be determined.
 constexpr std::uint32_t kDefaultBucketSize = 32768;
 
+/// casacore sorts TSM data columns by tile pixel size; Bool uses 0 here.
+[[nodiscard]] std::uint32_t tsm_sort_pixel_size(const DataType dt,
+                                                const std::uint32_t element_size) {
+    if (dt == DataType::tp_bool) {
+        return 0;
+    }
+    return element_size;
+}
+
+/// Bytes occupied by one column in one tile in external TSM representation.
+[[nodiscard]] std::uint64_t tsm_tile_data_bytes(const DataType dt, const std::uint64_t tile_pixels,
+                                                const std::uint32_t element_size) {
+    if (dt == DataType::tp_bool) {
+        return (tile_pixels + 7U) / 8U;
+    }
+    return tile_pixels * static_cast<std::uint64_t>(element_size);
+}
+
 // Read a file into a byte vector.
 [[nodiscard]] std::vector<std::uint8_t> read_file_tsm(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
@@ -599,7 +617,7 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
     std::vector<std::uint32_t> col_pixel_sizes;
     col_pixel_sizes.reserve(columns_.size());
     for (const auto& ci : columns_) {
-        col_pixel_sizes.push_back(ci.element_size);
+        col_pixel_sizes.push_back(tsm_sort_pixel_size(ci.data_type, ci.element_size));
     }
 
     // Try to parse the .f0 header for accurate tile-based layout.
@@ -679,6 +697,20 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
     tile_layout_.tiles_along_row = tsm_layout.tiles_along_row;
     tile_layout_.sorted_col_indices = std::move(tsm_layout.sorted_col_indices);
     tile_layout_.col_tile_offsets = std::move(tsm_layout.col_tile_offsets);
+
+    // Recompute per-column tile offsets using casacore external tile bytes.
+    // For Bool columns this is bit-packed ((tile_pixels+7)/8), not 1 byte/pixel.
+    if (!tile_layout_.sorted_col_indices.empty()) {
+        tile_layout_.col_tile_offsets.assign(tile_layout_.sorted_col_indices.size(), 0);
+        std::uint64_t offset = 0;
+        for (std::size_t i = 0; i < tile_layout_.sorted_col_indices.size(); ++i) {
+            tile_layout_.col_tile_offsets[i] = offset;
+            const auto sorted_idx = tile_layout_.sorted_col_indices[i];
+            offset += tsm_tile_data_bytes(columns_[sorted_idx].data_type, tile_layout_.tile_pixels,
+                                          columns_[sorted_idx].element_size);
+        }
+        tile_layout_.bucket_size = offset;
+    }
 
     cubes_.clear();
     shape_row_intervals_.clear();
@@ -792,8 +824,10 @@ void TiledStManReader::open(const std::string_view table_dir, const std::size_t 
             for (std::size_t i = 0; i < tile_layout_.sorted_col_indices.size(); ++i) {
                 layout.col_tile_offsets[i] = offset;
                 const auto sorted_idx = tile_layout_.sorted_col_indices[i];
-                offset += layout.tile_pixels *
-                          static_cast<std::uint64_t>(columns_[sorted_idx].element_size);
+                const auto tile_bytes =
+                    tsm_tile_data_bytes(columns_[sorted_idx].data_type, layout.tile_pixels,
+                                        columns_[sorted_idx].element_size);
+                offset += tile_bytes;
             }
             layout.bucket_size = offset;
             cubes_.push_back(std::move(layout));
@@ -1135,15 +1169,6 @@ std::vector<std::uint8_t> TiledStManReader::read_raw_cell(const std::string_view
         }
     }
 
-    if (full_cell_per_tile) {
-        const auto byte_offset = cell_byte_offset(col_idx, *col, loc->row_in_cube, *cube);
-        if (byte_offset > file_data->size() || cell_bytes > file_data->size() - byte_offset) {
-            throw std::runtime_error("TSM0 read beyond file end");
-        }
-        std::memcpy(result.data(), file_data->data() + byte_offset, cell_bytes);
-        return result;
-    }
-
     std::size_t sorted_pos = 0;
     bool found_sorted = false;
     for (std::size_t i = 0; i < tile_layout_.sorted_col_indices.size(); ++i) {
@@ -1181,6 +1206,80 @@ std::vector<std::uint8_t> TiledStManReader::read_raw_cell(const std::string_view
     std::uint64_t tile_cell_pixels = 1;
     for (const auto dim : tile_cell_shape_u) {
         tile_cell_pixels *= dim;
+    }
+
+    if (col->data_type == DataType::tp_bool) {
+        std::vector<std::uint64_t> tile_coord(ncell_dims, 0);
+        bool done = ncell_dims == 0;
+        while (!done) {
+            std::uint64_t tile_linear = 0;
+            std::uint64_t tile_mult = 1;
+            for (std::size_t i = 0; i < ncell_dims; ++i) {
+                tile_linear += tile_coord[i] * tile_mult;
+                tile_mult *= tiles_per_dim[i];
+            }
+            tile_linear += row_tile_index * tile_mult;
+
+            const auto tile_base = cube->file_offset + tile_linear * cube->bucket_size +
+                                   cube->col_tile_offsets[sorted_pos];
+
+            std::vector<std::uint64_t> chunk_shape(ncell_dims, 1);
+            std::vector<std::uint64_t> chunk_start(ncell_dims, 0);
+            for (std::size_t i = 0; i < ncell_dims; ++i) {
+                chunk_start[i] = tile_coord[i] * tile_cell_shape_u[i];
+                const auto remaining = cell_shape_u[i] - chunk_start[i];
+                chunk_shape[i] = std::min(tile_cell_shape_u[i], remaining);
+            }
+
+            std::uint64_t chunk_pixels = 1;
+            for (const auto dim : chunk_shape) {
+                chunk_pixels *= dim;
+            }
+            for (std::uint64_t p = 0; p < chunk_pixels; ++p) {
+                std::uint64_t rem = p;
+                std::uint64_t tile_cell_linear = 0;
+                std::uint64_t out_cell_linear = 0;
+                for (std::size_t i = 0; i < ncell_dims; ++i) {
+                    const auto c = rem % chunk_shape[i];
+                    rem /= chunk_shape[i];
+                    tile_cell_linear += c * tile_strides[i];
+                    out_cell_linear += (chunk_start[i] + c) * cell_strides[i];
+                }
+
+                const auto src_bit = row_in_tile * tile_cell_pixels + tile_cell_linear;
+                const auto src_byte = tile_base + (src_bit / 8U);
+                const auto src_bit_in_byte = static_cast<unsigned>(src_bit & 7U);
+                if (src_byte >= file_data->size()) {
+                    throw std::runtime_error("TSM0 tiled bool read beyond file end");
+                }
+                if (out_cell_linear >= result.size()) {
+                    throw std::runtime_error("TSM0 tiled bool write beyond cell buffer");
+                }
+                result[static_cast<std::size_t>(out_cell_linear)] =
+                    ((file_data->at(src_byte) >> src_bit_in_byte) & 0x1U) != 0U ? 1U : 0U;
+            }
+
+            for (std::size_t i = 0; i < ncell_dims; ++i) {
+                ++tile_coord[i];
+                if (tile_coord[i] < tiles_per_dim[i]) {
+                    break;
+                }
+                tile_coord[i] = 0;
+                if (i + 1 == ncell_dims) {
+                    done = true;
+                }
+            }
+        }
+        return result;
+    }
+
+    if (full_cell_per_tile) {
+        const auto byte_offset = cell_byte_offset(col_idx, *col, loc->row_in_cube, *cube);
+        if (byte_offset > file_data->size() || cell_bytes > file_data->size() - byte_offset) {
+            throw std::runtime_error("TSM0 read beyond file end");
+        }
+        std::memcpy(result.data(), file_data->data() + byte_offset, cell_bytes);
+        return result;
     }
 
     std::vector<std::uint64_t> tile_coord(ncell_dims, 0);

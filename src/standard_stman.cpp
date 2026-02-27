@@ -2213,13 +2213,15 @@ void SsmWriter::write_indirect_array(const std::size_t col_index,
 }
 
 std::vector<std::uint8_t> SsmWriter::flush_indirect() const {
-    if (indirect_data_.empty()) {
-        return {};
-    }
-
     // StManArrayFile header: version(uInt) + leng(Int64) + padding(Int)
     // Total: 16 bytes, little-endian (always LE in casacore).
     constexpr std::uint64_t kHeaderSize = 16;
+    const bool has_indirect_columns =
+        std::any_of(columns_.begin(), columns_.end(), [](const auto& col) { return col.indirect; });
+    if (!has_indirect_columns) {
+        return {};
+    }
+
     const auto total_size = kHeaderSize + indirect_data_.size();
 
     std::vector<std::uint8_t> result(total_size, 0);

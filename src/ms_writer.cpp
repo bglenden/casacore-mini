@@ -107,9 +107,12 @@ void MsWriter::flush_subtable(
     const std::function<CellValue(std::size_t col, std::uint64_t row)>& get_cell) {
 
     const auto st_path = ms_.path() / std::string(name);
+    const auto& existing_subtable = ms_.subtable(std::string(name));
+    const auto& existing_dat = existing_subtable.table_dat();
 
     // Build column specs from descriptors.
     std::vector<TableColumnSpec> specs;
+    std::vector<Record> column_keywords;
     for (const auto& col : columns) {
         TableColumnSpec spec;
         spec.name = col.name;
@@ -118,11 +121,20 @@ void MsWriter::flush_subtable(
         spec.shape.assign(col.shape.begin(), col.shape.end());
         spec.comment = col.comment;
         specs.push_back(std::move(spec));
+        column_keywords.push_back(col.keywords);
     }
+
+    TableCreateOptions create_options;
+    create_options.sm_type = "StandardStMan";
+    create_options.sm_group = "StandardStMan";
+    create_options.big_endian = existing_dat.big_endian;
+    create_options.table_keywords = existing_dat.table_desc.keywords;
+    create_options.private_keywords = existing_dat.table_desc.private_keywords;
+    create_options.column_keywords = std::move(column_keywords);
 
     // Remove old subtable and create fresh.
     std::filesystem::remove_all(st_path);
-    auto table = Table::create(st_path, specs, nrows);
+    auto table = Table::create(st_path, specs, nrows, create_options);
 
     for (std::size_t ci = 0; ci < columns.size(); ++ci) {
         if (columns[ci].kind == ColumnKind::array) {
