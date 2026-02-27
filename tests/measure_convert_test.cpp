@@ -17,6 +17,10 @@ namespace {
     return std::abs(a - b) < tol * std::max(1.0, std::abs(a));
 }
 
+[[maybe_unused]] bool near_angle(double a, double b, double tol) {
+    return std::abs(std::remainder(a - b, 2.0 * M_PI)) < tol;
+}
+
 // ---------------------------------------------------------------------------
 // Epoch conversions
 // ---------------------------------------------------------------------------
@@ -205,6 +209,35 @@ bool test_direction_j2000_to_app() {
     return true;
 }
 
+bool test_direction_b1950_to_j2000_roundtrip() {
+    using namespace casacore_mini;
+    // Pair from casacore-original dM1950_2000.cc:
+    // B1950: 13h28m49.657756, 30d45m58.64060
+    // J2000: 13h31m08.288048, 30d30m32.95924
+    const double b1950_ra_deg = 202.20690731666667;
+    const double b1950_dec_deg = 30.766289055555557;
+    const double j2000_ra_deg = 202.78453353333336;
+    const double j2000_dec_deg = 30.509155344444444;
+
+    const double b1950_ra = b1950_ra_deg * M_PI / 180.0;
+    const double b1950_dec = b1950_dec_deg * M_PI / 180.0;
+    const double j2000_ra = j2000_ra_deg * M_PI / 180.0;
+    const double j2000_dec = j2000_dec_deg * M_PI / 180.0;
+
+    Measure m{MeasureType::direction, MeasureRef{DirectionRef::b1950, std::nullopt},
+              DirectionValue{b1950_ra, b1950_dec}};
+    auto j2k = convert_measure(m, DirectionRef::j2000);
+    const auto& j2k_val = std::get<DirectionValue>(j2k.value);
+    assert(near_angle(j2k_val.lon_rad, j2000_ra, 5.0e-6));
+    assert(near(j2k_val.lat_rad, j2000_dec, 5.0e-6));
+
+    auto back = convert_measure(j2k, DirectionRef::b1950);
+    const auto& back_val = std::get<DirectionValue>(back.value);
+    assert(near_angle(back_val.lon_rad, b1950_ra, 5.0e-6));
+    assert(near(back_val.lat_rad, b1950_dec, 5.0e-6));
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Error cases
 // ---------------------------------------------------------------------------
@@ -276,6 +309,7 @@ int main() {
     run("direction_galactic_center", test_direction_galactic_center);
     run("direction_j2000_to_ecliptic", test_direction_j2000_to_ecliptic);
     run("direction_j2000_to_app", test_direction_j2000_to_app);
+    run("direction_b1950_to_j2000_roundtrip", test_direction_b1950_to_j2000_roundtrip);
     run("type_mismatch_throws", test_type_mismatch_throws);
     run("unsupported_epoch_ref_throws", test_unsupported_epoch_ref_throws);
     run("app_without_frame_throws", test_app_without_frame_throws);

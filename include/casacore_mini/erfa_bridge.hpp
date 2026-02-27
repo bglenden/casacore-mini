@@ -36,6 +36,9 @@ void tdb_to_tt(double tdb1, double tdb2, double dtr, double& tt1, double& tt2);
 /// Uses the ERFA eraDtdb model with simplified parameters (geocenter approximation).
 double approx_dtdb(double tt1, double tt2);
 
+/// Convert JD (two-part) to Besselian epoch (e.g. 1950.0).
+double jd_to_besselian_epoch(double jd1, double jd2);
+
 /// Geodetic (WGS84) to geocentric (ITRF) XYZ.
 /// @param elong  Longitude in radians (east-positive).
 /// @param phi    Latitude in radians (geodetic).
@@ -51,6 +54,14 @@ void j2000_to_galactic(double ra, double dec, double& l, double& b);
 
 /// Galactic (l, b) to ICRS/J2000 equatorial (ra, dec), all in radians.
 void galactic_to_j2000(double l, double b, double& ra, double& dec);
+
+/// FK4 B1950 to FK5 J2000 (position-only), using the given Besselian epoch.
+void b1950_to_j2000(double ra_b1950, double dec_b1950, double bepoch, double& ra_j2000,
+                    double& dec_j2000);
+
+/// FK5 J2000 to FK4 B1950 (position-only), using the given Besselian epoch.
+void j2000_to_b1950(double ra_j2000, double dec_j2000, double bepoch, double& ra_b1950,
+                    double& dec_b1950);
 
 /// Compute the IAU 2006/2000A bias-precession-nutation 3x3 rotation matrix.
 /// Rotates J2000 → intermediate (CIP/CIO frame) for a given TT date.

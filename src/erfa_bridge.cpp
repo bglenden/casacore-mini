@@ -59,6 +59,10 @@ double approx_dtdb(double tt1, double tt2) {
     return eraDtdb(tt1, tt2, ut, 0.0, 0.0, 0.0);
 }
 
+double jd_to_besselian_epoch(double jd1, double jd2) {
+    return eraEpb(jd1, jd2);
+}
+
 void wgs84_to_itrf(double elong, double phi, double height, double (&xyz)[3]) {
     check_erfa(eraGd2gc(1, elong, phi, height, xyz), "eraGd2gc");
 }
@@ -75,6 +79,18 @@ void j2000_to_galactic(double ra, double dec, double& l, double& b) {
 
 void galactic_to_j2000(double l, double b, double& ra, double& dec) {
     eraG2icrs(l, b, &ra, &dec);
+}
+
+void b1950_to_j2000(double ra_b1950, double dec_b1950, double bepoch, double& ra_j2000,
+                    double& dec_j2000) {
+    eraFk45z(ra_b1950, dec_b1950, bepoch, &ra_j2000, &dec_j2000);
+}
+
+void j2000_to_b1950(double ra_j2000, double dec_j2000, double bepoch, double& ra_b1950,
+                    double& dec_b1950) {
+    double dra = 0.0;
+    double ddec = 0.0;
+    eraFk54z(ra_j2000, dec_j2000, bepoch, &ra_b1950, &dec_b1950, &dra, &ddec);
 }
 
 void bias_precession_nutation_matrix(double tt1, double tt2,

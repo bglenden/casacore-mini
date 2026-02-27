@@ -159,11 +159,23 @@ DirectionValue convert_direction(const DirectionValue& val, DirectionRef from, D
     // Convert from source to J2000 as intermediate.
     double ra_j2000 = 0.0;
     double dec_j2000 = 0.0;
+    // B1950/FK4 conversions need a Besselian epoch; default to 1950.0.
+    double bepoch = 1950.0;
+    if ((from == DirectionRef::b1950 || from == DirectionRef::b1950_vla ||
+         to == DirectionRef::b1950 || to == DirectionRef::b1950_vla) &&
+        frame.epoch.has_value()) {
+        const auto& ev = std::get<EpochValue>(frame.epoch->value);
+        bepoch = jd_to_besselian_epoch(kMjdJd0, ev.day + ev.fraction);
+    }
     switch (from) {
     case DirectionRef::j2000:
     case DirectionRef::icrs: // ICRS ≈ J2000 for our purposes
         ra_j2000 = val.lon_rad;
         dec_j2000 = val.lat_rad;
+        break;
+    case DirectionRef::b1950:
+    case DirectionRef::b1950_vla:
+        b1950_to_j2000(val.lon_rad, val.lat_rad, bepoch, ra_j2000, dec_j2000);
         break;
     case DirectionRef::galactic:
         galactic_to_j2000(val.lon_rad, val.lat_rad, ra_j2000, dec_j2000);
@@ -203,6 +215,10 @@ DirectionValue convert_direction(const DirectionValue& val, DirectionRef from, D
     case DirectionRef::icrs:
         lon_out = ra_j2000;
         lat_out = dec_j2000;
+        break;
+    case DirectionRef::b1950:
+    case DirectionRef::b1950_vla:
+        j2000_to_b1950(ra_j2000, dec_j2000, bepoch, lon_out, lat_out);
         break;
     case DirectionRef::galactic:
         j2000_to_galactic(ra_j2000, dec_j2000, lon_out, lat_out);

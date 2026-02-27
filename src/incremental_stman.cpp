@@ -386,7 +386,8 @@ void IsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
         }
 
         const std::uint8_t* bucket = file_data.data() + bucket_offset;
-        auto indices = parse_ism_bucket_indices(bucket, header.bucket_size, nr_columns, big_endian_);
+        auto indices =
+            parse_ism_bucket_indices(bucket, header.bucket_size, nr_columns, big_endian_);
 
         // Data origin is bucket + 4 (after the free_offset u32).
         const std::uint8_t* data_origin = bucket + 4;
@@ -397,9 +398,8 @@ void IsmReader::open(const std::string_view table_dir, const std::size_t sm_inde
             for (std::uint32_t e = 0; e < idx.nr_entries; ++e) {
                 IsmColumnInfo::Entry entry;
                 entry.start_row = idx.row_numbers[e];
-                entry.value =
-                    read_ism_value(data_origin, idx.data_offsets[e], columns_[c].data_type,
-                                   big_endian_);
+                entry.value = read_ism_value(data_origin, idx.data_offsets[e],
+                                             columns_[c].data_type, big_endian_);
                 columns_[c].entries.push_back(std::move(entry));
             }
         }
