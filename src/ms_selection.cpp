@@ -917,4 +917,368 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// to_taql_where: convert selection to TaQL WHERE clause
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// Convert an int list/range expression to a TaQL IN clause.
+/// e.g., "1,3,5" -> "COL IN [1,3,5]", "1~5" -> "COL IN [1,2,3,4,5]"
+std::string int_expr_to_taql(std::string_view expr, std::string_view column,
+                             std::string_view category, bool negate = false) {
+    auto ids = parse_int_list_or_range(expr, category);
+    if (ids.empty()) return {};
+    std::string clause = std::string(column) + " IN [";
+    bool first = true;
+    for (auto id : ids) {
+        if (!first) clause += ", ";
+        clause += std::to_string(id);
+        first = false;
+    }
+    clause += "]";
+    if (negate) clause = "NOT (" + clause + ")";
+    return clause;
+}
+
+/// Convert a bound expression (">N" or "<N") to a TaQL comparison.
+std::string bound_to_taql(std::string_view expr, std::string_view column,
+                          std::string_view category) {
+    char op = expr.front();
+    auto val = try_parse_int(expr.substr(1));
+    if (!val) {
+        throw std::runtime_error(std::string(category) + ": invalid bound value '" +
+                                 std::string(expr.substr(1)) + "'");
+    }
+    return std::string(column) + (op == '<' ? " < " : " > ") + std::to_string(*val);
+}
+
+/// Convert a double bound/range to a TaQL clause.
+std::string double_range_to_taql(std::string_view expr, std::string_view column,
+                                 std::string_view category) {
+    if (expr.front() == '>') {
+        auto val = try_parse_double(expr.substr(1));
+        if (!val) throw std::runtime_error(std::string(category) + ": invalid value");
+        return std::string(column) + " > " + std::to_string(*val);
+    }
+    if (expr.front() == '<') {
+        auto val = try_parse_double(expr.substr(1));
+        if (!val) throw std::runtime_error(std::string(category) + ": invalid value");
+        return std::string(column) + " < " + std::to_string(*val);
+    }
+    auto tilde = expr.find('~');
+    if (tilde != std::string_view::npos) {
+        auto lo = try_parse_double(expr.substr(0, tilde));
+        auto hi = try_parse_double(expr.substr(tilde + 1));
+        if (!lo || !hi) throw std::runtime_error(std::string(category) + ": invalid range");
+        return std::string(column) + " >= " + std::to_string(*lo) + " AND " +
+               std::string(column) + " <= " + std::to_string(*hi);
+    }
+    throw std::runtime_error(std::string(category) + ": unsupported expression for TaQL conversion");
+}
+
+} // anonymous namespace
+
+std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
+    std::vector<std::string> clauses;
+
+    // Antenna
+    if (antenna_expr_) {
+        auto expr = trim(*antenna_expr_);
+        bool negate = false;
+        if (!expr.empty() && expr.front() == '!') {
+            negate = true;
+            expr = trim(expr.substr(1));
+        }
+        auto amp = expr.find('&');
+        if (amp != std::string_view::npos) {
+            auto lhs_sv = trim(expr.substr(0, amp));
+            auto rhs_sv = trim(expr.substr(amp + 1));
+            auto lhs = try_parse_int(lhs_sv);
+            if (!lhs) throw std::runtime_error("Antenna: invalid antenna ID in TaQL conversion");
+            if (rhs_sv == "*") {
+                auto c = "(ANTENNA1 = " + std::to_string(*lhs) + " OR ANTENNA2 = " +
+                         std::to_string(*lhs) + ")";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            } else {
+                auto rhs = try_parse_int(rhs_sv);
+                if (!rhs) throw std::runtime_error("Antenna: invalid antenna ID in TaQL conversion");
+                auto c = "((ANTENNA1 = " + std::to_string(*lhs) + " AND ANTENNA2 = " +
+                         std::to_string(*rhs) + ") OR (ANTENNA1 = " + std::to_string(*rhs) +
+                         " AND ANTENNA2 = " + std::to_string(*lhs) + "))";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            }
+        } else {
+            // ID list/range — resolve names if needed
+            bool all_numeric = true;
+            auto tokens = split(expr, ',');
+            for (const auto& tok : tokens) {
+                if (tok.find('~') == std::string::npos && !try_parse_int(tok)) {
+                    all_numeric = false;
+                    break;
+                }
+            }
+            if (all_numeric) {
+                auto ids = parse_int_list_or_range(expr, "Antenna");
+                std::string in_list;
+                bool first = true;
+                for (auto id : ids) {
+                    if (!first) in_list += ", ";
+                    in_list += std::to_string(id);
+                    first = false;
+                }
+                auto c = "(ANTENNA1 IN [" + in_list + "] OR ANTENNA2 IN [" + in_list + "])";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            } else {
+                // Name-based: resolve via subtable then use IDs
+                MsAntennaColumns ant_cols(ms);
+                std::set<std::int32_t> ant_ids;
+                for (const auto& tok : tokens) {
+                    for (std::uint64_t ai = 0; ai < ant_cols.row_count(); ++ai) {
+                        bool has_wc = tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
+                        bool match = has_wc ? glob_match(tok, ant_cols.name(ai)) : (ant_cols.name(ai) == tok);
+                        if (match) ant_ids.insert(static_cast<std::int32_t>(ai));
+                    }
+                }
+                std::string in_list;
+                bool first = true;
+                for (auto id : ant_ids) {
+                    if (!first) in_list += ", ";
+                    in_list += std::to_string(id);
+                    first = false;
+                }
+                auto c = "(ANTENNA1 IN [" + in_list + "] OR ANTENNA2 IN [" + in_list + "])";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            }
+        }
+    }
+
+    // Field
+    if (field_expr_) {
+        auto expr = trim(*field_expr_);
+        auto tokens = split(expr, ',');
+        bool all_numeric = true;
+        for (const auto& tok : tokens) {
+            if (!try_parse_int(tok)) { all_numeric = false; break; }
+        }
+        if (all_numeric) {
+            clauses.push_back(int_expr_to_taql(expr, "FIELD_ID", "Field"));
+        } else {
+            MsFieldColumns fld_cols(ms);
+            std::set<std::int32_t> fld_ids;
+            for (const auto& tok : tokens) {
+                bool has_wc = tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
+                for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
+                    bool match = has_wc ? glob_match(tok, fld_cols.name(fi)) : (fld_cols.name(fi) == tok);
+                    if (match) fld_ids.insert(static_cast<std::int32_t>(fi));
+                }
+            }
+            std::string in_list;
+            bool first = true;
+            for (auto id : fld_ids) {
+                if (!first) in_list += ", ";
+                in_list += std::to_string(id);
+                first = false;
+            }
+            clauses.push_back("FIELD_ID IN [" + in_list + "]");
+        }
+    }
+
+    // SPW (via DATA_DESC_ID)
+    if (spw_expr_) {
+        auto expr = trim(*spw_expr_);
+        MsDataDescColumns dd_cols(ms);
+        std::set<std::int32_t> selected_dds;
+
+        auto tokens = split(expr, ',');
+        std::set<std::int32_t> spw_ids;
+        for (const auto& tok : tokens) {
+            auto colon = tok.find(':');
+            std::string_view spw_part = (colon != std::string::npos)
+                                            ? std::string_view(tok).substr(0, colon)
+                                            : std::string_view(tok);
+            if (spw_part == "*") {
+                MsSpWindowColumns spw_cols(ms);
+                for (std::uint64_t si = 0; si < spw_cols.row_count(); ++si)
+                    spw_ids.insert(static_cast<std::int32_t>(si));
+            } else {
+                auto val = try_parse_int(spw_part);
+                if (val) spw_ids.insert(*val);
+            }
+        }
+        for (std::uint64_t di = 0; di < dd_cols.row_count(); ++di) {
+            if (spw_ids.count(dd_cols.spectral_window_id(di)) > 0)
+                selected_dds.insert(static_cast<std::int32_t>(di));
+        }
+        std::string in_list;
+        bool first = true;
+        for (auto dd : selected_dds) {
+            if (!first) in_list += ", ";
+            in_list += std::to_string(dd);
+            first = false;
+        }
+        if (!in_list.empty()) clauses.push_back("DATA_DESC_ID IN [" + in_list + "]");
+    }
+
+    // Scan
+    if (scan_expr_) {
+        auto expr = trim(*scan_expr_);
+        bool negate = false;
+        if (!expr.empty() && expr.front() == '!') {
+            negate = true;
+            expr = trim(expr.substr(1));
+        }
+        if (!negate && !expr.empty() && (expr.front() == '<' || expr.front() == '>')) { // NOLINT(bugprone-branch-clone)
+            clauses.push_back(bound_to_taql(expr, "SCAN_NUMBER", "Scan"));
+        } else {
+            clauses.push_back(int_expr_to_taql(expr, "SCAN_NUMBER", "Scan", negate));
+        }
+    }
+
+    // Time
+    if (time_expr_) {
+        auto expr = trim(*time_expr_);
+        clauses.push_back(double_range_to_taql(expr, "TIME", "Time"));
+    }
+
+    // UVdist — requires sqrt(UVW[0]^2 + UVW[1]^2), can't express directly in TaQL easily
+    // We use: sqrt(sumsqr(UVW[0:2])) as approximation
+    if (uvdist_expr_) {
+        auto expr = trim(*uvdist_expr_);
+        // UV distance filtering is complex in TaQL; use SQRT(UVW[1]^2+UVW[2]^2)
+        // For simplicity, we express it as a direct comparison.
+        // This is a best-effort conversion.
+        if (expr.front() == '>') {
+            auto val = try_parse_double(expr.substr(1));
+            if (val) clauses.push_back("sqrt(UVW[1]*UVW[1]+UVW[2]*UVW[2]) > " + std::to_string(*val));
+        } else if (expr.front() == '<') {
+            auto val = try_parse_double(expr.substr(1));
+            if (val) clauses.push_back("sqrt(UVW[1]*UVW[1]+UVW[2]*UVW[2]) < " + std::to_string(*val));
+        } else {
+            auto tilde = expr.find('~');
+            if (tilde != std::string_view::npos) {
+                auto lo = try_parse_double(expr.substr(0, tilde));
+                auto hi = try_parse_double(expr.substr(tilde + 1));
+                if (lo && hi) {
+                    auto uv_expr = "sqrt(UVW[1]*UVW[1]+UVW[2]*UVW[2])";
+                    clauses.push_back(std::string(uv_expr) + " >= " + std::to_string(*lo) +
+                                      " AND " + std::string(uv_expr) + " <= " + std::to_string(*hi));
+                }
+            }
+        }
+    }
+
+    // State
+    if (state_expr_) {
+        auto expr = trim(*state_expr_);
+        bool is_pattern = expr.find('*') != std::string_view::npos || expr.find('?') != std::string_view::npos;
+        if (is_pattern) {
+            // Resolve pattern to IDs via STATE subtable
+            auto& state_table = ms.subtable("STATE");
+            std::set<std::int32_t> state_ids;
+            for (std::uint64_t si = 0; si < state_table.nrow(); ++si) {
+                auto obs_mode_val = state_table.read_scalar_cell("OBS_MODE", si);
+                if (auto* sp = std::get_if<std::string>(&obs_mode_val)) {
+                    if (glob_match(std::string(expr), *sp))
+                        state_ids.insert(static_cast<std::int32_t>(si));
+                }
+            }
+            std::string in_list;
+            bool first = true;
+            for (auto id : state_ids) {
+                if (!first) in_list += ", ";
+                in_list += std::to_string(id);
+                first = false;
+            }
+            if (!in_list.empty()) clauses.push_back("STATE_ID IN [" + in_list + "]");
+        } else {
+            clauses.push_back(int_expr_to_taql(expr, "STATE_ID", "State"));
+        }
+    }
+
+    // Observation
+    if (observation_expr_) {
+        auto expr = trim(*observation_expr_);
+        if (!expr.empty() && (expr.front() == '<' || expr.front() == '>')) { // NOLINT(bugprone-branch-clone)
+            clauses.push_back(bound_to_taql(expr, "OBSERVATION_ID", "Observation"));
+        } else {
+            clauses.push_back(int_expr_to_taql(expr, "OBSERVATION_ID", "Observation"));
+        }
+    }
+
+    // Array
+    if (array_expr_) {
+        auto expr = trim(*array_expr_);
+        if (!expr.empty() && (expr.front() == '<' || expr.front() == '>')) { // NOLINT(bugprone-branch-clone)
+            clauses.push_back(bound_to_taql(expr, "ARRAY_ID", "Array"));
+        } else {
+            clauses.push_back(int_expr_to_taql(expr, "ARRAY_ID", "Array"));
+        }
+    }
+
+    // Feed
+    if (feed_expr_) {
+        auto expr = trim(*feed_expr_);
+        bool negate = false;
+        if (!expr.empty() && expr.front() == '!') {
+            negate = true;
+            expr = trim(expr.substr(1));
+        }
+        auto amp = expr.find('&');
+        if (amp != std::string_view::npos) {
+            auto lhs_sv = trim(expr.substr(0, amp));
+            auto lhs = try_parse_int(lhs_sv);
+            if (!lhs) throw std::runtime_error("Feed: invalid feed ID in TaQL conversion");
+            auto rest = expr.substr(amp + 1);
+            bool auto_only = false;
+            if (rest.size() >= 2 && rest[0] == '&' && rest[1] == '&') {
+                auto_only = true;
+                rest = trim(rest.substr(2));
+            } else if (!rest.empty() && rest[0] == '&') {
+                rest = trim(rest.substr(1));
+            }
+            if (auto_only) {
+                auto c = "(FEED1 = " + std::to_string(*lhs) + " AND FEED2 = " + std::to_string(*lhs) + ")";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            } else if (rest.empty() || rest == "*") {
+                auto c = "(FEED1 = " + std::to_string(*lhs) + " OR FEED2 = " + std::to_string(*lhs) + ")";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            } else {
+                auto rhs = try_parse_int(rest);
+                if (!rhs) throw std::runtime_error("Feed: invalid feed ID in TaQL conversion");
+                auto c = "((FEED1 = " + std::to_string(*lhs) + " AND FEED2 = " +
+                         std::to_string(*rhs) + ") OR (FEED1 = " + std::to_string(*rhs) +
+                         " AND FEED2 = " + std::to_string(*lhs) + "))";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            }
+        } else {
+            auto ids = parse_int_list_or_range(expr, "Feed");
+            std::string in_list;
+            bool first = true;
+            for (auto id : ids) {
+                if (!first) in_list += ", ";
+                in_list += std::to_string(id);
+                first = false;
+            }
+            auto c = "(FEED1 IN [" + in_list + "] OR FEED2 IN [" + in_list + "])";
+            clauses.push_back(negate ? ("NOT " + c) : c);
+        }
+    }
+
+    // Raw TaQL
+    if (taql_expr_) {
+        auto expr = trim(*taql_expr_);
+        if (!expr.empty()) clauses.push_back("(" + std::string(expr) + ")");
+    }
+
+    // Combine with AND
+    if (clauses.empty()) return {};
+    std::string result;
+    for (std::size_t i = 0; i < clauses.size(); ++i) {
+        if (i > 0) result += " AND ";
+        result += clauses[i];
+    }
+    return result;
+}
+
 } // namespace casacore_mini

@@ -110,6 +110,13 @@ class MsSelection {
     /// @throws std::runtime_error on malformed expressions.
     [[nodiscard]] MsSelectionResult evaluate(MeasurementSet& ms) const;
 
+    /// Convert the current selection to an equivalent TaQL WHERE clause.
+    /// This is the casacore-mini equivalent of MSSelection::toTableExprNode().
+    /// The returned string can be used with taql_execute("SELECT FROM t WHERE " + expr, table).
+    /// Returns an empty string if no selection is set.
+    /// @param ms Reference to the MeasurementSet (needed for name→ID resolution).
+    [[nodiscard]] std::string to_taql_where(MeasurementSet& ms) const;
+
     /// Check if any selection category has been set.
     [[nodiscard]] bool has_selection() const noexcept;
 
@@ -118,6 +125,33 @@ class MsSelection {
 
     /// Reset to default state (same as clear).
     void reset() noexcept;
+
+    // --- Selected-ID accessors (populated after evaluate()) ---
+
+    /// Get the antenna expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& antenna_expr() const noexcept { return antenna_expr_; }
+    /// Get the field expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& field_expr() const noexcept { return field_expr_; }
+    /// Get the spw expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& spw_expr() const noexcept { return spw_expr_; }
+    /// Get the scan expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& scan_expr() const noexcept { return scan_expr_; }
+    /// Get the time expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& time_expr() const noexcept { return time_expr_; }
+    /// Get the uvdist expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& uvdist_expr() const noexcept { return uvdist_expr_; }
+    /// Get the corr expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& corr_expr() const noexcept { return corr_expr_; }
+    /// Get the state expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& state_expr() const noexcept { return state_expr_; }
+    /// Get the observation expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& observation_expr() const noexcept { return observation_expr_; }
+    /// Get the array expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& array_expr() const noexcept { return array_expr_; }
+    /// Get the feed expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& feed_expr() const noexcept { return feed_expr_; }
+    /// Get the taql expression string (if set).
+    [[nodiscard]] const std::optional<std::string>& taql_expr() const noexcept { return taql_expr_; }
 
   private:
     std::optional<std::string> antenna_expr_;
