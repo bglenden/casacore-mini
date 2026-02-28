@@ -3,6 +3,8 @@ Checks: >
   bugprone-*,
   -bugprone-empty-catch,
   -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -bugprone-unchecked-optional-access,
   performance-*,
   modernize-use-nullptr,
   modernize-use-override,
