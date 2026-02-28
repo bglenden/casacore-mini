@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <random>
 #include <regex>
 #include <stdexcept>
@@ -2140,7 +2141,13 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         if (upper == "ISNAN") { bool r = std::isnan(x); return TaqlValue{r}; }
         if (upper == "ISINF") { bool r = std::isinf(x); return TaqlValue{r}; }
         if (upper == "ISFINITE") { bool r = std::isfinite(x); return TaqlValue{r}; }
-        if (upper == "INT" || upper == "INTEGER") return static_cast<std::int64_t>(x); // NOLINT(bugprone-narrowing-conversions)
+        if (upper == "INT" || upper == "INTEGER") {
+            constexpr auto kMinI64 = static_cast<double>(std::numeric_limits<std::int64_t>::min());
+            constexpr auto kMaxI64 = static_cast<double>(std::numeric_limits<std::int64_t>::max());
+            if (std::isnan(x) || x < kMinI64 || x > kMaxI64)
+                throw std::runtime_error("TaQL: INT() overflow — value out of int64 range");
+            return static_cast<std::int64_t>(x); // NOLINT(bugprone-narrowing-conversions)
+        }
         if (upper == "REAL") return TaqlValue{x};
         if (upper == "IMAG") return TaqlValue{0.0};
         if (upper == "NORM") return TaqlValue{x * x};
@@ -2462,6 +2469,11 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         break;
 
     case TaqlCommand::select_cmd: {
+        if (!ast.group_by.empty())
+            throw std::runtime_error("TaQL: GROUPBY is not yet supported");
+        if (ast.having_expr.has_value())
+            throw std::runtime_error("TaQL: HAVING is not yet supported");
+
         EvalContext ctx;
         ctx.table = &table;
         ctx.has_row = true;
@@ -2498,7 +2510,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         // DISTINCT: remove duplicate rows based on projection values
         if (ast.select_distinct && !ast.projections.empty()) {
             std::vector<std::uint64_t> unique_rows;
-            std::vector<std::string> seen;
+            std::unordered_set<std::string> seen;
             for (auto r : result.rows) {
                 EvalContext rc{&table, r, true};
                 std::string key;
@@ -2506,8 +2518,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
                     auto v = eval_expr(proj.expr, rc);
                     key += as_string(v) + "|";
                 }
-                if (std::find(seen.begin(), seen.end(), key) == seen.end()) {
-                    seen.push_back(key);
+                if (seen.insert(key).second) {
                     unique_rows.push_back(r);
                 }
             }
@@ -2603,25 +2614,10 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         break;
     }
 
-    case TaqlCommand::delete_cmd: {
-        // Collect rows matching WHERE
-        EvalContext ctx;
-        ctx.table = &table;
-        ctx.has_row = true;
-        auto nrow = table.nrow();
-        for (std::uint64_t r = 0; r < nrow; ++r) {
-            ctx.row = r;
-            if (ast.where_expr.has_value()) {
-                auto where_val = eval_expr(*ast.where_expr, ctx);
-                if (!as_bool(where_val)) continue;
-            }
-            result.rows.push_back(r);
-        }
-        result.affected_rows = result.rows.size();
-        // Note: actual row deletion would require Table::removeRow which
-        // isn't in our API. We return the row indices that should be deleted.
-        break;
-    }
+    case TaqlCommand::delete_cmd:
+        throw std::runtime_error(
+            "TaQL: DELETE row removal is not supported (Table API lacks removeRow)");
+
 
     case TaqlCommand::count_cmd: {
         EvalContext ctx;
@@ -2653,15 +2649,10 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         break;
     }
 
-    case TaqlCommand::insert_cmd: {
-        if (!table.is_writable())
-            throw std::runtime_error("TaQL: INSERT requires writable table");
-        // INSERT VALUES: evaluate each row and write
-        // Note: Table doesn't have addRow; this would need to be extended.
-        // For now, count the intended insertions.
-        result.affected_rows = ast.insert_values.size();
-        break;
-    }
+    case TaqlCommand::insert_cmd:
+        throw std::runtime_error(
+            "TaQL: INSERT is not supported (Table API lacks addRow)");
+
 
     case TaqlCommand::create_table_cmd:
     case TaqlCommand::alter_table_cmd:

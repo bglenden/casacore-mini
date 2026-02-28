@@ -12,9 +12,9 @@ SELECT,JOIN clause,TableGram.yy:1490,taql_parse,Simplified,P11-W4,,none,46fb249,
 SELECT,JOIN multiple,TableGram.yy:1478-1488,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles multiple JOINs; no executor
 SELECT,JOIN AROUND/IN,TaQLShow.cc:214-224,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles interval join syntax; no executor
 SELECT,WHERE clause,TableGram.yy:1497-1504,taql_execute,Done,P11-W3,taql_command_test,none,77d52e2,,tests/taql_command_test.cpp,none,"Full expression evaluation in WHERE"
-SELECT,GROUPBY clause,TableGram.yy:896-911,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; requires aggregation engine
+SELECT,GROUPBY clause,TableGram.yy:896-911,taql_parse,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (requires aggregation engine)"
 SELECT,GROUPBY ROLLUP,TableGram.yy:65,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles ROLLUP; requires aggregation engine
-SELECT,HAVING clause,TableGram.yy:913-925,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; requires aggregation engine
+SELECT,HAVING clause,TableGram.yy:913-925,taql_parse,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (requires aggregation engine)"
 SELECT,ORDERBY ASC/DESC,TableGram.yy:927-977,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Multi-key sort with ASC/DESC"
 SELECT,ORDERBY DISTINCT/NODUPL,TaQLShow.cc:248,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles NODUPL; dedup not in sort executor
 SELECT,LIMIT clause,TableGram.yy:978-1008,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Row count limiting"
@@ -35,8 +35,8 @@ INSERT,VALUES syntax,TaQLShow.cc:325,taql_parse,Simplified,P11-W4,,none,46fb249,
 INSERT,SELECT syntax,TaQLShow.cc:327,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles INSERT..SELECT; no row insertion
 INSERT,column list,TableGram.yy:559-569,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles column list; no row insertion
 INSERT,LIMIT clause,TaQLShow.cc:346-348,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles LIMIT; no row insertion
-DELETE,DELETE FROM,TableGram.yy:613,taql_execute,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"WHERE evaluation works; Table API lacks removeRow; returns row indices"
-DELETE,WHERE/ORDERBY/LIMIT,TableGram.yy:613,taql_execute,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Row selection works; actual deletion deferred"
+DELETE,DELETE FROM,TableGram.yy:613,taql_execute,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (Table API lacks removeRow)"
+DELETE,WHERE/ORDERBY/LIMIT,TableGram.yy:613,taql_execute,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (Table API lacks removeRow)"
 COUNT,COUNT command,TableGram.yy:465,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Full COUNT with WHERE"
 COUNT,column list/WHERE,TableGram.yy:465,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Column-level count groups"
 CALC,CALC expression,TableGram.yy:629,taql_execute,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Full expression evaluation"

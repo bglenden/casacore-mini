@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 using namespace casacore_mini;
@@ -14,7 +15,8 @@ using namespace casacore_mini;
 static fs::path make_temp_dir(const std::string& suffix) {
     auto tmp = fs::temp_directory_path() /
                ("ms_parity_" + suffix + "_" +
-                std::to_string(std::hash<std::string>{}(std::to_string(rand()))));
+                std::to_string(std::hash<std::string>{}(
+                    std::to_string(static_cast<unsigned>(getpid())))));
     return tmp;
 }
 

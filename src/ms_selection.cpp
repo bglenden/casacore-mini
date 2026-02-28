@@ -325,13 +325,17 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             }
 
             if (!all_numeric) {
-                // Name-based resolution via ANTENNA subtable.
+                // Name-based resolution via ANTENNA subtable (supports glob patterns).
                 ant_ids.clear();
                 MsAntennaColumns ant_cols(ms);
                 for (const auto& tok : tokens) {
+                    bool has_wildcard =
+                        tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
                     bool found = false;
                     for (std::uint64_t ai = 0; ai < ant_cols.row_count(); ++ai) {
-                        if (ant_cols.name(ai) == tok) {
+                        bool match = has_wildcard ? glob_match(tok, ant_cols.name(ai))
+                                                  : (ant_cols.name(ai) == tok);
+                        if (match) {
                             ant_ids.insert(static_cast<std::int32_t>(ai));
                             found = true;
                         }

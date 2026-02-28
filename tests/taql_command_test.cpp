@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 
 using namespace casacore_mini;
 namespace fs = std::filesystem;
@@ -46,17 +47,16 @@ static fs::path create_test_table() {
 // SELECT tests
 // ---------------------------------------------------------------------------
 
-static bool test_select_all() {
+static void test_select_all() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("SELECT * FROM t", table);
     check(result.rows.size() == 10, "select all returns 10 rows");
     check(!result.column_names.empty(), "select * has column names");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
-static bool test_select_where() {
+static void test_select_where() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("SELECT ID FROM t WHERE VALUE > 6.0", table);
@@ -65,10 +65,9 @@ static bool test_select_where() {
     // Check first matching row is 5
     check(result.rows[0] == 5, "first matching row is 5");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
-static bool test_select_orderby() {
+static void test_select_orderby() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("SELECT ID FROM t ORDERBY VALUE DESC", table);
@@ -76,20 +75,18 @@ static bool test_select_orderby() {
     check(result.rows[0] == 9, "first row is 9 (desc order)");
     check(result.rows[9] == 0, "last row is 0 (desc order)");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
-static bool test_select_limit_offset() {
+static void test_select_limit_offset() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("SELECT ID FROM t LIMIT 3 OFFSET 2", table);
     check(result.rows.size() == 3, "limit 3 returns 3 rows");
     check(result.rows[0] == 2, "offset 2 starts at row 2");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
-static bool test_select_projection_values() {
+static void test_select_projection_values() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("SELECT ID FROM t WHERE ID = 3", table);
@@ -98,14 +95,13 @@ static bool test_select_projection_values() {
     auto id_val = std::get_if<std::int64_t>(&result.values[0]);
     check(id_val != nullptr && *id_val == 3, "projected ID=3");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
 // ---------------------------------------------------------------------------
 // COUNT
 // ---------------------------------------------------------------------------
 
-static bool test_count() {
+static void test_count() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("COUNT FROM t WHERE VALUE > 6.0", table);
@@ -113,82 +109,130 @@ static bool test_count() {
     check(!result.values.empty(), "count has value");
     check(std::get<std::int64_t>(result.values[0]) == 5, "count value=5");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
 // ---------------------------------------------------------------------------
 // CALC with table
 // ---------------------------------------------------------------------------
 
-static bool test_calc_with_table() {
+static void test_calc_with_table() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("CALC 2 + 3", table);
     check(result.values.size() == 1, "calc with table returns 1 value");
     check(std::get<std::int64_t>(result.values[0]) == 5, "calc 2+3=5");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
 // ---------------------------------------------------------------------------
 // UPDATE
 // ---------------------------------------------------------------------------
 
-static bool test_update() {
+static void test_update() {
     auto path = create_test_table();
     auto table = Table::open_rw(path);
     auto result = taql_execute("UPDATE t SET VALUE = 99.0 WHERE ID = 5", table);
     check(result.affected_rows == 1, "update affected 1 row");
 
-    // Verify the update
-    auto cv = table.read_scalar_cell("VALUE", 5);
-    auto* dv = std::get_if<double>(&cv);
-    check(dv != nullptr && *dv == 99.0, "value updated to 99.0");
+    // Verify the updated row
+    auto cv5 = table.read_scalar_cell("VALUE", 5);
+    auto* dv5 = std::get_if<double>(&cv5);
+    check(dv5 != nullptr && *dv5 == 99.0, "row 5 value updated to 99.0");
+
+    // Verify an unmodified row was NOT changed (guards against WHERE being ignored)
+    auto cv0 = table.read_scalar_cell("VALUE", 0);
+    auto* dv0 = std::get_if<double>(&cv0);
+    check(dv0 != nullptr && *dv0 == 0.0, "row 0 value unchanged at 0.0");
+
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
 // ---------------------------------------------------------------------------
-// DELETE
+// DELETE / INSERT throw (not supported)
 // ---------------------------------------------------------------------------
 
-static bool test_delete() {
+static void test_delete_throws() {
     auto path = create_test_table();
     auto table = Table::open(path);
-    auto result = taql_execute("DELETE FROM t WHERE ID > 7", table);
-    check(result.affected_rows == 2, "delete marks 2 rows");
-    check(result.rows.size() == 2, "delete returns 2 row indices");
+    bool threw = false;
+    try {
+        (void)taql_execute("DELETE FROM t WHERE ID > 7", table);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    check(threw, "DELETE throws runtime_error (not supported)");
     fs::remove_all(path);
-    return g_fail == 0;
+}
+
+static void test_insert_throws() {
+    auto path = create_test_table();
+    auto table = Table::open_rw(path);
+    bool threw = false;
+    try {
+        (void)taql_execute("INSERT INTO t ([ID], [VALUE], [NAME]) VALUES (99, 1.0, 'x')", table);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    check(threw, "INSERT throws runtime_error (not supported)");
+    fs::remove_all(path);
+}
+
+// ---------------------------------------------------------------------------
+// GROUPBY / HAVING throw (not supported)
+// ---------------------------------------------------------------------------
+
+static void test_groupby_throws() {
+    auto path = create_test_table();
+    auto table = Table::open(path);
+    bool threw = false;
+    try {
+        (void)taql_execute("SELECT ID FROM t GROUPBY ID", table);
+    } catch (const std::runtime_error& e) {
+        threw = std::string(e.what()).find("GROUPBY") != std::string::npos;
+    }
+    check(threw, "GROUPBY throws runtime_error");
+    fs::remove_all(path);
+}
+
+static void test_having_throws() {
+    auto path = create_test_table();
+    auto table = Table::open(path);
+    bool threw = false;
+    try {
+        (void)taql_execute("SELECT ID FROM t GROUPBY ID HAVING ID > 3", table);
+    } catch (const std::runtime_error& e) {
+        threw = std::string(e.what()).find("GROUPBY") != std::string::npos ||
+                std::string(e.what()).find("HAVING") != std::string::npos;
+    }
+    check(threw, "HAVING throws runtime_error");
+    fs::remove_all(path);
 }
 
 // ---------------------------------------------------------------------------
 // SHOW
 // ---------------------------------------------------------------------------
 
-static bool test_show() {
+static void test_show() {
     auto path = create_test_table();
     auto table = Table::open(path);
     auto result = taql_execute("SHOW functions", table);
     check(!result.show_text.empty(), "show returns text");
     check(result.show_text.find("sin") != std::string::npos, "show mentions sin");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
 // ---------------------------------------------------------------------------
 // Expression with column references
 // ---------------------------------------------------------------------------
 
-static bool test_expr_with_columns() {
+static void test_expr_with_columns() {
     auto path = create_test_table();
     auto table = Table::open(path);
-    // VALUE column = row * 1.5, so VALUE + ID should be row*1.5 + row = row*2.5
+    // VALUE column = row * 1.5, so VALUE + 1 > 10 means row*1.5 > 9, row > 6
     auto result = taql_execute("SELECT VALUE FROM t WHERE VALUE + 1 > 10", table);
-    // VALUE > 9 means row*1.5 > 9, so row > 6, rows 7-9 = 3 rows
+    // rows 7-9 = 3 rows
     check(result.rows.size() == 3, "expr with columns: 3 rows");
     fs::remove_all(path);
-    return g_fail == 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +248,10 @@ int main() {
     test_count();
     test_calc_with_table();
     test_update();
-    test_delete();
+    test_delete_throws();
+    test_insert_throws();
+    test_groupby_throws();
+    test_having_throws();
     test_show();
     test_expr_with_columns();
 

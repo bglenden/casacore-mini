@@ -11,9 +11,9 @@ table creation/modification APIs not available in the TaQL executor path.
 Table creation is available via `Table::create()` outside of TaQL.
 
 ### D2: INSERT/DELETE row mutations
-Parser and WHERE evaluation work correctly. INSERT does not add rows (Table
-API lacks `addRow`). DELETE identifies matching rows but does not remove them
-(Table API lacks `removeRow`). Both return metadata about intended operations.
+Parser accepts both commands. Executor rejects with a clear error message.
+INSERT requires `Table::addRow()` and DELETE requires `Table::removeRow()`,
+neither of which exist in the Table API.
 
 ### D3: JOIN/multi-table operations
 Parser handles JOIN ... ON, multiple JOINs, and multi-table FROM clauses.
@@ -69,10 +69,10 @@ equivalent. Exotic POSIX-only regex features may differ.
 
 ## MSSelection Differences
 
-### D14: Antenna name glob/regex
-Antenna name lookup supports exact match only. Upstream `MSAntennaGram`
-supports glob patterns (`DV*`) and regex (`/^DV[0-9]+$/`) on antenna names.
-Field name lookup supports glob patterns.
+### D14: Antenna name regex
+Antenna name lookup supports exact match and glob patterns (`DV*`, `ANT?`).
+Upstream `MSAntennaGram` additionally supports regex (`/^DV[0-9]+$/`) on
+antenna names, which is not implemented.
 
 ### D15: Date/time string parsing
 Time selection only supports raw MJD double values. Upstream `MSTimeGram`
