@@ -228,7 +228,12 @@ Required feature coverage:
   conversions (ERFA), 6 coordinate types with WCSLIB projections,
   CoordinateSystem composition, TableMeasures column integration, and
   utility layer (CoordinateUtil, FITSCoordinateUtil, GaussianConvert).
-  24/24 interop matrix cells pass. 43 unit tests, 3 hardening test suites.
+  Phase-8 closeout achieved 24/24 interop matrix cells on the closeout
+  baseline. A later post-closeout regression (observed 2026-02-28) affects
+  two `mini->casacore` cells (`coord-keywords`, `mixed-coords`) due to
+  semantic-verifier schema drift (`spectralN.wcs.{crval,cdelt}` vs
+  `spectralN.{crval,cdelt}`). Remediation is explicitly scheduled in Phase 12
+  (`P12-W1`/`P12-W2`) rather than reopening Phase 8.
   See `docs/phase8/exit_report.md`.
 - Phase 9 (complete 2026-02-26): full MeasurementSet implementation with
   closeout parity recovery.
@@ -256,13 +261,17 @@ Required feature coverage:
   Detailed wave plan: `docs/phase11/plan.md`.
   TaQL+MSSelection implementation blueprint:
   `docs/phase11/taql_msselection_full_support_plan.md`.
-- Phase 12 (pending): multidimensional in-memory array model modernization.
-  Introduce `mdspan`-based internal array views and ownership adapters
-  (`vector`/allocator-backed), replacing ad-hoc shape+stride indexing in
-  internal implementation paths while preserving external API behavior and
-  storage-format compatibility. This is intentionally deferred until after
-  current Phase 9/10 stability/parity recovery work to avoid cross-cutting
-  refactor risk during active correctness closure.
+- Phase 12 (pending): multidimensional in-memory array model modernization and
+  interoperability carry-forward closure.
+  Primary scope:
+  1. Introduce `mdspan`-based internal array views and ownership adapters
+     (`vector`/allocator-backed), replacing ad-hoc shape+stride indexing in
+     internal implementation paths while preserving external API behavior and
+     storage-format compatibility.
+  2. Close the active Phase-8 interop carry-forward regression for
+     coordinate artifacts (`coord-keywords`, `mixed-coords`) in
+     `mini->casacore` matrix cells.
+  Detailed execution plan: `docs/phase12/plan.md`.
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
 Phase-1 completion summary lives in `docs/phase1/exit_report.md`.
@@ -280,8 +289,8 @@ Phase-8 detailed execution tracking lives in `docs/phase8/plan.md`.
 Phase-9 detailed execution tracking lives in `docs/phase9/plan.md`.
 Phase-10 detailed execution tracking lives in `docs/phase10/plan.md`.
 Phase-11 detailed execution tracking lives in `docs/phase11/plan.md`.
-Phase-12 detailed execution tracking will live in `docs/phase12/plan.md` at
-Phase-12 kickoff.
+Phase-12 detailed execution tracking lives in `docs/phase12/plan.md`
+(pre-kickoff draft; status pending).
 
 ### Mandatory structure for all future phase plans
 
