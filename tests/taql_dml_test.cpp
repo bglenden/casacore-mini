@@ -203,7 +203,7 @@ static void test_delete_then_count() {
     fs::remove_all(tmp);
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_insert_values();
     test_insert_multiple_rows();
     test_delete_where();

@@ -128,6 +128,7 @@ void PagedArray<std::complex<float>>::put(
     if (!writable_) throw std::runtime_error("PagedArray is read-only");
     // Table API uses std::vector<std::complex<float>> with shape.
     std::vector<std::int32_t> sh;
+    sh.reserve(data.shape().ndim());
     for (std::size_t i = 0; i < data.shape().ndim(); ++i) {
         sh.push_back(static_cast<std::int32_t>(data.shape()[i]));
     }
@@ -178,6 +179,7 @@ PagedArray<T>::PagedArray(IPosition shape, const std::filesystem::path& path)
     col.name = "map";
     col.data_type = lattice_data_type<T>();
     col.kind = ColumnKind::array;
+    col.shape.reserve(shape_.ndim());
     for (std::size_t i = 0; i < shape_.ndim(); ++i) {
         col.shape.push_back(shape_[i]);
     }
@@ -186,6 +188,7 @@ PagedArray<T>::PagedArray(IPosition shape, const std::filesystem::path& path)
     opts.sm_type = "TiledShapeStMan";
     opts.sm_group = "TiledShapeStMan";
     // Compute tile shape: up to 32 along each axis.
+    opts.tile_shape.reserve(shape_.ndim() + 1);
     for (std::size_t i = 0; i < shape_.ndim(); ++i) {
         opts.tile_shape.push_back(std::min(shape_[i], std::int64_t{32}));
     }
@@ -196,7 +199,7 @@ PagedArray<T>::PagedArray(IPosition shape, const std::filesystem::path& path)
 
     // Initialize with zeros.
     auto zeros = LatticeArray<T>(IPosition(shape_));
-    put(zeros);
+    put(zeros); // NOLINT(clang-analyzer-optin.cplusplus.VirtualCall)
 }
 
 template <typename T>
@@ -207,7 +210,7 @@ PagedArray<T>::PagedArray(const std::filesystem::path& path, bool writable)
                  : std::make_shared<Table>(Table::open(path_));
     // Read shape from column descriptor.
     auto* cd = table_->find_column_desc("map");
-    if (!cd) throw std::runtime_error("PagedArray: no 'map' column in table");
+    if (cd == nullptr) throw std::runtime_error("PagedArray: no 'map' column in table");
     shape_ = IPosition(cd->shape);
 }
 
@@ -223,12 +226,12 @@ LatticeArray<bool> PagedArray<T>::get_mask_slice(const Slicer& slicer) const {
 
 template <typename T>
 void PagedArray<T>::flush() {
-    if (table_ && writable_) table_->flush();
+    if (table_ != nullptr && writable_) table_->flush();
 }
 
 template <typename T>
 std::string PagedArray<T>::table_name() const {
-    return table_ ? table_->table_name() : "";
+    return table_ != nullptr ? table_->table_name() : "";
 }
 
 template <typename T>

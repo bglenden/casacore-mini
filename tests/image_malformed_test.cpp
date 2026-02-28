@@ -256,7 +256,7 @@ static void test_get_slice_beyond_shape() {
 
 // ── Main ──────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     std::cerr << "image_malformed_test\n";
 
     test_paged_image_readonly_put();

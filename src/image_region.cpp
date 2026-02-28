@@ -24,7 +24,7 @@ static std::size_t find_pixel_axis_by_name(const CoordinateSystem& cs,
                 // We search by iterating pixel axes.
                 for (std::size_t px = 0; px < cs.n_pixel_axes(); ++px) {
                     auto pair = cs.find_pixel_axis(px);
-                    if (pair && pair->first == ci && pair->second == ai) {
+                    if (pair.has_value() && pair->first == ci && pair->second == ai) {
                         return px;
                     }
                 }
@@ -42,7 +42,7 @@ static double world_to_pixel_1d(const CoordinateSystem& cs,
                                 double world_val,
                                 const std::string& /*axis_name*/) {
     auto pair = cs.find_pixel_axis(pixel_axis);
-    if (!pair) throw std::runtime_error("world_to_pixel_1d: axis not found");
+    if (!pair.has_value()) throw std::runtime_error("world_to_pixel_1d: axis not found");
     auto& coord = cs.coordinate(pair->first);
     // Build full world vector with reference values, replacing our axis.
     auto ref_world = coord.reference_value();
@@ -64,9 +64,9 @@ static void put_double_vec(Record& rec, const std::string& key,
 static std::vector<double> get_double_vec(const Record& rec,
                                           const std::string& key) {
     auto* v = rec.find(key);
-    if (!v) throw std::runtime_error("missing key '" + key + "'");
+    if (v == nullptr) throw std::runtime_error("missing key '" + key + "'");
     auto* arr = std::get_if<RecordValue::double_array>(&v->storage());
-    if (!arr) throw std::runtime_error("key '" + key + "' not double array");
+    if (arr == nullptr) throw std::runtime_error("key '" + key + "' not double array");
     return arr->elements;
 }
 
@@ -81,17 +81,17 @@ static void put_string_vec(Record& rec, const std::string& key,
 static std::vector<std::string> get_string_vec(const Record& rec,
                                                const std::string& key) {
     auto* v = rec.find(key);
-    if (!v) throw std::runtime_error("missing key '" + key + "'");
+    if (v == nullptr) throw std::runtime_error("missing key '" + key + "'");
     auto* arr = std::get_if<RecordValue::string_array>(&v->storage());
-    if (!arr) throw std::runtime_error("key '" + key + "' not string array");
+    if (arr == nullptr) throw std::runtime_error("key '" + key + "' not string array");
     return arr->elements;
 }
 
 static std::string get_string(const Record& rec, const std::string& key) {
     auto* v = rec.find(key);
-    if (!v) throw std::runtime_error("missing key '" + key + "'");
+    if (v == nullptr) throw std::runtime_error("missing key '" + key + "'");
     auto* s = std::get_if<std::string>(&v->storage());
-    if (!s) throw std::runtime_error("key '" + key + "' not string");
+    if (s == nullptr) throw std::runtime_error("key '" + key + "' not string");
     return *s;
 }
 
@@ -285,6 +285,7 @@ std::size_t WcUnion::ndim() const {
 
 std::unique_ptr<WcRegion> WcUnion::clone() const {
     std::vector<std::unique_ptr<WcRegion>> clones;
+    clones.reserve(regions_.size());
     for (auto& r : regions_) clones.push_back(r->clone());
     return std::make_unique<WcUnion>(std::move(clones));
 }
@@ -304,6 +305,7 @@ std::unique_ptr<LcRegion>
 WcUnion::to_lc_region(const CoordinateSystem& cs,
                       const IPosition& lattice_shape) const {
     std::vector<std::unique_ptr<LcRegion>> lc_regions;
+    lc_regions.reserve(regions_.size());
     for (auto& r : regions_) {
         lc_regions.push_back(r->to_lc_region(cs, lattice_shape));
     }
@@ -325,6 +327,7 @@ std::size_t WcIntersection::ndim() const {
 
 std::unique_ptr<WcRegion> WcIntersection::clone() const {
     std::vector<std::unique_ptr<WcRegion>> clones;
+    clones.reserve(regions_.size());
     for (auto& r : regions_) clones.push_back(r->clone());
     return std::make_unique<WcIntersection>(std::move(clones));
 }
@@ -344,6 +347,7 @@ std::unique_ptr<LcRegion>
 WcIntersection::to_lc_region(const CoordinateSystem& cs,
                              const IPosition& lattice_shape) const {
     std::vector<std::unique_ptr<LcRegion>> lc_regions;
+    lc_regions.reserve(regions_.size());
     for (auto& r : regions_) {
         lc_regions.push_back(r->to_lc_region(cs, lattice_shape));
     }
@@ -358,7 +362,7 @@ WcDifference::WcDifference(std::unique_ptr<WcRegion> region1,
     : region1_(std::move(region1)), region2_(std::move(region2)) {}
 
 std::size_t WcDifference::ndim() const {
-    return region1_ ? region1_->ndim() : 0;
+    return region1_ != nullptr ? region1_->ndim() : 0;
 }
 
 std::unique_ptr<WcRegion> WcDifference::clone() const {
@@ -388,7 +392,7 @@ WcComplement::WcComplement(std::unique_ptr<WcRegion> region)
     : region_(std::move(region)) {}
 
 std::size_t WcComplement::ndim() const {
-    return region_ ? region_->ndim() : 0;
+    return region_ != nullptr ? region_->ndim() : 0;
 }
 
 std::unique_ptr<WcRegion> WcComplement::clone() const {
@@ -426,9 +430,9 @@ ImageRegion::to_lc_region(const CoordinateSystem& cs,
                           const IPosition& lattice_shape) const {
     switch (kind_) {
     case RegionKind::lc_region:
-        return lc_region_ ? lc_region_->clone() : nullptr;
+        return lc_region_ != nullptr ? lc_region_->clone() : nullptr;
     case RegionKind::wc_region:
-        return wc_region_ ? wc_region_->to_lc_region(cs, lattice_shape) : nullptr;
+        return wc_region_ != nullptr ? wc_region_->to_lc_region(cs, lattice_shape) : nullptr;
     case RegionKind::slicer:
         return std::make_unique<LcBox>(slicer_, IPosition(lattice_shape));
     }
@@ -440,13 +444,13 @@ Record ImageRegion::to_record() const {
     switch (kind_) {
     case RegionKind::lc_region:
         rec.set("region_kind", RecordValue(std::string("lc")));
-        if (lc_region_) {
+        if (lc_region_ != nullptr) {
             rec.set("region", RecordValue::from_record(lc_region_->to_record()));
         }
         break;
     case RegionKind::wc_region:
         rec.set("region_kind", RecordValue(std::string("wc")));
-        if (wc_region_) {
+        if (wc_region_ != nullptr) {
             rec.set("region", RecordValue::from_record(wc_region_->to_record()));
         }
         break;
@@ -454,12 +458,14 @@ Record ImageRegion::to_record() const {
         rec.set("region_kind", RecordValue(std::string("slicer")));
         RecordArray<std::int64_t> sa;
         sa.shape = {slicer_.ndim()};
+        sa.elements.reserve(slicer_.ndim());
         for (std::size_t i = 0; i < slicer_.ndim(); ++i) {
             sa.elements.push_back(slicer_.start()[i]);
         }
         rec.set("slicer_start", RecordValue(std::move(sa)));
         RecordArray<std::int64_t> la;
         la.shape = {slicer_.ndim()};
+        la.elements.reserve(slicer_.ndim());
         for (std::size_t i = 0; i < slicer_.ndim(); ++i) {
             la.elements.push_back(slicer_.length()[i]);
         }
@@ -475,25 +481,25 @@ ImageRegion::from_record(const Record& rec, const IPosition& lattice_shape) {
     auto kind_str = get_string(rec, "region_kind");
     if (kind_str == "lc") {
         auto* rv = rec.find("region");
-        if (!rv) throw std::runtime_error("ImageRegion: missing 'region'");
+        if (rv == nullptr) throw std::runtime_error("ImageRegion: missing 'region'");
         auto* rp = std::get_if<RecordValue::record_ptr>(&rv->storage());
-        if (!rp) throw std::runtime_error("ImageRegion: 'region' not record");
+        if (rp == nullptr) throw std::runtime_error("ImageRegion: 'region' not record");
         return ImageRegion(LcRegion::from_record(**rp, lattice_shape));
     }
     if (kind_str == "wc") {
         auto* rv = rec.find("region");
-        if (!rv) throw std::runtime_error("ImageRegion: missing 'region'");
+        if (rv == nullptr) throw std::runtime_error("ImageRegion: missing 'region'");
         auto* rp = std::get_if<RecordValue::record_ptr>(&rv->storage());
-        if (!rp) throw std::runtime_error("ImageRegion: 'region' not record");
+        if (rp == nullptr) throw std::runtime_error("ImageRegion: 'region' not record");
         return ImageRegion(WcRegion::from_record(**rp));
     }
     if (kind_str == "slicer") {
         auto* sv = rec.find("slicer_start");
         auto* lv = rec.find("slicer_length");
-        if (!sv || !lv) throw std::runtime_error("ImageRegion: missing slicer fields");
+        if (sv == nullptr || lv == nullptr) throw std::runtime_error("ImageRegion: missing slicer fields");
         auto* sa = std::get_if<RecordValue::int64_array>(&sv->storage());
         auto* la = std::get_if<RecordValue::int64_array>(&lv->storage());
-        if (!sa || !la) throw std::runtime_error("ImageRegion: bad slicer types");
+        if (sa == nullptr || la == nullptr) throw std::runtime_error("ImageRegion: bad slicer types");
         IPosition start(sa->elements.size());
         IPosition length(la->elements.size());
         for (std::size_t i = 0; i < sa->elements.size(); ++i) {
@@ -502,7 +508,7 @@ ImageRegion::from_record(const Record& rec, const IPosition& lattice_shape) {
         for (std::size_t i = 0; i < la->elements.size(); ++i) {
             length[i] = la->elements[i];
         }
-        return ImageRegion(Slicer(std::move(start), std::move(length)));
+        return ImageRegion(Slicer(std::move(start), length));
     }
     throw std::runtime_error("ImageRegion: unknown kind '" + kind_str + "'");
 }
@@ -576,14 +582,14 @@ void RegionHandler::from_record(const Record& rec,
     }
 
     auto* nv = rec.find("n_regions");
-    if (!nv) return;
+    if (nv == nullptr) return;
     auto* ni = std::get_if<std::int64_t>(&nv->storage());
-    if (!ni) return;
+    if (ni == nullptr) return;
 
     for (auto& [key, val] : rec.entries()) {
         if (key == "n_regions" || key == "default_mask") continue;
         auto* rp = std::get_if<RecordValue::record_ptr>(&val.storage());
-        if (!rp) continue;
+        if (rp == nullptr) continue;
         regions_[key] = ImageRegion::from_record(**rp, lattice_shape);
     }
 }

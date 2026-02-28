@@ -259,7 +259,7 @@ static void test_where_groupby() {
     fs::remove_all(tmp);
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_groupby_count();
     test_groupby_sum_mean();
     test_groupby_min_max();

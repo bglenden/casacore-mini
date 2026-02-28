@@ -342,7 +342,7 @@ static void test_lattice_array_rank_mismatch_view() {
 
 // ── Main ───────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_iposition_basic();
     test_iposition_equality();
     test_iposition_unsigned_roundtrip();

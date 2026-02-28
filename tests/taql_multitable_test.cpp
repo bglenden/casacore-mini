@@ -184,7 +184,7 @@ static void test_join_groupby() {
     fs::remove_all(cats_path);
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_basic_join();
     test_join_with_where();
     test_count_subquery();

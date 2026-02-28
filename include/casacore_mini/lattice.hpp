@@ -239,7 +239,7 @@ template <typename T>
 class TempLattice : public MaskedLattice<T> {
   public:
     /// Construct with given shape. If size > max_memory_bytes, use disk.
-    TempLattice(IPosition shape, std::size_t max_memory_bytes = 16 * 1024 * 1024);
+    TempLattice(IPosition shape, std::size_t max_memory_bytes = std::size_t{16} * 1024 * 1024);
 
     [[nodiscard]] const IPosition& shape() const override { return impl_->shape(); }
     [[nodiscard]] bool is_writable() const override { return true; }
@@ -581,7 +581,9 @@ LatticeArray<bool> TempLattice<T>::get_mask_slice(
 // ── LatticeIterator<T> implementations ────────────────────────────────
 
 template <typename T>
-LatticeIterator<T>::LatticeIterator(Lattice<T>& lattice, IPosition cursor_shape)
+LatticeIterator<T>::LatticeIterator(
+    Lattice<T>& lattice,
+    IPosition cursor_shape) // NOLINT(performance-unnecessary-value-param)
     : lattice_rw_(&lattice),
       lattice_(&lattice),
       requested_shape_(std::move(cursor_shape)),
@@ -589,8 +591,9 @@ LatticeIterator<T>::LatticeIterator(Lattice<T>& lattice, IPosition cursor_shape)
       writable_(true) {}
 
 template <typename T>
-LatticeIterator<T>::LatticeIterator(const Lattice<T>& lattice,
-                                    IPosition cursor_shape)
+LatticeIterator<T>::LatticeIterator(
+    const Lattice<T>& lattice,
+    IPosition cursor_shape) // NOLINT(performance-unnecessary-value-param)
     : lattice_(&lattice),
       requested_shape_(std::move(cursor_shape)),
       position_(lattice.shape().ndim(), 0),
@@ -664,6 +667,7 @@ LatticeConcat<T>::LatticeConcat(std::vector<const Lattice<T>*> lattices,
     }
     // Compute shape: same as first lattice except on the concat axis.
     shape_ = IPosition(lattices_[0]->shape());
+    offsets_.reserve(lattices_.size());
     offsets_.push_back(0);
     for (std::size_t i = 1; i < lattices_.size(); ++i) {
         const auto& s = lattices_[i]->shape();
@@ -823,7 +827,7 @@ LatticeArray<T> RebinLattice<T>::get() const {
             ++count;
         }
 
-        result.put(out_pos, count > 0 ? static_cast<T>(sum / count) : T{});
+        result.put(out_pos, count > 0 ? static_cast<T>(sum / static_cast<double>(count)) : T{});
     }
     return result;
 }
@@ -864,7 +868,7 @@ T RebinLattice<T>::get_at(const IPosition& where) const {
         sum += static_cast<double>(parent_->get_at(src_pos));
         ++count;
     }
-    return count > 0 ? static_cast<T>(sum / count) : T{};
+    return count > 0 ? static_cast<T>(sum / static_cast<double>(count)) : T{};
 }
 
 template <typename T>

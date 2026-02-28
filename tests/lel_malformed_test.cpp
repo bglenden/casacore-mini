@@ -267,7 +267,8 @@ static void test_deep_nesting() {
     // Build a deeply nested expression: ((((lat + 1) + 1) + 1) ...)
     std::string expr = "lat";
     for (int i = 0; i < 50; ++i) {
-        expr = "(" + expr + " + 1.0)";
+        expr.insert(0, "(");
+        expr += " + 1.0)";
     }
     auto node = lel_parse(expr, syms);
     auto result = node.as<float>()->eval();
@@ -337,7 +338,7 @@ static void test_scalar_literal_operations() {
 
 // ── Main ──────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     std::cerr << "lel_malformed_test\n";
 
     test_multiple_operators();

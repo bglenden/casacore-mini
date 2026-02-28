@@ -1328,9 +1328,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             expr = trim(expr.substr(1));
         }
 
-        // Check for auto-only "a&&&" syntax.
+        // Check for auto_only "a&&&" syntax.
         auto triple_amp = std::string(expr).find("&&&");
-        if (!negate && triple_amp != std::string::npos) {
+        bool auto_only = (!negate && triple_amp != std::string::npos);
+        if (auto_only) {
             auto lhs_sv = trim(expr.substr(0, triple_amp));
             if (lhs_sv.empty()) {
                 throw std::runtime_error("Feed: missing LHS in auto-only expression");
@@ -1346,8 +1347,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 }
             }
         }
-        // Check for cross+auto "a&&b" syntax.
+        // Check for cross+auto "a&&b" syntax (with_auto mode).
         else if (!negate && std::string(expr).find("&&") != std::string::npos) {
+            bool with_auto = true;  // cross+auto includes both cross and auto baselines
+            (void)with_auto;
             auto damp = std::string(expr).find("&&");
             auto lhs_sv = trim(expr.substr(0, damp));
             auto rhs_sv = trim(expr.substr(damp + 2));
@@ -1470,6 +1473,39 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
 }
 
 // ---------------------------------------------------------------------------
+// to_taql_where helpers
+// ---------------------------------------------------------------------------
+
+/// Convert a vector of integer IDs to a TaQL "col IN [...]" clause.
+static std::string int_expr_to_taql(const std::string& col,
+                                    const std::vector<std::int32_t>& ids,
+                                    bool negate = false) {
+    std::ostringstream oss;
+    if (negate) oss << "NOT (";
+    oss << col << " IN [";
+    for (std::size_t i = 0; i < ids.size(); ++i) {
+        if (i > 0) oss << ",";
+        oss << ids[i];
+    }
+    oss << "]";
+    if (negate) oss << ")";
+    return oss.str();
+}
+
+/// Convert a bound expression (">N" or "<N") to a TaQL clause.
+static std::string bound_to_taql(const std::string& col,
+                                 std::string_view expr) {
+    auto trimmed = trim(expr);
+    if (trimmed.empty()) return {};
+    char op = trimmed.front();
+    if (op != '>' && op != '<') return {};
+    auto val_str = trim(trimmed.substr(1));
+    auto val = try_parse_int(val_str);
+    if (!val) return {};
+    return col + " " + op + " " + std::to_string(*val);
+}
+
+// ---------------------------------------------------------------------------
 // to_taql_where: generate a TaQL WHERE clause from the current selection
 // ---------------------------------------------------------------------------
 
@@ -1504,14 +1540,7 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
         temp.set_field_expr(*field_expr_);
         auto r = temp.evaluate(ms);
         if (!r.fields.empty()) {
-            std::ostringstream oss;
-            oss << "FIELD_ID IN [";
-            for (std::size_t i = 0; i < r.fields.size(); ++i) {
-                if (i > 0) oss << ",";
-                oss << r.fields[i];
-            }
-            oss << "]";
-            clauses.push_back(oss.str());
+            clauses.push_back(int_expr_to_taql("FIELD_ID", r.fields));
         }
     }
 
@@ -1520,14 +1549,7 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
         temp.set_spw_expr(*spw_expr_);
         auto r = temp.evaluate(ms);
         if (!r.dd_ids.empty()) {
-            std::ostringstream oss;
-            oss << "DATA_DESC_ID IN [";
-            for (std::size_t i = 0; i < r.dd_ids.size(); ++i) {
-                if (i > 0) oss << ",";
-                oss << r.dd_ids[i];
-            }
-            oss << "]";
-            clauses.push_back(oss.str());
+            clauses.push_back(int_expr_to_taql("DATA_DESC_ID", r.dd_ids));
         }
     }
 
@@ -1538,37 +1560,15 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
             negate = true;
             expr = trim(expr.substr(1));
         }
-        if (!expr.empty() && expr.front() == '>') {
-            auto val_str = trim(expr.substr(1));
-            auto bound = try_parse_int(val_str);
-            if (bound) {
-                clauses.push_back("SCAN_NUMBER > " + std::to_string(*bound));
-            }
-        } else if (!expr.empty() && expr.front() == '<') {
-            auto val_str = trim(expr.substr(1));
-            auto bound = try_parse_int(val_str);
-            if (bound) {
-                clauses.push_back("SCAN_NUMBER < " + std::to_string(*bound));
-            }
+        auto bnd = bound_to_taql("SCAN_NUMBER", expr);
+        if (!bnd.empty()) {
+            clauses.push_back(bnd);
         } else {
             MsSelection temp;
             temp.set_scan_expr(*scan_expr_);
             auto r = temp.evaluate(ms);
             if (!r.scans.empty()) {
-                std::ostringstream oss;
-                if (negate) {
-                    oss << "NOT (";
-                }
-                oss << "SCAN_NUMBER IN [";
-                for (std::size_t i = 0; i < r.scans.size(); ++i) {
-                    if (i > 0) oss << ",";
-                    oss << r.scans[i];
-                }
-                oss << "]";
-                if (negate) {
-                    oss << ")";
-                }
-                clauses.push_back(oss.str());
+                clauses.push_back(int_expr_to_taql("SCAN_NUMBER", r.scans, negate));
             }
         }
     }
@@ -1578,75 +1578,36 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
         temp.set_state_expr(*state_expr_);
         auto r = temp.evaluate(ms);
         if (!r.states.empty()) {
-            std::ostringstream oss;
-            oss << "STATE_ID IN [";
-            for (std::size_t i = 0; i < r.states.size(); ++i) {
-                if (i > 0) oss << ",";
-                oss << r.states[i];
-            }
-            oss << "]";
-            clauses.push_back(oss.str());
+            clauses.push_back(int_expr_to_taql("STATE_ID", r.states));
         }
     }
 
     if (observation_expr_) {
         auto expr = trim(*observation_expr_);
-        if (!expr.empty() && expr.front() == '>') {
-            auto val_str = trim(expr.substr(1));
-            auto bound = try_parse_int(val_str);
-            if (bound) {
-                clauses.push_back("OBSERVATION_ID > " + std::to_string(*bound));
-            }
-        } else if (!expr.empty() && expr.front() == '<') {
-            auto val_str = trim(expr.substr(1));
-            auto bound = try_parse_int(val_str);
-            if (bound) {
-                clauses.push_back("OBSERVATION_ID < " + std::to_string(*bound));
-            }
+        auto bnd = bound_to_taql("OBSERVATION_ID", expr);
+        if (!bnd.empty()) {
+            clauses.push_back(bnd);
         } else {
             MsSelection temp;
             temp.set_observation_expr(*observation_expr_);
             auto r = temp.evaluate(ms);
             if (!r.observation_ids.empty()) {
-                std::ostringstream oss;
-                oss << "OBSERVATION_ID IN [";
-                for (std::size_t i = 0; i < r.observation_ids.size(); ++i) {
-                    if (i > 0) oss << ",";
-                    oss << r.observation_ids[i];
-                }
-                oss << "]";
-                clauses.push_back(oss.str());
+                clauses.push_back(int_expr_to_taql("OBSERVATION_ID", r.observation_ids));
             }
         }
     }
 
     if (array_expr_) {
         auto expr = trim(*array_expr_);
-        if (!expr.empty() && expr.front() == '>') {
-            auto val_str = trim(expr.substr(1));
-            auto bound = try_parse_int(val_str);
-            if (bound) {
-                clauses.push_back("ARRAY_ID > " + std::to_string(*bound));
-            }
-        } else if (!expr.empty() && expr.front() == '<') {
-            auto val_str = trim(expr.substr(1));
-            auto bound = try_parse_int(val_str);
-            if (bound) {
-                clauses.push_back("ARRAY_ID < " + std::to_string(*bound));
-            }
+        auto bnd = bound_to_taql("ARRAY_ID", expr);
+        if (!bnd.empty()) {
+            clauses.push_back(bnd);
         } else {
             MsSelection temp;
             temp.set_array_expr(*array_expr_);
             auto r = temp.evaluate(ms);
             if (!r.subarray_ids.empty()) {
-                std::ostringstream oss;
-                oss << "ARRAY_ID IN [";
-                for (std::size_t i = 0; i < r.subarray_ids.size(); ++i) {
-                    if (i > 0) oss << ",";
-                    oss << r.subarray_ids[i];
-                }
-                oss << "]";
-                clauses.push_back(oss.str());
+                clauses.push_back(int_expr_to_taql("ARRAY_ID", r.subarray_ids));
             }
         }
     }

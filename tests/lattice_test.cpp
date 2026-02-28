@@ -152,7 +152,7 @@ static void test_sublattice_readonly() {
 
 static void test_temp_lattice_memory() {
     // Small enough to stay in memory.
-    TempLattice<float> lat(IPosition{4, 4}, 1024 * 1024);
+    TempLattice<float> lat(IPosition{4, 4}, std::size_t{1024} * 1024);
     CHECK(!lat.is_paged());
     CHECK(lat.is_writable());
 
@@ -238,7 +238,7 @@ static void test_iterator_reset() {
 
 // ── Main ───────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_array_lattice_basic();
     test_array_lattice_from_data();
     test_array_lattice_put_get();

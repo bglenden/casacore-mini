@@ -85,7 +85,7 @@ class LcBox : public LcRegion {
     /// Construct from explicit corners.
     LcBox(IPosition blc, IPosition trc, IPosition lattice_shape);
     /// Construct from a Slicer.
-    LcBox(Slicer slicer, IPosition lattice_shape);
+    LcBox(const Slicer& slicer, IPosition lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcBox"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -131,7 +131,7 @@ class LcEllipsoid : public LcRegion {
   public:
     /// Construct from center, semi-axes, and lattice shape.
     LcEllipsoid(std::vector<double> center, std::vector<double> semi_axes,
-                IPosition lattice_shape);
+                const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcEllipsoid"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -159,7 +159,7 @@ class LcPolygon : public LcRegion {
   public:
     /// Construct from vertex x/y arrays and 2D lattice shape.
     LcPolygon(std::vector<double> x, std::vector<double> y,
-              IPosition lattice_shape);
+              const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcPolygon"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -187,7 +187,7 @@ class LcPolygon : public LcRegion {
 class LcMask : public LcRegion {
   public:
     /// Construct from a full-lattice mask.
-    LcMask(LatticeArray<bool> mask, IPosition lattice_shape);
+    LcMask(LatticeArray<bool> mask, const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcMask"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -204,7 +204,7 @@ class LcMask : public LcRegion {
 /// Persistent mask stored in a table column. Stub for future implementation.
 class LcPagedMask : public LcRegion {
   public:
-    LcPagedMask(IPosition lattice_shape, IPosition mask_shape);
+    LcPagedMask(const IPosition& lattice_shape, IPosition mask_shape);
 
     [[nodiscard]] std::string type() const override { return "LcPagedMask"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -222,7 +222,7 @@ class LcPagedMask : public LcRegion {
 class LcUnion : public LcRegion {
   public:
     LcUnion(std::vector<std::unique_ptr<LcRegion>> regions,
-            IPosition lattice_shape);
+            const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcUnion"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -243,7 +243,7 @@ class LcUnion : public LcRegion {
 class LcIntersection : public LcRegion {
   public:
     LcIntersection(std::vector<std::unique_ptr<LcRegion>> regions,
-                   IPosition lattice_shape);
+                   const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcIntersection"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -281,7 +281,7 @@ class LcDifference : public LcRegion {
 /// Complement of an LC region.
 class LcComplement : public LcRegion {
   public:
-    LcComplement(std::unique_ptr<LcRegion> region, IPosition lattice_shape);
+    LcComplement(std::unique_ptr<LcRegion> region, const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcComplement"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
@@ -300,7 +300,7 @@ class LcExtension : public LcRegion {
     LcExtension(std::unique_ptr<LcRegion> region,
                 std::vector<std::size_t> extend_axes,
                 IPosition extend_lengths,
-                IPosition lattice_shape);
+                const IPosition& lattice_shape);
 
     [[nodiscard]] std::string type() const override { return "LcExtension"; }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;

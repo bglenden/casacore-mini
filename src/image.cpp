@@ -254,6 +254,7 @@ PagedImage<T>::PagedImage(IPosition shape, CoordinateSystem cs,
     col.name = "map";
     col.data_type = image_data_type<T>();
     col.kind = ColumnKind::array;
+    col.shape.reserve(impl_->shape.ndim());
     for (std::size_t i = 0; i < impl_->shape.ndim(); ++i) {
         col.shape.push_back(impl_->shape[i]);
     }
@@ -262,6 +263,7 @@ PagedImage<T>::PagedImage(IPosition shape, CoordinateSystem cs,
     opts.big_endian = false; // LE to match native byte order (no byte-swapping in TSM writer)
     opts.sm_type = "TiledShapeStMan";
     opts.sm_group = "map";
+    opts.tile_shape.reserve(impl_->shape.ndim() + 1);
     for (std::size_t i = 0; i < impl_->shape.ndim(); ++i) {
         opts.tile_shape.push_back(
             std::min(impl_->shape[i], std::int64_t{32}));
@@ -276,7 +278,7 @@ PagedImage<T>::PagedImage(IPosition shape, CoordinateSystem cs,
 
     // Initialize pixels to zero.
     auto zeros = LatticeArray<T>(IPosition(impl_->shape));
-    put(zeros);
+    put(zeros); // NOLINT(clang-analyzer-optin.cplusplus.VirtualCall)
 
     // Save initial metadata as table keywords.
     save_metadata();
@@ -294,7 +296,7 @@ PagedImage<T>::PagedImage(const std::filesystem::path& path, bool writable)
     // Read shape from column descriptor, falling back to per-cell shape
     // for variable-shape columns (e.g. upstream casacore's TiledShapeStMan).
     auto* cd = impl_->table->find_column_desc("map");
-    if (!cd)
+    if (cd == nullptr)
         throw std::runtime_error("PagedImage: no 'map' column in table");
     if (!cd->shape.empty()) {
         impl_->shape = IPosition(cd->shape);
@@ -405,6 +407,7 @@ void PagedImage<T>::make_mask(const std::string& mask_name,
     col.name = "PagedArray";
     col.data_type = DataType::tp_bool;
     col.kind = ColumnKind::array;
+    col.shape.reserve(impl_->shape.ndim());
     for (std::size_t i = 0; i < impl_->shape.ndim(); ++i) {
         col.shape.push_back(impl_->shape[i]);
     }
@@ -413,6 +416,7 @@ void PagedImage<T>::make_mask(const std::string& mask_name,
     opts.big_endian = false;
     opts.sm_type = "TiledShapeStMan";
     opts.sm_group = "PagedArray";
+    opts.tile_shape.reserve(impl_->shape.ndim() + 1);
     for (std::size_t i = 0; i < impl_->shape.ndim(); ++i) {
         opts.tile_shape.push_back(
             std::min(impl_->shape[i], std::int64_t{32}));
@@ -428,6 +432,7 @@ void PagedImage<T>::make_mask(const std::string& mask_name,
         bool_data[i] = mask_data[i] ? 1 : 0;
     }
     std::vector<std::int32_t> shape_i32;
+    shape_i32.reserve(impl_->shape.ndim());
     for (std::size_t i = 0; i < impl_->shape.ndim(); ++i) {
         shape_i32.push_back(static_cast<std::int32_t>(impl_->shape[i]));
     }
@@ -479,7 +484,7 @@ void PagedImage<T>::make_mask(const std::string& mask_name,
     Record masks_parent;
     if (auto* existing = kw.find("masks")) {
         if (auto* rp = std::get_if<RecordValue::record_ptr>(&existing->storage())) {
-            if (*rp) masks_parent = **rp;
+            if (*rp != nullptr) masks_parent = **rp;
         }
     }
     masks_parent.set(mask_name, RecordValue::from_record(std::move(mask_rec)));
@@ -497,7 +502,7 @@ void PagedImage<T>::make_mask(const std::string& mask_name,
 
 template <typename T>
 void PagedImage<T>::flush() {
-    if (impl_->table && impl_->writable) {
+    if (impl_->table != nullptr && impl_->writable) {
         save_metadata();
         impl_->table->flush();
     }
@@ -676,6 +681,7 @@ void PagedImage<std::complex<float>>::put(
     if (!impl_->writable)
         throw std::runtime_error("PagedImage is read-only");
     std::vector<std::int32_t> sh;
+    sh.reserve(data.shape().ndim());
     for (std::size_t i = 0; i < data.shape().ndim(); ++i) {
         sh.push_back(static_cast<std::int32_t>(data.shape()[i]));
     }

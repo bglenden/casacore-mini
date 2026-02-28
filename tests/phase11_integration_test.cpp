@@ -186,7 +186,7 @@ static void test_api_consistency() {
 
     // Expression accessors round-trip
     check(sel.antenna_expr().has_value(), "API: antenna_expr has value");
-    check(*sel.antenna_expr() == "0,1", "API: antenna_expr correct");
+    check(sel.antenna_expr().has_value() && *sel.antenna_expr() == "0,1", "API: antenna_expr correct");
     check(sel.field_expr().has_value(), "API: field_expr has value");
     check(sel.scan_expr().has_value(), "API: scan_expr has value");
     check(sel.observation_expr().has_value(), "API: observation_expr has value");
@@ -204,7 +204,7 @@ static void test_api_consistency() {
 // Main
 // ---------------------------------------------------------------------------
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_full_pipeline();
     test_api_consistency();
 

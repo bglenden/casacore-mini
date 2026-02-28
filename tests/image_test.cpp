@@ -342,7 +342,7 @@ static void test_sub_image_mask() {
 
 // ── Main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     // ImageInfo
     test_imageinfo_roundtrip();
     test_imageinfo_no_beam();

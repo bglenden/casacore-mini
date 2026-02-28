@@ -81,8 +81,8 @@ static void test_regrid_doubled_resolution() {
     for (std::int64_t dy = 0; dy < 16; ++dy) {
         for (std::int64_t dx = 0; dx < 16; ++dx) {
             // dst world = (dx, dy); src pixel = world / 2 = (dx/2, dy/2).
-            auto sx = static_cast<std::int64_t>(std::round(dx / 2.0));
-            auto sy = static_cast<std::int64_t>(std::round(dy / 2.0));
+            auto sx = static_cast<std::int64_t>(std::round(static_cast<double>(dx) / 2.0));
+            auto sy = static_cast<std::int64_t>(std::round(static_cast<double>(dy) / 2.0));
 
             float expected = 0.0F;
             if (sx >= 0 && sx < 8 && sy >= 0 && sy < 8) {
@@ -193,7 +193,7 @@ static void test_regrid_out_of_bounds_zero_fill() {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     std::cout << "image_regrid_test\n";
 
     test_regrid_doubled_resolution();

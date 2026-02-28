@@ -90,7 +90,7 @@ class Slicer {
     /// @throws std::invalid_argument if ranks differ or strides < 1.
     Slicer(IPosition start, IPosition length, IPosition stride);
     /// Construct with unit stride.
-    Slicer(IPosition start, IPosition length);
+    Slicer(IPosition start, const IPosition& length);
 
     [[nodiscard]] const IPosition& start() const noexcept { return start_; }
     [[nodiscard]] const IPosition& length() const noexcept { return length_; }
@@ -116,11 +116,11 @@ inline constexpr std::size_t kMaxLatticeRank = 8;
 /// This is the primary view type for lattice data. Data pointers are
 /// non-owning; ownership lives in `LatticeArray<T>`.
 template <typename T, std::size_t Rank>
-using LatticeSpan = std::mdspan<T, std::dextents<std::size_t, Rank>, std::layout_left>;
+using LatticeSpan = std::mdspan<T, std::dextents<std::size_t, Rank>, std::layout_left>; // NOLINT(readability-identifier-naming)
 
 /// Const version.
 template <typename T, std::size_t Rank>
-using ConstLatticeSpan =
+using ConstLatticeSpan = // NOLINT(readability-identifier-naming)
     std::mdspan<const T, std::dextents<std::size_t, Rank>, std::layout_left>;
 
 // ── free functions ─────────────────────────────────────────────────────

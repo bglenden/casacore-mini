@@ -1,6 +1,8 @@
 /// @file taql_parser_test.cpp
 /// @brief Tests for the TaQL parser and AST construction.
 
+// NOLINTBEGIN(bugprone-exception-escape,bugprone-unchecked-optional-access)
+
 #include "casacore_mini/taql.hpp"
 
 #include <cstdlib>
@@ -573,3 +575,5 @@ int main() {
     std::cout << "taql_parser_test: " << g_pass << " passed, " << g_fail << " failed\n";
     return g_fail == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+// NOLINTEND(bugprone-exception-escape,bugprone-unchecked-optional-access)

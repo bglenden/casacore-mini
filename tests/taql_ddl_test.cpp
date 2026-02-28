@@ -273,7 +273,7 @@ static void test_drop_table() {
     check(!fs::exists(tmp), "drop: table removed after drop");
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_create_table();
     test_create_table_empty();
     test_alter_add_column();

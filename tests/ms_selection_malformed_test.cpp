@@ -214,7 +214,7 @@ static void test_scan_bounds_malformed() {
     fs::remove_all(path);
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_observation_malformed();
     test_array_malformed();
     test_feed_malformed();

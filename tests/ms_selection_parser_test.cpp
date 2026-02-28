@@ -446,7 +446,7 @@ static void test_combined_new_categories() {
 // Main
 // ---------------------------------------------------------------------------
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_observation_id();
     test_observation_range();
     test_observation_bounds();

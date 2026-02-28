@@ -386,7 +386,7 @@ static void test_image_regrid_identity() {
 
 // ── main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_lattice_concat();
     test_lattice_concat_axis1();
     test_lattice_concat_validation();

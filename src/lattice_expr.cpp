@@ -492,6 +492,7 @@ lel_reduce(LelFunc id, std::shared_ptr<LelNode<T>> arg) {
         fn = [is_unmasked](const LatticeArray<T>& v,
                            const std::optional<LatticeArray<bool>>& m) -> T {
             std::vector<T> vals;
+            vals.reserve(v.nelements());
             for (std::size_t i = 0; i < v.nelements(); ++i) {
                 if (is_unmasked(m, i)) vals.push_back(v.flat()[i]);
             }
@@ -775,7 +776,7 @@ class LelParser {
     std::size_t pos_ = 0;
 
     void skip_ws() {
-        while (pos_ < input_.size() && std::isspace(input_[pos_])) ++pos_;
+        while (pos_ < input_.size() && std::isspace(input_[pos_]) != 0) ++pos_;
     }
 
     char peek() const {
@@ -806,7 +807,7 @@ class LelParser {
         if (peek() != c) {
             throw LelParseError(
                 std::string("expected '") + c + "' but got '" +
-                (peek() ? std::string(1, peek()) : "EOF") + "'", pos_);
+                (peek() != '\0' ? std::string(1, peek()) : "EOF") + "'", pos_);
         }
         ++pos_;
     }
@@ -869,7 +870,7 @@ class LelParser {
                 auto right = parse_multiplicative();
                 left = make_arith(LelBinaryOp::add, left, right);
             } else if (peek() == '-' && pos_ + 1 < input_.size() &&
-                       !std::isdigit(input_[pos_ + 1]) && input_[pos_ + 1] != '.') {
+                       std::isdigit(input_[pos_ + 1]) == 0 && input_[pos_ + 1] != '.') {
                 ++pos_;
                 auto right = parse_multiplicative();
                 left = make_arith(LelBinaryOp::sub, left, right);
@@ -939,12 +940,12 @@ class LelParser {
         }
 
         // Number literal.
-        if (std::isdigit(peek()) || peek() == '.') {
+        if (std::isdigit(peek()) != 0 || peek() == '.') {
             return parse_number();
         }
 
         // Identifier or function call or bool literal.
-        if (std::isalpha(peek()) || peek() == '_') {
+        if (std::isalpha(peek()) != 0 || peek() == '_') {
             return parse_identifier_or_call();
         }
 
@@ -955,7 +956,7 @@ class LelParser {
     LatticeExprNode parse_number() {
         auto start = pos_;
         while (pos_ < input_.size() &&
-               (std::isdigit(input_[pos_]) || input_[pos_] == '.' ||
+               (std::isdigit(input_[pos_]) != 0 || input_[pos_] == '.' ||
                 input_[pos_] == 'e' || input_[pos_] == 'E' ||
                 ((input_[pos_] == '+' || input_[pos_] == '-') && pos_ > start &&
                  (input_[pos_-1] == 'e' || input_[pos_-1] == 'E')))) {
@@ -975,7 +976,7 @@ class LelParser {
     LatticeExprNode parse_identifier_or_call() {
         auto start = pos_;
         while (pos_ < input_.size() &&
-               (std::isalnum(input_[pos_]) || input_[pos_] == '_')) {
+               (std::isalnum(input_[pos_]) != 0 || input_[pos_] == '_')) {
             ++pos_;
         }
         std::string name = input_.substr(start, pos_ - start);

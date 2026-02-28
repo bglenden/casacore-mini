@@ -113,7 +113,7 @@ static void test_lcellipsoid_basic() {
 
     auto mask = ell.get_mask();
     // Center should be included.
-    auto bb = ell.bounding_box();
+    const auto& bb = ell.bounding_box();
     std::int64_t cx = 10 - bb.start()[0];
     std::int64_t cy = 10 - bb.start()[1];
     CHECK(mask.at(IPosition{cx, cy}) == true);
@@ -140,8 +140,6 @@ static void test_lcpolygon_basic() {
     CHECK(poly.ndim() == 2);
 
     auto mask = poly.get_mask();
-    // Center (10,8) should be inside the triangle.
-    auto bb = poly.bounding_box();
     // Check that mask has some true and some false values.
     bool has_true = false;
     bool has_false = false;
@@ -186,7 +184,7 @@ static void test_lcunion() {
 
     auto mask = u.get_mask();
     // (0,0) is in first box → true.
-    auto bb = u.bounding_box();
+    const auto& bb = u.bounding_box();
     IPosition p00{0 - bb.start()[0], 0 - bb.start()[1]};
     CHECK(mask.at(p00) == true);
     // (3,3) is in neither box → false.
@@ -206,7 +204,7 @@ static void test_lcintersection() {
     CHECK(inter.type() == "LcIntersection");
 
     auto mask = inter.get_mask();
-    auto bb = inter.bounding_box();
+    const auto& bb = inter.bounding_box();
     // bb should be (3,3)-(5,5), a 3x3 region.
     CHECK(bb.start()[0] == 3);
     CHECK(bb.start()[1] == 3);
@@ -227,7 +225,6 @@ static void test_lcdifference() {
     CHECK(diff.type() == "LcDifference");
 
     auto mask = diff.get_mask();
-    auto bb = diff.bounding_box();
     // (0,0) relative to bb → in box1 but not box2 → true.
     CHECK(mask.at(IPosition{0, 0}) == true);
     // (3,3) is in both → false.
@@ -299,7 +296,7 @@ static void test_region_from_record_unknown_type() {
 
 // ── Main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     // LcBox
     test_lcbox_basic();
     test_lcbox_from_slicer();

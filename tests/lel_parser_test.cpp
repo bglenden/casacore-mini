@@ -241,7 +241,7 @@ static void test_cat3_iif_with_mask() {
     CHECK_NEAR(r.values.flat()[255], 1.0f, 1e-6); // 256 > 128
     // Mask should propagate from data node.
     CHECK(r.mask.has_value());
-    CHECK(r.mask->flat()[0] == false); // masked
+    CHECK(r.mask->flat()[0] == false); // NOLINT(bugprone-unchecked-optional-access)
 }
 
 static void test_cat3_value_extract() {
@@ -487,8 +487,8 @@ static void test_cat5_mask_through_function() {
     auto r = sqrt_r->eval();
     CHECK_NEAR(r.values.flat()[1], 2.0f, 1e-6);
     CHECK(r.mask.has_value());
-    CHECK(r.mask->flat()[0] == false); // mask propagated
-    CHECK(r.mask->flat()[1] == true);
+    CHECK(r.mask->flat()[0] == false); // NOLINT(bugprone-unchecked-optional-access)
+    CHECK(r.mask->flat()[1] == true);  // NOLINT(bugprone-unchecked-optional-access)
 }
 
 // ── Category 6: Scalar-lattice broadcasting ──────────────────────────
@@ -877,7 +877,7 @@ static void test_mixed_float_double_promotion() {
 
 // ── Main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     // Category 1: Scalar/lattice arithmetic
     test_cat1_lattice_lattice_arith();
     test_cat1_scalar_lattice_arith();

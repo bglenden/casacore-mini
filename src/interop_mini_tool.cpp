@@ -3564,13 +3564,13 @@ void produce_img_expression(const std::string& output) {
 
     // Compute expression: result[i] = (i+1) + 2.0*(100.0 - i)
     // which simplifies to: 201.0 - i
-    constexpr std::int64_t nx = 32;
-    constexpr std::int64_t ny = 32;
-    casacore_mini::IPosition shape{nx, ny};
+    constexpr std::int64_t kNx = 32;
+    constexpr std::int64_t kNy = 32;
+    casacore_mini::IPosition shape{kNx, kNy};
 
     casacore_mini::LatticeArray<float> result(shape);
     result.make_unique();
-    const auto total = static_cast<std::size_t>(nx * ny);
+    const auto total = static_cast<std::size_t>(kNx * kNy);
     for (std::size_t i = 0; i < total; ++i) {
         const auto fi = static_cast<float>(i);
         result.mutable_data()[i] = (fi + 1.0F) + 2.0F * (100.0F - fi);
@@ -3800,7 +3800,7 @@ void verify_img_complex(const std::string& input) {
 
 } // namespace
 
-int main(int argc, char** argv) noexcept {
+int main(int argc, char** argv) noexcept { // NOLINT(bugprone-exception-escape)
     try {
         if (argc < 2) {
             std::cerr << usage();

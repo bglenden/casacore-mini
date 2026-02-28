@@ -228,7 +228,7 @@ static void test_expr_with_columns() {
 // Main
 // ---------------------------------------------------------------------------
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_select_all();
     test_select_where();
     test_select_orderby();

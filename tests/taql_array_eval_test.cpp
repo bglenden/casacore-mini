@@ -214,7 +214,7 @@ static void test_array_column_read() {
     fs::remove_all(tmp);
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_ndim_nelem_shape();
     test_array_reductions();
     test_array_boolean_reductions();

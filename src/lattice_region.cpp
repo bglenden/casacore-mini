@@ -17,9 +17,9 @@ LatticeArray<bool> LcRegion::get_mask() const {
 std::unique_ptr<LcRegion>
 LcRegion::from_record(const Record& rec, const IPosition& lattice_shape) {
     auto* tv = rec.find("type");
-    if (!tv) throw std::runtime_error("LcRegion::from_record: missing 'type'");
+    if (tv == nullptr) throw std::runtime_error("LcRegion::from_record: missing 'type'");
     auto* ts = std::get_if<std::string>(&tv->storage());
-    if (!ts) throw std::runtime_error("LcRegion::from_record: 'type' not string");
+    if (ts == nullptr) throw std::runtime_error("LcRegion::from_record: 'type' not string");
 
     if (*ts == "LcBox") return LcBox::from_record(rec, lattice_shape);
     if (*ts == "LcPixelSet") return LcPixelSet::from_record(rec, lattice_shape);
@@ -34,6 +34,7 @@ static void put_iposition(Record& rec, const std::string& key,
                           const IPosition& pos) {
     RecordArray<std::int64_t> arr;
     arr.shape = {pos.ndim()};
+    arr.elements.reserve(pos.ndim());
     for (std::size_t i = 0; i < pos.ndim(); ++i) {
         arr.elements.push_back(pos[i]);
     }
@@ -42,9 +43,9 @@ static void put_iposition(Record& rec, const std::string& key,
 
 static IPosition get_iposition(const Record& rec, const std::string& key) {
     auto* v = rec.find(key);
-    if (!v) throw std::runtime_error("missing key '" + key + "'");
+    if (v == nullptr) throw std::runtime_error("missing key '" + key + "'");
     auto* arr = std::get_if<RecordValue::int64_array>(&v->storage());
-    if (!arr) throw std::runtime_error("key '" + key + "' not int64 array");
+    if (arr == nullptr) throw std::runtime_error("key '" + key + "' not int64 array");
     std::vector<std::int64_t> vals(arr->elements.begin(), arr->elements.end());
     return IPosition(std::move(vals));
 }
@@ -72,14 +73,14 @@ static IPosition compute_trc(const Slicer& s) {
 // ── LcBox ────────────────────────────────────────────────────────────
 
 LcBox::LcBox(IPosition blc, IPosition trc, IPosition lattice_shape)
-    : LcRegion(lattice_shape,
+    : LcRegion(std::move(lattice_shape),
                Slicer(IPosition(blc), compute_length(blc, trc))),
       blc_(std::move(blc)), trc_(std::move(trc)) {
     if (blc_.ndim() != trc_.ndim())
         throw std::invalid_argument("LcBox: blc/trc ndim mismatch");
 }
 
-LcBox::LcBox(Slicer slicer, IPosition lattice_shape)
+LcBox::LcBox(const Slicer& slicer, IPosition lattice_shape)
     : LcRegion(std::move(lattice_shape), slicer),
       blc_(slicer.start()),
       trc_(compute_trc(slicer)) {}
@@ -109,7 +110,7 @@ LcBox::from_record(const Record& rec, const IPosition& lattice_shape) {
 LcPixelSet::LcPixelSet(LatticeArray<bool> mask, IPosition blc,
                        IPosition lattice_shape)
     : LcRegion(std::move(lattice_shape),
-               Slicer(IPosition(blc), mask.shape())),
+               Slicer(std::move(blc), mask.shape())),
       mask_(std::move(mask)) {}
 
 std::unique_ptr<LcRegion> LcPixelSet::clone() const {
@@ -127,6 +128,7 @@ Record LcPixelSet::to_record() const {
     for (std::size_t i = 0; i < mask_.shape().ndim(); ++i) {
         mask_arr.shape[i] = static_cast<std::uint64_t>(mask_.shape()[i]);
     }
+    mask_arr.elements.reserve(mask_.nelements());
     for (std::size_t i = 0; i < mask_.nelements(); ++i) {
         mask_arr.elements.push_back(mask_.flat()[i] ? 1 : 0);
     }
@@ -138,9 +140,9 @@ std::unique_ptr<LcPixelSet>
 LcPixelSet::from_record(const Record& rec, const IPosition& lattice_shape) {
     auto blc = get_iposition(rec, "blc");
     auto* mv = rec.find("mask");
-    if (!mv) throw std::runtime_error("LcPixelSet: missing 'mask'");
+    if (mv == nullptr) throw std::runtime_error("LcPixelSet: missing 'mask'");
     auto* marr = std::get_if<RecordValue::int32_array>(&mv->storage());
-    if (!marr) throw std::runtime_error("LcPixelSet: 'mask' not int32 array");
+    if (marr == nullptr) throw std::runtime_error("LcPixelSet: 'mask' not int32 array");
 
     IPosition mshape(marr->shape.size());
     for (std::size_t i = 0; i < marr->shape.size(); ++i) {
@@ -162,7 +164,7 @@ LcPixelSet::from_record(const Record& rec, const IPosition& lattice_shape) {
 
 LcEllipsoid::LcEllipsoid(std::vector<double> center,
                          std::vector<double> semi_axes,
-                         IPosition lattice_shape)
+                         const IPosition& lattice_shape)
     : LcRegion(lattice_shape,
                Slicer(IPosition(lattice_shape.ndim(), 0), lattice_shape)),
       center_(std::move(center)),
@@ -193,7 +195,7 @@ void LcEllipsoid::compute_bounding_box() {
                               static_cast<std::int64_t>(std::ceil(center_[i] + semi_axes_[i])));
         len[i] = trc_i - blc2[i] + 1;
     }
-    set_bounding_box(Slicer(std::move(blc2), std::move(len)));
+    set_bounding_box(Slicer(std::move(blc2), len));
 }
 
 LatticeArray<bool> LcEllipsoid::get_mask() const {
@@ -240,10 +242,10 @@ std::unique_ptr<LcEllipsoid>
 LcEllipsoid::from_record(const Record& rec, const IPosition& lattice_shape) {
     auto* cv = rec.find("center");
     auto* sv = rec.find("semi_axes");
-    if (!cv || !sv) throw std::runtime_error("LcEllipsoid: missing fields");
+    if (cv == nullptr || sv == nullptr) throw std::runtime_error("LcEllipsoid: missing fields");
     auto* ca = std::get_if<RecordValue::double_array>(&cv->storage());
     auto* sa = std::get_if<RecordValue::double_array>(&sv->storage());
-    if (!ca || !sa) throw std::runtime_error("LcEllipsoid: bad field types");
+    if (ca == nullptr || sa == nullptr) throw std::runtime_error("LcEllipsoid: bad field types");
     return std::make_unique<LcEllipsoid>(ca->elements, sa->elements,
                                          IPosition(lattice_shape));
 }
@@ -251,7 +253,7 @@ LcEllipsoid::from_record(const Record& rec, const IPosition& lattice_shape) {
 // ── LcPolygon ────────────────────────────────────────────────────────
 
 LcPolygon::LcPolygon(std::vector<double> x, std::vector<double> y,
-                     IPosition lattice_shape)
+                     const IPosition& lattice_shape)
     : LcRegion(lattice_shape,
                Slicer(IPosition(lattice_shape.ndim(), 0), lattice_shape)),
       x_(std::move(x)), y_(std::move(y)) {
@@ -275,7 +277,7 @@ void LcPolygon::compute_bounding_box_and_mask() {
 
     IPosition blc{ix0, iy0};
     IPosition len{ix1 - ix0 + 1, iy1 - iy0 + 1};
-    set_bounding_box(Slicer(std::move(blc), std::move(len)));
+    set_bounding_box(Slicer(std::move(blc), len));
 
     // Compute mask using ray-casting point-in-polygon test.
     auto sh = shape();
@@ -326,17 +328,17 @@ std::unique_ptr<LcPolygon>
 LcPolygon::from_record(const Record& rec, const IPosition& lattice_shape) {
     auto* xv = rec.find("x");
     auto* yv = rec.find("y");
-    if (!xv || !yv) throw std::runtime_error("LcPolygon: missing fields");
+    if (xv == nullptr || yv == nullptr) throw std::runtime_error("LcPolygon: missing fields");
     auto* xa = std::get_if<RecordValue::double_array>(&xv->storage());
     auto* ya = std::get_if<RecordValue::double_array>(&yv->storage());
-    if (!xa || !ya) throw std::runtime_error("LcPolygon: bad field types");
+    if (xa == nullptr || ya == nullptr) throw std::runtime_error("LcPolygon: bad field types");
     return std::make_unique<LcPolygon>(xa->elements, ya->elements,
                                        IPosition(lattice_shape));
 }
 
 // ── LcMask ───────────────────────────────────────────────────────────
 
-LcMask::LcMask(LatticeArray<bool> mask, IPosition lattice_shape)
+LcMask::LcMask(LatticeArray<bool> mask, const IPosition& lattice_shape)
     : LcRegion(lattice_shape,
                Slicer(IPosition(lattice_shape.ndim(), 0), lattice_shape)),
       mask_(std::move(mask)) {}
@@ -353,7 +355,7 @@ Record LcMask::to_record() const {
 
 // ── LcPagedMask ──────────────────────────────────────────────────────
 
-LcPagedMask::LcPagedMask(IPosition lattice_shape, IPosition mask_shape)
+LcPagedMask::LcPagedMask(const IPosition& lattice_shape, IPosition mask_shape)
     : LcRegion(lattice_shape,
                Slicer(IPosition(lattice_shape.ndim(), 0), lattice_shape)),
       mask_shape_(std::move(mask_shape)) {}
@@ -394,7 +396,7 @@ static Slicer compute_union_bb(
     for (std::size_t d = 0; d < nd; ++d) {
         len[d] = trc[d] - blc[d] + 1;
     }
-    return Slicer(std::move(blc), std::move(len));
+    return Slicer(std::move(blc), len);
 }
 
 static Slicer compute_intersection_bb(
@@ -419,7 +421,7 @@ static Slicer compute_intersection_bb(
     for (std::size_t d = 0; d < nd; ++d) {
         len[d] = std::max(std::int64_t{0}, trc[d] - blc[d] + 1);
     }
-    return Slicer(std::move(blc), std::move(len));
+    return Slicer(std::move(blc), len);
 }
 
 // ── Helper: is pixel in region's mask? ───────────────────────────────
@@ -446,12 +448,13 @@ static bool pixel_in_region(const LcRegion& reg, const IPosition& pos) {
 // ── LcUnion ──────────────────────────────────────────────────────────
 
 LcUnion::LcUnion(std::vector<std::unique_ptr<LcRegion>> regions,
-                 IPosition lattice_shape)
+                 const IPosition& lattice_shape)
     : LcRegion(lattice_shape, compute_union_bb(regions, lattice_shape)),
       regions_(std::move(regions)) {}
 
 std::unique_ptr<LcRegion> LcUnion::clone() const {
     std::vector<std::unique_ptr<LcRegion>> clones;
+    clones.reserve(regions_.size());
     for (auto& r : regions_) clones.push_back(r->clone());
     return std::make_unique<LcUnion>(std::move(clones), lattice_shape());
 }
@@ -487,13 +490,14 @@ LatticeArray<bool> LcUnion::get_mask() const {
 // ── LcIntersection ───────────────────────────────────────────────────
 
 LcIntersection::LcIntersection(
-    std::vector<std::unique_ptr<LcRegion>> regions, IPosition lattice_shape)
+    std::vector<std::unique_ptr<LcRegion>> regions, const IPosition& lattice_shape)
     : LcRegion(lattice_shape,
                compute_intersection_bb(regions, lattice_shape)),
       regions_(std::move(regions)) {}
 
 std::unique_ptr<LcRegion> LcIntersection::clone() const {
     std::vector<std::unique_ptr<LcRegion>> clones;
+    clones.reserve(regions_.size());
     for (auto& r : regions_) clones.push_back(r->clone());
     return std::make_unique<LcIntersection>(std::move(clones), lattice_shape());
 }
@@ -530,7 +534,7 @@ LatticeArray<bool> LcIntersection::get_mask() const {
 LcDifference::LcDifference(std::unique_ptr<LcRegion> region1,
                            std::unique_ptr<LcRegion> region2,
                            IPosition lattice_shape)
-    : LcRegion(lattice_shape, region1->bounding_box()),
+    : LcRegion(std::move(lattice_shape), region1->bounding_box()),
       region1_(std::move(region1)), region2_(std::move(region2)) {}
 
 std::unique_ptr<LcRegion> LcDifference::clone() const {
@@ -566,7 +570,7 @@ LatticeArray<bool> LcDifference::get_mask() const {
 // ── LcComplement ─────────────────────────────────────────────────────
 
 LcComplement::LcComplement(std::unique_ptr<LcRegion> region,
-                           IPosition lattice_shape)
+                           const IPosition& lattice_shape)
     : LcRegion(lattice_shape,
                Slicer(IPosition(lattice_shape.ndim(), 0), lattice_shape)),
       region_(std::move(region)) {}
@@ -604,7 +608,7 @@ LatticeArray<bool> LcComplement::get_mask() const {
 LcExtension::LcExtension(std::unique_ptr<LcRegion> region,
                          std::vector<std::size_t> extend_axes,
                          IPosition extend_lengths,
-                         IPosition lattice_shape)
+                         const IPosition& lattice_shape)
     : LcRegion(lattice_shape,
                Slicer(IPosition(lattice_shape.ndim(), 0), lattice_shape)),
       region_(std::move(region)),
@@ -656,7 +660,7 @@ LatticeRegion::LatticeRegion(std::unique_ptr<LcRegion> region, Slicer slicer)
 
 Record LatticeRegion::to_record() const {
     Record rec;
-    if (region_) {
+    if (region_ != nullptr) {
         rec.set("region", RecordValue::from_record(region_->to_record()));
         rec.set("region_type", RecordValue(region_->type()));
     }
@@ -676,7 +680,7 @@ LatticeRegion LatticeRegion::from_record(
             lr.region_ = LcRegion::from_record(**rp, lattice_shape);
         }
     }
-    if (rec.find("slicer_start")) {
+    if (rec.find("slicer_start") != nullptr) {
         auto start = get_iposition(rec, "slicer_start");
         auto length = get_iposition(rec, "slicer_length");
         auto stride = get_iposition(rec, "slicer_stride");

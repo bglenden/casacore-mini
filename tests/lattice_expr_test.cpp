@@ -66,7 +66,7 @@ static void test_array_ref() {
     auto data = make_4x4();
     auto node = lel_array(data);
     CHECK(!node->is_scalar());
-    CHECK(node->shape()->operator[](0) == 4);
+    CHECK(node->shape()->operator[](0) == 4); // NOLINT(bugprone-unchecked-optional-access)
     auto r = node->eval();
     CHECK_NEAR(r.values.flat()[0], 1.0f, 1e-6f);
     CHECK_NEAR(r.values.flat()[15], 16.0f, 1e-6f);
@@ -304,8 +304,8 @@ static void test_mask_propagation() {
     auto r = expr->eval();
     // Mask from a should propagate.
     CHECK(r.mask.has_value());
-    CHECK(r.mask->flat()[0] == false); // masked
-    CHECK(r.mask->flat()[1] == true);  // unmasked
+    CHECK(r.mask->flat()[0] == false); // NOLINT(bugprone-unchecked-optional-access)
+    CHECK(r.mask->flat()[1] == true);  // NOLINT(bugprone-unchecked-optional-access)
 }
 
 // ── LatticeExpr tests ───────────────────────────────────────────────
@@ -383,7 +383,7 @@ static void test_double_arithmetic() {
 
 // ── Main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_scalar_constant();
     test_array_ref();
 

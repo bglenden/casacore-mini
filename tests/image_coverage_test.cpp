@@ -752,7 +752,7 @@ static void test_statistics_empty_image() {
 // Main
 // ═══════════════════════════════════════════════════════════════════════
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     std::cout << "image_coverage_test:\n";
 
     // P1 — PagedImage mask roundtrip

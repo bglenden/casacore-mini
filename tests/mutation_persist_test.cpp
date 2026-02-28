@@ -472,7 +472,7 @@ static void test_iterator_write_cursor() {
 
 // ── Main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     auto base = test_dir();
     if (fs::exists(base)) fs::remove_all(base);
     fs::create_directories(base);

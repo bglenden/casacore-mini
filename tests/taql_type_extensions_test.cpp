@@ -230,7 +230,7 @@ static void test_unit_conversion() {
     }
 }
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_complex_arithmetic();
     test_datetime_functions();
     test_angle_functions();

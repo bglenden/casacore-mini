@@ -325,7 +325,7 @@ static void test_e2e_taql_count_over_ms() {
 // Main
 // ---------------------------------------------------------------------------
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_string_functions();
     test_near_3arg();
     test_type_conversion();

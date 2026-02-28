@@ -495,7 +495,7 @@ static void test_wc_from_record_unknown_type() {
 
 // ── Main ─────────────────────────────────────────────────────────────
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     // WcBox
     test_wcbox_basic();
     test_wcbox_clone();

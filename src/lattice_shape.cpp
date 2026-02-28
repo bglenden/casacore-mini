@@ -12,7 +12,7 @@ IPosition::IPosition(std::size_t ndim, std::int64_t initial_value)
 IPosition::IPosition(std::initializer_list<std::int64_t> il)
     : values_(il) {}
 
-IPosition::IPosition(std::vector<std::int64_t> values)
+IPosition::IPosition(std::vector<std::int64_t> values) // NOLINT(performance-unnecessary-value-param)
     : values_(std::move(values)) {}
 
 std::int64_t IPosition::product() const noexcept {
@@ -74,7 +74,7 @@ Slicer::Slicer(IPosition start, IPosition length, IPosition stride)
     }
 }
 
-Slicer::Slicer(IPosition start, IPosition length)
+Slicer::Slicer(IPosition start, const IPosition& length)
     : Slicer(std::move(start), IPosition(length),
              IPosition(length.ndim(), 1)) {}
 

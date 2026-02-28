@@ -666,12 +666,10 @@ class TaqlParser {
         }
 
         // Shorthand alias
-        if (match_keyword("AS")) {
-            ref.shorthand = std::string(current_.text);
-            advance();
-        } else if (current_.type == TokenType::identifier &&
-                   !is_select_clause_keyword(current_.text)) {
-            // Implicit shorthand (next word is alias if it's not a keyword)
+        if (match_keyword("AS") ||
+            (current_.type == TokenType::identifier &&
+             !is_select_clause_keyword(current_.text))) {
+            // Explicit "AS alias" or implicit shorthand (next word is alias if not a keyword)
             ref.shorthand = std::string(current_.text);
             advance();
         }
@@ -1961,24 +1959,20 @@ namespace {
 TaqlValue cell_to_taql(const CellValue& cv) {
     return std::visit(
         [](auto&& v) -> TaqlValue {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, bool>) {
+            using T = std::decay_t<decltype(v)>; // NOLINT(readability-identifier-naming)
+            if constexpr (std::is_same_v<T, bool> ||
+                          std::is_same_v<T, std::int64_t> ||
+                          std::is_same_v<T, double> ||
+                          std::is_same_v<T, std::complex<double>> ||
+                          std::is_same_v<T, std::string>) {
                 return v;
             } else if constexpr (std::is_same_v<T, std::int32_t> ||
                                  std::is_same_v<T, std::uint32_t>) {
                 return static_cast<std::int64_t>(v);
-            } else if constexpr (std::is_same_v<T, std::int64_t>) {
-                return v;
             } else if constexpr (std::is_same_v<T, float>) {
                 return static_cast<double>(v);
-            } else if constexpr (std::is_same_v<T, double>) {
-                return v;
             } else if constexpr (std::is_same_v<T, std::complex<float>>) {
                 return std::complex<double>(v.real(), v.imag());
-            } else if constexpr (std::is_same_v<T, std::complex<double>>) {
-                return v;
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                return v;
             } else {
                 return std::monostate{};
             }
@@ -2137,14 +2131,10 @@ double parse_datetime_to_mjd(const std::string& s) {
     int year = 0, month = 0, day = 0, hour = 0, min = 0;
     double sec = 0.0;
 
-    // Try YYYY/MM/DD/HH:MM:SS.sss
-    if (std::sscanf(s.c_str(), "%d/%d/%d/%d:%d:%lf", &year, &month, &day, &hour, &min, &sec) >= 3) {
-        // ok
-    } else if (std::sscanf(s.c_str(), "%d-%d-%dT%d:%d:%lf", &year, &month, &day, &hour, &min, &sec) >= 3) {
-        // ISO format
-    } else if (std::sscanf(s.c_str(), "%d/%d/%d", &year, &month, &day) >= 3) {
-        // date only
-    } else {
+    // Try YYYY/MM/DD/HH:MM:SS.sss, then ISO, then date-only (date-only is
+    // a subset of the first pattern, so the first sscanf already covers it).
+    if (std::sscanf(s.c_str(), "%d/%d/%d/%d:%d:%lf", &year, &month, &day, &hour, &min, &sec) < 3 &&
+        std::sscanf(s.c_str(), "%d-%d-%dT%d:%d:%lf", &year, &month, &day, &hour, &min, &sec) < 3) {
         throw std::runtime_error("TaQL: cannot parse datetime '" + s + "'");
     }
 
@@ -2153,7 +2143,12 @@ double parse_datetime_to_mjd(const std::string& s) {
     int y = year + 4800 - a;
     int m = month + 12 * a - 3;
     // Julian day number
-    double jdn = static_cast<double>(day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045);
+    double jdn = static_cast<double>(day) +
+                 std::floor((153.0 * m + 2.0) / 5.0) +
+                 365.0 * static_cast<double>(y) +
+                 std::floor(static_cast<double>(y) / 4.0) -
+                 std::floor(static_cast<double>(y) / 100.0) +
+                 std::floor(static_cast<double>(y) / 400.0) - 32045.0;
     double jd = jdn + (static_cast<double>(hour) - 12.0) / 24.0 +
                 static_cast<double>(min) / 1440.0 + sec / 86400.0;
     return jd - 2400000.5; // MJD
@@ -2163,7 +2158,7 @@ double parse_datetime_to_mjd(const std::string& s) {
 std::string mjd_to_datetime(double mjd) {
     double jd = mjd + 2400000.5;
     // Convert JD to calendar date (Meeus algorithm)
-    auto z = static_cast<std::int64_t>(jd + 0.5);
+    auto z = static_cast<std::int64_t>(std::lround(jd));
     double f = jd + 0.5 - static_cast<double>(z);
     std::int64_t a_val;
     if (z < 2299161) {
@@ -2281,7 +2276,7 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             bool next_upper = true;
             for (auto& c : s) {
                 auto uc = static_cast<unsigned char>(c);
-                if (std::isalpha(uc)) {
+                if (std::isalpha(uc) != 0) {
                     c = next_upper ? static_cast<char>(std::toupper(uc))
                                    : static_cast<char>(std::tolower(uc));
                     next_upper = false;
@@ -3200,10 +3195,10 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
     if (upper == "NORMANGLE") {
         // Normalize angle to [0, 2*pi)
         if (args.empty()) throw std::runtime_error("TaQL: NORMANGLE requires 1 argument");
-        constexpr double two_pi = 2.0 * 3.14159265358979323846;
+        constexpr double kTwoPi = 2.0 * 3.14159265358979323846;
         double rad = as_double(args[0]);
-        rad = std::fmod(rad, two_pi);
-        if (rad < 0) rad += two_pi;
+        rad = std::fmod(rad, kTwoPi);
+        if (rad < 0) rad += kTwoPi;
         return TaqlValue{rad};
     }
     if (upper == "ANGDIST" || upper == "ANGDISTX") {
@@ -3678,6 +3673,7 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         if (node.children.size() == 1) return eval_expr(node.children[0], ctx);
         // Build vector
         std::vector<double> vec;
+        vec.reserve(node.children.size());
         for (auto& child : node.children) {
             vec.push_back(as_double(eval_expr(child, ctx)));
         }
@@ -4446,6 +4442,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             throw std::runtime_error("TaQL: CREATE TABLE requires a table name/path");
 
         std::vector<TableColumnSpec> specs;
+        specs.reserve(ast.create_columns.size());
         for (auto& cd : ast.create_columns)
             specs.push_back(taql_coldef_to_spec(cd));
 

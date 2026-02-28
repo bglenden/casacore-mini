@@ -54,7 +54,7 @@ struct SsmTableDatBlob {
 };
 
 /// A typed cell value read from SSM storage.
-using CellValue = std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, float, double,
+using CellValue = std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, float, double, // NOLINT(readability-identifier-naming)
                                std::complex<float>, std::complex<double>, std::string>;
 
 /// Read-only SSM reader for a single table directory.

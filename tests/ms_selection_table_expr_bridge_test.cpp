@@ -251,13 +251,13 @@ static void test_accessors() {
 
     sel.set_antenna_expr("0,1");
     check(sel.antenna_expr().has_value(), "antenna_expr has value after set");
-    check(*sel.antenna_expr() == "0,1", "antenna_expr value correct");
+    check(sel.antenna_expr().has_value() && *sel.antenna_expr() == "0,1", "antenna_expr value correct");
 
     sel.set_observation_expr("0");
-    check(*sel.observation_expr() == "0", "observation_expr value");
+    check(sel.observation_expr().has_value() && *sel.observation_expr() == "0", "observation_expr value");
 
     sel.set_taql_expr("SCAN_NUMBER > 1");
-    check(*sel.taql_expr() == "SCAN_NUMBER > 1", "taql_expr value");
+    check(sel.taql_expr().has_value() && *sel.taql_expr() == "SCAN_NUMBER > 1", "taql_expr value");
 
     sel.clear();
     check(!sel.antenna_expr().has_value(), "cleared antenna_expr");
@@ -307,7 +307,7 @@ static void test_taql_injection_where() {
 // Main
 // ---------------------------------------------------------------------------
 
-int main() {
+int main() { // NOLINT(bugprone-exception-escape)
     test_empty_where();
     test_scan_where();
     test_field_where();
