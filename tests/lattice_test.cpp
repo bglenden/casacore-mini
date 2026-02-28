@@ -10,15 +10,14 @@ using namespace casacore_mini;
 static int g_pass = 0;
 static int g_fail = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::cerr << "FAIL [" << __FILE__ << ":" << __LINE__               \
-                      << "]: " #cond << "\n";                                  \
-            ++g_fail;                                                          \
-        } else {                                                               \
-            ++g_pass;                                                          \
-        }                                                                      \
+#define CHECK(cond)                                                                                \
+    do {                                                                                           \
+        if (!(cond)) {                                                                             \
+            std::cerr << "FAIL [" << __FILE__ << ":" << __LINE__ << "]: " #cond << "\n";           \
+            ++g_fail;                                                                              \
+        } else {                                                                                   \
+            ++g_pass;                                                                              \
+        }                                                                                          \
     } while (false)
 
 // ── ArrayLattice tests ─────────────────────────────────────────────────
@@ -152,8 +151,7 @@ static void test_sublattice_readonly() {
 
 static void test_temp_lattice_memory() {
     // Small enough to stay in memory.
-    TempLattice<float> lat(IPosition{4, 4},
-                           static_cast<std::size_t>(1024) * 1024);
+    TempLattice<float> lat(IPosition{4, 4}, static_cast<std::size_t>(1024) * 1024);
     CHECK(!lat.is_paged());
     CHECK(lat.is_writable());
 
@@ -196,8 +194,10 @@ static void test_iterator_edge_chunks() {
     while (!iter.at_end()) {
         auto cs = iter.cursor_shape();
         // Check edge handling.
-        if (iter.position()[0] == 3) CHECK(cs[0] == 2); // Last column: 5-3=2
-        if (iter.position()[1] == 2) CHECK(cs[1] == 1); // Last row: 3-2=1
+        if (iter.position()[0] == 3)
+            CHECK(cs[0] == 2); // Last column: 5-3=2
+        if (iter.position()[1] == 2)
+            CHECK(cs[1] == 1); // Last row: 3-2=1
         ++chunk_count;
         ++iter;
     }
@@ -260,7 +260,6 @@ int main() {
     test_iterator_write();
     test_iterator_reset();
 
-    std::cout << "lattice_test: " << g_pass << " passed, "
-              << g_fail << " failed\n";
+    std::cout << "lattice_test: " << g_pass << " passed, " << g_fail << " failed\n";
     return g_fail > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
