@@ -11,7 +11,6 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 namespace casacore_mini {
@@ -123,6 +122,51 @@ class Table {
 
     /// Whether this table is writable.
     [[nodiscard]] bool is_writable() const;
+
+    // -- Table mutation API --
+
+    /// Append @p n rows to the table. Default cell values are zero-initialized.
+    /// @throws std::runtime_error if the table is not writable.
+    void add_rows(std::uint64_t n);
+
+    /// Remove rows by index, compacting remaining data.
+    /// Indices must be valid (< nrow) and unique. Order does not matter.
+    /// @throws std::runtime_error if the table is not writable, or if any
+    ///         index is out of range.
+    void remove_rows(std::vector<std::uint64_t> rows_to_remove);
+
+    /// Add a new column to the table.
+    /// The column is added to the SSM storage manager.
+    /// @throws std::runtime_error if the table is not writable, or a column
+    ///         with the same name already exists.
+    void add_column(const TableColumnSpec& spec);
+
+    /// Remove a column from the table by name.
+    /// @throws std::runtime_error if the table is not writable, or the column
+    ///         does not exist.
+    void remove_column(std::string_view name);
+
+    /// Rename a column.
+    /// @throws std::runtime_error if the table is not writable, old_name does
+    ///         not exist, or new_name already exists.
+    void rename_column(std::string_view old_name, std::string_view new_name);
+
+    /// Set a table-level keyword.
+    /// @throws std::runtime_error if the table is not writable.
+    void set_keyword(std::string_view key, RecordValue value);
+
+    /// Remove a table-level keyword.
+    /// @throws std::runtime_error if the table is not writable or the keyword
+    ///         does not exist.
+    void remove_keyword(std::string_view key);
+
+    /// Copy a column (schema + data) to a new name.
+    /// @throws std::runtime_error if the table is not writable, src does not
+    ///         exist, or dst already exists.
+    void copy_column(std::string_view src, std::string_view dst);
+
+    /// Remove a table directory from the filesystem.
+    static void drop(const std::filesystem::path& path);
 
     // -- Cell-level read/write API --
 

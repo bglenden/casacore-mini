@@ -5,6 +5,7 @@
 #include "casacore_mini/table_directory.hpp"
 #include "casacore_mini/tiled_stman.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -706,6 +707,556 @@ void Table::flush() {
         impl_->tsm_readers.clear();
         impl_->tsm_readers_initialized = false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Table mutation methods
+// ---------------------------------------------------------------------------
+
+void Table::add_rows(std::uint64_t n) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::add_rows: table is not writable");
+    }
+    if (n == 0) {
+        return;
+    }
+
+    auto& td = impl_->dir.table_dat;
+    const auto old_nrow = td.row_count;
+    const auto new_nrow = old_nrow + n;
+    td.row_count = new_nrow;
+    td.post_td_row_count = new_nrow;
+
+    // Rebuild the SSM writer with the expanded row count, preserving existing data.
+    if (impl_->ssm_writer.has_value()) {
+        auto& old_writer = impl_->ssm_writer.value();
+
+        // Collect SSM columns for the writer.
+        std::vector<ColumnDesc> ssm_cols;
+        for (const auto& col : td.table_desc.columns) {
+            auto lookup = find_sm_for_column(td, col.name);
+            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
+                ssm_cols.push_back(col);
+            }
+        }
+
+        // Flush old writer data to disk with old_nrow so the reader can parse it.
+        old_writer.write_file(impl_->path.string(), 0);
+        old_writer.write_indirect_file(impl_->path.string(), 0);
+        td.row_count = old_nrow;
+        td.post_td_row_count = old_nrow;
+        td.storage_managers[0].data_blob = old_writer.make_blob();
+        write_table_directory(impl_->path.string(), td);
+
+        // Re-read using a fresh reader against old_nrow metadata.
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+        impl_->ensure_ssm_readers();
+
+        // Now restore new_nrow and build the new writer.
+        td.row_count = new_nrow;
+        td.post_td_row_count = new_nrow;
+
+        SsmWriter new_writer;
+        new_writer.setup(ssm_cols, new_nrow, td.big_endian, "StandardStMan");
+
+        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+            const auto& col = ssm_cols[ci];
+            auto* reader = impl_->find_ssm_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < old_nrow; ++r) {
+                if (col.kind == ColumnKind::scalar) {
+                    new_writer.write_cell(ci, reader->read_cell(col.name, r), r);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, r);
+                        new_writer.write_indirect_offset(ci, r, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, r);
+                        new_writer.write_array_raw(ci, raw, r);
+                    }
+                }
+            }
+        }
+
+        impl_->ssm_writer = std::move(new_writer);
+        impl_->writer_columns = ssm_cols;
+
+        // Flush new writer to disk so readers see the expanded table.
+        auto& ssm_writer = impl_->ssm_writer.value();
+        ssm_writer.write_file(impl_->path.string(), 0);
+        ssm_writer.write_indirect_file(impl_->path.string(), 0);
+        td.storage_managers[0].data_blob = ssm_writer.make_blob();
+        write_table_directory(impl_->path.string(), td);
+
+        // Reset reader cache since metadata changed.
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+    }
+}
+
+void Table::remove_rows(std::vector<std::uint64_t> rows_to_remove) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::remove_rows: table is not writable");
+    }
+    if (rows_to_remove.empty()) {
+        return;
+    }
+
+    auto& td = impl_->dir.table_dat;
+    const auto old_nrow = td.row_count;
+
+    // Sort and deduplicate.
+    std::sort(rows_to_remove.begin(), rows_to_remove.end());
+    rows_to_remove.erase(std::unique(rows_to_remove.begin(), rows_to_remove.end()),
+                         rows_to_remove.end());
+
+    // Validate indices.
+    for (auto r : rows_to_remove) {
+        if (r >= old_nrow) {
+            throw std::runtime_error("Table::remove_rows: row index " + std::to_string(r) +
+                                     " out of range (nrow=" + std::to_string(old_nrow) + ")");
+        }
+    }
+
+    const auto new_nrow = old_nrow - static_cast<std::uint64_t>(rows_to_remove.size());
+    td.row_count = new_nrow;
+    td.post_td_row_count = new_nrow;
+
+    if (impl_->ssm_writer.has_value()) {
+        auto& old_writer = impl_->ssm_writer.value();
+
+        std::vector<ColumnDesc> ssm_cols;
+        for (const auto& col : td.table_desc.columns) {
+            auto lookup = find_sm_for_column(td, col.name);
+            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
+                ssm_cols.push_back(col);
+            }
+        }
+
+        // Flush current state to disk so we can re-read.
+        old_writer.write_file(impl_->path.string(), 0);
+        old_writer.write_indirect_file(impl_->path.string(), 0);
+
+        // Temporarily set nrow back to old for reader.
+        td.row_count = old_nrow;
+        td.post_td_row_count = old_nrow;
+        td.storage_managers[0].data_blob = old_writer.make_blob();
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+        impl_->ensure_ssm_readers();
+
+        // Build the new writer with reduced row count.
+        td.row_count = new_nrow;
+        td.post_td_row_count = new_nrow;
+
+        SsmWriter new_writer;
+        new_writer.setup(ssm_cols, new_nrow, td.big_endian, "StandardStMan");
+
+        // Build a set for fast removal lookup.
+        std::size_t remove_idx = 0;
+        std::uint64_t dst_row = 0;
+        for (std::uint64_t src_row = 0; src_row < old_nrow; ++src_row) {
+            if (remove_idx < rows_to_remove.size() && rows_to_remove[remove_idx] == src_row) {
+                ++remove_idx;
+                continue; // skip removed row
+            }
+            for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+                const auto& col = ssm_cols[ci];
+                auto* reader = impl_->find_ssm_for_column(col.name);
+                if (reader == nullptr)
+                    continue;
+                if (col.kind == ColumnKind::scalar) {
+                    new_writer.write_cell(ci, reader->read_cell(col.name, src_row), dst_row);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, src_row);
+                        new_writer.write_indirect_offset(ci, dst_row, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, src_row);
+                        new_writer.write_array_raw(ci, raw, dst_row);
+                    }
+                }
+            }
+            ++dst_row;
+        }
+
+        impl_->ssm_writer = std::move(new_writer);
+        impl_->writer_columns = ssm_cols;
+
+        // Flush new writer to disk so readers see the compacted table.
+        {
+            auto& w = impl_->ssm_writer.value();
+            w.write_file(impl_->path.string(), 0);
+            w.write_indirect_file(impl_->path.string(), 0);
+            td.storage_managers[0].data_blob = w.make_blob();
+            write_table_directory(impl_->path.string(), td);
+        }
+
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+    }
+}
+
+void Table::add_column(const TableColumnSpec& spec) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::add_column: table is not writable");
+    }
+
+    auto& td = impl_->dir.table_dat;
+
+    // Check for duplicate.
+    for (const auto& existing : td.table_desc.columns) {
+        if (existing.name == spec.name) {
+            throw std::runtime_error("Table::add_column: column '" + spec.name + "' already exists");
+        }
+    }
+
+    // Build ColumnDesc.
+    ColumnDesc cd;
+    cd.kind = spec.kind;
+    cd.name = spec.name;
+    cd.data_type = spec.data_type;
+    cd.comment = spec.comment;
+    cd.type_string = make_type_string(spec.data_type, spec.kind);
+    cd.dm_type = "StandardStMan";
+    cd.dm_group = "StandardStMan";
+    if (spec.kind == ColumnKind::array && !spec.shape.empty()) {
+        cd.ndim = static_cast<std::int32_t>(spec.shape.size());
+        cd.shape = spec.shape;
+        cd.options = 5; // Direct|FixedShape
+    } else if (spec.kind == ColumnKind::array) {
+        cd.ndim = -1; // variable shape
+    }
+    cd.version = 1;
+    td.table_desc.columns.push_back(cd);
+
+    // Add ColumnManagerSetup.
+    ColumnManagerSetup cms;
+    cms.column_name = spec.name;
+    cms.sequence_number = 0; // SSM
+    if (spec.kind == ColumnKind::array && !spec.shape.empty()) {
+        cms.has_shape = true;
+        cms.shape = spec.shape;
+    }
+    td.column_setups.push_back(std::move(cms));
+
+    // Rebuild SSM writer with the new column set.
+    if (impl_->ssm_writer.has_value()) {
+        auto& old_writer = impl_->ssm_writer.value();
+        const auto nrow = td.row_count;
+
+        // Flush old writer data to disk with old metadata (without new column)
+        // so the reader can parse it.
+        old_writer.write_file(impl_->path.string(), 0);
+        old_writer.write_indirect_file(impl_->path.string(), 0);
+
+        // Temporarily remove the new column from td for the reader.
+        auto saved_cd = td.table_desc.columns.back();
+        td.table_desc.columns.pop_back();
+        auto saved_cms = td.column_setups.back();
+        td.column_setups.pop_back();
+        td.storage_managers[0].data_blob = old_writer.make_blob();
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+        impl_->ensure_ssm_readers();
+
+        // Restore the new column.
+        td.table_desc.columns.push_back(std::move(saved_cd));
+        td.column_setups.push_back(std::move(saved_cms));
+
+        // Collect all SSM columns (including new one).
+        std::vector<ColumnDesc> ssm_cols;
+        for (const auto& col : td.table_desc.columns) {
+            auto lookup = find_sm_for_column(td, col.name);
+            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
+                ssm_cols.push_back(col);
+            }
+        }
+
+        SsmWriter new_writer;
+        new_writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
+
+        // Copy existing column data (skip the new column).
+        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+            const auto& col = ssm_cols[ci];
+            if (col.name == spec.name) {
+                continue; // new column, no data to copy
+            }
+            auto* reader = impl_->find_ssm_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                if (col.kind == ColumnKind::scalar) {
+                    new_writer.write_cell(ci, reader->read_cell(col.name, r), r);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, r);
+                        new_writer.write_indirect_offset(ci, r, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, r);
+                        new_writer.write_array_raw(ci, raw, r);
+                    }
+                }
+            }
+        }
+
+        impl_->ssm_writer = std::move(new_writer);
+        impl_->writer_columns = ssm_cols;
+
+        // Flush new writer to disk so readers see the updated table.
+        {
+            auto& w = impl_->ssm_writer.value();
+            w.write_file(impl_->path.string(), 0);
+            w.write_indirect_file(impl_->path.string(), 0);
+            td.storage_managers[0].data_blob = w.make_blob();
+            write_table_directory(impl_->path.string(), td);
+        }
+
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+    }
+}
+
+void Table::remove_column(std::string_view name) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::remove_column: table is not writable");
+    }
+
+    auto& td = impl_->dir.table_dat;
+
+    // Verify the column exists before removing.
+    auto& cols = td.table_desc.columns;
+    auto col_it =
+        std::find_if(cols.begin(), cols.end(), [&](const ColumnDesc& c) { return c.name == name; });
+    if (col_it == cols.end()) {
+        throw std::runtime_error("Table::remove_column: column '" + std::string(name) +
+                                 "' not found");
+    }
+
+    // Rebuild SSM writer without the removed column.
+    if (impl_->ssm_writer.has_value()) {
+        auto& old_writer = impl_->ssm_writer.value();
+        const auto nrow = td.row_count;
+
+        // Flush old writer data with the FULL column set so reader can parse.
+        old_writer.write_file(impl_->path.string(), 0);
+        old_writer.write_indirect_file(impl_->path.string(), 0);
+        td.storage_managers[0].data_blob = old_writer.make_blob();
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+        impl_->ensure_ssm_readers();
+
+        // Now remove the column from metadata.
+        cols.erase(std::find_if(cols.begin(), cols.end(),
+                                [&](const ColumnDesc& c) { return c.name == name; }));
+        std::erase_if(td.column_setups,
+                      [&](const ColumnManagerSetup& s) { return s.column_name == name; });
+        std::erase_if(impl_->writer_columns,
+                      [&](const ColumnDesc& c) { return c.name == name; });
+
+        // Collect remaining SSM columns.
+        std::vector<ColumnDesc> ssm_cols;
+        for (const auto& col : td.table_desc.columns) {
+            auto lookup = find_sm_for_column(td, col.name);
+            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
+                ssm_cols.push_back(col);
+            }
+        }
+
+        SsmWriter new_writer;
+        new_writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
+
+        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+            const auto& col = ssm_cols[ci];
+            auto* reader = impl_->find_ssm_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                if (col.kind == ColumnKind::scalar) {
+                    new_writer.write_cell(ci, reader->read_cell(col.name, r), r);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, r);
+                        new_writer.write_indirect_offset(ci, r, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, r);
+                        new_writer.write_array_raw(ci, raw, r);
+                    }
+                }
+            }
+        }
+
+        impl_->ssm_writer = std::move(new_writer);
+        impl_->writer_columns = ssm_cols;
+
+        // Flush new writer to disk so readers see the reduced table.
+        {
+            auto& w = impl_->ssm_writer.value();
+            w.write_file(impl_->path.string(), 0);
+            w.write_indirect_file(impl_->path.string(), 0);
+            td.storage_managers[0].data_blob = w.make_blob();
+            write_table_directory(impl_->path.string(), td);
+        }
+
+        impl_->ssm_readers.clear();
+        impl_->ssm_readers_initialized = false;
+    } else {
+        // No SSM writer, just update metadata.
+        cols.erase(col_it);
+        std::erase_if(td.column_setups,
+                      [&](const ColumnManagerSetup& s) { return s.column_name == name; });
+        std::erase_if(impl_->writer_columns,
+                      [&](const ColumnDesc& c) { return c.name == name; });
+    }
+}
+
+void Table::rename_column(std::string_view old_name, std::string_view new_name) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::rename_column: table is not writable");
+    }
+
+    auto& td = impl_->dir.table_dat;
+
+    // Verify old_name exists.
+    auto& cols = td.table_desc.columns;
+    auto col_it = std::find_if(cols.begin(), cols.end(),
+                               [&](const ColumnDesc& c) { return c.name == old_name; });
+    if (col_it == cols.end()) {
+        throw std::runtime_error("Table::rename_column: column '" + std::string(old_name) +
+                                 "' not found");
+    }
+
+    // Verify new_name does not exist.
+    auto dup_it = std::find_if(cols.begin(), cols.end(),
+                               [&](const ColumnDesc& c) { return c.name == new_name; });
+    if (dup_it != cols.end()) {
+        throw std::runtime_error("Table::rename_column: column '" + std::string(new_name) +
+                                 "' already exists");
+    }
+
+    // Rename in table_desc.columns.
+    col_it->name = std::string(new_name);
+
+    // Rename in column_setups.
+    for (auto& setup : td.column_setups) {
+        if (setup.column_name == old_name) {
+            setup.column_name = std::string(new_name);
+        }
+    }
+
+    // Rename in writer_columns.
+    for (auto& wc : impl_->writer_columns) {
+        if (wc.name == old_name) {
+            wc.name = std::string(new_name);
+        }
+    }
+}
+
+void Table::set_keyword(std::string_view key, RecordValue value) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::set_keyword: table is not writable");
+    }
+    impl_->dir.table_dat.table_desc.keywords.set(key, std::move(value));
+}
+
+void Table::remove_keyword(std::string_view key) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::remove_keyword: table is not writable");
+    }
+    if (!impl_->dir.table_dat.table_desc.keywords.remove(key)) {
+        throw std::runtime_error("Table::remove_keyword: keyword '" + std::string(key) +
+                                 "' not found");
+    }
+}
+
+void Table::copy_column(std::string_view src, std::string_view dst) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::copy_column: table is not writable");
+    }
+
+    const auto* src_cd = find_column_desc(src);
+    if (src_cd == nullptr) {
+        throw std::runtime_error("Table::copy_column: source column '" + std::string(src) +
+                                 "' not found");
+    }
+
+    // Check dst does not exist.
+    if (find_column_desc(dst) != nullptr) {
+        throw std::runtime_error("Table::copy_column: destination column '" + std::string(dst) +
+                                 "' already exists");
+    }
+
+    // Build a spec from the source column.
+    TableColumnSpec spec;
+    spec.name = std::string(dst);
+    spec.data_type = src_cd->data_type;
+    spec.kind = src_cd->kind;
+    spec.shape.assign(src_cd->shape.begin(), src_cd->shape.end());
+    spec.comment = src_cd->comment;
+
+    // Add the new column (this rebuilds the writer).
+    add_column(spec);
+
+    // Now copy the data cell by cell.
+    const auto nrow = this->nrow();
+    if (nrow == 0) {
+        return;
+    }
+
+    if (spec.kind == ColumnKind::scalar) {
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            auto val = read_scalar_cell(src, r);
+            write_scalar_cell(dst, r, val);
+        }
+    } else if (spec.kind == ColumnKind::array) {
+        // Copy array data. We need to use the appropriate typed read/write
+        // based on data type.
+        switch (spec.data_type) {
+        case DataType::tp_float:
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto vals = read_array_float_cell(src, r);
+                write_array_float_cell(dst, r, vals);
+            }
+            break;
+        case DataType::tp_double:
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto vals = read_array_double_cell(src, r);
+                write_array_double_cell(dst, r, vals);
+            }
+            break;
+        default:
+            // For other array types, use raw bytes.
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                auto raw = read_array_raw_cell(src, r);
+                // Write via the SSM writer directly.
+                if (impl_->ssm_writer.has_value()) {
+                    auto& ssm_writer = impl_->ssm_writer.value();
+                    for (std::size_t ci = 0; ci < impl_->writer_columns.size(); ++ci) {
+                        if (impl_->writer_columns[ci].name == dst) {
+                            ssm_writer.write_array_raw(ci, raw, r);
+                            break;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+}
+
+void Table::drop(const std::filesystem::path& path) {
+    if (!std::filesystem::exists(path)) {
+        throw std::runtime_error("Table::drop: path '" + path.string() + "' does not exist");
+    }
+    std::filesystem::remove_all(path);
 }
 
 // ---------------------------------------------------------------------------

@@ -181,6 +181,16 @@ const RecordValue* Record::find(const std::string_view key) const {
     return &it->second;
 }
 
+bool Record::remove(const std::string_view key) {
+    const auto it = std::find_if(entries_.begin(), entries_.end(),
+                                 [&](const entry& item) { return item.first == key; });
+    if (it == entries_.end()) {
+        return false;
+    }
+    entries_.erase(it);
+    return true;
+}
+
 std::size_t Record::size() const noexcept {
     return entries_.size();
 }

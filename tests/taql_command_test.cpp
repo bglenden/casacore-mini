@@ -178,33 +178,22 @@ static void test_insert_throws() {
 }
 
 // ---------------------------------------------------------------------------
-// GROUPBY / HAVING throw (not supported)
+// GROUPBY / HAVING (now supported)
 // ---------------------------------------------------------------------------
 
-static void test_groupby_throws() {
+static void test_groupby_works() {
     auto path = create_test_table();
     auto table = Table::open(path);
-    bool threw = false;
-    try {
-        (void)taql_execute("SELECT ID FROM t GROUPBY ID", table);
-    } catch (const std::runtime_error& e) {
-        threw = std::string(e.what()).find("GROUPBY") != std::string::npos;
-    }
-    check(threw, "GROUPBY throws runtime_error");
+    auto r = taql_execute("SELECT ID FROM t GROUPBY ID", table);
+    check(r.rows.size() > 0, "GROUPBY returns groups");
     fs::remove_all(path);
 }
 
-static void test_having_throws() {
+static void test_having_works() {
     auto path = create_test_table();
     auto table = Table::open(path);
-    bool threw = false;
-    try {
-        (void)taql_execute("SELECT ID FROM t GROUPBY ID HAVING ID > 3", table);
-    } catch (const std::runtime_error& e) {
-        threw = std::string(e.what()).find("GROUPBY") != std::string::npos ||
-                std::string(e.what()).find("HAVING") != std::string::npos;
-    }
-    check(threw, "HAVING throws runtime_error");
+    auto r = taql_execute("SELECT ID, GCOUNT() AS cnt FROM t GROUPBY ID HAVING GCOUNT() >= 1", table);
+    check(r.rows.size() > 0, "HAVING filters groups");
     fs::remove_all(path);
 }
 
@@ -250,8 +239,8 @@ int main() {
     test_update();
     test_delete_throws();
     test_insert_throws();
-    test_groupby_throws();
-    test_having_throws();
+    test_groupby_works();
+    test_having_works();
     test_show();
     test_expr_with_columns();
 
