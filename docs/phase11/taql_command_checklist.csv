@@ -1,0 +1,116 @@
+family,feature,upstream_source,mini_symbol,status,target_wave,test_id,interop_artifact,commit_sha,pr_link,evidence_path,oracle_diff_path,notes
+SELECT,SELECT keyword,TableGram.yy:415,taql_execute,Done,P11-W3,taql_command_test,none,77d52e2,,tests/taql_command_test.cpp,none,"Parser + executor complete"
+SELECT,DISTINCT/ALL modifier,TableGram.yy:442-464,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"DISTINCT deduplication on projection values"
+SELECT,expression list (projection),TableGram.yy:457-464,taql_execute,Done,P11-W3,taql_command_test,none,77d52e2,,tests/taql_command_test.cpp,none,"Column selection and expression projection"
+SELECT,INTO clause,TableGram.yy:442-464,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser only; requires output table creation (DDL)
+SELECT,FROM clause,TableGram.yy:415,taql_execute,Done,P11-W3,taql_command_test,none,77d52e2,,tests/taql_command_test.cpp,none,"Single-table FROM with implicit t alias"
+SELECT,FROM subquery,TableGram.yy:1389-1410,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser captures subquery string; no recursive execution
+SELECT,FROM :: subtables,TaQLShow.cc:199,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles :: syntax; no subtable resolution
+SELECT,FROM concatenated,TableGram.yy:1414-1425,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles comma-sep tables; single-table executor
+SELECT,FROM $nnn temp tables,TableParse.h:54-57,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles $N syntax; no temp table registry
+SELECT,JOIN clause,TableGram.yy:1490,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; executor requires multi-table engine
+SELECT,JOIN multiple,TableGram.yy:1478-1488,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles multiple JOINs; no executor
+SELECT,JOIN AROUND/IN,TaQLShow.cc:214-224,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles interval join syntax; no executor
+SELECT,WHERE clause,TableGram.yy:1497-1504,taql_execute,Done,P11-W3,taql_command_test,none,77d52e2,,tests/taql_command_test.cpp,none,"Full expression evaluation in WHERE"
+SELECT,GROUPBY clause,TableGram.yy:896-911,taql_parse,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (requires aggregation engine)"
+SELECT,GROUPBY ROLLUP,TableGram.yy:65,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles ROLLUP; requires aggregation engine
+SELECT,HAVING clause,TableGram.yy:913-925,taql_parse,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (requires aggregation engine)"
+SELECT,ORDERBY ASC/DESC,TableGram.yy:927-977,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Multi-key sort with ASC/DESC"
+SELECT,ORDERBY DISTINCT/NODUPL,TaQLShow.cc:248,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles NODUPL; dedup not in sort executor
+SELECT,LIMIT clause,TableGram.yy:978-1008,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Row count limiting"
+SELECT,OFFSET clause,TableGram.yy:978-1008,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Row offset"
+SELECT,LIMIT start:end:step,TaQLShow.cc:251-258,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles stride; executor uses simple LIMIT
+SELECT,GIVING clause,TableGram.yy:1044-1057,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; requires output table DDL
+SELECT,DMINFO clause,TableGram.yy:873-881,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser captures DMINFO; no SM selection from TaQL
+SELECT,WITH clause (CTEs),TableGram.yy:403-413,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles CTEs; no recursive query execution
+UPDATE,UPDATE command,TableGram.yy:473,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Full UPDATE with WHERE + assignments + flush"
+UPDATE,SET column=expr,TableGram.yy:494-524,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Expression evaluation for assignments"
+UPDATE,SET array slicing,TaQLShow.cc:303-307,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles slicing syntax; scalar-only writes
+UPDATE,SET masked array,TaQLShow.cc:308-311,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles mask syntax; no masked array support
+UPDATE,FROM clause,TableGram.yy:473,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles multi-table; single-table executor
+UPDATE,WHERE/ORDERBY/LIMIT,TableGram.yy:473,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"WHERE filtering for UPDATE"
+INSERT,INSERT INTO,TableGram.yy:526,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; Table API lacks addRow
+INSERT,SET syntax,TaQLShow.cc:323,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles SET; no row insertion
+INSERT,VALUES syntax,TaQLShow.cc:325,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles VALUES; no row insertion
+INSERT,SELECT syntax,TaQLShow.cc:327,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles INSERT..SELECT; no row insertion
+INSERT,column list,TableGram.yy:559-569,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles column list; no row insertion
+INSERT,LIMIT clause,TaQLShow.cc:346-348,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles LIMIT; no row insertion
+DELETE,DELETE FROM,TableGram.yy:613,taql_execute,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (Table API lacks removeRow)"
+DELETE,WHERE/ORDERBY/LIMIT,TableGram.yy:613,taql_execute,Simplified,P11-W4,,none,46fb249,,tests/taql_command_test.cpp,none,"Parser complete; executor rejects with clear error (Table API lacks removeRow)"
+COUNT,COUNT command,TableGram.yy:465,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Full COUNT with WHERE"
+COUNT,column list/WHERE,TableGram.yy:465,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"Column-level count groups"
+CALC,CALC expression,TableGram.yy:629,taql_execute,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Full expression evaluation"
+CALC,CALC FROM,TableGram.yy:629,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"CALC with table context"
+CREATE_TABLE,CREATE TABLE,TableGram.yy:646,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; requires filesystem table creation
+CREATE_TABLE,LIKE clause,TableGram.yy:1266-1281,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles LIKE; no DDL execution
+CREATE_TABLE,ADD COLUMN specs,TableGram.yy:1178-1203,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles column defs; no DDL execution
+CREATE_TABLE,DMINFO clause,TableGram.yy:646,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser captures DMINFO; no DDL execution
+CREATE_TABLE,LIMIT (initial rows),TableGram.yy:646,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles LIMIT; no DDL execution
+ALTER_TABLE,ALTER TABLE,TableGram.yy:671,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; requires column mutation API
+ALTER_TABLE,ADD COLUMN,TableGram.yy:692-738,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles ADD COLUMN; no DDL execution
+ALTER_TABLE,COPY COLUMN,TableGram.yy:740-753,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles COPY; no DDL execution
+ALTER_TABLE,RENAME COLUMN,TableGram.yy:755-768,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles RENAME; no DDL execution
+ALTER_TABLE,DROP COLUMN,TableGram.yy:770-780,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles DROP; no DDL execution
+ALTER_TABLE,SET KEYWORD,TableGram.yy:809-825,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles SET KEYWORD; no DDL execution
+ALTER_TABLE,COPY KEYWORD,TableGram.yy:828-838,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles COPY KEYWORD; no DDL execution
+ALTER_TABLE,RENAME KEYWORD,TableGram.yy:782-795,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles RENAME KEYWORD; no DDL execution
+ALTER_TABLE,DROP KEYWORD,TableGram.yy:797-807,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles DROP KEYWORD; no DDL execution
+ALTER_TABLE,ADD ROW,TableGram.yy:171,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles ADD ROW; Table API lacks addRow
+DROP_TABLE,DROP TABLE,TableGram.yy:621,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser complete; requires filesystem deletion
+SHOW,SHOW keyword,TableGram.yy:46,taql_execute,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Full SHOW implementation"
+SHOW,SHOW topic variants,TaQLShow.cc:58-78,taql_execute,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"All topic variants"
+OPERATOR,comparison (= != < > <= >=),TableGram.yy:1529-1565,eval_expr,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Full comparison operators"
+OPERATOR,near/nearabs (~= !~=),TableGram.yy:1567-1583,eval_expr,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"2-arg and 3-arg tolerance forms"
+OPERATOR,arithmetic (+ - * / // % **),TableGram.yy:1718-1788,eval_expr,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Int and float paths"
+OPERATOR,logical (AND OR NOT ! && ||),TableGram.yy:1507-1526,eval_expr,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Short-circuit evaluation"
+OPERATOR,bitwise (& | ^ ~),TableGram.yy:1751-1776,eval_expr,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Integer-only bitwise ops"
+OPERATOR,IN / NOT IN,TableGram.yy:1645-1666,eval_expr,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Set membership test"
+OPERATOR,BETWEEN / AROUND,TableGram.yy:1668-1696,eval_expr,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Closed interval range test"
+OPERATOR,INCONE,TableGram.yy:1698-1714,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles INCONE; evaluator requires spherical geometry
+OPERATOR,LIKE / ILIKE / NOT LIKE,TableGram.yy:1589-1617,eval_expr,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"Full SQL/glob pattern via regex conversion"
+OPERATOR,REGEX (~ !~),TableGram.yy:1585-1587,eval_expr,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"ECMAScript regex evaluation"
+OPERATOR,EXISTS (subquery),TableGram.yy:1633-1643,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles EXISTS; requires subquery execution
+FUNCTION,math (sin cos tan asin acos atan atan2 exp log log10 sqrt pow abs sign round floor ceil fmod),ExprFuncNode.h,eval_math_func,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"All standard math functions"
+FUNCTION,complex (conj real imag complex norm arg),ExprFuncNode.h,eval_math_func,Simplified,P11-W4,,none,46fb249,,,,Real-valued paths only; full complex arithmetic deferred
+FUNCTION,trig (square cube min max),ExprFuncNode.h,eval_math_func,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"Convenience math functions"
+FUNCTION,test (isnan isinf isfinite isdef isnull iscolumn iskeyword),ExprFuncNode.h,eval_math_func,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"All predicate functions including table-context ones"
+FUNCTION,array info (ndim nelem shape),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires array column support
+FUNCTION,array ops (array transpose areverse resize diagonal arrflat),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires array column support
+FUNCTION,array reduction (arrsum arrmin arrmax arrmean arrmedian arrvariance arrstddev arrrms arravdev arrfractile),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires array column support
+FUNCTION,array running/box (runsum runmin runmax runmean boxsum boxmin boxmax boxmean etc),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires array column support
+FUNCTION,array boolean (arrany arrall arrnTrue arrnFalse),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires array column support
+FUNCTION,string (strlen upcase downcase capitalize trim ltrim rtrim substr replace sreverse),ExprFuncNode.h,eval_math_func,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"All string functions implemented"
+FUNCTION,pattern (regex pattern sqlpattern),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; runtime uses regex_expr evaluation
+FUNCTION,datetime (datetime mjdtodate mjd date time year month day cmonth weekday cdow week ctod cdate ctime),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires date/time framework
+FUNCTION,angle (hms dms hdms normangle angdist angdistx),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires measures framework
+FUNCTION,type conversion (int bool string),ExprFuncNode.h,eval_math_func,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"INT BOOL STRING conversion functions"
+FUNCTION,misc (near nearabs iif rand rownr rowid),ExprFuncNode.h,eval_math_func,Done,P11-W7,taql_w7_closure_test,none,,,tests/taql_w7_closure_test.cpp,none,"All misc functions with row context"
+FUNCTION,masked array (nullarray marray arraydata arraymask negate_mask replmasked replunmasked),ExprFuncNode.h,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles; requires masked array support
+FUNCTION,constants (pi e c),ExprFuncNode.h,eval_math_func,Done,P11-W4,taql_eval_test,none,46fb249,,tests/taql_eval_test.cpp,none,"PI E C constants"
+FUNCTION,aggregate (gcount gfirst glast gmin gmax gsum gproduct gsumsqr gmean gvariance gstddev grms gany gall gntrue gnfalse ghist gaggr growid gmedian gfractile),ExprFuncNode.h,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles as aggregate_call; requires GROUPBY engine
+FUNCTION,aggregate array (gmins gmaxs gsums gproducts gsumsqrs gmeans gvariances gstddevs grmss ganys galls gntrues gnfalses),ExprFuncNode.h,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles; requires GROUPBY engine
+FUNCTION,cone search (cones cones3 anycone anycone3 findcone findcone3),ExprFuncNode.h,taql_parse,Simplified,P11-W4,,none,46fb249,,,,Parser handles; requires spherical geometry
+FUNCTION,MeasUDF families,meas/MeasUDF/,,Excluded,P11-W7,,none,,,,,UDF registration requires plugin architecture beyond scope
+EXPRESSION,unit suffixes,TableGram.yy:1796-1800,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser stores unit; evaluator does not convert
+EXPRESSION,parenthesized subexpr,TableGram.yy:1821-1822,eval_expr,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Parenthesized expressions"
+EXPRESSION,column reference,TableGram.yy:1838-1841,eval_expr,Done,P11-W3,taql_command_test,none,77d52e2,,tests/taql_command_test.cpp,none,"Named column access in row context"
+EXPRESSION,array indexing/subscripts,TableGram.yy:2064-2120,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles subscript; evaluator requires array cell access
+EXPRESSION,set/range literal,TableGram.yy:1880-1923,eval_expr,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Set and range literals for IN/BETWEEN"
+EXPRESSION,interval notation,TableGram.yy:2121-2202,taql_parse,Done,P11-W3,,none,77d52e2,,,,Parser handles open/closed intervals via RangeIncl
+EXPRESSION,keyword reference,TaQLShow.cc:502,eval_expr,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"col::key lookup in table keywords"
+EXPRESSION,nested keyword,TaQLShow.cc:503,eval_expr,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"col::key.sub.field nested lookup"
+EXPRESSION,field reference (dotted),TableGram.yy:1852-1857,taql_parse,Done,P11-W3,,none,77d52e2,,,,Parser handles dotted names
+EXPRESSION,column regex projection,TaQLShow.cc:177-180,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser captures pattern; no regex column matching
+EXPRESSION,masked column syntax,TaQLShow.cc:174-176,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser handles (data,mask) pair; no masked evaluation
+CONSTANT,boolean TRUE/FALSE/T/F,TaQLShow.cc:552,TaqlLexer,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Boolean literals"
+CONSTANT,integer (decimal/hex),TaQLShow.cc:553,TaqlLexer,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Integer literals"
+CONSTANT,double (with optional unit),TaQLShow.cc:554-555,TaqlLexer,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"Floating-point literals"
+CONSTANT,complex (a+bi/a-bj),TaQLShow.cc:558,TaqlLexer,Done,P11-W3,,none,77d52e2,,,,Lexer handles complex literals
+CONSTANT,string (single/double quotes),TaQLShow.cc:559,TaqlLexer,Done,P11-W3,taql_eval_test,none,77d52e2,,tests/taql_eval_test.cpp,none,"String literals"
+CONSTANT,datetime,TaQLShow.cc:560,TaqlLexer,Done,P11-W3,,none,77d52e2,,,,Lexer handles datetime literals
+CONSTANT,regex (p/ f/ m/ % @),TaQLShow.cc:562-564,TaqlLexer,Done,P11-W3,,none,77d52e2,,,,Lexer handles regex literal syntax
+SPECIAL,STYLE options,TableGram.yy:304-317,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser captures style; evaluator ignores
+SPECIAL,TIMING keyword,TableGram.yy:288-296,taql_parse,Simplified,P11-W3,,none,77d52e2,,,,Parser captures timing flag; no profiling
+SPECIAL,table shorthand (t0 t1),TaQLShow.cc:196-197,taql_parse,Done,P11-W3,,none,77d52e2,,,,Parser handles t alias; single-table executor
+SPECIAL,AS column alias/rename,TableGram.yy:442-464,taql_execute,Done,P11-W4,taql_command_test,none,46fb249,,tests/taql_command_test.cpp,none,"AS alias in projection column names"
+SPECIAL,UDF libraries,TableParseFunc.h:53-58,,Excluded,P11-W7,,none,,,,,Requires plugin/UDF registration architecture beyond scope

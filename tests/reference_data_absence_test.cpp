@@ -3,7 +3,6 @@
 #include "casacore_mini/quantity.hpp"
 #include "casacore_mini/velocity_machine.hpp"
 
-#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -24,10 +23,10 @@ bool test_utc_to_tai_no_reference_data() {
     MeasureFrame frame;
     auto converted = convert_measure(epoch, EpochRef::tai, frame);
 
-    const auto& ev = std::get<EpochValue>(converted.value);
+    auto ev = std::get<EpochValue>(converted.value);
     double actual_tai = ev.day + ev.fraction;
     double expected_tai = 59000.5 + 37.0 / 86400.0;
-    assert(std::abs(actual_tai - expected_tai) < 1e-8);
+    if (std::abs(actual_tai - expected_tai) >= 1e-8) return false;
     return true;
 }
 
@@ -41,10 +40,10 @@ bool test_utc_to_tdt_no_reference_data() {
     MeasureFrame frame;
     auto converted = convert_measure(epoch, EpochRef::tdt, frame);
 
-    const auto& ev = std::get<EpochValue>(converted.value);
+    auto ev = std::get<EpochValue>(converted.value);
     double actual_tdt = ev.day + ev.fraction;
     double expected_tdt = 59000.5 + (37.0 + 32.184) / 86400.0;
-    assert(std::abs(actual_tdt - expected_tdt) < 1e-8);
+    if (std::abs(actual_tdt - expected_tdt) >= 1e-8) return false;
     return true;
 }
 
@@ -58,11 +57,11 @@ bool test_j2000_to_galactic_no_frame() {
     MeasureFrame frame;
     auto converted = convert_measure(dir, DirectionRef::galactic, frame);
 
-    const auto& dv = std::get<DirectionValue>(converted.value);
-    assert(std::isfinite(dv.lon_rad));
-    assert(std::isfinite(dv.lat_rad));
+    auto dv = std::get<DirectionValue>(converted.value);
+    if (!std::isfinite(dv.lon_rad)) return false;
+    if (!std::isfinite(dv.lat_rad)) return false;
     // Galactic lat should be > 0 for this direction (high galactic latitude)
-    assert(dv.lat_rad > 0.5); // roughly > 30 deg
+    if (dv.lat_rad <= 0.5) return false; // roughly > 30 deg
     return true;
 }
 
@@ -71,7 +70,7 @@ bool test_doppler_conversion_no_deps() {
     constexpr double kZ = 0.1;
     double radio = z_to_radio(kZ);
     double back = radio_to_z(radio);
-    assert(std::abs(back - kZ) < 1e-12);
+    if (std::abs(back - kZ) >= 1e-12) return false;
     return true;
 }
 
@@ -82,7 +81,7 @@ bool test_velocity_machine_no_deps() {
 
     double vel = freq_ratio_to_optical_velocity(kObsFreq, kRestFreq);
     double freq_back = optical_velocity_to_freq(vel, kRestFreq);
-    assert(std::abs(freq_back - kObsFreq) / kObsFreq < 1e-12);
+    if (std::abs(freq_back - kObsFreq) / kObsFreq >= 1e-12) return false;
     return true;
 }
 

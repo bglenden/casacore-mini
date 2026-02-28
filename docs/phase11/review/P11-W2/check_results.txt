@@ -1,0 +1,26 @@
+=== Phase 11 Wave 2 Gate ===
+
+--- Contract artifacts ---
+  PASS: interop_artifact_inventory.md
+  PASS: tolerances.md
+  PASS: lint_profile.md
+
+--- Check scaffolding ---
+  PASS: check_phase11.sh
+  PASS: check_phase11_w2.sh
+
+--- Review infrastructure ---
+  PASS: review packet template
+  PASS: phase11_status.json
+
+--- W1 prerequisite pass ---
+  PASS: W1 gate passes
+
+--- Tranche mapping ---
+  PASS: TaQL tranche mapping (W3=63, W4=52)
+  PASS: MSSel tranche mapping (W5=67, W6=25)
+
+  PASS: phase11_status.json updated
+
+=== P11-W2 Result: pass=11 fail=0 ===
+P11-W2 GATE PASSED

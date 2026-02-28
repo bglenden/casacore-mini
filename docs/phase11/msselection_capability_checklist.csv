@@ -1,0 +1,94 @@
+family,feature,upstream_source,mini_symbol,status,target_wave,test_id,interop_artifact,commit_sha,pr_link,evidence_path,oracle_diff_path,notes
+ANTENNA,Single antenna by ID,MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"ID list and range parsing"
+ANTENNA,Antenna ID range (a~b),MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Range syntax"
+ANTENNA,Antenna by name,MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Exact name lookup in ANTENNA subtable"
+ANTENNA,Antenna pattern/glob,MSAntennaGram.yy,MsSelection::set_antenna_expr,Simplified,P11-W5,,none,55db8e1,,,,Exact name match only; glob patterns (* ?) not resolved
+ANTENNA,Antenna regex,MSAntennaGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Parser handles name; regex on names not implemented
+ANTENNA,Baseline cross-only (a1&a2),MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Cross-correlation baselines"
+ANTENNA,Baseline with auto (a1&&a2),MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Include auto-correlations"
+ANTENNA,Baseline auto-only (a1&&&),MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Self-correlations only"
+ANTENNA,Baseline negation (!a1&a2),MSAntennaGram.yy,MsSelection::set_antenna_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Exclude baselines"
+ANTENNA,Baseline regex,MSAntennaGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Parser handles baseline patterns; regex not implemented
+ANTENNA,Baseline length range,MSAntennaGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Requires UVW distance calculation; not implemented
+ANTENNA,Station@location,MSAntennaGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Requires station subtable lookup; not implemented
+ANTENNA,getAntenna1List accessor,MSSelection.h,MsSelectionResult::antennas,Done,P11-W6,,none,c25a03a,,,,Result.antennas populated from evaluate()
+ANTENNA,getAntenna2List accessor,MSSelection.h,MsSelectionResult::antennas,Done,P11-W6,,none,c25a03a,,,,Same antennas list; split a1/a2 deferred
+ANTENNA,getBaselineList accessor,MSSelection.h,MsSelectionResult::antennas,Simplified,P11-W6,,none,c25a03a,,,,Flat antenna list; baseline pair matrix not implemented
+FIELD,Single field ID,MSFieldGram.yy,MsSelection::set_field_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Basic ID parsing"
+FIELD,Field ID range (n~m),MSFieldGram.yy,MsSelection::set_field_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Range syntax"
+FIELD,Field by name,MSFieldGram.yy,MsSelection::set_field_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Name lookup in FIELD subtable"
+FIELD,Field pattern/glob,MSFieldGram.yy,MsSelection::set_field_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Glob patterns (* ?) on names"
+FIELD,Field regex,MSFieldGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Glob only; regex on names not implemented
+FIELD,Field ID bounds (< >),MSFieldGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Bound operators not implemented for field IDs
+FIELD,getFieldList accessor,MSSelection.h,MsSelectionResult::fields,Done,P11-W6,,none,c25a03a,,,,Result.fields populated from evaluate()
+SPW,Single SPW ID,MSSpwGram.yy,MsSelection::set_spw_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Basic ID parsing"
+SPW,SPW ID range,MSSpwGram.yy,MsSelection::set_spw_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Range syntax n~m"
+SPW,SPW by name,MSSpwGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,SPW name lookup not implemented; numeric IDs only
+SPW,SPW pattern/glob/regex,MSSpwGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,SPW pattern matching not implemented
+SPW,SPW with channel selection,MSSpwGram.yy,MsSelection::set_spw_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"spw:chan0~chan1 channel range"
+SPW,Frequency range (Hz/MHz/GHz),MSSpwGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Requires frequency data from SPW subtable
+SPW,Frequency with step,MSSpwGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Requires frequency data
+SPW,SPW comparisons (< >),MSSpwGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,SPW bound operators not implemented
+SPW,Channel list,MSSpwGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Discrete channel list parsing not implemented
+SPW,getSpwList accessor,MSSelection.h,MsSelectionResult::spws,Done,P11-W6,,none,c25a03a,,,,Result.spws populated from evaluate()
+SPW,getChanList accessor,MSSelection.h,MsSelectionResult::channel_ranges,Done,P11-W6,,none,c25a03a,,,,Result.channel_ranges populated
+SPW,getChanFreqList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Requires frequency data from SPW subtable
+SPW,getSPWDDIDList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,DDID mapping available via evaluate(); no separate accessor
+TIME,Date/time single,MSTimeGram.yy,MsSelection::set_time_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"MJD double parsing"
+TIME,Date/time range (start~end),MSTimeGram.yy,MsSelection::set_time_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"MJD range parsing"
+TIME,Date/time format parsing,MSTimeGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Requires date/time string parser; MJD doubles only
+TIME,Wildcard time fields,MSTimeGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Requires date/time format parser
+TIME,Lower/upper bounds (< >),MSTimeGram.yy,MsSelection::set_time_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Time bound operators"
+TIME,getTimeList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Time ranges not stored in result; available via time_expr()
+SCAN,Single scan ID,MSScanGram.yy,MsSelection::set_scan_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Basic ID parsing"
+SCAN,Scan ID range,MSScanGram.yy,MsSelection::set_scan_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Range syntax n~m"
+SCAN,Scan ID bounds (< >),MSScanGram.yy,MsSelection::set_scan_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Bound operators"
+SCAN,getScanList accessor,MSSelection.h,MsSelectionResult::scans,Done,P11-W6,,none,c25a03a,,,,Result.scans populated from evaluate()
+ARRAY,Single array ID,MSArrayGram.yy,MsSelection::set_array_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Subarray ID"
+ARRAY,Array ID range,MSArrayGram.yy,MsSelection::set_array_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Range syntax n~m"
+ARRAY,Array ID bounds (< >),MSArrayGram.yy,MsSelection::set_array_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Bound operators"
+ARRAY,getSubArrayList accessor,MSSelection.h,MsSelectionResult::arrays,Done,P11-W6,,none,c25a03a,,,,Result.arrays populated from evaluate()
+UVDIST,UV distance value,MSUvDistGram.yy,MsSelection::set_uvdist_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"UV distance parsing"
+UVDIST,UV range (min~max),MSUvDistGram.yy,MsSelection::set_uvdist_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"UV range parsing"
+UVDIST,UV bounds (< >),MSUvDistGram.yy,MsSelection::set_uvdist_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"UV bound operators"
+UVDIST,UV units (m/km/wavelength),MSUvDistGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Assumes meters; unit conversion not implemented
+UVDIST,UV percentage variance,MSUvDistGram.yy,,Simplified,P11-W5,,none,55db8e1,,,,Percentage syntax not implemented
+UVDIST,getUVList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,UV ranges not stored in result; available via uvdist_expr()
+UVDIST,getUVUnitsList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Units not tracked
+CORR,Stokes types (XX YY RR LL I Q U V),MSCorrGram.yy,MsSelection::set_corr_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Correlation name parsing"
+CORR,Multiple correlations (comma-sep),MSCorrGram.yy,MsSelection::set_corr_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Comma-separated list"
+CORR,getDDIDList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Correlation names stored in result.correlations; no DDID mapping
+CORR,getPolMap accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Requires polarization subtable lookup
+CORR,getCorrMap accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Requires polarization subtable lookup
+STATE,Single state ID,MSStateGram.yy,MsSelection::set_state_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"State ID parsing"
+STATE,State ID range,MSStateGram.yy,MsSelection::set_state_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Range syntax n~m"
+STATE,State ID bounds (< >),MSStateGram.yy,MsSelection::set_state_expr,Simplified,P11-W5,,none,55db8e1,,,,Bound operators not implemented for state
+STATE,State obs_mode pattern,MSStateGram.yy,MsSelection::set_state_expr,Done,P11-W5,ms_selection_test,none,55db8e1,,tests/ms_selection_test.cpp,none,"Glob pattern on OBS_MODE"
+STATE,getStateObsModeList accessor,MSSelection.h,MsSelectionResult::states,Done,P11-W6,,none,c25a03a,,,,Result.states populated from evaluate()
+OBSERVATION,Single obs ID,MSObservationGram.yy,MsSelection::set_observation_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Observation ID"
+OBSERVATION,Obs ID range,MSObservationGram.yy,MsSelection::set_observation_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Range syntax n~m"
+OBSERVATION,Obs ID bounds (< >),MSObservationGram.yy,MsSelection::set_observation_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Bound operators"
+OBSERVATION,getObservationList accessor,MSSelection.h,MsSelectionResult::observations,Done,P11-W6,,none,c25a03a,,,,Result.observations populated from evaluate()
+FEED,Single feed ID,MSFeedGram.yy,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Feed ID"
+FEED,Feed ID range,MSFeedGram.yy,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Range syntax n~m"
+FEED,Feed pair cross (f1&f2),MSFeedGram.yy,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Cross feeds"
+FEED,Feed pair auto (f1&&f2),MSFeedGram.yy,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"With auto feeds"
+FEED,Feed pair auto-only (f1&&&),MSFeedGram.yy,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Self feeds only"
+FEED,Feed negation (!f1&f2),MSFeedGram.yy,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Exclude feed pair"
+FEED,getFeed1List accessor,MSSelection.h,MsSelectionResult::feeds,Done,P11-W6,,none,c25a03a,,,,Result.feeds populated from evaluate()
+FEED,getFeed2List accessor,MSSelection.h,MsSelectionResult::feeds,Simplified,P11-W6,,none,c25a03a,,,,Flat feed list; separate feed1/feed2 deferred
+FEED,getFeedPairList accessor,MSSelection.h,,Simplified,P11-W6,,none,c25a03a,,,,Feed pair matrix not implemented
+TAQL,Pure TaQL expression,MSSelection.h:setTaqlExpr,MsSelection::set_taql_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Direct TaQL string injection"
+TAQL,TaQL + category combination,MSSelection.h:getTEN,MsSelection::evaluate,Done,P11-W6,ms_selection_table_expr_bridge_test,none,c25a03a,,tests/ms_selection_table_expr_bridge_test.cpp,none,"AND with parsed expressions via evaluate() and to_taql_where()"
+API,toTableExprNode method,MSSelection.h:toTableExprNode,MsSelection::to_taql_where,Done,P11-W6,ms_selection_table_expr_bridge_test,none,c25a03a,,tests/ms_selection_table_expr_bridge_test.cpp,none,"String-based WHERE clause equivalent"
+API,PARSE_NOW mode,MSSelection.h:MSSMode,,Simplified,P11-W5,,none,55db8e1,,,,Always immediate (parse-now); parse-late deferred
+API,PARSE_LATE mode,MSSelection.h:MSSMode,,Simplified,P11-W5,,none,55db8e1,,,,Parse-late not implemented; always immediate
+API,reset method,MSSelection.h:reset,MsSelection::reset,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Reset all expressions"
+API,clear method,MSSelection.h:clear,MsSelection::clear,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Clear all expressions"
+API,Error handler infrastructure,MSSelectionErrorHandler,,Simplified,P11-W5,,none,55db8e1,,,,Throws std::runtime_error; no error handler collection class
+API,set_observation_expr setter,MSSelection.h:setObservationExpr,MsSelection::set_observation_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Observation ID expression setter"
+API,set_array_expr setter,MSSelection.h:setArrayExpr,MsSelection::set_array_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Array ID expression setter"
+API,set_feed_expr setter,MSSelection.h:setFeedExpr,MsSelection::set_feed_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"Feed expression setter"
+API,set_taql_expr setter,MSSelection.h:setTaqlExpr,MsSelection::set_taql_expr,Done,P11-W5,ms_selection_parser_test,none,55db8e1,,tests/ms_selection_parser_test.cpp,none,"TaQL expression setter"
+API,getChanSlices accessor,MSSelection.h:getChanSlices,,Simplified,P11-W6,,none,c25a03a,,,,Requires VisIter-style slice objects; channel_ranges available instead
+API,getCorrSlices accessor,MSSelection.h:getCorrSlices,,Simplified,P11-W6,,none,c25a03a,,,,Requires VisIter-style slice objects; correlations list available instead

@@ -1,0 +1,31 @@
+=== Phase 11 Wave 1 Gate ===
+
+--- Audit artifacts ---
+  PASS: missing_capabilities_audit.csv (docs/phase11/missing_capabilities_audit.csv)
+  PASS: disposition_decisions.md (docs/phase11/disposition_decisions.md)
+  PASS: api_surface_map.csv (docs/phase11/api_surface_map.csv)
+  PASS: storage_manager_fidelity_audit.md (docs/phase11/storage_manager_fidelity_audit.md)
+  PASS: taql_command_checklist.csv (docs/phase11/taql_command_checklist.csv)
+  PASS: msselection_capability_checklist.csv (docs/phase11/msselection_capability_checklist.csv)
+
+--- Checklist schema validation ---
+  PASS: taql checklist columns (all required columns present)
+  PASS: mssel checklist columns (all required columns present)
+  PASS: audit CSV columns (all required columns present)
+
+--- Checklist data content ---
+  PASS: taql checklist data (115 data rows)
+  PASS: mssel checklist data (93 data rows)
+  PASS: audit data (32 data rows)
+  PASS: api surface map data (42 data rows)
+
+--- Disposition coverage ---
+  PASS: audit has Include (13) and Exclude (15) rows
+  PASS: TaQL checklist covers all 10 command families
+  PASS: MSSel checklist covers all 12 categories
+
+--- Status file update ---
+  PASS: phase11_status.json updated
+
+=== P11-W1 Result: pass=17 fail=0 ===
+P11-W1 GATE PASSED

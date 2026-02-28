@@ -1,0 +1,14 @@
+{
+  "wave": "P11-W1",
+  "type": "audit",
+  "note": "P11-W1 is an audit wave, not a matrix wave. No interop matrix applicable.",
+  "audit_summary": {
+    "total_rows": 32,
+    "include": 13,
+    "exclude": 15,
+    "existing": 4,
+    "taql_checklist_rows": 115,
+    "mssel_checklist_rows": 93,
+    "api_surface_entries": 42
+  }
+}

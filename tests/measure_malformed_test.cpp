@@ -139,8 +139,8 @@ bool test_roundtrip_with_nan() {
     auto rec = measure_to_record(m);
     auto back = measure_from_record(rec);
 
-    const auto& ev = std::get<EpochValue>(back.value);
-    assert(std::isnan(ev.day));
+    auto ev_nan = std::get<EpochValue>(back.value);
+    if (!std::isnan(ev_nan.day)) return false;
     return true;
 }
 
@@ -153,8 +153,8 @@ bool test_roundtrip_with_inf() {
     auto rec = measure_to_record(m);
     auto back = measure_from_record(rec);
 
-    const auto& ev = std::get<EpochValue>(back.value);
-    assert(std::isinf(ev.day));
+    auto ev_inf = std::get<EpochValue>(back.value);
+    if (!std::isinf(ev_inf.day)) return false;
     return true;
 }
 
