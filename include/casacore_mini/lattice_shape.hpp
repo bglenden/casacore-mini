@@ -111,7 +111,7 @@ class Slicer {
     /// @throws std::invalid_argument if ranks differ or strides < 1.
     Slicer(IPosition start, IPosition length, IPosition stride);
     /// Construct with unit stride.
-    Slicer(IPosition start, IPosition length);
+    Slicer(IPosition start, const IPosition& length);
 
     [[nodiscard]] const IPosition& start() const noexcept {
         return start_;

@@ -74,7 +74,7 @@ Slicer::Slicer(IPosition start, IPosition length, IPosition stride)
     }
 }
 
-Slicer::Slicer(IPosition start, IPosition length)
+Slicer::Slicer(IPosition start, const IPosition& length)
     : Slicer(std::move(start), IPosition(length),
              IPosition(length.ndim(), 1)) {}
 
