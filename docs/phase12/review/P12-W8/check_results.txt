@@ -1,0 +1,16 @@
+=== P12-W8 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: parity-extended-test
+  PASS: antenna-auto-baseline
+  PASS: regex-support
+  PASS: time-string-parser
+  PASS: uv-unit-handling
+  PASS: spw-frequency-selection
+  PASS: state-bounds
+  PASS: field-negation
+
+=== P12-W8 gate summary ===
+PASS: 10
+FAIL: 0
+P12-W8 gate passed

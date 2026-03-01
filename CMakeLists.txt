@@ -217,6 +217,10 @@ add_library(
   src/ms_concat.cpp
   src/ms_flagger.cpp
   src/table.cpp
+  src/ref_table.cpp
+  src/concat_table.cpp
+  src/table_iterator.cpp
+  src/columns_index.cpp
   src/lattice_shape.cpp
   src/lattice.cpp
   src/image.cpp
@@ -515,6 +519,14 @@ add_executable(ms_selection_parser_test tests/ms_selection_parser_test.cpp)
 target_link_libraries(ms_selection_parser_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME ms_selection_parser_test COMMAND ms_selection_parser_test)
 
+add_executable(ms_selection_parity_extended_test tests/ms_selection_parity_extended_test.cpp)
+target_link_libraries(ms_selection_parity_extended_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_selection_parity_extended_test COMMAND ms_selection_parity_extended_test)
+
+add_executable(ms_selection_api_parity_test tests/ms_selection_api_parity_test.cpp)
+target_link_libraries(ms_selection_api_parity_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ms_selection_api_parity_test COMMAND ms_selection_api_parity_test)
+
 add_executable(ms_selection_malformed_test tests/ms_selection_malformed_test.cpp)
 target_link_libraries(ms_selection_malformed_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME ms_selection_malformed_test COMMAND ms_selection_malformed_test)
@@ -587,6 +599,30 @@ add_executable(lel_parser_test tests/lel_parser_test.cpp)
 target_link_libraries(lel_parser_test PRIVATE casacore_mini_core casacore_mini_project_options)
 add_test(NAME lel_parser_test COMMAND lel_parser_test)
 
+add_executable(table_mutation_test tests/table_mutation_test.cpp)
+target_link_libraries(table_mutation_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME table_mutation_test COMMAND table_mutation_test)
+
+add_executable(taql_dml_test tests/taql_dml_test.cpp)
+target_link_libraries(taql_dml_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_dml_test COMMAND taql_dml_test)
+
+add_executable(taql_ddl_test tests/taql_ddl_test.cpp)
+target_link_libraries(taql_ddl_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_ddl_test COMMAND taql_ddl_test)
+
+add_executable(taql_join_test tests/taql_join_test.cpp)
+target_link_libraries(taql_join_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_join_test COMMAND taql_join_test)
+
+add_executable(taql_aggregate_test tests/taql_aggregate_test.cpp)
+target_link_libraries(taql_aggregate_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_aggregate_test COMMAND taql_aggregate_test)
+
+add_executable(taql_udf_equiv_test tests/taql_udf_equiv_test.cpp)
+target_link_libraries(taql_udf_equiv_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME taql_udf_equiv_test COMMAND taql_udf_equiv_test)
+
 add_executable(mutation_persist_test tests/mutation_persist_test.cpp)
 target_link_libraries(mutation_persist_test PRIVATE casacore_mini_core casacore_mini_project_options)
 target_compile_definitions(
@@ -642,6 +678,34 @@ target_compile_definitions(
   table_test
   PRIVATE CASACORE_MINI_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME table_test COMMAND table_test)
+
+add_executable(table_lock_test tests/table_lock_test.cpp)
+target_link_libraries(table_lock_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME table_lock_test COMMAND table_lock_test)
+
+add_executable(table_info_test tests/table_info_test.cpp)
+target_link_libraries(table_info_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME table_info_test COMMAND table_info_test)
+
+add_executable(ref_table_test tests/ref_table_test.cpp)
+target_link_libraries(ref_table_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME ref_table_test COMMAND ref_table_test)
+
+add_executable(concat_table_test tests/concat_table_test.cpp)
+target_link_libraries(concat_table_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME concat_table_test COMMAND concat_table_test)
+
+add_executable(table_iter_test tests/table_iter_test.cpp)
+target_link_libraries(table_iter_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME table_iter_test COMMAND table_iter_test)
+
+add_executable(columns_index_test tests/columns_index_test.cpp)
+target_link_libraries(columns_index_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME columns_index_test COMMAND columns_index_test)
+
+add_executable(mdspan_migration_test tests/mdspan_migration_test.cpp)
+target_link_libraries(mdspan_migration_test PRIVATE casacore_mini_core casacore_mini_project_options)
+add_test(NAME mdspan_migration_test COMMAND mdspan_migration_test)
 
 # Demo programs (also serve as integration tests)
 foreach(demo demo_aipsio_record demo_table_read demo_table_write

@@ -1,0 +1,24 @@
+{
+  "phase": 12,
+  "title": "Functional Closure + mdspan Modernization",
+  "status": "Done",
+  "waves": {
+    "P12-W1":  { "status": "Done", "description": "Coordinate regression closure + diagnostics" },
+    "P12-W2":  { "status": "Done", "description": "Table mutation foundation (add_row, remove_row)" },
+    "P12-W3":  { "status": "Done", "description": "TaQL DML closure (INSERT/DELETE)" },
+    "P12-W4":  { "status": "Done", "description": "TaQL DDL closure (CREATE/ALTER/DROP)" },
+    "P12-W5":  { "status": "Done", "description": "TaQL multi-table/JOIN/subquery/CTE" },
+    "P12-W6":  { "status": "Done", "description": "TaQL grouping/aggregate closure" },
+    "P12-W7":  { "status": "Done", "description": "TaQL expression-function closure + MeasUDF equivalents" },
+    "P12-W8":  { "status": "Done", "description": "MSSelection parser/evaluator closure" },
+    "P12-W9":  { "status": "Done", "description": "MSSelection API/accessor/mode/error closure" },
+    "P12-W10": { "status": "Done", "description": "Table infrastructure tranche A" },
+    "P12-W11": { "status": "Done", "description": "Table infrastructure tranche B" },
+    "P12-W12": { "status": "Done", "description": "Storage-manager fidelity re-audit + deferred-on-demand freeze" },
+    "P12-W13": { "status": "Done", "description": "mdspan foundation + migration" },
+    "P12-W14": { "status": "Done", "description": "Final closeout" }
+  },
+  "test_count": 108,
+  "all_tests_pass": true,
+  "wave_gates_pass": "13/13"
+}

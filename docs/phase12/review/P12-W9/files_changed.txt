@@ -1,0 +1,5 @@
+include/casacore_mini/ms_selection.hpp  (W8 rewrite, W9 finalized)
+src/ms_selection.cpp                   (try-catch wrapping, feed lists, mode impls)
+tests/ms_selection_api_parity_test.cpp (new — 52 checks)
+CMakeLists.txt                         (add ms_selection_api_parity_test target)
+tools/check_phase12_w9.sh              (new — 10 gate checks)

@@ -1,0 +1,4 @@
+src/ms_selection.cpp                           (modified — regex, auto-baseline, field/spw/time/uv/state extensions)
+tests/ms_selection_parity_extended_test.cpp     (new — 33 checks across all new capabilities)
+CMakeLists.txt                                  (modified — added ms_selection_parity_extended_test target)
+tools/check_phase12_w8.sh                       (new — wave gate script)

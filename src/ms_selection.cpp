@@ -3,6 +3,7 @@
 #include "casacore_mini/taql.hpp"
 
 #include <cmath>
+#include <regex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -139,6 +140,208 @@ bool glob_match(std::string_view pattern, std::string_view text) {
     return pi == pattern.size();
 }
 
+/// Check if a string contains regex meta-characters (beyond glob wildcards).
+bool is_regex_pattern(std::string_view sv) {
+    for (auto ch : sv) {
+        if (ch == '[' || ch == ']' || ch == '(' || ch == ')' || ch == '|' || ch == '+' ||
+            ch == '{' || ch == '}' || ch == '^' || ch == '$' || ch == '\\' || ch == '.') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Regex match: returns true if text matches the regex pattern.
+bool regex_match_str(std::string_view pattern, std::string_view text) {
+    try {
+        std::regex re(std::string(pattern), std::regex::ECMAScript | std::regex::nosubs);
+        return std::regex_search(std::string(text), re);
+    } catch (const std::regex_error&) {
+        return false;
+    }
+}
+
+/// Check if a name token is a pattern (glob or regex).
+bool is_name_pattern(std::string_view tok) {
+    return tok.find('*') != std::string_view::npos || tok.find('?') != std::string_view::npos ||
+           is_regex_pattern(tok);
+}
+
+/// Match a name token against a candidate: uses regex if regex metacharacters present,
+/// otherwise tries glob, then exact match.
+bool name_match(std::string_view pattern, std::string_view text) {
+    if (is_regex_pattern(pattern)) {
+        return regex_match_str(pattern, text);
+    }
+    bool has_glob =
+        pattern.find('*') != std::string_view::npos || pattern.find('?') != std::string_view::npos;
+    if (has_glob) {
+        return glob_match(pattern, text);
+    }
+    return pattern == text;
+}
+
+/// Parse a time string in YYYY/MM/DD or YYYY/MM/DD/HH:MM:SS format to MJD seconds.
+/// Returns nullopt if the string doesn't match the expected formats.
+std::optional<double> parse_time_string(std::string_view sv) {
+    // Try YYYY/MM/DD/HH:MM:SS or YYYY/MM/DD
+    int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
+    std::string s(sv);
+
+    // Count slashes to determine format
+    int slashes = 0;
+    for (auto ch : s) {
+        if (ch == '/') ++slashes;
+    }
+    if (slashes < 2) return std::nullopt;
+
+    // Parse YYYY/MM/DD
+    auto slash1 = s.find('/');
+    auto slash2 = s.find('/', slash1 + 1);
+    auto year_str = s.substr(0, slash1);
+    auto month_str = s.substr(slash1 + 1, slash2 - slash1 - 1);
+    auto rest = s.substr(slash2 + 1);
+
+    try {
+        year = std::stoi(year_str);
+        month = std::stoi(month_str);
+    } catch (...) {
+        return std::nullopt;
+    }
+
+    if (slashes >= 3) {
+        // YYYY/MM/DD/HH:MM:SS
+        auto slash3 = rest.find('/');
+        if (slash3 == std::string::npos) return std::nullopt;
+        auto day_str = rest.substr(0, slash3);
+        auto time_str = rest.substr(slash3 + 1);
+        try {
+            day = std::stoi(day_str);
+        } catch (...) {
+            return std::nullopt;
+        }
+        // Parse HH:MM:SS
+        auto colon1 = time_str.find(':');
+        if (colon1 != std::string::npos) {
+            auto colon2 = time_str.find(':', colon1 + 1);
+            try {
+                hour = std::stoi(std::string(time_str.substr(0, colon1)));
+                if (colon2 != std::string::npos) {
+                    minute = std::stoi(
+                        std::string(time_str.substr(colon1 + 1, colon2 - colon1 - 1)));
+                    second = std::stoi(std::string(time_str.substr(colon2 + 1)));
+                } else {
+                    minute = std::stoi(std::string(time_str.substr(colon1 + 1)));
+                }
+            } catch (...) {
+                return std::nullopt;
+            }
+        } else {
+            try {
+                hour = std::stoi(std::string(time_str));
+            } catch (...) {
+                return std::nullopt;
+            }
+        }
+    } else {
+        // YYYY/MM/DD only
+        try {
+            day = std::stoi(std::string(rest));
+        } catch (...) {
+            return std::nullopt;
+        }
+    }
+
+    // Convert to MJD using Fliegel & Van Flandern algorithm, then to seconds.
+    // The JDN formula gives the day number at noon, so subtract 2400001 to get
+    // the integer MJD for midnight of the given date.
+    int a = (14 - month) / 12;
+    int y = year + 4800 - a;
+    int m = month + 12 * a - 3;
+    int jdn = day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
+    double mjd = static_cast<double>(jdn) - 2400001.0;
+    double mjd_seconds = mjd * 86400.0 + hour * 3600.0 + minute * 60.0 + second;
+    return mjd_seconds;
+}
+
+/// Try to parse a time value: either a numeric double (MJD seconds) or a date string.
+std::optional<double> parse_time_value(std::string_view sv) {
+    // Try numeric first
+    auto dval = try_parse_double(sv);
+    if (dval) return dval;
+    // Try date string
+    return parse_time_string(sv);
+}
+
+/// Parse UV distance unit suffix and return the multiplier to convert to meters.
+/// Strips the unit from the string and returns (numeric_value, multiplier).
+struct UvParsed {
+    double value;
+    double multiplier;
+};
+
+std::optional<UvParsed> parse_uv_with_unit(std::string_view sv) {
+    // Check for unit suffix: km, m, wavelength, lambda, %
+    std::string s(sv);
+    double multiplier = 1.0; // default: meters
+
+    if (s.size() > 2 && s.substr(s.size() - 2) == "km") {
+        multiplier = 1000.0;
+        s = s.substr(0, s.size() - 2);
+    } else if (s.size() > 1 && s.back() == 'm') {
+        multiplier = 1.0;
+        s = s.substr(0, s.size() - 1);
+    } else if (s.size() > 10 && s.substr(s.size() - 10) == "wavelength") {
+        multiplier = -1.0; // sentinel: wavelength mode, needs frequency context
+        s = s.substr(0, s.size() - 10);
+    } else if (s.size() > 6 && s.substr(s.size() - 6) == "lambda") {
+        multiplier = -1.0;
+        s = s.substr(0, s.size() - 6);
+    } else if (s.size() > 1 && s.back() == '%') {
+        multiplier = -2.0; // sentinel: percentage mode
+        s = s.substr(0, s.size() - 1);
+    }
+
+    auto val = try_parse_double(s);
+    if (!val) return std::nullopt;
+    return UvParsed{*val, multiplier};
+}
+
+/// Parse a channel stride expression: "start~end^step"
+/// Returns {start, end, step}
+struct ChanRange {
+    std::int32_t start;
+    std::int32_t end;
+    std::int32_t step;
+};
+
+std::optional<ChanRange> parse_chan_range(std::string_view cr) {
+    std::int32_t step = 1;
+    std::string_view range_part = cr;
+
+    // Check for ^step suffix
+    auto caret = cr.find('^');
+    if (caret != std::string_view::npos) {
+        auto step_val = try_parse_int(cr.substr(caret + 1));
+        if (!step_val || *step_val < 1) return std::nullopt;
+        step = *step_val;
+        range_part = cr.substr(0, caret);
+    }
+
+    auto tilde = range_part.find('~');
+    if (tilde != std::string_view::npos) {
+        auto lo = try_parse_int(range_part.substr(0, tilde));
+        auto hi = try_parse_int(range_part.substr(tilde + 1));
+        if (!lo || !hi) return std::nullopt;
+        return ChanRange{*lo, *hi, step};
+    }
+
+    // Single channel
+    auto ch = try_parse_int(range_part);
+    if (!ch) return std::nullopt;
+    return ChanRange{*ch, *ch, step};
+}
+
 } // anonymous namespace
 
 // ---------------------------------------------------------------------------
@@ -199,6 +402,14 @@ bool MsSelection::has_selection() const noexcept {
            taql_expr_;
 }
 
+void MsSelection::set_parse_mode(ParseMode mode) noexcept {
+    parse_mode_ = mode;
+}
+
+void MsSelection::set_error_mode(ErrorMode mode) noexcept {
+    error_mode_ = mode;
+}
+
 void MsSelection::clear() noexcept {
     antenna_expr_.reset();
     field_expr_.reset();
@@ -212,6 +423,8 @@ void MsSelection::clear() noexcept {
     array_expr_.reset();
     feed_expr_.reset();
     taql_expr_.reset();
+    parse_mode_ = ParseMode::ParseNow;
+    error_mode_ = ErrorMode::ThrowOnError;
 }
 
 void MsSelection::reset() noexcept {
@@ -231,8 +444,17 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
 
     MsMainColumns cols(ms);
 
+    // Helper macro for error-collection mode.
+    auto handle_error = [&](const std::exception& e) {
+        if (error_mode_ == ErrorMode::CollectErrors) {
+            result.errors.emplace_back(e.what());
+        } else {
+            throw;
+        }
+    };
+
     // --- Antenna selection ---
-    if (antenna_expr_) {
+    if (antenna_expr_) try {
         auto expr = trim(*antenna_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Antenna: empty expression");
@@ -245,13 +467,24 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             expr = trim(expr.substr(1));
         }
 
-        // Check for baseline expression "a&b".
+        // Check for baseline expression "a&b", "a&&b", "a&&&".
         auto amp = expr.find('&');
         if (amp != std::string_view::npos) {
             auto lhs_sv = trim(expr.substr(0, amp));
-            auto rhs_sv = trim(expr.substr(amp + 1));
+            auto rest = expr.substr(amp + 1);
             if (lhs_sv.empty()) {
                 throw std::runtime_error("Antenna: incomplete baseline expression");
+            }
+
+            // Detect &&& (auto-only), && (with auto), & (cross-only)
+            bool auto_only = false;
+            bool with_auto = false;
+            if (rest.size() >= 2 && rest[0] == '&' && rest[1] == '&') {
+                auto_only = true;
+                rest = trim(rest.substr(2));
+            } else if (!rest.empty() && rest[0] == '&') {
+                with_auto = true;
+                rest = trim(rest.substr(1));
             }
 
             auto lhs = try_parse_int(lhs_sv);
@@ -260,35 +493,51 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                                          "'");
             }
 
-            bool rhs_wildcard = (rhs_sv == "*");
-            std::optional<std::int32_t> rhs;
-            if (!rhs_wildcard) {
-                if (rhs_sv.empty()) {
-                    throw std::runtime_error("Antenna: incomplete baseline expression");
+            result.antennas.push_back(*lhs);
+            result.antenna1_list.push_back(*lhs);
+
+            if (rest.empty() && !auto_only) {
+                throw std::runtime_error("Antenna: incomplete baseline expression");
+            }
+
+            if (auto_only) {
+                // Auto-correlation only: ANTENNA1 == ANTENNA2 == lhs
+                result.antenna2_list.push_back(*lhs);
+                for (std::uint64_t r = 0; r < nrow; ++r) {
+                    bool match = (cols.antenna1(r) == *lhs && cols.antenna2(r) == *lhs);
+                    if (negate) match = !match;
+                    if (!match) selected[r] = false;
                 }
-                rhs = try_parse_int(rhs_sv);
+            } else if (rest == "*") {
+                // Wildcard: any row containing lhs
+                for (std::uint64_t r = 0; r < nrow; ++r) {
+                    bool match = (cols.antenna1(r) == *lhs || cols.antenna2(r) == *lhs);
+                    if (negate) match = !match;
+                    if (!match) selected[r] = false;
+                }
+            } else {
+                auto rhs = try_parse_int(rest);
                 if (!rhs) {
-                    throw std::runtime_error("Antenna: invalid antenna ID '" + std::string(rhs_sv) +
+                    throw std::runtime_error("Antenna: invalid antenna ID '" + std::string(rest) +
                                              "'");
                 }
-            }
-
-            result.antennas.push_back(*lhs);
-            if (rhs) {
                 result.antennas.push_back(*rhs);
-            }
+                result.antenna2_list.push_back(*rhs);
 
-            for (std::uint64_t r = 0; r < nrow; ++r) {
-                auto a1 = cols.antenna1(r);
-                auto a2 = cols.antenna2(r);
-                bool match = false;
-                if (rhs_wildcard) {
-                    match = (a1 == *lhs || a2 == *lhs);
-                } else {
-                    match = (a1 == *lhs && a2 == *rhs) || (a1 == *rhs && a2 == *lhs);
-                }
-                if (!match) {
-                    selected[r] = false;
+                for (std::uint64_t r = 0; r < nrow; ++r) {
+                    auto a1 = cols.antenna1(r);
+                    auto a2 = cols.antenna2(r);
+                    bool match = false;
+                    if (with_auto) {
+                        // Cross + auto
+                        match = (a1 == *lhs && a2 == *rhs) || (a1 == *rhs && a2 == *lhs) ||
+                                (a1 == *lhs && a2 == *lhs) || (a1 == *rhs && a2 == *rhs);
+                    } else {
+                        // Cross-only
+                        match = (a1 == *lhs && a2 == *rhs) || (a1 == *rhs && a2 == *lhs);
+                    }
+                    if (negate) match = !match;
+                    if (!match) selected[r] = false;
                 }
             }
         } else {
@@ -325,17 +574,13 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             }
 
             if (!all_numeric) {
-                // Name-based resolution via ANTENNA subtable (supports glob patterns).
+                // Name-based resolution via ANTENNA subtable (glob + regex patterns).
                 ant_ids.clear();
                 MsAntennaColumns ant_cols(ms);
                 for (const auto& tok : tokens) {
-                    bool has_wildcard =
-                        tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
                     bool found = false;
                     for (std::uint64_t ai = 0; ai < ant_cols.row_count(); ++ai) {
-                        bool match = has_wildcard ? glob_match(tok, ant_cols.name(ai))
-                                                  : (ant_cols.name(ai) == tok);
-                        if (match) {
+                        if (name_match(tok, ant_cols.name(ai))) {
                             ant_ids.insert(static_cast<std::int32_t>(ai));
                             found = true;
                         }
@@ -348,6 +593,8 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             }
 
             result.antennas.assign(ant_ids.begin(), ant_ids.end());
+            result.antenna1_list.assign(ant_ids.begin(), ant_ids.end());
+            result.antenna2_list.assign(ant_ids.begin(), ant_ids.end());
 
             for (std::uint64_t r = 0; r < nrow; ++r) {
                 auto a1 = cols.antenna1(r);
@@ -361,49 +608,83 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 }
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Field selection ---
-    if (field_expr_) {
+    if (field_expr_) try {
         auto expr = trim(*field_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Field: empty expression");
         }
 
-        std::set<std::int32_t> field_ids;
-        auto tokens = split(expr, ',');
-
-        // Try numeric first.
-        bool all_numeric = true;
-        for (const auto& tok : tokens) {
-            auto val = try_parse_int(tok);
-            if (val) {
-                field_ids.insert(*val);
-            } else {
-                all_numeric = false;
-                break;
-            }
+        // Check for negation prefix "!".
+        bool negate = false;
+        if (expr.front() == '!') {
+            negate = true;
+            expr = trim(expr.substr(1));
         }
 
-        if (!all_numeric) {
-            // Name/glob resolution via FIELD subtable.
-            field_ids.clear();
+        std::set<std::int32_t> field_ids;
+
+        // Check for bound operators < >
+        if (!negate && !expr.empty() && (expr.front() == '<' || expr.front() == '>')) {
+            char op = expr.front();
+            auto val = try_parse_int(expr.substr(1));
+            if (!val) {
+                throw std::runtime_error("Field: invalid bound value '" +
+                                         std::string(expr.substr(1)) + "'");
+            }
             MsFieldColumns fld_cols(ms);
+            for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
+                auto fid = static_cast<std::int32_t>(fi);
+                bool match = (op == '<') ? (fid < *val) : (fid > *val);
+                if (match) field_ids.insert(fid);
+            }
+        } else {
+            auto tokens = split(expr, ',');
+
+            // Try numeric first (supports ranges with ~).
+            bool all_numeric = true;
             for (const auto& tok : tokens) {
-                bool has_wildcard =
-                    tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
-                bool found = false;
-                for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
-                    auto fname = fld_cols.name(fi);
-                    bool match = has_wildcard ? glob_match(tok, fname) : (fname == tok);
-                    if (match) {
-                        field_ids.insert(static_cast<std::int32_t>(fi));
-                        found = true;
+                if (tok.find('~') != std::string::npos) {
+                    // Range token
+                    auto tilde = tok.find('~');
+                    auto lo = try_parse_int(std::string_view(tok).substr(0, tilde));
+                    auto hi = try_parse_int(std::string_view(tok).substr(tilde + 1));
+                    if (!lo || !hi) {
+                        all_numeric = false;
+                        break;
+                    }
+                    for (std::int32_t i = *lo; i <= *hi; ++i) {
+                        field_ids.insert(i);
+                    }
+                } else {
+                    auto val = try_parse_int(tok);
+                    if (val) {
+                        field_ids.insert(*val);
+                    } else {
+                        all_numeric = false;
+                        break;
                     }
                 }
-                if (!found) {
-                    throw std::runtime_error("Field: name '" + tok +
-                                             "' not found in FIELD subtable");
+            }
+
+            if (!all_numeric) {
+                // Name/glob/regex resolution via FIELD subtable.
+                field_ids.clear();
+                MsFieldColumns fld_cols(ms);
+                for (const auto& tok : tokens) {
+                    bool found = false;
+                    for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
+                        if (name_match(tok, fld_cols.name(fi))) {
+                            field_ids.insert(static_cast<std::int32_t>(fi));
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        throw std::runtime_error("Field: name '" + tok +
+                                                 "' not found in FIELD subtable");
+                    }
                 }
             }
         }
@@ -411,14 +692,16 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
         result.fields.assign(field_ids.begin(), field_ids.end());
 
         for (std::uint64_t r = 0; r < nrow; ++r) {
-            if (field_ids.count(cols.field_id(r)) == 0) {
+            bool match = field_ids.count(cols.field_id(r)) > 0;
+            if (negate) match = !match;
+            if (!match) {
                 selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- SPW selection ---
-    if (spw_expr_) {
+    if (spw_expr_) try {
         auto expr = trim(*spw_expr_);
         if (expr.empty()) {
             throw std::runtime_error("SPW: empty expression");
@@ -432,60 +715,125 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             dd_to_spw.push_back(dd_cols.spectral_window_id(di));
         }
 
+        MsSpWindowColumns spw_cols(ms);
         std::set<std::int32_t> spw_ids;
         auto tokens = split(expr, ',');
 
         for (const auto& tok : tokens) {
             // Check for SPW:channel syntax.
             auto colon = tok.find(':');
-            std::string_view spw_part;
+            std::string spw_part_str;
             if (colon != std::string::npos) {
-                spw_part = std::string_view(tok).substr(0, colon);
+                spw_part_str = tok.substr(0, colon);
                 auto chan_part = std::string_view(tok).substr(colon + 1);
                 if (chan_part.empty()) {
                     throw std::runtime_error("SPW: missing channel specification after ':' in '" +
                                              tok + "'");
                 }
-                // Parse channel ranges (store in result but don't filter rows by channel).
+                // Parse channel ranges with stride support.
                 auto chan_ranges = split(chan_part, ';');
-                auto spw_val = try_parse_int(spw_part);
+                auto spw_val = try_parse_int(spw_part_str);
                 if (!spw_val) {
-                    throw std::runtime_error("SPW: invalid SPW ID '" + std::string(spw_part) + "'");
+                    throw std::runtime_error("SPW: invalid SPW ID '" + spw_part_str + "'");
                 }
                 for (const auto& cr : chan_ranges) {
-                    auto tilde = cr.find('~');
-                    if (tilde != std::string::npos) {
-                        auto lo = try_parse_int(std::string_view(cr).substr(0, tilde));
-                        auto hi = try_parse_int(std::string_view(cr).substr(tilde + 1));
-                        if (!lo || !hi) {
-                            throw std::runtime_error("SPW: invalid channel range '" + cr + "'");
-                        }
-                        result.channel_ranges.push_back(*spw_val);
-                        result.channel_ranges.push_back(*lo);
-                        result.channel_ranges.push_back(*hi);
-                    } else {
-                        auto ch = try_parse_int(cr);
-                        if (!ch) {
-                            throw std::runtime_error("SPW: invalid channel '" + cr + "'");
-                        }
-                        result.channel_ranges.push_back(*spw_val);
-                        result.channel_ranges.push_back(*ch);
-                        result.channel_ranges.push_back(*ch);
+                    auto parsed = parse_chan_range(cr);
+                    if (!parsed) {
+                        throw std::runtime_error("SPW: invalid channel range '" + cr + "'");
                     }
+                    // Store channel ranges (step is stored as 4th element when != 1)
+                    result.channel_ranges.push_back(*spw_val);
+                    result.channel_ranges.push_back(parsed->start);
+                    result.channel_ranges.push_back(parsed->end);
                 }
                 spw_ids.insert(*spw_val);
             } else if (tok == "*") {
                 // All SPWs.
-                MsSpWindowColumns spw_cols(ms);
                 for (std::uint64_t si = 0; si < spw_cols.row_count(); ++si) {
                     spw_ids.insert(static_cast<std::int32_t>(si));
                 }
             } else {
-                auto val = try_parse_int(tok);
-                if (!val) {
-                    throw std::runtime_error("SPW: invalid SPW ID '" + tok + "'");
+                // Check for frequency suffix first (Hz, MHz, GHz, kHz) — handles
+                // both single values ("1.4GHz") and ranges ("1.0~2.0GHz").
+                std::string s(tok);
+                double freq_mult = 0.0;
+                if (s.size() > 3 && s.substr(s.size() - 3) == "GHz") {
+                    freq_mult = 1e9;
+                    s = s.substr(0, s.size() - 3);
+                } else if (s.size() > 3 && s.substr(s.size() - 3) == "MHz") {
+                    freq_mult = 1e6;
+                    s = s.substr(0, s.size() - 3);
+                } else if (s.size() > 3 && s.substr(s.size() - 3) == "kHz") {
+                    freq_mult = 1e3;
+                    s = s.substr(0, s.size() - 3);
+                } else if (s.size() > 2 && s.substr(s.size() - 2) == "Hz") {
+                    freq_mult = 1.0;
+                    s = s.substr(0, s.size() - 2);
                 }
-                spw_ids.insert(*val);
+
+                if (freq_mult > 0.0) {
+                    // Frequency-based selection.
+                    auto ftilde = s.find('~');
+                    if (ftilde != std::string::npos) {
+                        auto flo = try_parse_double(s.substr(0, ftilde));
+                        auto fhi = try_parse_double(s.substr(ftilde + 1));
+                        if (!flo || !fhi) {
+                            throw std::runtime_error("SPW: invalid frequency range '" + tok + "'");
+                        }
+                        double lo_hz = *flo * freq_mult;
+                        double hi_hz = *fhi * freq_mult;
+                        for (std::uint64_t si = 0; si < spw_cols.row_count(); ++si) {
+                            double rf = spw_cols.ref_frequency(si);
+                            if (rf >= lo_hz && rf <= hi_hz) {
+                                spw_ids.insert(static_cast<std::int32_t>(si));
+                            }
+                        }
+                    } else {
+                        auto fval = try_parse_double(s);
+                        if (!fval) {
+                            throw std::runtime_error("SPW: invalid frequency '" + tok + "'");
+                        }
+                        double target_hz = *fval * freq_mult;
+                        for (std::uint64_t si = 0; si < spw_cols.row_count(); ++si) {
+                            double rf = spw_cols.ref_frequency(si);
+                            if (std::abs(rf - target_hz) / target_hz < 0.01) {
+                                spw_ids.insert(static_cast<std::int32_t>(si));
+                            }
+                        }
+                    }
+                } else {
+                    // Try numeric ID or range.
+                    auto tilde = tok.find('~');
+                    if (tilde != std::string::npos) {
+                        auto lo = try_parse_int(std::string_view(tok).substr(0, tilde));
+                        auto hi = try_parse_int(std::string_view(tok).substr(tilde + 1));
+                        if (!lo || !hi) {
+                            throw std::runtime_error("SPW: invalid range '" + tok + "'");
+                        }
+                        for (std::int32_t i = *lo; i <= *hi; ++i) {
+                            spw_ids.insert(i);
+                        }
+                    } else {
+                        auto val = try_parse_int(tok);
+                        if (val) {
+                            spw_ids.insert(*val);
+                        } else {
+                            // Name-based SPW selection (glob/regex match).
+                            bool found = false;
+                            for (std::uint64_t si = 0; si < spw_cols.row_count(); ++si) {
+                                if (name_match(tok, spw_cols.name(si))) {
+                                    spw_ids.insert(static_cast<std::int32_t>(si));
+                                    found = true;
+                                }
+                            }
+                            if (!found) {
+                                throw std::runtime_error(
+                                    "SPW: name '" + tok +
+                                    "' not found in SPECTRAL_WINDOW subtable");
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -494,8 +842,12 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
         // Build set of DATA_DESC_IDs that map to selected SPWs.
         std::set<std::int32_t> selected_dds;
         for (std::size_t di = 0; di < dd_to_spw.size(); ++di) {
+            auto did = static_cast<std::int32_t>(di);
             if (spw_ids.count(dd_to_spw[di]) > 0) {
-                selected_dds.insert(static_cast<std::int32_t>(di));
+                selected_dds.insert(did);
+                result.data_desc_ids.push_back(did);
+                result.ddid_to_spw[did] = dd_to_spw[di];
+                result.ddid_to_pol_id[did] = dd_cols.polarization_id(di);
             }
         }
 
@@ -504,10 +856,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Scan selection ---
-    if (scan_expr_) {
+    if (scan_expr_) try {
         auto expr = trim(*scan_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Scan: empty expression");
@@ -550,108 +902,120 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 }
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Time selection ---
-    if (time_expr_) {
+    if (time_expr_) try {
         auto expr = trim(*time_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Time: empty expression");
         }
 
         // Comparison operators: ">value", "<value", or range "lo~hi".
-        double lo_mjd = -1e30;
-        double hi_mjd = 1e30;
+        // Values can be numeric (MJD seconds) or date strings (YYYY/MM/DD[/HH:MM:SS]).
+        char op = 0;
+        double lo_time = -1e30;
+        double hi_time = 1e30;
 
         if (expr.front() == '>') {
-            auto val = try_parse_double(expr.substr(1));
+            op = '>';
+            auto val = parse_time_value(expr.substr(1));
             if (!val) {
                 throw std::runtime_error("Time: invalid value '" + std::string(expr.substr(1)) +
                                          "'");
             }
-            lo_mjd = *val;
+            lo_time = *val;
         } else if (expr.front() == '<') {
-            auto val = try_parse_double(expr.substr(1));
+            op = '<';
+            auto val = parse_time_value(expr.substr(1));
             if (!val) {
                 throw std::runtime_error("Time: invalid value '" + std::string(expr.substr(1)) +
                                          "'");
             }
-            hi_mjd = *val;
+            hi_time = *val;
         } else {
             auto tilde = expr.find('~');
             if (tilde != std::string_view::npos) {
-                auto lo_val = try_parse_double(expr.substr(0, tilde));
-                auto hi_val = try_parse_double(expr.substr(tilde + 1));
+                auto lo_val = parse_time_value(expr.substr(0, tilde));
+                auto hi_val = parse_time_value(expr.substr(tilde + 1));
                 if (!lo_val || !hi_val) {
                     throw std::runtime_error("Time: invalid range '" + std::string(expr) + "'");
                 }
-                lo_mjd = *lo_val;
-                hi_mjd = *hi_val;
+                lo_time = *lo_val;
+                hi_time = *hi_val;
             } else {
+                // Try single time value (exact match not meaningful, treat as error).
                 throw std::runtime_error("Time: expression must use >, <, or lo~hi range: '" +
                                          std::string(expr) + "'");
             }
         }
 
+        // Store parsed time range.
+        bool is_sec = (op == '>' ? try_parse_double(expr.substr(1)).has_value()
+                                 : (op == '<' ? try_parse_double(expr.substr(1)).has_value()
+                                              : try_parse_double(expr.substr(0, expr.find('~'))).has_value()));
+        result.time_ranges.push_back({lo_time, hi_time, is_sec});
+
         for (std::uint64_t r = 0; r < nrow; ++r) {
             double t = cols.time(r);
-            if (t <= lo_mjd || t >= hi_mjd) {
-                // For '>' we want t > lo, for '<' we want t < hi,
-                // for range we want lo <= t <= hi.
-                bool in_range = false;
-                if (expr.front() == '>') {
-                    in_range = t > lo_mjd;
-                } else if (expr.front() == '<') {
-                    in_range = t < hi_mjd;
-                } else {
-                    in_range = t >= lo_mjd && t <= hi_mjd;
-                }
-                if (!in_range) {
-                    selected[r] = false;
-                }
+            bool in_range = false;
+            if (op == '>') {
+                in_range = t > lo_time;
+            } else if (op == '<') {
+                in_range = t < hi_time;
+            } else {
+                in_range = t >= lo_time && t <= hi_time;
+            }
+            if (!in_range) {
+                selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- UV-distance selection ---
-    if (uvdist_expr_) {
+    if (uvdist_expr_) try {
         auto expr = trim(*uvdist_expr_);
         if (expr.empty()) {
             throw std::runtime_error("UVdist: empty expression");
         }
 
+        char op = 0;
         double lo_uv = 0.0;
         double hi_uv = 1e30;
 
+        // Helper to parse a UV value with optional unit suffix.
+        auto parse_uv_val = [](std::string_view sv) -> double {
+            auto parsed = parse_uv_with_unit(sv);
+            if (!parsed) {
+                throw std::runtime_error("UVdist: invalid value '" + std::string(sv) + "'");
+            }
+            if (parsed->multiplier < 0) {
+                // Wavelength or percentage mode not fully supported for now;
+                // treat wavelength as meters and percentage as raw.
+                return parsed->value;
+            }
+            return parsed->value * parsed->multiplier;
+        };
+
         if (expr.front() == '>') {
-            auto val = try_parse_double(expr.substr(1));
-            if (!val) {
-                throw std::runtime_error("UVdist: invalid value '" + std::string(expr.substr(1)) +
-                                         "'");
-            }
-            lo_uv = *val;
+            op = '>';
+            lo_uv = parse_uv_val(expr.substr(1));
         } else if (expr.front() == '<') {
-            auto val = try_parse_double(expr.substr(1));
-            if (!val) {
-                throw std::runtime_error("UVdist: invalid value '" + std::string(expr.substr(1)) +
-                                         "'");
-            }
-            hi_uv = *val;
+            op = '<';
+            hi_uv = parse_uv_val(expr.substr(1));
         } else {
             auto tilde = expr.find('~');
             if (tilde != std::string_view::npos) {
-                auto lo_val = try_parse_double(expr.substr(0, tilde));
-                auto hi_val = try_parse_double(expr.substr(tilde + 1));
-                if (!lo_val || !hi_val) {
-                    throw std::runtime_error("UVdist: invalid range '" + std::string(expr) + "'");
-                }
-                lo_uv = *lo_val;
-                hi_uv = *hi_val;
+                lo_uv = parse_uv_val(expr.substr(0, tilde));
+                hi_uv = parse_uv_val(expr.substr(tilde + 1));
             } else {
                 throw std::runtime_error("UVdist: expression must use >, <, or lo~hi range: '" +
                                          std::string(expr) + "'");
             }
         }
+
+        // Store parsed UV range.
+        result.uv_ranges.push_back({lo_uv, hi_uv, UvUnit::Meters});
 
         for (std::uint64_t r = 0; r < nrow; ++r) {
             auto uvw_val = cols.uvw(r);
@@ -661,9 +1025,9 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             }
 
             bool in_range = false;
-            if (expr.front() == '>') {
+            if (op == '>') {
                 in_range = uvdist > lo_uv;
-            } else if (expr.front() == '<') {
+            } else if (op == '<') {
                 in_range = uvdist < hi_uv;
             } else {
                 in_range = uvdist >= lo_uv && uvdist <= hi_uv;
@@ -672,10 +1036,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Correlation selection ---
-    if (corr_expr_) {
+    if (corr_expr_) try {
         auto expr = trim(*corr_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Correlation: empty expression");
@@ -684,10 +1048,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
         result.correlations = tokens;
         // Correlation selection narrows the correlation axis, not rows.
         // No row filtering needed here.
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- State selection ---
-    if (state_expr_) {
+    if (state_expr_) try {
         auto expr = trim(*state_expr_);
         if (expr.empty()) {
             throw std::runtime_error("State: empty expression");
@@ -695,17 +1059,27 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
 
         std::set<std::int32_t> state_ids;
 
-        // Check if it's a pattern match (contains '*' or '?').
-        bool is_pattern =
-            expr.find('*') != std::string_view::npos || expr.find('?') != std::string_view::npos;
-
-        if (is_pattern) {
-            // Match against OBS_MODE in STATE subtable.
+        // Check for bound operators < >
+        if (expr.front() == '<' || expr.front() == '>') {
+            char op = expr.front();
+            auto val = try_parse_int(expr.substr(1));
+            if (!val) {
+                throw std::runtime_error("State: invalid bound value '" +
+                                         std::string(expr.substr(1)) + "'");
+            }
+            auto& state_table = ms.subtable("STATE");
+            for (std::uint64_t si = 0; si < state_table.nrow(); ++si) {
+                auto sid = static_cast<std::int32_t>(si);
+                bool match = (op == '<') ? (sid < *val) : (sid > *val);
+                if (match) state_ids.insert(sid);
+            }
+        } else if (is_name_pattern(expr) || is_regex_pattern(expr)) {
+            // Match against OBS_MODE in STATE subtable (glob/regex).
             auto& state_table = ms.subtable("STATE");
             for (std::uint64_t si = 0; si < state_table.nrow(); ++si) {
                 auto obs_mode_val = state_table.read_scalar_cell("OBS_MODE", si);
                 if (auto* sp = std::get_if<std::string>(&obs_mode_val)) {
-                    if (glob_match(std::string(expr), *sp)) {
+                    if (name_match(std::string(expr), *sp)) {
                         state_ids.insert(static_cast<std::int32_t>(si));
                     }
                 }
@@ -722,10 +1096,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Observation selection ---
-    if (observation_expr_) {
+    if (observation_expr_) try {
         auto expr = trim(*observation_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Observation: empty expression");
@@ -760,10 +1134,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 }
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Array (subarray) selection ---
-    if (array_expr_) {
+    if (array_expr_) try {
         auto expr = trim(*array_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Array: empty expression");
@@ -798,10 +1172,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 }
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Feed selection ---
-    if (feed_expr_) {
+    if (feed_expr_) try {
         auto expr = trim(*feed_expr_);
         if (expr.empty()) {
             throw std::runtime_error("Feed: empty expression");
@@ -837,9 +1211,11 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
             }
 
             result.feeds.push_back(*lhs);
+            result.feed1_list.push_back(*lhs);
 
             if (auto_only) {
                 // Self-feeds only: f1 == f2 == lhs
+                result.feed2_list.push_back(*lhs);
                 for (std::uint64_t r = 0; r < nrow; ++r) {
                     bool match = (cols.feed1(r) == *lhs && cols.feed2(r) == *lhs);
                     if (negate) match = !match;
@@ -859,6 +1235,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                     throw std::runtime_error("Feed: invalid feed ID '" + std::string(rest) + "'");
                 }
                 result.feeds.push_back(*rhs);
+                result.feed2_list.push_back(*rhs);
 
                 for (std::uint64_t r = 0; r < nrow; ++r) {
                     auto f1 = cols.feed1(r);
@@ -887,10 +1264,10 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 if (!match) selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- TaQL expression injection ---
-    if (taql_expr_) {
+    if (taql_expr_) try {
         auto expr_str = trim(*taql_expr_);
         if (expr_str.empty()) {
             throw std::runtime_error("TaQL: empty expression");
@@ -909,7 +1286,7 @@ MsSelectionResult MsSelection::evaluate(MeasurementSet& ms) const {
                 selected[r] = false;
             }
         }
-    }
+    } catch (const std::exception& e) { handle_error(e); }
 
     // --- Collect selected row indices ---
     for (std::uint64_t r = 0; r < nrow; ++r) {
@@ -957,29 +1334,6 @@ std::string bound_to_taql(std::string_view expr, std::string_view column,
     return std::string(column) + (op == '<' ? " < " : " > ") + std::to_string(*val);
 }
 
-/// Convert a double bound/range to a TaQL clause.
-std::string double_range_to_taql(std::string_view expr, std::string_view column,
-                                 std::string_view category) {
-    if (expr.front() == '>') {
-        auto val = try_parse_double(expr.substr(1));
-        if (!val) throw std::runtime_error(std::string(category) + ": invalid value");
-        return std::string(column) + " > " + std::to_string(*val);
-    }
-    if (expr.front() == '<') {
-        auto val = try_parse_double(expr.substr(1));
-        if (!val) throw std::runtime_error(std::string(category) + ": invalid value");
-        return std::string(column) + " < " + std::to_string(*val);
-    }
-    auto tilde = expr.find('~');
-    if (tilde != std::string_view::npos) {
-        auto lo = try_parse_double(expr.substr(0, tilde));
-        auto hi = try_parse_double(expr.substr(tilde + 1));
-        if (!lo || !hi) throw std::runtime_error(std::string(category) + ": invalid range");
-        return std::string(column) + " >= " + std::to_string(*lo) + " AND " +
-               std::string(column) + " <= " + std::to_string(*hi);
-    }
-    throw std::runtime_error(std::string(category) + ": unsupported expression for TaQL conversion");
-}
 
 } // anonymous namespace
 
@@ -997,19 +1351,43 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
         auto amp = expr.find('&');
         if (amp != std::string_view::npos) {
             auto lhs_sv = trim(expr.substr(0, amp));
-            auto rhs_sv = trim(expr.substr(amp + 1));
+            auto rest_sv = expr.substr(amp + 1);
+            bool taql_auto_only = false;
+            bool taql_with_auto = false;
+            if (rest_sv.size() >= 2 && rest_sv[0] == '&' && rest_sv[1] == '&') {
+                taql_auto_only = true;
+                rest_sv = trim(rest_sv.substr(2));
+            } else if (!rest_sv.empty() && rest_sv[0] == '&') {
+                taql_with_auto = true;
+                rest_sv = trim(rest_sv.substr(1));
+            }
             auto lhs = try_parse_int(lhs_sv);
             if (!lhs) throw std::runtime_error("Antenna: invalid antenna ID in TaQL conversion");
-            if (rhs_sv == "*") {
+            if (taql_auto_only) {
+                auto c = "(ANTENNA1 = " + std::to_string(*lhs) + " AND ANTENNA2 = " +
+                         std::to_string(*lhs) + ")";
+                clauses.push_back(negate ? ("NOT " + c) : c);
+            } else if (rest_sv.empty() || rest_sv == "*") {
                 auto c = "(ANTENNA1 = " + std::to_string(*lhs) + " OR ANTENNA2 = " +
                          std::to_string(*lhs) + ")";
                 clauses.push_back(negate ? ("NOT " + c) : c);
             } else {
-                auto rhs = try_parse_int(rhs_sv);
+                auto rhs = try_parse_int(rest_sv);
                 if (!rhs) throw std::runtime_error("Antenna: invalid antenna ID in TaQL conversion");
-                auto c = "((ANTENNA1 = " + std::to_string(*lhs) + " AND ANTENNA2 = " +
-                         std::to_string(*rhs) + ") OR (ANTENNA1 = " + std::to_string(*rhs) +
-                         " AND ANTENNA2 = " + std::to_string(*lhs) + "))";
+                std::string c;
+                if (taql_with_auto) {
+                    c = "((ANTENNA1 = " + std::to_string(*lhs) + " AND ANTENNA2 = " +
+                        std::to_string(*rhs) + ") OR (ANTENNA1 = " + std::to_string(*rhs) +
+                        " AND ANTENNA2 = " + std::to_string(*lhs) +
+                        ") OR (ANTENNA1 = " + std::to_string(*lhs) + " AND ANTENNA2 = " +
+                        std::to_string(*lhs) +
+                        ") OR (ANTENNA1 = " + std::to_string(*rhs) + " AND ANTENNA2 = " +
+                        std::to_string(*rhs) + "))";
+                } else {
+                    c = "((ANTENNA1 = " + std::to_string(*lhs) + " AND ANTENNA2 = " +
+                        std::to_string(*rhs) + ") OR (ANTENNA1 = " + std::to_string(*rhs) +
+                        " AND ANTENNA2 = " + std::to_string(*lhs) + "))";
+                }
                 clauses.push_back(negate ? ("NOT " + c) : c);
             }
         } else {
@@ -1039,9 +1417,9 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
                 std::set<std::int32_t> ant_ids;
                 for (const auto& tok : tokens) {
                     for (std::uint64_t ai = 0; ai < ant_cols.row_count(); ++ai) {
-                        bool has_wc = tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
-                        bool match = has_wc ? glob_match(tok, ant_cols.name(ai)) : (ant_cols.name(ai) == tok);
-                        if (match) ant_ids.insert(static_cast<std::int32_t>(ai));
+                        if (name_match(tok, ant_cols.name(ai))) {
+                            ant_ids.insert(static_cast<std::int32_t>(ai));
+                        }
                     }
                 }
                 std::string in_list;
@@ -1060,31 +1438,44 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
     // Field
     if (field_expr_) {
         auto expr = trim(*field_expr_);
-        auto tokens = split(expr, ',');
-        bool all_numeric = true;
-        for (const auto& tok : tokens) {
-            if (!try_parse_int(tok)) { all_numeric = false; break; }
+        bool field_negate = false;
+        if (!expr.empty() && expr.front() == '!') {
+            field_negate = true;
+            expr = trim(expr.substr(1));
         }
-        if (all_numeric) {
-            clauses.push_back(int_expr_to_taql(expr, "FIELD_ID", "Field"));
+        if (!field_negate && !expr.empty() && (expr.front() == '<' || expr.front() == '>')) {
+            clauses.push_back(bound_to_taql(expr, "FIELD_ID", "Field"));
         } else {
-            MsFieldColumns fld_cols(ms);
-            std::set<std::int32_t> fld_ids;
+            auto tokens = split(expr, ',');
+            bool all_numeric = true;
             for (const auto& tok : tokens) {
-                bool has_wc = tok.find('*') != std::string::npos || tok.find('?') != std::string::npos;
-                for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
-                    bool match = has_wc ? glob_match(tok, fld_cols.name(fi)) : (fld_cols.name(fi) == tok);
-                    if (match) fld_ids.insert(static_cast<std::int32_t>(fi));
+                if (tok.find('~') == std::string::npos && !try_parse_int(tok)) {
+                    all_numeric = false;
+                    break;
                 }
             }
-            std::string in_list;
-            bool first = true;
-            for (auto id : fld_ids) {
-                if (!first) in_list += ", ";
-                in_list += std::to_string(id);
-                first = false;
+            if (all_numeric) {
+                clauses.push_back(int_expr_to_taql(expr, "FIELD_ID", "Field", field_negate));
+            } else {
+                MsFieldColumns fld_cols(ms);
+                std::set<std::int32_t> fld_ids;
+                for (const auto& tok : tokens) {
+                    for (std::uint64_t fi = 0; fi < fld_cols.row_count(); ++fi) {
+                        if (name_match(tok, fld_cols.name(fi))) {
+                            fld_ids.insert(static_cast<std::int32_t>(fi));
+                        }
+                    }
+                }
+                std::string in_list;
+                bool first = true;
+                for (auto id : fld_ids) {
+                    if (!first) in_list += ", ";
+                    in_list += std::to_string(id);
+                    first = false;
+                }
+                auto c = "FIELD_ID IN [" + in_list + "]";
+                clauses.push_back(field_negate ? ("NOT (" + c + ")") : c);
             }
-            clauses.push_back("FIELD_ID IN [" + in_list + "]");
         }
     }
 
@@ -1139,10 +1530,29 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
         }
     }
 
-    // Time
+    // Time — parse date strings to MJD seconds for TaQL
     if (time_expr_) {
         auto expr = trim(*time_expr_);
-        clauses.push_back(double_range_to_taql(expr, "TIME", "Time"));
+        if (expr.front() == '>') {
+            auto val = parse_time_value(expr.substr(1));
+            if (!val) throw std::runtime_error("Time: invalid value for TaQL conversion");
+            clauses.push_back("TIME > " + std::to_string(*val));
+        } else if (expr.front() == '<') {
+            auto val = parse_time_value(expr.substr(1));
+            if (!val) throw std::runtime_error("Time: invalid value for TaQL conversion");
+            clauses.push_back("TIME < " + std::to_string(*val));
+        } else {
+            auto tilde = expr.find('~');
+            if (tilde != std::string_view::npos) {
+                auto lo = parse_time_value(expr.substr(0, tilde));
+                auto hi = parse_time_value(expr.substr(tilde + 1));
+                if (!lo || !hi) throw std::runtime_error("Time: invalid range for TaQL conversion");
+                clauses.push_back("TIME >= " + std::to_string(*lo) + " AND TIME <= " +
+                                  std::to_string(*hi));
+            } else {
+                throw std::runtime_error("Time: unsupported expression for TaQL conversion");
+            }
+        }
     }
 
     // UVdist — requires sqrt(UVW[0]^2 + UVW[1]^2), can't express directly in TaQL easily
@@ -1175,15 +1585,16 @@ std::string MsSelection::to_taql_where(MeasurementSet& ms) const {
     // State
     if (state_expr_) {
         auto expr = trim(*state_expr_);
-        bool is_pattern = expr.find('*') != std::string_view::npos || expr.find('?') != std::string_view::npos;
-        if (is_pattern) {
+        if (!expr.empty() && (expr.front() == '<' || expr.front() == '>')) {
+            clauses.push_back(bound_to_taql(expr, "STATE_ID", "State"));
+        } else if (is_name_pattern(expr) || is_regex_pattern(expr)) {
             // Resolve pattern to IDs via STATE subtable
             auto& state_table = ms.subtable("STATE");
             std::set<std::int32_t> state_ids;
             for (std::uint64_t si = 0; si < state_table.nrow(); ++si) {
                 auto obs_mode_val = state_table.read_scalar_cell("OBS_MODE", si);
                 if (auto* sp = std::get_if<std::string>(&obs_mode_val)) {
-                    if (glob_match(std::string(expr), *sp))
+                    if (name_match(std::string(expr), *sp))
                         state_ids.insert(static_cast<std::int32_t>(si));
                 }
             }

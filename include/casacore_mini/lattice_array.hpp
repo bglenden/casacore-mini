@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -136,30 +137,21 @@ class LatticeArray {
     /// Extract a contiguous slice into a new LatticeArray.
     ///
     /// Copies data from the region specified by `slicer` into a new array
-    /// whose shape is `slicer.length()`.
+    /// whose shape is `slicer.length()`. Uses mdspan-style strided copy
+    /// with Fortran-order stride arithmetic.
     [[nodiscard]] LatticeArray<T> get_slice(const Slicer& slicer) const {
         validate_slicer(slicer, shape_);
         const auto& sl = slicer.length();
-        const auto& ss = slicer.start();
-        const auto& st = slicer.stride();
         auto n = static_cast<std::size_t>(sl.product());
         std::vector<T> result(n);
-        auto src_strides = fortran_strides(shape_);
 
-        IPosition idx(sl.ndim(), 0);
-        for (std::size_t i = 0; i < n; ++i) {
-            IPosition src_idx(sl.ndim());
-            for (std::size_t d = 0; d < sl.ndim(); ++d) {
-                src_idx[d] = ss[d] + idx[d] * st[d];
-            }
-            result[i] = (*storage_)[static_cast<std::size_t>(
-                linear_index(src_idx, src_strides))];
-
-            // Increment idx in Fortran order.
-            for (std::size_t d = 0; d < sl.ndim(); ++d) {
-                if (++idx[d] < sl[d]) break;
-                idx[d] = 0;
-            }
+        if constexpr (std::is_same_v<T, bool>) {
+            // vector<bool> has no .data(); use element-wise access.
+            get_slice_elementwise(slicer, result);
+        } else {
+            strided_fortran_copy(storage_->data(), fortran_strides(shape_),
+                                 slicer.start(), slicer.stride(),
+                                 result.data(), sl);
         }
         return LatticeArray<T>(IPosition(sl), std::move(result));
     }
@@ -170,26 +162,14 @@ class LatticeArray {
     void put_slice(const LatticeArray<T>& source, const Slicer& slicer) {
         assert(is_unique() && "put_slice() called on shared storage");
         validate_slicer(slicer, shape_);
-        const auto& sl = slicer.length();
-        const auto& ss = slicer.start();
-        const auto& st = slicer.stride();
-        auto src_strides = fortran_strides(source.shape());
-        auto dst_strides = fortran_strides(shape_);
-        auto n = static_cast<std::size_t>(sl.product());
 
-        IPosition idx(sl.ndim(), 0);
-        for (std::size_t i = 0; i < n; ++i) {
-            IPosition dst_idx(sl.ndim());
-            for (std::size_t d = 0; d < sl.ndim(); ++d) {
-                dst_idx[d] = ss[d] + idx[d] * st[d];
-            }
-            (*storage_)[static_cast<std::size_t>(linear_index(dst_idx, dst_strides))] =
-                source.flat()[static_cast<std::size_t>(linear_index(idx, src_strides))];
-
-            for (std::size_t d = 0; d < sl.ndim(); ++d) {
-                if (++idx[d] < sl[d]) break;
-                idx[d] = 0;
-            }
+        if constexpr (std::is_same_v<T, bool>) {
+            put_slice_elementwise(source, slicer);
+        } else {
+            strided_fortran_scatter(source.flat().data(), storage_->data(),
+                                    fortran_strides(shape_),
+                                    slicer.start(), slicer.stride(),
+                                    slicer.length());
         }
     }
 
@@ -221,6 +201,53 @@ class LatticeArray {
         return LatticeSpan<T, N>(
             storage_->data(),
             static_cast<std::size_t>(shape_[I])...);
+    }
+
+    /// Element-wise slice copy for vector<bool> (no .data() pointer).
+    void get_slice_elementwise(const Slicer& slicer, std::vector<T>& result) const {
+        const auto& sl = slicer.length();
+        const auto& ss = slicer.start();
+        const auto& st = slicer.stride();
+        auto n = static_cast<std::size_t>(sl.product());
+        auto src_strides = fortran_strides(shape_);
+
+        IPosition idx(sl.ndim(), 0);
+        for (std::size_t i = 0; i < n; ++i) {
+            IPosition src_idx(sl.ndim());
+            for (std::size_t d = 0; d < sl.ndim(); ++d) {
+                src_idx[d] = ss[d] + idx[d] * st[d];
+            }
+            result[i] = (*storage_)[static_cast<std::size_t>(
+                linear_index(src_idx, src_strides))];
+            for (std::size_t d = 0; d < sl.ndim(); ++d) {
+                if (++idx[d] < sl[d]) break;
+                idx[d] = 0;
+            }
+        }
+    }
+
+    /// Element-wise slice scatter for vector<bool>.
+    void put_slice_elementwise(const LatticeArray<T>& source, const Slicer& slicer) {
+        const auto& sl = slicer.length();
+        const auto& ss = slicer.start();
+        const auto& st = slicer.stride();
+        auto src_strides = fortran_strides(source.shape());
+        auto dst_strides = fortran_strides(shape_);
+        auto n = static_cast<std::size_t>(sl.product());
+
+        IPosition idx(sl.ndim(), 0);
+        for (std::size_t i = 0; i < n; ++i) {
+            IPosition dst_idx(sl.ndim());
+            for (std::size_t d = 0; d < sl.ndim(); ++d) {
+                dst_idx[d] = ss[d] + idx[d] * st[d];
+            }
+            (*storage_)[static_cast<std::size_t>(linear_index(dst_idx, dst_strides))] =
+                source.flat()[static_cast<std::size_t>(linear_index(idx, src_strides))];
+            for (std::size_t d = 0; d < sl.ndim(); ++d) {
+                if (++idx[d] < sl[d]) break;
+                idx[d] = 0;
+            }
+        }
     }
 
     IPosition shape_;

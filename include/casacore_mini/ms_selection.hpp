@@ -3,6 +3,7 @@
 #include "casacore_mini/measurement_set.hpp"
 
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -17,12 +18,45 @@ namespace casacore_mini {
 /// Each category filters the row set by a different criterion. The final result
 /// is the intersection of all active category selections.
 
+/// Parse mode: controls when expression validation occurs.
+enum class ParseMode {
+    ParseNow,  ///< Validate at evaluate() time (default).
+    ParseLate, ///< Defer validation until evaluate() or to_taql_where() is called.
+};
+
+/// Error handling mode during evaluation.
+enum class ErrorMode {
+    ThrowOnError,  ///< Throw std::runtime_error on malformed expressions (default).
+    CollectErrors, ///< Collect errors into MsSelectionResult::errors without throwing.
+};
+
+/// UV distance unit.
+enum class UvUnit { Meters, Kilometers, Wavelengths, Percent };
+
+/// Parsed time range from a time expression.
+struct TimeRange {
+    double lo;       ///< Lower bound in MJD seconds (-1e30 = open).
+    double hi;       ///< Upper bound in MJD seconds (+1e30 = open).
+    bool is_seconds; ///< True if parsed from numeric MJD seconds, false from date string.
+};
+
+/// Parsed UV distance range.
+struct UvRange {
+    double lo;   ///< Lower bound in declared unit.
+    double hi;   ///< Upper bound in declared unit.
+    UvUnit unit; ///< Unit of the declared values.
+};
+
 /// Result of evaluating an MsSelection against a MeasurementSet.
 struct MsSelectionResult {
     /// Selected main-table row indices (sorted, unique).
     std::vector<std::uint64_t> rows;
-    /// Selected antenna IDs (from antenna expression).
+    /// Selected antenna IDs (from antenna expression, union of both sides).
     std::vector<std::int32_t> antennas;
+    /// ANTENNA1-side of baseline pairs (parallel with antenna2_list).
+    std::vector<std::int32_t> antenna1_list;
+    /// ANTENNA2-side of baseline pairs (parallel with antenna1_list).
+    std::vector<std::int32_t> antenna2_list;
     /// Selected field IDs (from field expression).
     std::vector<std::int32_t> fields;
     /// Selected spectral window IDs (from spw expression).
@@ -39,8 +73,24 @@ struct MsSelectionResult {
     std::vector<std::int32_t> observations;
     /// Selected (sub)array IDs.
     std::vector<std::int32_t> arrays;
-    /// Selected feed IDs.
+    /// Selected feed IDs (union of both sides).
     std::vector<std::int32_t> feeds;
+    /// FEED1-side of feed pairs (parallel with feed2_list).
+    std::vector<std::int32_t> feed1_list;
+    /// FEED2-side of feed pairs (parallel with feed1_list).
+    std::vector<std::int32_t> feed2_list;
+    /// Parsed time selection ranges.
+    std::vector<TimeRange> time_ranges;
+    /// Parsed UV distance selection ranges.
+    std::vector<UvRange> uv_ranges;
+    /// Selected DATA_DESC_IDs (from SPW selection).
+    std::vector<std::int32_t> data_desc_ids;
+    /// DDID → SPW_ID map.
+    std::map<std::int32_t, std::int32_t> ddid_to_spw;
+    /// DDID → POLARIZATION_ID map.
+    std::map<std::int32_t, std::int32_t> ddid_to_pol_id;
+    /// Errors collected in CollectErrors mode.
+    std::vector<std::string> errors;
 };
 
 /// Row selection engine for MeasurementSet data.
@@ -61,11 +111,13 @@ class MsSelection {
     void set_antenna_expr(std::string_view expr);
 
     /// Set field selection expression.
-    /// Syntax: "0", "0,1", "3C273" (by name), "3C*" (glob pattern).
+    /// Syntax: "0", "0,1", "3C273" (by name), "3C*" (glob), "!0" (negate),
+    /// "0~1" (range), ">0" or "<2" (bounds).
     void set_field_expr(std::string_view expr);
 
     /// Set spectral window / channel selection expression.
-    /// Syntax: "0", "0,1", "0:0~63" (spw:channels), "*" (all).
+    /// Syntax: "0", "0,1", "0:0~63" (spw:channels), "0:0~63^2" (stride),
+    /// "SPW0" (by name), "1.4GHz" (by frequency), "*" (all).
     void set_spw_expr(std::string_view expr);
 
     /// Set scan number selection expression.
@@ -73,11 +125,12 @@ class MsSelection {
     void set_scan_expr(std::string_view expr);
 
     /// Set time selection expression.
-    /// Syntax: ">59000.0" (MJD), "59000.0~59001.0" (MJD range).
+    /// Syntax: ">59000.0" (MJD seconds), "59000.0~59001.0" (range),
+    /// ">2020/01/01" (date string), "2020/01/01~2020/01/02/12:00:00".
     void set_time_expr(std::string_view expr);
 
     /// Set UV-distance selection expression.
-    /// Syntax: ">100", "100~500", "<50" (meters).
+    /// Syntax: ">100", ">0.5km", "<50m", "100~500" (meters).
     void set_uvdist_expr(std::string_view expr);
 
     /// Set correlation / polarization selection expression.
@@ -85,7 +138,7 @@ class MsSelection {
     void set_corr_expr(std::string_view expr);
 
     /// Set state selection expression.
-    /// Syntax: "0,1" (state IDs), "*REFERENCE*" (obs_mode pattern).
+    /// Syntax: "0,1", "*REFERENCE*", ">0", "<2".
     void set_state_expr(std::string_view expr);
 
     /// Set observation ID selection expression.
@@ -105,9 +158,21 @@ class MsSelection {
     /// The expression is ANDed with other category selections during evaluation.
     void set_taql_expr(std::string_view expr);
 
+    /// Set the parse mode (ParseNow or ParseLate).
+    void set_parse_mode(ParseMode mode) noexcept;
+
+    /// Set the error handling mode.
+    void set_error_mode(ErrorMode mode) noexcept;
+
+    /// Get the current parse mode.
+    [[nodiscard]] ParseMode parse_mode() const noexcept { return parse_mode_; }
+
+    /// Get the current error mode.
+    [[nodiscard]] ErrorMode error_mode() const noexcept { return error_mode_; }
+
     /// Evaluate all set expressions against an MS.
-    /// Returns the selected row indices and per-category results.
-    /// @throws std::runtime_error on malformed expressions.
+    /// In ThrowOnError mode, throws std::runtime_error on malformed expressions.
+    /// In CollectErrors mode, populates result.errors and continues.
     [[nodiscard]] MsSelectionResult evaluate(MeasurementSet& ms) const;
 
     /// Convert the current selection to an equivalent TaQL WHERE clause.
@@ -120,7 +185,7 @@ class MsSelection {
     /// Check if any selection category has been set.
     [[nodiscard]] bool has_selection() const noexcept;
 
-    /// Clear all selection expressions.
+    /// Clear all selection expressions and reset modes to defaults.
     void clear() noexcept;
 
     /// Reset to default state (same as clear).
@@ -166,6 +231,8 @@ class MsSelection {
     std::optional<std::string> array_expr_;
     std::optional<std::string> feed_expr_;
     std::optional<std::string> taql_expr_;
+    ParseMode parse_mode_ = ParseMode::ParseNow;
+    ErrorMode error_mode_ = ErrorMode::ThrowOnError;
 };
 
 } // namespace casacore_mini

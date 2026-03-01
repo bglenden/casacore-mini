@@ -45,17 +45,17 @@ struct ColumnDesc {
     /// Column kind (scalar or array).
     ColumnKind kind = ColumnKind::scalar;
     /// AipsIO type string (e.g. `ScalarColumnDesc<Int     >`).
-    std::string type_string;
+    std::string type_string{};
     /// AipsIO object version for the column descriptor.
     std::uint32_t version = 0;
     /// Column name.
-    std::string name;
+    std::string name{};
     /// Column comment.
-    std::string comment;
+    std::string comment{};
     /// Data manager type (e.g. `StManAipsIO`).
-    std::string dm_type;
+    std::string dm_type{};
     /// Data manager group name.
-    std::string dm_group;
+    std::string dm_group{};
     /// casacore DataType code.
     DataType data_type = DataType::tp_int;
     /// Column options bitmask.
@@ -63,11 +63,11 @@ struct ColumnDesc {
     /// Number of dimensions (-1 = any, 0 = scalar, >0 = fixed).
     std::int32_t ndim = 0;
     /// Fixed shape (IPosition) when ndim > 0.
-    std::vector<std::int64_t> shape;
+    std::vector<std::int64_t> shape{};
     /// Maximum string length (0 = unlimited).
     std::int32_t max_length = 0;
     /// Column keywords (TableRecord).
-    Record keywords;
+    Record keywords{};
 
     [[nodiscard]] bool operator==(const ColumnDesc& other) const = default;
 };
@@ -75,12 +75,12 @@ struct ColumnDesc {
 /// Storage manager descriptor entry from the post-TableDesc section.
 struct StorageManagerSetup {
     /// Storage manager type name (e.g. `StManAipsIO`).
-    std::string type_name;
+    std::string type_name{};
     /// Sequence number.
     std::uint32_t sequence_number = 0;
     /// Raw data blob for this SM (from AipsIO getnew in table.dat).
     /// Parsed by the individual SM reader (e.g. SSM reader).
-    std::vector<std::uint8_t> data_blob;
+    std::vector<std::uint8_t> data_blob{};
 
     [[nodiscard]] bool operator==(const StorageManagerSetup& other) const = default;
 };
@@ -88,13 +88,13 @@ struct StorageManagerSetup {
 /// Per-column storage manager assignment from the post-TableDesc section.
 struct ColumnManagerSetup {
     /// Column name.
-    std::string column_name;
+    std::string column_name{};
     /// SM sequence number this column belongs to.
     std::uint32_t sequence_number = 0;
     /// True if column has a fixed shape (array columns only).
     bool has_shape = false;
     /// Fixed shape (only meaningful when has_shape is true).
-    std::vector<std::int64_t> shape;
+    std::vector<std::int64_t> shape{};
 
     [[nodiscard]] bool operator==(const ColumnManagerSetup& other) const = default;
 };
@@ -104,15 +104,15 @@ struct TableDesc {
     /// TableDesc AipsIO version.
     std::uint32_t version = 0;
     /// Table name.
-    std::string name;
+    std::string name{};
     /// Table comment/description.
-    std::string comment;
+    std::string comment{};
     /// Table-level keywords (from TableDesc section).
-    Record keywords;
+    Record keywords{};
     /// Table-level private keywords.
-    Record private_keywords;
+    Record private_keywords{};
     /// Column descriptors in file order.
-    std::vector<ColumnDesc> columns;
+    std::vector<ColumnDesc> columns{};
 
     [[nodiscard]] bool operator==(const TableDesc& other) const = default;
 };
@@ -126,17 +126,17 @@ struct TableDatFull {
     /// Big-endian flag.
     bool big_endian = true;
     /// Table type string (e.g. `PlainTable`).
-    std::string table_type;
+    std::string table_type{};
     /// Table descriptor.
     TableDesc table_desc;
     /// Table keywords from post-TD section (tableVer=1 only; empty for v2+).
-    std::optional<Record> table_keywords_v1;
+    std::optional<Record> table_keywords_v1{};
     /// Repeated row count from post-TD section.
     std::uint64_t post_td_row_count = 0;
     /// Storage manager descriptors.
-    std::vector<StorageManagerSetup> storage_managers;
+    std::vector<StorageManagerSetup> storage_managers{};
     /// Per-column storage manager assignments.
-    std::vector<ColumnManagerSetup> column_setups;
+    std::vector<ColumnManagerSetup> column_setups{};
 
     [[nodiscard]] bool operator==(const TableDatFull& other) const = default;
 };

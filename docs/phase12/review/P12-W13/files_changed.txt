@@ -1,0 +1,5 @@
+include/casacore_mini/lattice_shape.hpp     (modified — added strided copy/scatter helpers, make_*_lattice_span)
+include/casacore_mini/lattice_array.hpp    (modified — get_slice/put_slice refactored to use strided helpers)
+tests/mdspan_migration_test.cpp            (new — 50 checks for migration parity)
+tools/check_phase12_w13.sh                 (new — wave gate)
+CMakeLists.txt                             (modified — added mdspan_migration_test target)

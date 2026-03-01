@@ -261,16 +261,29 @@ Required feature coverage:
   Detailed wave plan: `docs/phase11/plan.md`.
   TaQL+MSSelection implementation blueprint:
   `docs/phase11/taql_msselection_full_support_plan.md`.
-- Phase 12 (pending): multidimensional in-memory array model modernization and
-  interoperability carry-forward closure.
+- Phase 12 (complete): functional closure + mdspan modernization.
   Primary scope:
-  1. Introduce `mdspan`-based internal array views and ownership adapters
-     (`vector`/allocator-backed), replacing ad-hoc shape+stride indexing in
-     internal implementation paths while preserving external API behavior and
-     storage-format compatibility.
-  2. Close the active Phase-8 interop carry-forward regression for
-     coordinate artifacts (`coord-keywords`, `mixed-coords`) in
-     `mini->casacore` matrix cells.
+  1. close remaining compatibility-critical functionality still marked
+     `Simplified` after Phase 11, with execution parity for TaQL and
+     MSSelection (not parser-only acceptance)
+  2. complete table infrastructure parity tranche required for workflows
+     (`TableLock`, indexing/query helpers, reference/concatenated views,
+     iterator/proxy/utility surfaces)
+  3. keep the currently implemented six-storage-manager set
+     (`StandardStMan`, `IncrementalStMan`, `TiledColumnStMan`,
+     `TiledCellStMan`, `TiledShapeStMan`, `TiledDataStMan`) fidelity-exact,
+     including mutation paths
+  4. classify additional storage managers (`MemoryStMan`, `Adios2StMan`,
+     `AlternateMans`, `Dysco`) as deferred-on-demand unless concrete workflow
+     demand promotes them into scope
+  5. implement MeasUDF-equivalent TaQL functionality as built-ins (plugin
+     architecture parity not required)
+  6. close the active Phase-8 interop carry-forward regression for coordinate
+     artifacts (`coord-keywords`, `mixed-coords`) in `mini->casacore`
+     matrix cells
+  7. introduce `mdspan`-based internal array views and ownership adapters,
+     replacing ad-hoc indexing in selected internals while preserving external
+     API behavior and on-disk compatibility
   Detailed execution plan: `docs/phase12/plan.md`.
 
 Phase-1 detailed execution tracking lives in `docs/phase1/plan.md`.
@@ -289,8 +302,8 @@ Phase-8 detailed execution tracking lives in `docs/phase8/plan.md`.
 Phase-9 detailed execution tracking lives in `docs/phase9/plan.md`.
 Phase-10 detailed execution tracking lives in `docs/phase10/plan.md`.
 Phase-11 detailed execution tracking lives in `docs/phase11/plan.md`.
-Phase-12 detailed execution tracking lives in `docs/phase12/plan.md`
-(pre-kickoff draft; status pending).
+Phase-12 detailed execution tracking lives in `docs/phase12/plan.md`.
+Phase-12 completion summary lives in `docs/phase12/exit_report.md`.
 
 ### Mandatory structure for all future phase plans
 

@@ -1,0 +1,15 @@
+=== P12-W7 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: taql_udf_equiv_test
+  PASS: datetime-functions
+  PASS: angle-functions
+  PASS: array-functions
+  PASS: complex-functions
+  PASS: unit-conversion
+  PASS: meas-udf-bridge
+
+=== P12-W7 gate summary ===
+PASS: 9
+FAIL: 0
+P12-W7 gate passed

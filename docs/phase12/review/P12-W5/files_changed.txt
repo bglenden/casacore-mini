@@ -1,0 +1,5 @@
+src/taql.cpp
+include/casacore_mini/taql.hpp
+tests/taql_join_test.cpp
+CMakeLists.txt
+tools/check_phase12_w5.sh

@@ -1,0 +1,12 @@
+=== P12-W1 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: spectral-save-toplevel-crval
+  casacore available, running Phase 8 matrix...
+  PASS: phase8-matrix-24/24
+  PASS: matrix-stderr-diagnostics
+
+=== P12-W1 gate summary ===
+PASS: 5
+FAIL: 0
+P12-W1 gate passed

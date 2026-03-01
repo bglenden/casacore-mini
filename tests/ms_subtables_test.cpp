@@ -130,6 +130,7 @@ static void test_all_17_factories() {
         }
         // Verify all columns have non-empty names and valid type strings.
         for (const auto& col : cols) {
+            (void)col;
             assert(!col.name.empty());
             assert(!col.type_string.empty());
         }

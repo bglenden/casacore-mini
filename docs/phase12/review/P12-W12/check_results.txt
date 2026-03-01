@@ -1,0 +1,4 @@
+P12-W12 wave gate: 10/10 passed
+Full test suite: 107/107 passed
+
+table_mutation_test: all assertions pass (14 test functions including 2 new TSM tests)

@@ -43,8 +43,7 @@ static void test_open_fixture() {
     assert(table.table_name() == "ssm_table");
 
     // Column names should include id, value, label, dval.
-    const auto& cols = table.columns();
-    assert(cols.size() == 4);
+    assert(table.columns().size() == 4);
 
     // Verify ScalarColumn reads.
     ScalarColumn<std::int32_t> id_col(table, "id");
@@ -192,6 +191,9 @@ static void test_table_row_round_trip() {
             auto y = std::get<double>(rec.find("Y")->storage());
             auto z = std::get<std::string>(rec.find("Z")->storage());
 
+            (void)x;
+            (void)y;
+            (void)z;
             assert(x == static_cast<std::int32_t>(r + 10));
             assert(std::fabs(y - static_cast<double>(r) * 9.81) < 1e-10);
             assert(z == "val_" + std::to_string(r));
@@ -284,6 +286,7 @@ static void test_column_not_found() {
         std::string msg = e.what();
         assert(msg.find("NONEXISTENT") != std::string::npos);
     }
+    (void)threw;
     assert(threw);
 
     std::cout << "PASS\n";
@@ -705,6 +708,7 @@ static void test_tsm_via_table_api() {
         assert(values.size() == kCellElements);
         for (std::uint64_t i = 0; i < kCellElements; ++i) {
             const float expected = static_cast<float>(r * 100 + i);
+            (void)expected;
             assert(std::fabs(values[i] - expected) < 1e-6F);
         }
     }

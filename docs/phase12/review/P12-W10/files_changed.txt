@@ -1,0 +1,7 @@
+include/casacore_mini/table.hpp      (TableLockMode, TableInfo, new Table methods, utility functions)
+src/table.cpp                        (implementations for lock, info, private_keywords, drop_table, type utils)
+src/taql.cpp                         (replaced duplicated parse_dt lambdas, use Table::drop_table)
+tests/table_lock_test.cpp            (new — 20 checks)
+tests/table_info_test.cpp            (new — 51 checks)
+CMakeLists.txt                       (add table_lock_test, table_info_test targets)
+tools/check_phase12_w10.sh           (new — 10 gate checks)

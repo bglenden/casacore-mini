@@ -140,6 +140,7 @@ static void test_iter_chunks() {
             found_00 = true;
         }
     }
+    (void)found_00;
     assert(found_00);
 
     cleanup(ms_path);

@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -361,6 +362,15 @@ struct TaqlResult {
 /// @return Query result.
 /// @throws std::runtime_error on execution failure.
 [[nodiscard]] TaqlResult taql_execute(std::string_view query, Table& table);
+
+/// Execute a TaQL command against multiple tables.
+/// @param query TaQL query string.
+/// @param tables Map of shorthand/alias to Table reference. The first entry
+///              is the primary table.
+/// @return Query result.
+/// @throws std::runtime_error on execution failure.
+[[nodiscard]] TaqlResult taql_execute(std::string_view query,
+                                      std::unordered_map<std::string, Table*> tables);
 
 /// Execute a TaQL CALC expression (no table context).
 /// @param query TaQL CALC expression.

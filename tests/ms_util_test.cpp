@@ -86,12 +86,14 @@ static void test_doppler_util() {
 
     // Zero velocity -> rest frequency.
     double f = MsDopplerUtil::velocity_to_frequency(0.0, rest_freq);
+    (void)f;
     assert(std::abs(f - rest_freq) < 1.0);
 
     // Round-trip: v -> f -> v.
     double v_in = 1000.0; // 1 km/s
     double freq = MsDopplerUtil::velocity_to_frequency(v_in, rest_freq);
     double v_out = MsDopplerUtil::frequency_to_velocity(freq, rest_freq);
+    (void)v_out;
     assert(std::abs(v_out - v_in) < 0.01);
 
     std::cout << "PASS\n";

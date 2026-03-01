@@ -36,6 +36,7 @@ static void test_open_nonexistent_path() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     std::cout << "PASS\n";
@@ -54,6 +55,7 @@ static void test_open_empty_directory() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     cleanup(path);
@@ -81,6 +83,7 @@ static void test_open_truncated_table_dat() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     cleanup(path);
@@ -103,6 +106,7 @@ static void test_create_over_existing_fails() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     cleanup(path);
@@ -127,6 +131,7 @@ static void test_subtable_missing() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     cleanup(path);

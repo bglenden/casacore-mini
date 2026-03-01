@@ -178,33 +178,24 @@ static void test_insert_throws() {
 }
 
 // ---------------------------------------------------------------------------
-// GROUPBY / HAVING throw (not supported)
+// GROUPBY / HAVING
 // ---------------------------------------------------------------------------
 
-static void test_groupby_throws() {
+static void test_groupby_executes() {
     auto path = create_test_table();
     auto table = Table::open(path);
-    bool threw = false;
-    try {
-        (void)taql_execute("SELECT ID FROM t GROUPBY ID", table);
-    } catch (const std::runtime_error& e) {
-        threw = std::string(e.what()).find("GROUPBY") != std::string::npos;
-    }
-    check(threw, "GROUPBY throws runtime_error");
+    // Each ID is unique, so GROUPBY ID produces 10 groups.
+    auto result = taql_execute("SELECT ID FROM t GROUPBY ID", table);
+    check(result.rows.size() == 10, "GROUPBY returns 10 groups");
     fs::remove_all(path);
 }
 
-static void test_having_throws() {
+static void test_having_executes() {
     auto path = create_test_table();
     auto table = Table::open(path);
-    bool threw = false;
-    try {
-        (void)taql_execute("SELECT ID FROM t GROUPBY ID HAVING ID > 3", table);
-    } catch (const std::runtime_error& e) {
-        threw = std::string(e.what()).find("GROUPBY") != std::string::npos ||
-                std::string(e.what()).find("HAVING") != std::string::npos;
-    }
-    check(threw, "HAVING throws runtime_error");
+    // HAVING ID > 3 filters to groups with ID 4..9 = 6 groups.
+    auto result = taql_execute("SELECT ID FROM t GROUPBY ID HAVING ID > 3", table);
+    check(result.rows.size() == 6, "HAVING filters groups");
     fs::remove_all(path);
 }
 
@@ -250,8 +241,8 @@ int main() {
     test_update();
     test_delete_throws();
     test_insert_throws();
-    test_groupby_throws();
-    test_having_throws();
+    test_groupby_executes();
+    test_having_executes();
     test_show();
     test_expr_with_columns();
 

@@ -1,0 +1,11 @@
+=== P12-W2 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: add_row-api
+  PASS: remove_row-api
+  PASS: table_mutation_test
+
+=== P12-W2 gate summary ===
+PASS: 5
+FAIL: 0
+P12-W2 gate passed

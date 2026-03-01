@@ -6,6 +6,7 @@
 #include "casacore_mini/tiled_stman.hpp"
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -111,6 +112,9 @@ struct Table::Impl {
     TableDirectory dir;
     std::uint32_t tsm_writer_seq = 0; // SM sequence number for TSM writer
     bool writable = false;
+    bool locked = false;
+    bool write_locked = false;
+    TableLockMode lock_mode = TableLockMode::NoLock;
     mutable bool ssm_readers_initialized = false;
     mutable bool ism_readers_initialized = false;
     mutable bool tsm_readers_initialized = false;
@@ -706,6 +710,311 @@ void Table::flush() {
         impl_->tsm_readers.clear();
         impl_->tsm_readers_initialized = false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Row mutation
+// ---------------------------------------------------------------------------
+
+void Table::add_row(std::uint64_t n) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::add_row: table is read-only");
+    }
+    if (n == 0) {
+        return;
+    }
+
+    // Flush current state to disk.
+    flush();
+
+    const auto old_nrow = impl_->dir.table_dat.row_count;
+    const auto new_nrow = old_nrow + n;
+
+    // Re-open: rebuild readers and writers with the new row count.
+    // Tear down existing writers (keep readers temporarily for data copy).
+    impl_->ssm_writer.reset();
+    impl_->ism_writer.reset();
+    impl_->tsm_writer.reset();
+    impl_->ssm_readers.clear();
+    impl_->ssm_readers_initialized = false;
+    impl_->ism_readers.clear();
+    impl_->ism_readers_initialized = false;
+    impl_->tsm_readers.clear();
+    impl_->tsm_readers_initialized = false;
+    impl_->writer_columns.clear();
+
+    // Re-read table.dat from disk (still has old row count so readers parse
+    // correctly — row count is updated in-memory below after readers are used).
+    impl_->dir = read_table_directory(impl_->path.string());
+
+    // Identify SSM columns.
+    std::vector<ColumnDesc> ssm_cols;
+    for (const auto& col : impl_->dir.table_dat.table_desc.columns) {
+        auto lookup = find_sm_for_column(impl_->dir.table_dat, col.name);
+        if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
+            ssm_cols.push_back(col);
+        }
+    }
+
+    // Identify ISM columns.
+    std::vector<ColumnDesc> ism_cols;
+    for (const auto& col : impl_->dir.table_dat.table_desc.columns) {
+        auto lookup = find_sm_for_column(impl_->dir.table_dat, col.name);
+        if (lookup.sm_type.find("IncrementalStMan") != std::string_view::npos) {
+            ism_cols.push_back(col);
+        }
+    }
+
+    // Identify TSM columns.
+    std::vector<ColumnDesc> tsm_cols;
+    std::string tsm_sm_type;
+    std::string tsm_dm_name;
+    for (const auto& col : impl_->dir.table_dat.table_desc.columns) {
+        auto lookup = find_sm_for_column(impl_->dir.table_dat, col.name);
+        if (lookup.sm_type.find("Tiled") != std::string::npos) {
+            tsm_cols.push_back(col);
+            if (tsm_sm_type.empty()) {
+                tsm_sm_type = std::string(lookup.sm_type);
+                tsm_dm_name = col.dm_group;
+            }
+        }
+    }
+
+    // Rebuild SSM writer with new row count.
+    if (!ssm_cols.empty()) {
+        impl_->ensure_ssm_readers();
+
+        SsmWriter writer;
+        writer.setup(ssm_cols, new_nrow, impl_->dir.table_dat.big_endian, "StandardStMan");
+
+        // Copy existing cell data from readers.
+        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+            const auto& col = ssm_cols[ci];
+            auto* reader = impl_->find_ssm_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < old_nrow; ++r) {
+                if (col.kind == ColumnKind::scalar) {
+                    writer.write_cell(ci, reader->read_cell(col.name, r), r);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, r);
+                        writer.write_indirect_offset(ci, r, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, r);
+                        writer.write_array_raw(ci, raw, r);
+                    }
+                }
+            }
+            // New rows get default (zero) values — already zero-initialized by setup.
+        }
+
+        impl_->ssm_writer = std::move(writer);
+        impl_->writer_columns = ssm_cols;
+    }
+
+    // Rebuild ISM writer with new row count.
+    if (!ism_cols.empty()) {
+        impl_->ensure_ism_readers();
+
+        IsmWriter writer;
+        writer.setup(ism_cols, new_nrow, impl_->dir.table_dat.big_endian, "IncrementalStMan");
+
+        for (std::size_t ci = 0; ci < ism_cols.size(); ++ci) {
+            const auto& col = ism_cols[ci];
+            auto* reader = impl_->find_ism_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < old_nrow; ++r) {
+                writer.write_cell(ci, reader->read_cell(col.name, r), r);
+            }
+        }
+
+        impl_->ism_writer = std::move(writer);
+        for (const auto& col : ism_cols) {
+            impl_->writer_columns.push_back(col);
+        }
+    }
+
+    // Rebuild TSM writer with new row count.
+    if (!tsm_cols.empty()) {
+        impl_->ensure_tsm_readers();
+
+        TiledStManWriter tsm_wr;
+        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, new_nrow,
+                     impl_->dir.table_dat.big_endian);
+
+        for (std::size_t ci = 0; ci < tsm_cols.size(); ++ci) {
+            const auto& col = tsm_cols[ci];
+            auto* reader = impl_->find_tsm_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < old_nrow; ++r) {
+                auto raw = reader->read_raw_cell(col.name, r);
+                tsm_wr.write_raw_cell(ci, raw, r);
+            }
+            // New rows default to zero (tile buffers are zero-initialized).
+        }
+
+        impl_->tsm_writer = std::move(tsm_wr);
+        impl_->tsm_writer_seq = 0;
+        for (const auto& col : tsm_cols) {
+            impl_->writer_columns.push_back(col);
+        }
+    }
+
+    // Update in-memory row count now that readers have been consumed.
+    impl_->dir.table_dat.row_count = new_nrow;
+    impl_->dir.table_dat.post_td_row_count = new_nrow;
+}
+
+void Table::remove_row(std::uint64_t row) {
+    if (!impl_->writable) {
+        throw std::runtime_error("Table::remove_row: table is read-only");
+    }
+    const auto old_nrow = nrow();
+    if (row >= old_nrow) {
+        throw std::out_of_range("Table::remove_row: row " + std::to_string(row) +
+                                " out of range [0, " + std::to_string(old_nrow) + ")");
+    }
+    if (old_nrow == 0) {
+        return;
+    }
+
+    // Flush current state to disk.
+    flush();
+
+    // Rebuild writers with row_count-1, skipping the removed row.
+    const auto new_nrow = old_nrow - 1;
+
+    // Tear down existing writers and reset readers.
+    impl_->ssm_writer.reset();
+    impl_->ism_writer.reset();
+    impl_->tsm_writer.reset();
+    impl_->ssm_readers.clear();
+    impl_->ssm_readers_initialized = false;
+    impl_->ism_readers.clear();
+    impl_->ism_readers_initialized = false;
+    impl_->tsm_readers.clear();
+    impl_->tsm_readers_initialized = false;
+    impl_->writer_columns.clear();
+
+    // Re-read table.dat (at old row count still).
+    impl_->dir = read_table_directory(impl_->path.string());
+
+    // Identify columns by SM type.
+    std::vector<ColumnDesc> ssm_cols;
+    std::vector<ColumnDesc> ism_cols;
+    std::vector<ColumnDesc> tsm_cols;
+    std::string tsm_sm_type;
+    std::string tsm_dm_name;
+    for (const auto& col : impl_->dir.table_dat.table_desc.columns) {
+        auto lookup = find_sm_for_column(impl_->dir.table_dat, col.name);
+        if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
+            ssm_cols.push_back(col);
+        } else if (lookup.sm_type.find("IncrementalStMan") != std::string_view::npos) {
+            ism_cols.push_back(col);
+        } else if (lookup.sm_type.find("Tiled") != std::string::npos) {
+            tsm_cols.push_back(col);
+            if (tsm_sm_type.empty()) {
+                tsm_sm_type = std::string(lookup.sm_type);
+                tsm_dm_name = col.dm_group;
+            }
+        }
+    }
+
+    auto skip_row = [row](std::uint64_t r) -> std::uint64_t { return r < row ? r : r + 1; };
+
+    // Rebuild SSM writer without the removed row.
+    if (!ssm_cols.empty()) {
+        impl_->ensure_ssm_readers();
+
+        SsmWriter writer;
+        writer.setup(ssm_cols, new_nrow, impl_->dir.table_dat.big_endian, "StandardStMan");
+
+        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
+            const auto& col = ssm_cols[ci];
+            auto* reader = impl_->find_ssm_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < new_nrow; ++r) {
+                const auto src_row = skip_row(r);
+                if (col.kind == ColumnKind::scalar) {
+                    writer.write_cell(ci, reader->read_cell(col.name, src_row), r);
+                } else if (col.kind == ColumnKind::array) {
+                    if (reader->is_indirect(col.name)) {
+                        auto offset = reader->read_indirect_offset(col.name, src_row);
+                        writer.write_indirect_offset(ci, r, offset);
+                    } else {
+                        auto raw = reader->read_array_raw(col.name, src_row);
+                        writer.write_array_raw(ci, raw, r);
+                    }
+                }
+            }
+        }
+
+        impl_->ssm_writer = std::move(writer);
+        impl_->writer_columns = ssm_cols;
+    }
+
+    // Rebuild ISM writer without the removed row.
+    if (!ism_cols.empty()) {
+        impl_->ensure_ism_readers();
+
+        IsmWriter writer;
+        writer.setup(ism_cols, new_nrow, impl_->dir.table_dat.big_endian, "IncrementalStMan");
+
+        for (std::size_t ci = 0; ci < ism_cols.size(); ++ci) {
+            const auto& col = ism_cols[ci];
+            auto* reader = impl_->find_ism_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < new_nrow; ++r) {
+                writer.write_cell(ci, reader->read_cell(col.name, skip_row(r)), r);
+            }
+        }
+
+        impl_->ism_writer = std::move(writer);
+        for (const auto& col : ism_cols) {
+            impl_->writer_columns.push_back(col);
+        }
+    }
+
+    // Rebuild TSM writer without the removed row.
+    if (!tsm_cols.empty()) {
+        impl_->ensure_tsm_readers();
+
+        TiledStManWriter tsm_wr;
+        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, new_nrow,
+                     impl_->dir.table_dat.big_endian);
+
+        for (std::size_t ci = 0; ci < tsm_cols.size(); ++ci) {
+            const auto& col = tsm_cols[ci];
+            auto* reader = impl_->find_tsm_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < new_nrow; ++r) {
+                auto raw = reader->read_raw_cell(col.name, skip_row(r));
+                tsm_wr.write_raw_cell(ci, raw, r);
+            }
+        }
+
+        impl_->tsm_writer = std::move(tsm_wr);
+        impl_->tsm_writer_seq = 0;
+        for (const auto& col : tsm_cols) {
+            impl_->writer_columns.push_back(col);
+        }
+    }
+
+    // Update the in-memory row count.
+    impl_->dir.table_dat.row_count = new_nrow;
+    impl_->dir.table_dat.post_td_row_count = new_nrow;
 }
 
 // ---------------------------------------------------------------------------
@@ -1308,6 +1617,159 @@ void TableRow::put(std::uint64_t row, const Record& values) {
         if (record_to_cell_value(val.storage(), cv)) {
             table_->write_scalar_cell(key, row, cv);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Table info / metadata
+// ---------------------------------------------------------------------------
+
+TableInfo Table::table_info() const {
+    TableInfo info;
+    auto info_path = impl_->path / "table.info";
+    std::ifstream in(info_path);
+    if (!in) return info;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.substr(0, 7) == "Type = ") {
+            info.type = line.substr(7);
+        } else if (line.substr(0, 10) == "SubType = ") {
+            info.sub_type = line.substr(10);
+        }
+    }
+    return info;
+}
+
+std::string Table::table_info_type() const {
+    return table_info().type;
+}
+
+void Table::set_table_info(std::string_view type_string, std::string_view sub_type) {
+    auto info_path = impl_->path / "table.info";
+    std::ofstream out(info_path);
+    if (!out) {
+        throw std::runtime_error("Table::set_table_info: cannot write " + info_path.string());
+    }
+    out << "Type = " << type_string << "\n"
+        << "SubType = " << sub_type << "\n";
+}
+
+const Record& Table::private_keywords() const {
+    return impl_->dir.table_dat.table_desc.private_keywords;
+}
+
+Record& Table::rw_private_keywords() {
+    return impl_->dir.table_dat.table_desc.private_keywords;
+}
+
+bool Table::has_column(std::string_view name) const {
+    return find_column_desc(name) != nullptr;
+}
+
+// ---------------------------------------------------------------------------
+// Lock model
+// ---------------------------------------------------------------------------
+
+void Table::lock(bool write) {
+    auto lock_path = impl_->path / "table.lock";
+    std::ofstream out(lock_path);
+    if (!out) {
+        throw std::runtime_error("Table::lock: cannot write " + lock_path.string());
+    }
+    out << (write ? "write" : "read") << "\n";
+    impl_->locked = true;
+    impl_->write_locked = write;
+}
+
+void Table::unlock() {
+    auto lock_path = impl_->path / "table.lock";
+    // Truncate lock file to empty (unlocked).
+    std::ofstream out(lock_path, std::ios::trunc);
+    impl_->locked = false;
+    impl_->write_locked = false;
+}
+
+bool Table::has_lock() const {
+    return impl_->locked;
+}
+
+bool Table::is_locked() const {
+    auto lock_path = impl_->path / "table.lock";
+    std::ifstream in(lock_path);
+    if (!in) return false;
+    std::string content;
+    std::getline(in, content);
+    return !content.empty();
+}
+
+TableLockMode Table::lock_mode() const {
+    return impl_->lock_mode;
+}
+
+void Table::set_lock_mode(TableLockMode mode) {
+    impl_->lock_mode = mode;
+}
+
+// ---------------------------------------------------------------------------
+// Static utilities
+// ---------------------------------------------------------------------------
+
+bool Table::drop_table(const std::filesystem::path& path, bool force) {
+    if (!std::filesystem::exists(path)) return false;
+
+    if (!force) {
+        auto lock_path = path / "table.lock";
+        std::ifstream in(lock_path);
+        if (in) {
+            std::string content;
+            std::getline(in, content);
+            if (!content.empty()) {
+                throw std::runtime_error("Table::drop_table: table is locked: " + path.string());
+            }
+        }
+    }
+
+    std::error_code ec;
+    std::filesystem::remove_all(path, ec);
+    return !ec;
+}
+
+// ---------------------------------------------------------------------------
+// Data type utilities
+// ---------------------------------------------------------------------------
+
+DataType parse_data_type_name(std::string_view name) {
+    if (name == "BOOL" || name == "Bool" || name == "B") return DataType::tp_bool;
+    if (name == "INT" || name == "Int" || name == "I4" || name == "INT32" || name == "I")
+        return DataType::tp_int;
+    if (name == "INT64" || name == "I8") return DataType::tp_int64;
+    if (name == "SHORT" || name == "Short" || name == "I2") return DataType::tp_short;
+    if (name == "FLOAT" || name == "Float" || name == "R4") return DataType::tp_float;
+    if (name == "DOUBLE" || name == "Double" || name == "R8" || name == "D")
+        return DataType::tp_double;
+    if (name == "COMPLEX" || name == "Complex" || name == "C4") return DataType::tp_complex;
+    if (name == "DCOMPLEX" || name == "DComplex" || name == "C8") return DataType::tp_dcomplex;
+    if (name == "STRING" || name == "String" || name == "S") return DataType::tp_string;
+    throw std::runtime_error("unknown data type name: '" + std::string(name) + "'");
+}
+
+std::string data_type_to_string(DataType dt) {
+    switch (dt) {
+    case DataType::tp_bool: return "Bool";
+    case DataType::tp_char: return "Char";
+    case DataType::tp_uchar: return "uChar";
+    case DataType::tp_short: return "Short";
+    case DataType::tp_ushort: return "uShort";
+    case DataType::tp_int: return "Int";
+    case DataType::tp_uint: return "uInt";
+    case DataType::tp_int64: return "Int64";
+    case DataType::tp_float: return "Float";
+    case DataType::tp_double: return "Double";
+    case DataType::tp_complex: return "Complex";
+    case DataType::tp_dcomplex: return "DComplex";
+    case DataType::tp_string: return "String";
+    default: return "Unknown";
     }
 }
 

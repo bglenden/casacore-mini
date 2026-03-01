@@ -1,0 +1,7 @@
+P12-W11 wave gate: 10/10 passed
+Full test suite: 107/107 passed
+
+ref_table_test:      24 passed, 0 failed
+concat_table_test:   21 passed, 0 failed
+table_iter_test:     20 passed, 0 failed
+columns_index_test:  19 passed, 0 failed

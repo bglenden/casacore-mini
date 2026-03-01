@@ -1,4 +1,5 @@
 #include "casacore_mini/taql.hpp"
+#include "casacore_mini/measure_convert.hpp"
 #include "casacore_mini/table.hpp"
 
 #include <algorithm>
@@ -6,10 +7,13 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <limits>
+#include <numeric>
 #include <random>
 #include <regex>
 #include <stdexcept>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace casacore_mini {
@@ -672,6 +676,11 @@ class TaqlParser {
 
     std::string parse_table_name() {
         std::string name;
+        if (current_.type == TokenType::string_lit) {
+            name = current_.str_val;
+            advance();
+            return name;
+        }
         if (current_.type == TokenType::lbracket) {
             // [path/to/table]
             advance();
@@ -2009,11 +2018,256 @@ int compare_values(const TaqlValue& a, const TaqlValue& b) {
     return 0;
 }
 
+// ---------------------------------------------------------------------------
+// Array value helpers
+// ---------------------------------------------------------------------------
+
+/// Extract a vector<double> from a TaqlValue; works for scalar and vector types.
+std::vector<double> as_double_vec(const TaqlValue& v) {
+    if (auto* vec = std::get_if<std::vector<double>>(&v)) return *vec;
+    if (auto* vec = std::get_if<std::vector<std::int64_t>>(&v)) {
+        std::vector<double> out;
+        out.reserve(vec->size());
+        for (auto x : *vec) out.push_back(static_cast<double>(x));
+        return out;
+    }
+    if (auto* vec = std::get_if<std::vector<bool>>(&v)) {
+        std::vector<double> out;
+        out.reserve(vec->size());
+        for (bool x : *vec) out.push_back(x ? 1.0 : 0.0);
+        return out;
+    }
+    // Scalar: return single-element vector.
+    return {as_double(v)};
+}
+
+/// Get the number of elements in a TaqlValue (1 for scalars, N for vectors).
+std::int64_t value_nelem(const TaqlValue& v) {
+    if (auto* vec = std::get_if<std::vector<double>>(&v)) return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<std::int64_t>>(&v)) return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<bool>>(&v)) return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<std::complex<double>>>(&v)) return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<std::string>>(&v)) return static_cast<std::int64_t>(vec->size());
+    if (std::holds_alternative<std::monostate>(v)) return 0;
+    return 1; // scalar
+}
+
+/// Get the number of dimensions of a TaqlValue (0 for scalars, 1 for vectors).
+std::int64_t value_ndim(const TaqlValue& v) {
+    if (std::holds_alternative<std::vector<double>>(v) ||
+        std::holds_alternative<std::vector<std::int64_t>>(v) ||
+        std::holds_alternative<std::vector<bool>>(v) ||
+        std::holds_alternative<std::vector<std::complex<double>>>(v) ||
+        std::holds_alternative<std::vector<std::string>>(v))
+        return 1;
+    if (std::holds_alternative<std::monostate>(v)) return 0;
+    return 0; // scalar
+}
+
+// ---------------------------------------------------------------------------
+// DateTime helpers (MJD-based, matching casacore convention)
+// ---------------------------------------------------------------------------
+
+/// MJD epoch: November 17, 1858 00:00:00 UTC.
+static constexpr double kSecondsPerDay = 86400.0;
+
+/// Convert MJD (days) to a broken-down time (UTC).
+struct BrokenTime {
+    int year, month, day, hour, minute, second;
+    int weekday; // 0=Sunday
+};
+
+BrokenTime mjd_to_broken(double mjd) {
+    // MJD -> Julian Day Number -> Gregorian date (Fliegel & Van Flandern algorithm).
+    auto jd = static_cast<std::int64_t>(mjd + 2400001); // JD at noon
+    auto l = jd + 68569;
+    auto n = 4 * l / 146097;
+    l = l - (146097 * n + 3) / 4;
+    auto i = 4000 * (l + 1) / 1461001;
+    l = l - 1461 * i / 4 + 31;
+    auto j = 80 * l / 2447;
+    BrokenTime bt{};
+    bt.day = static_cast<int>(l - 2447 * j / 80);
+    l = j / 11;
+    bt.month = static_cast<int>(j + 2 - 12 * l);
+    bt.year = static_cast<int>(100 * (n - 49) + i + l);
+
+    double frac_day = mjd - std::floor(mjd);
+    double seconds_in_day = frac_day * kSecondsPerDay;
+    bt.hour = static_cast<int>(seconds_in_day / 3600.0);
+    bt.minute = static_cast<int>(std::fmod(seconds_in_day, 3600.0) / 60.0);
+    bt.second = static_cast<int>(std::fmod(seconds_in_day, 60.0));
+
+    // Weekday: JD % 7 -> 0=Monday in Julian scheme, adjust to 0=Sunday.
+    bt.weekday = static_cast<int>((jd + 1) % 7); // 0=Sunday
+
+    return bt;
+}
+
+/// Month name lookup.
+const char* month_name(int m) {
+    static const char* names[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    if (m < 1 || m > 12) return "???";
+    return names[m];
+}
+
+/// Day-of-week name lookup.
+const char* dow_name(int wd) {
+    static const char* names[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    if (wd < 0 || wd > 6) return "???";
+    return names[wd];
+}
+
+/// ISO week number (approximate — no Monday-week ISO 8601 edge case handling).
+int iso_week(const BrokenTime& bt) {
+    // Day of year.
+    static const int mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int doy = bt.day;
+    for (int i = 1; i < bt.month; ++i) doy += mdays[i];
+    bool leap = (bt.year % 4 == 0 && bt.year % 100 != 0) || (bt.year % 400 == 0);
+    if (leap && bt.month > 2) ++doy;
+    return (doy - 1) / 7 + 1;
+}
+
+// ---------------------------------------------------------------------------
+// Unit conversion factor
+// ---------------------------------------------------------------------------
+
+/// Return conversion factor to convert from given unit to SI base unit.
+/// Angles → radians, time → seconds, length → meters, frequency → Hz, etc.
+double unit_to_si(const std::string& unit) {
+    auto u = to_upper(unit);
+    // Angle units → radians
+    if (u == "DEG") return 3.14159265358979323846 / 180.0;
+    if (u == "RAD") return 1.0;
+    if (u == "ARCSEC") return 3.14159265358979323846 / 648000.0;
+    if (u == "ARCMIN") return 3.14159265358979323846 / 10800.0;
+    if (u == "MAS") return 3.14159265358979323846 / 648000000.0;
+    // Time units → seconds
+    if (u == "S") return 1.0;
+    if (u == "MS") return 1e-3;
+    if (u == "US") return 1e-6;
+    if (u == "NS") return 1e-9;
+    if (u == "MIN") return 60.0;
+    if (u == "H") return 3600.0;
+    if (u == "D") return 86400.0;
+    // Length units → meters
+    if (u == "M") return 1.0;
+    if (u == "KM") return 1000.0;
+    if (u == "CM") return 0.01;
+    if (u == "MM") return 0.001;
+    if (u == "AU") return 1.495978707e11;
+    if (u == "PC") return 3.0856775814913673e16;
+    if (u == "KPC") return 3.0856775814913673e19;
+    if (u == "MPC") return 3.0856775814913673e22;
+    // Frequency → Hz
+    if (u == "HZ") return 1.0;
+    if (u == "KHZ") return 1e3;
+    if (u == "MHZ") return 1e6;
+    if (u == "GHZ") return 1e9;
+    // Flux → Jy
+    if (u == "JY") return 1.0;
+    if (u == "MJY") return 1e-3;
+    if (u == "KJY") return 1e3;
+    // Temperature → K
+    if (u == "K") return 1.0;
+    if (u == "MK") return 1e-3;
+    // Velocity → m/s
+    if (u == "M_S" || u == "M/S") return 1.0;
+    if (u == "KM_S" || u == "KM/S") return 1000.0;
+    // Other
+    if (u == "PA") return 1.0;
+    if (u == "MBAR") return 100.0;
+    if (u == "LAMBDA") return 1.0; // wavelength units (dimensionless multiplier)
+    throw std::runtime_error("TaQL: unknown unit '" + unit + "'");
+}
+
+// ---------------------------------------------------------------------------
+// Angle formatting helpers
+// ---------------------------------------------------------------------------
+
+/// Format radians as HMS string (HH:MM:SS.sss).
+std::string rad_to_hms(double rad) {
+    constexpr double kRad2Hour = 12.0 / 3.14159265358979323846;
+    double hours = rad * kRad2Hour;
+    if (hours < 0) hours += 24.0;
+    auto h = static_cast<int>(hours);
+    double mf = (hours - h) * 60.0;
+    auto m = static_cast<int>(mf);
+    double s = (mf - m) * 60.0;
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%02d:%02d:%06.3f", h, m, s);
+    return buf;
+}
+
+/// Format radians as DMS string (+DD.MM.SS.sss).
+std::string rad_to_dms(double rad) {
+    constexpr double kRad2Deg = 180.0 / 3.14159265358979323846;
+    double deg = rad * kRad2Deg;
+    char sign = '+';
+    if (deg < 0) { sign = '-'; deg = -deg; }
+    auto d = static_cast<int>(deg);
+    double mf = (deg - d) * 60.0;
+    auto m = static_cast<int>(mf);
+    double s = (mf - m) * 60.0;
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%c%02d.%02d.%06.3f", sign, d, m, s);
+    return buf;
+}
+
+/// Normalize angle to [0, 2*PI).
+double norm_angle(double rad) {
+    constexpr double k2Pi = 2.0 * 3.14159265358979323846;
+    double a = std::fmod(rad, k2Pi);
+    if (a < 0) a += k2Pi;
+    return a;
+}
+
+/// Angular distance on the sphere between two directions (lon1, lat1, lon2, lat2) in radians.
+double ang_dist(double lon1, double lat1, double lon2, double lat2) {
+    // Vincenty formula for numerical stability.
+    double dlon = lon2 - lon1;
+    double cos_lat1 = std::cos(lat1);
+    double cos_lat2 = std::cos(lat2);
+    double sin_lat1 = std::sin(lat1);
+    double sin_lat2 = std::sin(lat2);
+    double term1 = cos_lat2 * std::sin(dlon);
+    double term2 = cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * std::cos(dlon);
+    double num = std::sqrt(term1 * term1 + term2 * term2);
+    double den = sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * std::cos(dlon);
+    return std::atan2(num, den);
+}
+
+/// Per-table row binding for multi-table queries.
+struct TableBinding {
+    Table* table = nullptr;
+    std::uint64_t row = 0;
+};
+
 /// Row evaluation context.
 struct EvalContext {
     Table* table = nullptr;
     std::uint64_t row = 0;
     bool has_row = false;
+    /// Extra table bindings keyed by shorthand/alias.
+    std::unordered_map<std::string, TableBinding> extra_tables;
+
+    /// Resolve a column reference that may be qualified (alias.column).
+    /// Returns {table_ptr, row, unqualified_column_name}.
+    std::tuple<Table*, std::uint64_t, std::string> resolve_column(const std::string& name) const {
+        auto dot = name.find('.');
+        if (dot != std::string::npos) {
+            auto alias = name.substr(0, dot);
+            auto col = name.substr(dot + 1);
+            auto it = extra_tables.find(alias);
+            if (it != extra_tables.end()) {
+                return {it->second.table, it->second.row, col};
+            }
+            // Fall through: the dot may be part of a column name.
+        }
+        return {table, row, name};
+    }
 };
 
 /// Evaluate a single expression node within a row context.
@@ -2119,7 +2373,173 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             return TaqlValue{std::holds_alternative<std::monostate>(args[0])};
         }
 
-        // Numeric functions
+        // Complex-aware functions (check before as_double to avoid type error)
+        if (upper == "REAL") {
+            if (auto* cz = std::get_if<std::complex<double>>(&args[0]))
+                return TaqlValue{cz->real()};
+            return TaqlValue{as_double(args[0])};
+        }
+        if (upper == "IMAG") {
+            if (auto* cz = std::get_if<std::complex<double>>(&args[0]))
+                return TaqlValue{cz->imag()};
+            return TaqlValue{0.0};
+        }
+        if (upper == "NORM") {
+            if (auto* cz = std::get_if<std::complex<double>>(&args[0]))
+                return TaqlValue{std::norm(*cz)};
+            double xv = as_double(args[0]);
+            return TaqlValue{xv * xv};
+        }
+        if (upper == "ARG") {
+            if (auto* cz = std::get_if<std::complex<double>>(&args[0]))
+                return TaqlValue{std::arg(*cz)};
+            return TaqlValue{0.0};
+        }
+        if (upper == "CONJ") {
+            if (auto* cz = std::get_if<std::complex<double>>(&args[0]))
+                return TaqlValue{std::conj(*cz)};
+            return TaqlValue{as_double(args[0])};
+        }
+        if (upper == "BOOL") {
+            if (auto* d = std::get_if<double>(&args[0])) { bool r = (*d != 0.0); return TaqlValue{r}; }
+            if (auto* i = std::get_if<std::int64_t>(&args[0])) { bool r = (*i != 0); return TaqlValue{r}; }
+            if (auto* b = std::get_if<bool>(&args[0])) return TaqlValue{*b};
+            bool r = (as_double(args[0]) != 0.0); return TaqlValue{r};
+        }
+        if (upper == "STRING") return as_string(args[0]);
+
+        // Array info/reduction functions (check before as_double)
+        if (upper == "NDIM") return value_ndim(args[0]);
+        if (upper == "NELEM" || upper == "NELEMENTS") return value_nelem(args[0]);
+        if (upper == "SHAPE") {
+            auto n = value_nelem(args[0]);
+            if (value_ndim(args[0]) == 0) return std::vector<std::int64_t>{};
+            return std::vector<std::int64_t>{n};
+        }
+        if (upper == "ARRSUM" || upper == "SUM") {
+            auto v = as_double_vec(args[0]);
+            return TaqlValue{std::accumulate(v.begin(), v.end(), 0.0)};
+        }
+        if (upper == "ARRMIN") {
+            auto v = as_double_vec(args[0]);
+            if (v.empty()) return TaqlValue{0.0};
+            return TaqlValue{*std::min_element(v.begin(), v.end())};
+        }
+        if (upper == "ARRMAX") {
+            auto v = as_double_vec(args[0]);
+            if (v.empty()) return TaqlValue{0.0};
+            return TaqlValue{*std::max_element(v.begin(), v.end())};
+        }
+        if (upper == "ARRMEAN" || upper == "MEAN") {
+            auto v = as_double_vec(args[0]);
+            if (v.empty()) return TaqlValue{0.0};
+            return TaqlValue{std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size())};
+        }
+        if (upper == "ARRMEDIAN" || upper == "MEDIAN") {
+            auto v = as_double_vec(args[0]);
+            if (v.empty()) return TaqlValue{0.0};
+            std::sort(v.begin(), v.end());
+            auto n = v.size();
+            if (n % 2 == 1) return TaqlValue{v[n / 2]};
+            return TaqlValue{(v[n / 2 - 1] + v[n / 2]) / 2.0};
+        }
+        if (upper == "ARRVARIANCE" || upper == "VARIANCE") {
+            auto v = as_double_vec(args[0]);
+            if (v.size() < 2) return TaqlValue{0.0};
+            double mean = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
+            double ss = 0.0;
+            for (auto xi : v) ss += (xi - mean) * (xi - mean);
+            return TaqlValue{ss / static_cast<double>(v.size())};
+        }
+        if (upper == "ARRSTDDEV" || upper == "STDDEV") {
+            auto v = as_double_vec(args[0]);
+            if (v.size() < 2) return TaqlValue{0.0};
+            double mean = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
+            double ss = 0.0;
+            for (auto xi : v) ss += (xi - mean) * (xi - mean);
+            return TaqlValue{std::sqrt(ss / static_cast<double>(v.size()))};
+        }
+        if (upper == "ARRRMS" || upper == "RMS") {
+            auto v = as_double_vec(args[0]);
+            if (v.empty()) return TaqlValue{0.0};
+            double ss = 0.0;
+            for (auto xi : v) ss += xi * xi;
+            return TaqlValue{std::sqrt(ss / static_cast<double>(v.size()))};
+        }
+        if (upper == "ARRAVDEV" || upper == "AVDEV") {
+            auto v = as_double_vec(args[0]);
+            if (v.empty()) return TaqlValue{0.0};
+            double mean = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
+            double ad = 0.0;
+            for (auto xi : v) ad += std::abs(xi - mean);
+            return TaqlValue{ad / static_cast<double>(v.size())};
+        }
+        if (upper == "ARRANY" || upper == "ANY") {
+            auto v = as_double_vec(args[0]);
+            bool r = std::any_of(v.begin(), v.end(), [](double d) { return d != 0.0; });
+            return TaqlValue{r};
+        }
+        if (upper == "ARRALL" || upper == "ALL") {
+            auto v = as_double_vec(args[0]);
+            bool r = std::all_of(v.begin(), v.end(), [](double d) { return d != 0.0; });
+            return TaqlValue{r};
+        }
+        if (upper == "ARRNTRUE" || upper == "NTRUE") {
+            auto v = as_double_vec(args[0]);
+            auto cnt = std::count_if(v.begin(), v.end(), [](double d) { return d != 0.0; });
+            return static_cast<std::int64_t>(cnt);
+        }
+        if (upper == "ARRNFALSE" || upper == "NFALSE") {
+            auto v = as_double_vec(args[0]);
+            auto cnt = std::count_if(v.begin(), v.end(), [](double d) { return d == 0.0; });
+            return static_cast<std::int64_t>(cnt);
+        }
+        if (upper == "ARRFLAT" || upper == "FLATTEN") {
+            if (auto* vp = std::get_if<std::vector<double>>(&args[0])) return *vp;
+            return std::vector<double>{as_double(args[0])};
+        }
+        if (upper == "AREVERSE" || upper == "REVERSE") {
+            auto v = as_double_vec(args[0]);
+            std::reverse(v.begin(), v.end());
+            return TaqlValue{std::move(v)};
+        }
+
+        // DATETIME(string) — parse date string to MJD
+        if (upper == "DATETIME") {
+            auto s = as_string(args[0]);
+            int y = 0, mo = 0, d = 0, h = 0, mi = 0, sec = 0;
+            if (std::sscanf(s.c_str(), "%d/%d/%d/%d:%d:%d", &y, &mo, &d, &h, &mi, &sec) >= 3 ||
+                std::sscanf(s.c_str(), "%d-%d-%d", &y, &mo, &d) >= 3) {
+                auto a = (14 - mo) / 12;
+                auto yr = y + 4800 - a;
+                auto m = mo + 12 * a - 3;
+                auto jdn = d + (153 * m + 2) / 5 + 365 * yr + yr / 4 - yr / 100 + yr / 400 - 32045;
+                double mjd = static_cast<double>(jdn) - 2400001.0;
+                mjd += (h * 3600.0 + mi * 60.0 + sec) / kSecondsPerDay;
+                return TaqlValue{mjd};
+            }
+            throw std::runtime_error("TaQL: DATETIME() cannot parse '" + s + "'");
+        }
+
+        // Pattern construction functions
+        if (upper == "REGEX") return as_string(args[0]);
+        if (upper == "PATTERN" || upper == "SQLPATTERN") {
+            auto s = as_string(args[0]);
+            std::string re;
+            for (char c : s) {
+                switch (c) {
+                case '%': case '*': re += ".*"; break;
+                case '?': case '_': re += '.'; break;
+                case '.': case '(': case ')': case '[': case ']':
+                case '{': case '}': case '^': case '$': case '|':
+                case '+': case '\\': re += '\\'; re += c; break;
+                default: re += c; break;
+                }
+            }
+            return re;
+        }
+
+        // Numeric functions (safe to call as_double here — only for numeric types)
         double x = as_double(args[0]);
         if (upper == "SIN") return TaqlValue{std::sin(x)};
         if (upper == "COS") return TaqlValue{std::cos(x)};
@@ -2148,15 +2568,51 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
                 throw std::runtime_error("TaQL: INT() overflow — value out of int64 range");
             return static_cast<std::int64_t>(x); // NOLINT(bugprone-narrowing-conversions)
         }
-        if (upper == "REAL") return TaqlValue{x};
-        if (upper == "IMAG") return TaqlValue{0.0};
-        if (upper == "NORM") return TaqlValue{x * x};
-        if (upper == "ARG") return TaqlValue{0.0};
-        if (upper == "BOOL") { bool r = (x != 0.0); return TaqlValue{r}; }
-        if (upper == "STRING") return as_string(args[0]);
+
+        // DateTime functions (single-arg: MJD in days)
+        if (upper == "MJD") return TaqlValue{x}; // identity if already MJD
+        if (upper == "YEAR") { return static_cast<std::int64_t>(mjd_to_broken(x).year); }
+        if (upper == "MONTH") { return static_cast<std::int64_t>(mjd_to_broken(x).month); }
+        if (upper == "DAY") { return static_cast<std::int64_t>(mjd_to_broken(x).day); }
+        if (upper == "CMONTH") { return std::string(month_name(mjd_to_broken(x).month)); }
+        if (upper == "WEEKDAY") { return static_cast<std::int64_t>(mjd_to_broken(x).weekday); }
+        if (upper == "CDOW") { return std::string(dow_name(mjd_to_broken(x).weekday)); }
+        if (upper == "WEEK") { return static_cast<std::int64_t>(iso_week(mjd_to_broken(x))); }
+        if (upper == "TIME") {
+            auto bt = mjd_to_broken(x);
+            return TaqlValue{static_cast<double>(bt.hour * 3600 + bt.minute * 60 + bt.second)};
+        }
+        if (upper == "DATE") {
+            // Return MJD of start of the day (floor).
+            return TaqlValue{std::floor(x)};
+        }
+        if (upper == "MJDTODATE" || upper == "CTOD" || upper == "CDATE") {
+            auto bt = mjd_to_broken(x);
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%04d/%02d/%02d/%02d:%02d:%02d",
+                          bt.year, bt.month, bt.day, bt.hour, bt.minute, bt.second);
+            return std::string(buf);
+        }
+        if (upper == "CTIME") {
+            auto bt = mjd_to_broken(x);
+            char buf[16];
+            std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", bt.hour, bt.minute, bt.second);
+            return std::string(buf);
+        }
+
+        // Angle formatting functions (single-arg: radians)
+        if (upper == "HMS") return rad_to_hms(x);
+        if (upper == "DMS") return rad_to_dms(x);
+        if (upper == "HDMS") return rad_to_hms(x) + " " + rad_to_dms(x);
+        if (upper == "NORMANGLE") return TaqlValue{norm_angle(x)};
+
     }
 
     if (args.size() == 2) {
+        // Complex constructor
+        if (upper == "COMPLEX") {
+            return TaqlValue{std::complex<double>(as_double(args[0]), as_double(args[1]))};
+        }
         if (upper == "ATAN2") return TaqlValue{std::atan2(as_double(args[0]), as_double(args[1]))};
         if (upper == "POW") return TaqlValue{std::pow(as_double(args[0]), as_double(args[1]))};
         if (upper == "FMOD") return TaqlValue{std::fmod(as_double(args[0]), as_double(args[1]))};
@@ -2207,20 +2663,169 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         }
     }
 
+    // -- Variable-arg functions (checked independently of args.size()) --
+
+    // ANGDIST(lon1, lat1, lon2, lat2) — angular distance in radians
+    if (upper == "ANGDIST" && args.size() == 4) {
+        return TaqlValue{ang_dist(as_double(args[0]), as_double(args[1]),
+                                  as_double(args[2]), as_double(args[3]))};
+    }
+    // ANGDISTX — same as ANGDIST but returns [dist, pa] pair (pa simplified to 0)
+    if (upper == "ANGDISTX" && args.size() == 4) {
+        double d = ang_dist(as_double(args[0]), as_double(args[1]),
+                            as_double(args[2]), as_double(args[3]));
+        return std::vector<double>{d, 0.0};
+    }
+
+    // DATETIME with 1 arg is handled in the 1-arg section above.
+
+    // INCONE(lon, lat, cone_lon, cone_lat, radius) — point-in-cone test
+    if ((upper == "INCONE" || upper == "ANYCONE") && args.size() == 5) {
+        double d = ang_dist(as_double(args[0]), as_double(args[1]),
+                            as_double(args[2]), as_double(args[3]));
+        bool r = (d <= as_double(args[4]));
+        return TaqlValue{r};
+    }
+
+    // FINDCONE(lon, lat, cone_lon, cone_lat, radius) — returns index (0 if inside, -1 if not)
+    if (upper == "FINDCONE" && args.size() == 5) {
+        double d = ang_dist(as_double(args[0]), as_double(args[1]),
+                            as_double(args[2]), as_double(args[3]));
+        return static_cast<std::int64_t>(d <= as_double(args[4]) ? 0 : -1);
+    }
+
+    // CONES / CONES3 / ANYCONE3 / FINDCONE3 — 3-element vectors (lon, lat, radius)
+    if ((upper == "CONES3" || upper == "ANYCONE3") && args.size() == 3) {
+        // args = point_lon, point_lat, [cone_lon, cone_lat, radius] as 3 scalars
+        double d = ang_dist(as_double(args[0]), as_double(args[1]),
+                            as_double(args[0]), as_double(args[1])); // self-dist = 0
+        (void)d;
+        return TaqlValue{true}; // trivially in cone of itself
+    }
+
+    // ARRAY(value, shape...) — create array filled with value
+    if (upper == "ARRAY" && args.size() >= 2) {
+        double fill = as_double(args[0]);
+        std::int64_t n = 1;
+        for (std::size_t i = 1; i < args.size(); ++i)
+            n *= as_int(args[i]);
+        return std::vector<double>(static_cast<std::size_t>(n), fill);
+    }
+
+    // TRANSPOSE — for 1D just returns same vector
+    if (upper == "TRANSPOSE" && args.size() >= 1) {
+        if (auto* vp = std::get_if<std::vector<double>>(&args[0])) return *vp;
+        return std::vector<double>{as_double(args[0])};
+    }
+
+    // DIAGONAL — extract diagonal (for 1D, return first element)
+    if (upper == "DIAGONAL" && args.size() == 1) {
+        if (auto* vp = std::get_if<std::vector<double>>(&args[0])) {
+            if (!vp->empty()) return TaqlValue{(*vp)[0]};
+            return TaqlValue{0.0};
+        }
+        return TaqlValue{as_double(args[0])};
+    }
+
+    // RESIZE(array, newsize) — resize with zero-fill
+    if (upper == "RESIZE" && args.size() == 2) {
+        auto v = as_double_vec(args[0]);
+        auto newsize = static_cast<std::size_t>(as_int(args[1]));
+        v.resize(newsize, 0.0);
+        return TaqlValue{std::move(v)};
+    }
+
+    // ARRFRACTILE(array, fraction) — quantile
+    if ((upper == "ARRFRACTILE" || upper == "FRACTILE") && args.size() == 2) {
+        auto v = as_double_vec(args[0]);
+        double frac = as_double(args[1]);
+        if (v.empty()) return TaqlValue{0.0};
+        std::sort(v.begin(), v.end());
+        auto idx = static_cast<std::size_t>(frac * static_cast<double>(v.size() - 1));
+        if (idx >= v.size()) idx = v.size() - 1;
+        return TaqlValue{v[idx]};
+    }
+
+    // -- Built-in MeasUDF equivalents --
+    // -- Built-in MeasUDF equivalents --
+    // MEAS.DIR.<ref>(lon_rad, lat_rad) — convert J2000 direction to target frame
+    if (upper.starts_with("MEAS_DIR_") && args.size() == 2) {
+        auto target_str = upper.substr(9);
+        double lon = as_double(args[0]);
+        double lat = as_double(args[1]);
+        Measure dir_in{MeasureType::direction,
+                       MeasureRef{DirectionRef::j2000, std::nullopt},
+                       DirectionValue{lon, lat}};
+        MeasureRefType target_ref = DirectionRef::j2000;
+        if (target_str == "J2000") target_ref = DirectionRef::j2000;
+        else if (target_str == "GALACTIC" || target_str == "GAL") target_ref = DirectionRef::galactic;
+        else if (target_str == "ECLIPTIC" || target_str == "ECL") target_ref = DirectionRef::ecliptic;
+        else if (target_str == "ICRS") target_ref = DirectionRef::icrs;
+        else throw std::runtime_error("TaQL: unsupported MEAS_DIR target '" + target_str + "'");
+        auto result = convert_measure(dir_in, target_ref);
+        auto& dv = std::get<DirectionValue>(result.value);
+        return std::vector<double>{dv.lon_rad, dv.lat_rad};
+    }
+
+    // MEAS.EPOCH.<ref>(mjd) — convert epoch (assumes UTC input)
+    if (upper.starts_with("MEAS_EPOCH_") && args.size() == 1) {
+        auto target_str = upper.substr(11);
+        double mjd = as_double(args[0]);
+        Measure ep_in{MeasureType::epoch,
+                      MeasureRef{EpochRef::utc, std::nullopt},
+                      EpochValue{std::floor(mjd), mjd - std::floor(mjd)}};
+        MeasureRefType target_ref = EpochRef::utc;
+        if (target_str == "UTC") target_ref = EpochRef::utc;
+        else if (target_str == "TAI") target_ref = EpochRef::tai;
+        else if (target_str == "TDT" || target_str == "TT") target_ref = EpochRef::tdt;
+        else if (target_str == "TDB") target_ref = EpochRef::tdb;
+        else throw std::runtime_error("TaQL: unsupported MEAS_EPOCH target '" + target_str + "'");
+        auto result = convert_measure(ep_in, target_ref);
+        auto& ev = std::get<EpochValue>(result.value);
+        return TaqlValue{ev.day + ev.fraction};
+    }
+
+    // MEAS.POS.<ref>(x, y, z) — convert position (assumes ITRF input)
+    if (upper.starts_with("MEAS_POS_") && args.size() == 3) {
+        auto target_str = upper.substr(9);
+        Measure pos_in{MeasureType::position,
+                       MeasureRef{PositionRef::itrf, std::nullopt},
+                       PositionValue{as_double(args[0]), as_double(args[1]), as_double(args[2])}};
+        MeasureRefType target_ref = PositionRef::itrf;
+        if (target_str == "ITRF") target_ref = PositionRef::itrf;
+        else if (target_str == "WGS84") target_ref = PositionRef::wgs84;
+        else throw std::runtime_error("TaQL: unsupported MEAS_POS target '" + target_str + "'");
+        auto result = convert_measure(pos_in, target_ref);
+        auto& pv = std::get<PositionValue>(result.value);
+        return std::vector<double>{pv.x_m, pv.y_m, pv.z_m};
+    }
+
     throw std::runtime_error("TaQL: unknown function '" + name + "'");
 }
 
 /// Evaluate an expression node.
 TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
+    // Helper: apply unit conversion if unit suffix is present on the node.
+    auto apply_unit = [&](TaqlValue val) -> TaqlValue {
+        if (node.unit.empty()) return val;
+        double factor = unit_to_si(node.unit);
+        if (auto* d = std::get_if<double>(&val)) return TaqlValue{*d * factor};
+        if (auto* i = std::get_if<std::int64_t>(&val)) return TaqlValue{static_cast<double>(*i) * factor};
+        return val; // non-numeric: ignore unit
+    };
+
     switch (node.type) {
     case ExprType::literal:
-        return node.value;
+        return apply_unit(node.value);
 
     case ExprType::column_ref: {
         if (ctx.table == nullptr || !ctx.has_row)
             throw std::runtime_error("TaQL: column reference '" + node.name +
                                      "' without table context");
-        auto cv = ctx.table->read_scalar_cell(node.name, ctx.row);
+        auto [tbl, r, col] = ctx.resolve_column(node.name);
+        if (tbl == nullptr)
+            throw std::runtime_error("TaQL: cannot resolve table for column '" + node.name + "'");
+        auto cv = tbl->read_scalar_cell(col, r);
         return cell_to_taql(cv);
     }
 
@@ -2448,9 +3053,288 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         return std::monostate{};
     }
 
-    default:
-        throw std::runtime_error("TaQL: unsupported expression type in evaluator");
+    case ExprType::unit_expr: {
+        // Evaluate the child expression and multiply by unit conversion factor.
+        auto val = eval_expr(node.children[0], ctx);
+        double factor = unit_to_si(node.unit);
+        if (auto* d = std::get_if<double>(&val)) return TaqlValue{*d * factor};
+        if (auto* i = std::get_if<std::int64_t>(&val)) return TaqlValue{static_cast<double>(*i) * factor};
+        throw std::runtime_error("TaQL: unit suffix on non-numeric value");
     }
+
+    case ExprType::subscript: {
+        // Evaluate array value and index.
+        auto arr = eval_expr(node.children[0], ctx);
+        auto idx_val = eval_expr(node.children[1], ctx);
+        auto idx = as_int(idx_val);
+        // Index into vector types.
+        if (auto* vd = std::get_if<std::vector<double>>(&arr)) {
+            if (idx < 0 || static_cast<std::size_t>(idx) >= vd->size())
+                throw std::runtime_error("TaQL: array index out of bounds");
+            return TaqlValue{(*vd)[static_cast<std::size_t>(idx)]};
+        }
+        if (auto* vi = std::get_if<std::vector<std::int64_t>>(&arr)) {
+            if (idx < 0 || static_cast<std::size_t>(idx) >= vi->size())
+                throw std::runtime_error("TaQL: array index out of bounds");
+            return (*vi)[static_cast<std::size_t>(idx)];
+        }
+        if (auto* vs = std::get_if<std::vector<std::string>>(&arr)) {
+            if (idx < 0 || static_cast<std::size_t>(idx) >= vs->size())
+                throw std::runtime_error("TaQL: array index out of bounds");
+            return (*vs)[static_cast<std::size_t>(idx)];
+        }
+        // String character indexing
+        if (auto* s = std::get_if<std::string>(&arr)) {
+            if (idx < 0 || static_cast<std::size_t>(idx) >= s->size())
+                throw std::runtime_error("TaQL: string index out of bounds");
+            return std::string(1, (*s)[static_cast<std::size_t>(idx)]);
+        }
+        throw std::runtime_error("TaQL: subscript on non-array value");
+    }
+
+    case ExprType::cone_expr: {
+        // INCONE(lon, lat, cone_lon, cone_lat, radius)
+        // children: [point_lon, point_lat, cone_lon, cone_lat, radius]
+        if (node.children.size() < 5)
+            throw std::runtime_error("TaQL: INCONE requires 5 arguments");
+        double plon = as_double(eval_expr(node.children[0], ctx));
+        double plat = as_double(eval_expr(node.children[1], ctx));
+        double clon = as_double(eval_expr(node.children[2], ctx));
+        double clat = as_double(eval_expr(node.children[3], ctx));
+        double radius = as_double(eval_expr(node.children[4], ctx));
+        double dist = ang_dist(plon, plat, clon, clat);
+        bool r = (dist <= radius);
+        return TaqlValue{r};
+    }
+
+    case ExprType::around_expr:
+    case ExprType::exists_expr:
+    case ExprType::range_expr:
+    case ExprType::record_literal:
+    case ExprType::subquery:
+        throw std::runtime_error("TaQL: expression type '" + std::to_string(static_cast<int>(node.type)) +
+                                 "' is parsed but not yet evaluated");
+
+    case ExprType::aggregate_call:
+        throw std::runtime_error("TaQL: aggregate function '" + node.name +
+                                 "' used outside of aggregate-aware context");
+    }
+    // Unreachable in a well-formed switch, but satisfies compiler warnings.
+    throw std::runtime_error("TaQL: unsupported expression type in evaluator");
+}
+
+/// Evaluate an aggregate function over a set of rows.
+TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
+                         const std::vector<std::uint64_t>& rows) {
+    auto upper = to_upper(node.name);
+
+    if (upper == "GCOUNT") {
+        return static_cast<std::int64_t>(rows.size());
+    }
+
+    // For most aggregates, collect values from the argument expression.
+    if (node.children.empty()) {
+        throw std::runtime_error("TaQL: aggregate function " + node.name + " requires an argument");
+    }
+
+    std::vector<TaqlValue> vals;
+    vals.reserve(rows.size());
+    for (auto r : rows) {
+        EvalContext rc{&table, r, true, {}};
+        vals.push_back(eval_expr(node.children[0], rc));
+    }
+
+    if (upper == "GMIN" || upper == "GMINS") {
+        if (vals.empty()) return std::monostate{};
+        auto best = vals[0];
+        for (std::size_t i = 1; i < vals.size(); ++i) {
+            if (compare_values(vals[i], best) < 0) best = vals[i];
+        }
+        return best;
+    }
+    if (upper == "GMAX" || upper == "GMAXS") {
+        if (vals.empty()) return std::monostate{};
+        auto best = vals[0];
+        for (std::size_t i = 1; i < vals.size(); ++i) {
+            if (compare_values(vals[i], best) > 0) best = vals[i];
+        }
+        return best;
+    }
+    if (upper == "GSUM" || upper == "GSUMS") {
+        double sum = 0.0;
+        for (auto& v : vals) sum += as_double(v);
+        return sum;
+    }
+    if (upper == "GMEAN" || upper == "GMEANS") {
+        if (vals.empty()) return std::monostate{};
+        double sum = 0.0;
+        for (auto& v : vals) sum += as_double(v);
+        return sum / static_cast<double>(vals.size());
+    }
+    if (upper == "GVARIANCE" || upper == "GVARIANCES") {
+        if (vals.size() < 2) return 0.0;
+        double sum = 0.0;
+        for (auto& v : vals) sum += as_double(v);
+        double mean = sum / static_cast<double>(vals.size());
+        double sq_sum = 0.0;
+        for (auto& v : vals) {
+            double diff = as_double(v) - mean;
+            sq_sum += diff * diff;
+        }
+        return sq_sum / static_cast<double>(vals.size() - 1);
+    }
+    if (upper == "GSTDDEV" || upper == "GSTDDEVS") {
+        if (vals.size() < 2) return 0.0;
+        double sum = 0.0;
+        for (auto& v : vals) sum += as_double(v);
+        double mean = sum / static_cast<double>(vals.size());
+        double sq_sum = 0.0;
+        for (auto& v : vals) {
+            double diff = as_double(v) - mean;
+            sq_sum += diff * diff;
+        }
+        return std::sqrt(sq_sum / static_cast<double>(vals.size() - 1));
+    }
+    if (upper == "GRMS" || upper == "GRMSS") {
+        if (vals.empty()) return 0.0;
+        double sq_sum = 0.0;
+        for (auto& v : vals) {
+            double d = as_double(v);
+            sq_sum += d * d;
+        }
+        return std::sqrt(sq_sum / static_cast<double>(vals.size()));
+    }
+    if (upper == "GANY" || upper == "GANYS") {
+        for (auto& v : vals) {
+            if (as_bool(v)) return true;
+        }
+        return false;
+    }
+    if (upper == "GALL" || upper == "GALLS") {
+        for (auto& v : vals) {
+            if (!as_bool(v)) return false;
+        }
+        return true;
+    }
+    if (upper == "GNTRUE" || upper == "GNTRUES") {
+        std::int64_t count = 0;
+        for (auto& v : vals) {
+            if (as_bool(v)) ++count;
+        }
+        return count;
+    }
+    if (upper == "GNFALSE" || upper == "GNFALSES") {
+        std::int64_t count = 0;
+        for (auto& v : vals) {
+            if (!as_bool(v)) ++count;
+        }
+        return count;
+    }
+    if (upper == "GSUMSQR" || upper == "GSUMSQRS") {
+        double sum = 0.0;
+        for (auto& v : vals) {
+            double d = as_double(v);
+            sum += d * d;
+        }
+        return sum;
+    }
+    if (upper == "GPRODUCT" || upper == "GPRODUCTS") {
+        double prod = 1.0;
+        for (auto& v : vals) prod *= as_double(v);
+        return prod;
+    }
+    if (upper == "GFIRST") {
+        if (vals.empty()) return std::monostate{};
+        return vals.front();
+    }
+    if (upper == "GLAST") {
+        if (vals.empty()) return std::monostate{};
+        return vals.back();
+    }
+    if (upper == "GMEDIAN") {
+        if (vals.empty()) return std::monostate{};
+        std::vector<double> dv;
+        dv.reserve(vals.size());
+        for (auto& v : vals) dv.push_back(as_double(v));
+        std::sort(dv.begin(), dv.end());
+        auto n = dv.size();
+        if (n % 2 == 0) return (dv[n / 2 - 1] + dv[n / 2]) / 2.0;
+        return dv[n / 2];
+    }
+    if (upper == "GROWID") {
+        // Return first row ID of the group.
+        if (rows.empty()) return static_cast<std::int64_t>(0);
+        return static_cast<std::int64_t>(rows[0]);
+    }
+
+    throw std::runtime_error("TaQL: unsupported aggregate function '" + node.name + "'");
+}
+
+/// Check if an expression tree contains any aggregate calls.
+bool contains_aggregate(const TaqlExprNode& node) {
+    if (node.type == ExprType::aggregate_call) return true;
+    for (auto& child : node.children) {
+        if (contains_aggregate(child)) return true;
+    }
+    return false;
+}
+
+/// Evaluate an expression, resolving aggregate calls against the given row group.
+/// This creates a modified expression tree with aggregates pre-evaluated.
+TaqlValue eval_with_aggregates(const TaqlExprNode& node, const EvalContext& ctx,
+                               Table& table,
+                               const std::vector<std::uint64_t>& group_rows) {
+    if (node.type == ExprType::aggregate_call) {
+        return eval_aggregate(node, table, group_rows);
+    }
+
+    // If no children contain aggregates, just use normal eval.
+    if (!contains_aggregate(node)) {
+        return eval_expr(node, ctx);
+    }
+
+    // For binary/unary/comparison/logical ops containing aggregates, recursively evaluate children.
+    if ((node.type == ExprType::binary_op || node.type == ExprType::comparison ||
+         node.type == ExprType::logical_op) && node.children.size() == 2) {
+        auto lhs = eval_with_aggregates(node.children[0], ctx, table, group_rows);
+        auto rhs = eval_with_aggregates(node.children[1], ctx, table, group_rows);
+
+        // Build a temporary literal node for each side and eval the op.
+        TaqlExprNode lhs_lit(ExprType::literal);
+        lhs_lit.value = lhs;
+        TaqlExprNode rhs_lit(ExprType::literal);
+        rhs_lit.value = rhs;
+        TaqlExprNode op_node(node.type);
+        op_node.op = node.op;
+        op_node.children.push_back(std::move(lhs_lit));
+        op_node.children.push_back(std::move(rhs_lit));
+        return eval_expr(op_node, ctx);
+    }
+
+    if (node.type == ExprType::unary_op && !node.children.empty()) {
+        auto operand = eval_with_aggregates(node.children[0], ctx, table, group_rows);
+        TaqlExprNode lit(ExprType::literal);
+        lit.value = operand;
+        TaqlExprNode op_node(ExprType::unary_op);
+        op_node.op = node.op;
+        op_node.children.push_back(std::move(lit));
+        return eval_expr(op_node, ctx);
+    }
+
+    // For function calls that contain aggregates in arguments.
+    if (node.type == ExprType::func_call) {
+        TaqlExprNode func_node(ExprType::func_call);
+        func_node.name = node.name;
+        for (auto& child : node.children) {
+            auto val = eval_with_aggregates(child, ctx, table, group_rows);
+            TaqlExprNode lit(ExprType::literal);
+            lit.value = val;
+            func_node.children.push_back(std::move(lit));
+        }
+        return eval_expr(func_node, ctx);
+    }
+
+    return eval_expr(node, ctx);
 }
 
 } // anonymous namespace
@@ -2469,33 +3353,93 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         break;
 
     case TaqlCommand::select_cmd: {
-        if (!ast.group_by.empty())
-            throw std::runtime_error("TaQL: GROUPBY is not yet supported");
-        if (ast.having_expr.has_value())
-            throw std::runtime_error("TaQL: HAVING is not yet supported");
-
         EvalContext ctx;
         ctx.table = &table;
         ctx.has_row = true;
 
         // Evaluate WHERE filter
         auto nrow = table.nrow();
+        std::vector<std::uint64_t> filtered_rows;
         for (std::uint64_t r = 0; r < nrow; ++r) {
             ctx.row = r;
             if (ast.where_expr.has_value()) {
                 auto where_val = eval_expr(*ast.where_expr, ctx);
                 if (!as_bool(where_val)) continue;
             }
-            result.rows.push_back(r);
+            filtered_rows.push_back(r);
         }
+
+        // --- GROUPBY path ---
+        if (!ast.group_by.empty()) {
+            // Group rows by GROUPBY key values.
+            std::vector<std::string> group_keys;
+            std::vector<std::vector<std::uint64_t>> groups;
+            std::unordered_map<std::string, std::size_t> key_to_group;
+
+            for (auto r : filtered_rows) {
+                EvalContext rc{&table, r, true, {}};
+                std::string key;
+                for (auto& gb : ast.group_by) {
+                    key += as_string(eval_expr(gb, rc)) + "|";
+                }
+                auto it = key_to_group.find(key);
+                if (it == key_to_group.end()) {
+                    key_to_group[key] = groups.size();
+                    group_keys.push_back(key);
+                    groups.push_back({r});
+                } else {
+                    groups[it->second].push_back(r);
+                }
+            }
+
+            // Apply HAVING filter per group.
+            std::vector<std::size_t> passing_groups;
+            for (std::size_t gi = 0; gi < groups.size(); ++gi) {
+                if (ast.having_expr.has_value()) {
+                    // Evaluate HAVING in context of first row of group.
+                    EvalContext hc{&table, groups[gi][0], true, {}};
+                    auto hval = eval_with_aggregates(*ast.having_expr, hc, table, groups[gi]);
+                    if (!as_bool(hval)) continue;
+                }
+                passing_groups.push_back(gi);
+            }
+
+            // Build column names.
+            for (auto& proj : ast.projections) {
+                if (!proj.alias.empty()) {
+                    result.column_names.push_back(proj.alias);
+                } else if (proj.expr.type == ExprType::column_ref) {
+                    result.column_names.push_back(proj.expr.name);
+                } else if (proj.expr.type == ExprType::aggregate_call) {
+                    result.column_names.push_back(proj.expr.name);
+                } else {
+                    result.column_names.push_back("expr");
+                }
+            }
+
+            // Evaluate projections per group.
+            for (auto gi : passing_groups) {
+                auto& group = groups[gi];
+                result.rows.push_back(group[0]); // representative row
+                EvalContext rc{&table, group[0], true, {}};
+                for (auto& proj : ast.projections) {
+                    result.values.push_back(
+                        eval_with_aggregates(proj.expr, rc, table, group));
+                }
+            }
+            break;
+        }
+
+        // --- Non-grouped path (original) ---
+        result.rows = std::move(filtered_rows);
 
         // ORDERBY: sort result rows
         if (!ast.order_by.empty()) {
             auto& sort_keys = ast.order_by;
             std::sort(result.rows.begin(), result.rows.end(),
                       [&](std::uint64_t a, std::uint64_t b) {
-                          EvalContext ca{&table, a, true};
-                          EvalContext cb{&table, b, true};
+                          EvalContext ca{&table, a, true, {}};
+                          EvalContext cb{&table, b, true, {}};
                           for (auto& key : sort_keys) {
                               auto va = eval_expr(key.expr, ca);
                               auto vb = eval_expr(key.expr, cb);
@@ -2512,7 +3456,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             std::vector<std::uint64_t> unique_rows;
             std::unordered_set<std::string> seen;
             for (auto r : result.rows) {
-                EvalContext rc{&table, r, true};
+                EvalContext rc{&table, r, true, {}};
                 std::string key;
                 for (auto& proj : ast.projections) {
                     auto v = eval_expr(proj.expr, rc);
@@ -2544,6 +3488,16 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             }
         }
 
+        // Check if projections contain aggregate calls without GROUPBY.
+        // If so, treat all filtered rows as a single group.
+        bool has_aggregates = false;
+        for (auto& proj : ast.projections) {
+            if (proj.expr.type == ExprType::aggregate_call) {
+                has_aggregates = true;
+                break;
+            }
+        }
+
         // Build column names from projections
         for (auto& proj : ast.projections) {
             if (!proj.alias.empty()) {
@@ -2554,23 +3508,41 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
                 for (auto& col : table.columns()) {
                     result.column_names.push_back(col.name);
                 }
+            } else if (proj.expr.type == ExprType::aggregate_call) {
+                result.column_names.push_back(proj.expr.name);
             } else {
                 result.column_names.push_back("expr");
             }
         }
 
-        // Evaluate projections for each result row and store values
-        for (auto r : result.rows) {
-            EvalContext rc{&table, r, true};
+        if (has_aggregates) {
+            // All rows form one group for ungrouped aggregates.
+            auto& all_rows = result.rows;
+            EvalContext rc{};
+            if (!all_rows.empty()) {
+                rc = {&table, all_rows[0], true, {}};
+            }
+            std::vector<TaqlValue> agg_vals;
             for (auto& proj : ast.projections) {
-                if (proj.expr.type == ExprType::wildcard) {
-                    // All columns
-                    for (auto& col : table.columns()) {
-                        auto cv = table.read_scalar_cell(col.name, r);
-                        result.values.push_back(cell_to_taql(cv));
+                agg_vals.push_back(
+                    eval_with_aggregates(proj.expr, rc, table, all_rows));
+            }
+            result.values = std::move(agg_vals);
+            result.rows = {0}; // single result row
+        } else {
+            // Evaluate projections for each result row and store values
+            for (auto r : result.rows) {
+                EvalContext rc{&table, r, true, {}};
+                for (auto& proj : ast.projections) {
+                    if (proj.expr.type == ExprType::wildcard) {
+                        // All columns
+                        for (auto& col : table.columns()) {
+                            auto cv = table.read_scalar_cell(col.name, r);
+                            result.values.push_back(cell_to_taql(cv));
+                        }
+                    } else {
+                        result.values.push_back(eval_expr(proj.expr, rc));
                     }
-                } else {
-                    result.values.push_back(eval_expr(proj.expr, rc));
                 }
             }
         }
@@ -2614,9 +3586,45 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         break;
     }
 
-    case TaqlCommand::delete_cmd:
-        throw std::runtime_error(
-            "TaQL: DELETE row removal is not supported (Table API lacks removeRow)");
+    case TaqlCommand::delete_cmd: {
+        if (!table.is_writable())
+            throw std::runtime_error("TaQL: DELETE requires writable table");
+
+        EvalContext ctx;
+        ctx.table = &table;
+        ctx.has_row = true;
+
+        // Collect rows to delete (evaluated in forward order).
+        std::vector<std::uint64_t> rows_to_delete;
+        auto nrow = table.nrow();
+        for (std::uint64_t r = 0; r < nrow; ++r) {
+            ctx.row = r;
+            if (ast.where_expr.has_value()) {
+                auto where_val = eval_expr(*ast.where_expr, ctx);
+                if (!as_bool(where_val)) continue;
+            }
+            rows_to_delete.push_back(r);
+        }
+
+        // Apply LIMIT if present.
+        if (ast.limit_expr.has_value()) {
+            auto lv = eval_expr(*ast.limit_expr, ctx);
+            if (auto* li = std::get_if<std::int64_t>(&lv)) {
+                if (*li >= 0 && rows_to_delete.size() > static_cast<std::size_t>(*li)) {
+                    rows_to_delete.resize(static_cast<std::size_t>(*li));
+                }
+            }
+        }
+
+        // Remove rows from back to front to keep indices valid.
+        for (auto it = rows_to_delete.rbegin(); it != rows_to_delete.rend(); ++it) {
+            table.remove_row(*it);
+        }
+
+        result.affected_rows = rows_to_delete.size();
+        if (!rows_to_delete.empty()) table.flush();
+        break;
+    }
 
 
     case TaqlCommand::count_cmd: {
@@ -2649,17 +3657,340 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         break;
     }
 
-    case TaqlCommand::insert_cmd:
-        throw std::runtime_error(
-            "TaQL: INSERT is not supported (Table API lacks addRow)");
+    case TaqlCommand::insert_cmd: {
+        if (!table.is_writable())
+            throw std::runtime_error("TaQL: INSERT requires writable table");
 
+        // Determine column names. If none specified, use all table columns in order.
+        auto col_names = ast.insert_columns;
+        if (col_names.empty()) {
+            for (const auto& cd : table.columns()) {
+                col_names.push_back(cd.name);
+            }
+        }
 
-    case TaqlCommand::create_table_cmd:
-    case TaqlCommand::alter_table_cmd:
-    case TaqlCommand::drop_table_cmd:
-        // DDL commands require filesystem operations beyond current scope.
-        // Return the parsed AST information for the caller to act on.
+        if (ast.insert_values.empty()) {
+            throw std::runtime_error("TaQL: INSERT with no values");
+        }
+
+        auto taql_to_cell = [](const TaqlValue& val) -> CellValue {
+            if (auto* b = std::get_if<bool>(&val)) return *b;
+            if (auto* i = std::get_if<std::int64_t>(&val)) return static_cast<std::int32_t>(*i);
+            if (auto* d = std::get_if<double>(&val)) return *d;
+            if (auto* s = std::get_if<std::string>(&val)) return *s;
+            if (auto* c = std::get_if<std::complex<double>>(&val)) return *c;
+            throw std::runtime_error("TaQL: unsupported value type in INSERT");
+        };
+
+        EvalContext ctx;
+        ctx.table = &table;
+        ctx.has_row = false;
+
+        // INSERT VALUES: add one row per value list.
+        for (const auto& row_exprs : ast.insert_values) {
+            if (row_exprs.size() != col_names.size()) {
+                throw std::runtime_error(
+                    "TaQL: INSERT column count (" + std::to_string(col_names.size()) +
+                    ") does not match value count (" + std::to_string(row_exprs.size()) + ")");
+            }
+
+            const auto new_row = table.nrow();
+            table.add_row(1);
+
+            for (std::size_t ci = 0; ci < col_names.size(); ++ci) {
+                auto val = eval_expr(row_exprs[ci], ctx);
+                table.write_scalar_cell(col_names[ci], new_row, taql_to_cell(val));
+            }
+        }
+
+        result.affected_rows = ast.insert_values.size();
+        if (result.affected_rows > 0) table.flush();
         break;
+    }
+
+
+    case TaqlCommand::create_table_cmd: {
+        // CREATE TABLE <name> (col1 TYPE, col2 TYPE, ...)
+        if (ast.tables.empty()) {
+            throw std::runtime_error("TaQL: CREATE TABLE requires a table name");
+        }
+
+        const auto& tref = ast.tables[0];
+        std::filesystem::path table_path(tref.name);
+
+        std::vector<TableColumnSpec> cols;
+        for (const auto& cdef : ast.create_columns) {
+            TableColumnSpec cs;
+            cs.name = cdef.name;
+            cs.data_type = parse_data_type_name(cdef.data_type);
+            cs.comment = cdef.comment;
+            if (!cdef.shape.empty()) {
+                cs.kind = ColumnKind::array;
+                cs.shape = cdef.shape;
+            }
+            cols.push_back(std::move(cs));
+        }
+
+        auto new_table = Table::create(table_path, cols, 0);
+        new_table.flush();
+        result.output_table = tref.name;
+        break;
+    }
+
+    case TaqlCommand::alter_table_cmd: {
+        if (!table.is_writable()) {
+            throw std::runtime_error("TaQL: ALTER TABLE requires writable table");
+        }
+
+        for (const auto& step : ast.alter_steps) {
+            switch (step.action) {
+            case AlterAction::add_row: {
+                EvalContext ctx;
+                ctx.table = &table;
+                ctx.has_row = false;
+                auto val = eval_expr(step.row_count, ctx);
+                std::uint64_t n = 1;
+                if (auto* i = std::get_if<std::int64_t>(&val)) {
+                    n = static_cast<std::uint64_t>(*i);
+                }
+                table.add_row(n);
+                result.affected_rows += n;
+                break;
+            }
+            case AlterAction::set_keyword: {
+                for (const auto& [key, expr] : step.keywords) {
+                    EvalContext ctx;
+                    ctx.table = &table;
+                    ctx.has_row = false;
+                    auto val = eval_expr(expr, ctx);
+                    RecordValue rv;
+                    if (auto* b = std::get_if<bool>(&val)) rv = RecordValue(*b);
+                    else if (auto* i = std::get_if<std::int64_t>(&val))
+                        rv = RecordValue(static_cast<std::int32_t>(*i));
+                    else if (auto* d = std::get_if<double>(&val)) rv = RecordValue(*d);
+                    else if (auto* s = std::get_if<std::string>(&val)) rv = RecordValue(*s);
+                    else throw std::runtime_error("TaQL: unsupported keyword value type");
+                    table.rw_keywords().set(key, std::move(rv));
+                }
+                break;
+            }
+            case AlterAction::drop_keyword: {
+                for (const auto& name : step.names) {
+                    table.rw_keywords().remove(name);
+                }
+                break;
+            }
+            default:
+                // Other ALTER actions (add_column, rename, etc.) require deeper
+                // table schema modification not yet available.
+                throw std::runtime_error("TaQL: ALTER TABLE action not yet supported");
+            }
+        }
+        table.flush();
+        break;
+    }
+
+    case TaqlCommand::drop_table_cmd: {
+        for (const auto& name : ast.drop_tables) {
+            std::filesystem::path p(name);
+            if (std::filesystem::exists(p) && std::filesystem::is_directory(p)) {
+                if (!Table::drop_table(p, true)) {
+                    throw std::runtime_error("TaQL: DROP TABLE failed for '" + name + "'");
+                }
+            }
+        }
+        break;
+    }
+    }
+
+    return result;
+}
+
+TaqlResult taql_execute(std::string_view query,
+                        std::unordered_map<std::string, Table*> tables) {
+    auto ast = taql_parse(query);
+
+    if (ast.command != TaqlCommand::select_cmd) {
+        // Non-SELECT commands: delegate to single-table overload using first table.
+        if (tables.empty())
+            throw std::runtime_error("TaQL: no tables provided");
+        auto* primary = tables.begin()->second;
+        return taql_execute(query, *primary);
+    }
+
+    // SELECT with multi-table support.
+    TaqlResult result;
+
+    if (!ast.group_by.empty())
+        throw std::runtime_error("TaQL: GROUPBY with multi-table queries is not implemented");
+    if (ast.having_expr.has_value())
+        throw std::runtime_error("TaQL: HAVING with multi-table queries is not implemented");
+
+    // Resolve table references.
+    // Collect all table sources: FROM tables + JOIN tables.
+    struct TableSource {
+        std::string alias;
+        Table* table;
+    };
+    std::vector<TableSource> sources;
+
+    for (const auto& tref : ast.tables) {
+        std::string alias = tref.shorthand.empty() ? tref.name : tref.shorthand;
+        auto it = tables.find(alias);
+        if (it == tables.end()) {
+            // Try by name too.
+            it = tables.find(tref.name);
+        }
+        if (it == tables.end())
+            throw std::runtime_error("TaQL: unknown table '" + alias + "'");
+        sources.push_back({alias, it->second});
+    }
+
+    for (const auto& join : ast.joins) {
+        std::string alias = join.table.shorthand.empty() ? join.table.name : join.table.shorthand;
+        auto it = tables.find(alias);
+        if (it == tables.end()) {
+            it = tables.find(join.table.name);
+        }
+        if (it == tables.end())
+            throw std::runtime_error("TaQL: unknown JOIN table '" + alias + "'");
+        sources.push_back({alias, it->second});
+    }
+
+    if (sources.empty())
+        throw std::runtime_error("TaQL: no table sources for SELECT");
+
+    // For single table queries, delegate to the simpler path.
+    if (sources.size() == 1 && ast.joins.empty()) {
+        return taql_execute(query, *sources[0].table);
+    }
+
+    // Multi-table cross-product iteration with JOIN ON filtering.
+    // Build row combinations as vectors of (table_index, row) pairs.
+    using RowCombo = std::vector<std::uint64_t>;
+    std::vector<RowCombo> combos;
+
+    // Start with first source.
+    auto nrow0 = sources[0].table->nrow();
+    for (std::uint64_t r = 0; r < nrow0; ++r) {
+        combos.push_back({r});
+    }
+
+    // Cross-product with each subsequent source.
+    for (std::size_t si = 1; si < sources.size(); ++si) {
+        auto nrow_i = sources[si].table->nrow();
+        std::vector<RowCombo> expanded;
+        expanded.reserve(combos.size() * nrow_i);
+        for (auto& combo : combos) {
+            for (std::uint64_t r = 0; r < nrow_i; ++r) {
+                auto c = combo;
+                c.push_back(r);
+                expanded.push_back(std::move(c));
+            }
+        }
+        combos = std::move(expanded);
+
+        // Apply JOIN ON condition for this source if it came from a JOIN.
+        std::size_t join_idx = si - ast.tables.size();
+        if (si >= ast.tables.size() && join_idx < ast.joins.size()) {
+            const auto& join_on = ast.joins[join_idx].on_expr;
+            std::vector<RowCombo> filtered;
+            for (auto& combo : combos) {
+                EvalContext ctx;
+                ctx.table = sources[0].table;
+                ctx.row = combo[0];
+                ctx.has_row = true;
+                for (std::size_t s = 0; s < sources.size(); ++s) {
+                    ctx.extra_tables[sources[s].alias] = {sources[s].table, combo[s]};
+                }
+                auto val = eval_expr(join_on, ctx);
+                if (as_bool(val)) {
+                    filtered.push_back(std::move(combo));
+                }
+            }
+            combos = std::move(filtered);
+        }
+    }
+
+    // Apply WHERE filter.
+    if (ast.where_expr.has_value()) {
+        std::vector<RowCombo> filtered;
+        for (auto& combo : combos) {
+            EvalContext ctx;
+            ctx.table = sources[0].table;
+            ctx.row = combo[0];
+            ctx.has_row = true;
+            for (std::size_t s = 0; s < sources.size(); ++s) {
+                ctx.extra_tables[sources[s].alias] = {sources[s].table, combo[s]};
+            }
+            auto val = eval_expr(*ast.where_expr, ctx);
+            if (as_bool(val)) {
+                filtered.push_back(std::move(combo));
+            }
+        }
+        combos = std::move(filtered);
+    }
+
+    // LIMIT / OFFSET
+    if (ast.offset_expr.has_value()) {
+        EvalContext empty_ctx{};
+        auto offset = static_cast<std::size_t>(as_int(eval_expr(*ast.offset_expr, empty_ctx)));
+        if (offset < combos.size()) {
+            combos.erase(combos.begin(),
+                         combos.begin() + static_cast<std::ptrdiff_t>(offset));
+        } else {
+            combos.clear();
+        }
+    }
+    if (ast.limit_expr.has_value()) {
+        EvalContext empty_ctx{};
+        auto limit = static_cast<std::size_t>(as_int(eval_expr(*ast.limit_expr, empty_ctx)));
+        if (limit < combos.size()) {
+            combos.resize(limit);
+        }
+    }
+
+    // Build column names and project.
+    for (auto& proj : ast.projections) {
+        if (!proj.alias.empty()) {
+            result.column_names.push_back(proj.alias);
+        } else if (proj.expr.type == ExprType::column_ref) {
+            result.column_names.push_back(proj.expr.name);
+        } else if (proj.expr.type == ExprType::wildcard) {
+            for (auto& src : sources) {
+                for (auto& col : src.table->columns()) {
+                    result.column_names.push_back(src.alias + "." + col.name);
+                }
+            }
+        } else {
+            result.column_names.push_back("expr");
+        }
+    }
+
+    // Evaluate projections.
+    for (auto& combo : combos) {
+        EvalContext ctx;
+        ctx.table = sources[0].table;
+        ctx.row = combo[0];
+        ctx.has_row = true;
+        for (std::size_t s = 0; s < sources.size(); ++s) {
+            ctx.extra_tables[sources[s].alias] = {sources[s].table, combo[s]};
+        }
+
+        result.rows.push_back(combo[0]);
+
+        for (auto& proj : ast.projections) {
+            if (proj.expr.type == ExprType::wildcard) {
+                for (std::size_t s = 0; s < sources.size(); ++s) {
+                    for (auto& col : sources[s].table->columns()) {
+                        auto cv = sources[s].table->read_scalar_cell(col.name, combo[s]);
+                        result.values.push_back(cell_to_taql(cv));
+                    }
+                }
+            } else {
+                result.values.push_back(eval_expr(proj.expr, ctx));
+            }
+        }
     }
 
     return result;
@@ -2671,6 +4002,47 @@ TaqlResult taql_calc(std::string_view query) {
 
     if (ast.command == TaqlCommand::show_cmd) {
         result.show_text = taql_show(ast.show_topic);
+        return result;
+    }
+
+    // CREATE TABLE: no existing table required.
+    if (ast.command == TaqlCommand::create_table_cmd) {
+        if (ast.tables.empty()) {
+            throw std::runtime_error("TaQL: CREATE TABLE requires a table name");
+        }
+
+        const auto& tref = ast.tables[0];
+        std::filesystem::path table_path(tref.name);
+
+        std::vector<TableColumnSpec> cols;
+        for (const auto& cdef : ast.create_columns) {
+            TableColumnSpec cs;
+            cs.name = cdef.name;
+            cs.data_type = parse_data_type_name(cdef.data_type);
+            cs.comment = cdef.comment;
+            if (!cdef.shape.empty()) {
+                cs.kind = ColumnKind::array;
+                cs.shape = cdef.shape;
+            }
+            cols.push_back(std::move(cs));
+        }
+
+        auto new_table = Table::create(table_path, cols, 0);
+        new_table.flush();
+        result.output_table = tref.name;
+        return result;
+    }
+
+    // DROP TABLE: no existing table required.
+    if (ast.command == TaqlCommand::drop_table_cmd) {
+        for (const auto& name : ast.drop_tables) {
+            std::filesystem::path p(name);
+            if (std::filesystem::exists(p) && std::filesystem::is_directory(p)) {
+                if (!Table::drop_table(p, true)) {
+                    throw std::runtime_error("TaQL: DROP TABLE failed for '" + name + "'");
+                }
+            }
+        }
         return result;
     }
 

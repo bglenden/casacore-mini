@@ -16,6 +16,47 @@
 
 namespace casacore_mini {
 
+// ---------------------------------------------------------------------------
+// Table-level lock model
+// ---------------------------------------------------------------------------
+
+/// Lock mode for table access.
+///
+/// Mirrors upstream casacore's TableLock options. The actual locking in
+/// casacore-mini uses a simple lock-file approach (table.lock).
+enum class TableLockMode : std::uint8_t {
+    NoLock,         ///< No locking (default for read-only tables).
+    AutoLock,       ///< Lock automatically on read/write, release on flush.
+    PermanentLock,  ///< Lock once, hold until close.
+    UserLock,       ///< Lock/unlock manually via lock()/unlock().
+};
+
+/// Information about table.info metadata.
+struct TableInfo {
+    std::string type{};     ///< The "Type = ..." value.
+    std::string sub_type{}; ///< The "SubType = ..." value.
+};
+
+// ---------------------------------------------------------------------------
+// Utility: data type ↔ string conversion
+// ---------------------------------------------------------------------------
+
+/// Parse a data type name string to a DataType enum.
+///
+/// Accepts the casacore type names used in TaQL and table descriptors:
+/// "BOOL", "Bool", "B", "INT", "Int", "I4", "INT32", "I", "INT64", "I8",
+/// "SHORT", "Short", "I2", "FLOAT", "Float", "R4", "DOUBLE", "Double",
+/// "R8", "D", "COMPLEX", "Complex", "C4", "DCOMPLEX", "DComplex", "C8",
+/// "STRING", "String", "S".
+///
+/// @throws std::runtime_error if the name is not recognized.
+[[nodiscard]] DataType parse_data_type_name(std::string_view name);
+
+/// Convert a DataType enum to a canonical string name.
+/// Returns names like "Bool", "Int", "Float", "Double", "Complex",
+/// "DComplex", "String", "Int64", "Short".
+[[nodiscard]] std::string data_type_to_string(DataType dt);
+
 /// @file
 /// @brief High-level Table abstraction over casacore table directories.
 ///
@@ -30,8 +71,8 @@ struct TableColumnSpec {
     std::string name;
     DataType data_type = DataType::tp_int;
     ColumnKind kind = ColumnKind::scalar;
-    std::vector<std::int64_t> shape; // for array columns
-    std::string comment;
+    std::vector<std::int64_t> shape{}; // for array columns
+    std::string comment{};
 };
 
 /// Options for Table::create() that control which storage manager backs the table.
@@ -124,6 +165,14 @@ class Table {
     /// Whether this table is writable.
     [[nodiscard]] bool is_writable() const;
 
+    /// Add rows to the end of the table (default-initialized).
+    /// Requires a writable table.
+    void add_row(std::uint64_t n = 1);
+
+    /// Remove a single row. Subsequent rows shift down by one.
+    /// Requires a writable table.
+    void remove_row(std::uint64_t row);
+
     // -- Cell-level read/write API --
 
     /// Read a scalar cell value from any SM.
@@ -207,6 +256,55 @@ class Table {
 
     /// Find column index in the TableDesc columns vector.
     [[nodiscard]] std::size_t find_column_index(std::string_view name) const;
+
+    // -- Table info / metadata --
+
+    /// Read the table.info type and subtype.
+    [[nodiscard]] TableInfo table_info() const;
+
+    /// Get the table type string (convenience for table_info().type).
+    [[nodiscard]] std::string table_info_type() const;
+
+    /// Set the table.info type and subtype (writes to disk immediately).
+    void set_table_info(std::string_view type_string, std::string_view sub_type = "");
+
+    /// Access private keywords (e.g. hypercolumn definitions).
+    [[nodiscard]] const Record& private_keywords() const;
+
+    /// Mutable access to private keywords.
+    [[nodiscard]] Record& rw_private_keywords();
+
+    /// Check if a column exists by name.
+    [[nodiscard]] bool has_column(std::string_view name) const;
+
+    // -- Lock model --
+
+    /// Acquire a lock on the table. Creates/updates the lock file.
+    /// @param write  True for write lock, false for read lock.
+    void lock(bool write = true);
+
+    /// Release the table lock.
+    void unlock();
+
+    /// Check if this Table instance currently holds a lock.
+    [[nodiscard]] bool has_lock() const;
+
+    /// Check if the table's lock file indicates it is locked (by any process).
+    [[nodiscard]] bool is_locked() const;
+
+    /// Get the lock mode.
+    [[nodiscard]] TableLockMode lock_mode() const;
+
+    /// Set the lock mode.
+    void set_lock_mode(TableLockMode mode);
+
+    // -- Static utilities --
+
+    /// Drop (delete) a table directory from disk.
+    /// @param path  Path to the table directory.
+    /// @return True if successfully removed, false if path doesn't exist.
+    /// @throws std::runtime_error if the table is locked (unless force is true).
+    [[nodiscard]] static bool drop_table(const std::filesystem::path& path, bool force = false);
 
   private:
     Table() = default;

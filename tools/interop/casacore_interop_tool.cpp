@@ -1936,8 +1936,22 @@ void verify_coord_keywords_semantic(const casacore::Record& record, const std::s
     }
     const auto& spec = record.asRecord(spec_key);
     verify_string_field(spec, spec_key, "system", "LSRK", label);
-    verify_double_field(spec, spec_key, "crval", 1.42e9, label);
-    verify_double_field(spec, spec_key, "cdelt", 1e6, label);
+
+    // crval/cdelt may be top-level (casacore format) or in a "wcs" sub-record
+    // (old mini format). Accept either layout.
+    if (spec.isDefined("crval")) {
+        verify_double_field(spec, spec_key, "crval", 1.42e9, label);
+        verify_double_field(spec, spec_key, "cdelt", 1e6, label);
+    } else if (spec.isDefined("wcs") &&
+               spec.dataType(spec.idToNumber(casacore::RecordFieldId("wcs"))) ==
+                   casacore::TpRecord) {
+        const auto& wcs = spec.asRecord("wcs");
+        verify_double_field(wcs, spec_key + ".wcs", "crval", 1.42e9, label);
+        verify_double_field(wcs, spec_key + ".wcs", "cdelt", 1e6, label);
+    } else {
+        throw std::runtime_error(std::string(label) + ": " + spec_key +
+                                 " missing crval (tried top-level and wcs sub-record)");
+    }
 
     // Find stokes sub-record (may be stokes2 or stokes1).
     auto stk_key = find_subrecord_any(record, {"stokes2", "stokes1"});
@@ -2000,7 +2014,16 @@ void verify_mixed_coords_semantic(const casacore::Record& record, const std::str
             verify_subrecord_exists(record, "", "spectral2", label);
             const auto& spec2 = record.asRecord("spectral2");
             verify_string_field(spec2, "spectral2", "system", "TOPO", label);
-            verify_double_field(spec2, "spectral2", "crval", 1.0e9, label);
+            if (spec2.isDefined("crval")) {
+                verify_double_field(spec2, "spectral2", "crval", 1.0e9, label);
+            } else if (spec2.isDefined("wcs") &&
+                       spec2.dataType(spec2.idToNumber(casacore::RecordFieldId("wcs"))) ==
+                           casacore::TpRecord) {
+                verify_double_field(spec2.asRecord("wcs"), "spectral2.wcs", "crval", 1.0e9, label);
+            } else {
+                throw std::runtime_error(std::string(label) +
+                                         ": spectral2 missing crval");
+            }
 
             std::cout << "  " << label << ": [PASS] semantic (GALACTIC-SIN, Linear, TOPO)\n";
         } else if (system_val == "J2000") {
@@ -2017,7 +2040,17 @@ void verify_mixed_coords_semantic(const casacore::Record& record, const std::str
             }
             const auto& spec = record.asRecord(spec_key);
             verify_string_field(spec, spec_key, "system", "LSRK", label);
-            verify_double_field(spec, spec_key, "crval", 1.42e9, label);
+            if (spec.isDefined("crval")) {
+                verify_double_field(spec, spec_key, "crval", 1.42e9, label);
+            } else if (spec.isDefined("wcs") &&
+                       spec.dataType(spec.idToNumber(casacore::RecordFieldId("wcs"))) ==
+                           casacore::TpRecord) {
+                verify_double_field(spec.asRecord("wcs"), spec_key + ".wcs", "crval", 1.42e9,
+                                    label);
+            } else {
+                throw std::runtime_error(std::string(label) + ": " + spec_key +
+                                         " missing crval");
+            }
 
             // Verify stokes and linear exist somewhere.
             auto stk_key = find_subrecord_any(record, {"stokes2", "stokes1", "stokes3"});

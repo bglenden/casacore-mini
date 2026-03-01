@@ -1,0 +1,16 @@
+=== P12-W10 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: lock-test
+  PASS: info-test
+  PASS: lock-mode-enum
+  PASS: table-info-struct
+  PASS: data-type-parser
+  PASS: drop-table
+  PASS: private-keywords
+  PASS: taql-dedup
+
+=== P12-W10 gate summary ===
+PASS: 10
+FAIL: 0
+P12-W10 gate passed

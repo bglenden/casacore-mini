@@ -1,0 +1,5 @@
+src/table.cpp                                         (modified — fixed add_row row-count ordering for TSM)
+tests/table_mutation_test.cpp                          (modified — added test_add_row_tsm, test_remove_row_tsm)
+docs/phase11/storage_manager_fidelity_audit.md         (modified — P12-W12 re-audit with full operation matrix)
+docs/phase12/deferred_on_demand_policy.md              (new — deferred manager policy + trigger procedure)
+tools/check_phase12_w12.sh                             (new — wave gate)

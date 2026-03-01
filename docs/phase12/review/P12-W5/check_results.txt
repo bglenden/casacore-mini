@@ -1,0 +1,1 @@
+PASS: 6, FAIL: 0 — P12-W5 gate passed

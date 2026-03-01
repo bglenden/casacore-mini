@@ -109,6 +109,7 @@ static void test_initial_flag_stats() {
     auto ms = make_test_ms(path);
 
     auto stats = ms_flag_stats(ms);
+    (void)stats;
     assert(stats.total_rows == 5);
     assert(stats.flagged_rows == 0);
 
@@ -129,6 +130,7 @@ static void test_flag_rows() {
     // Re-open to read fresh data.
     auto ms2 = MeasurementSet::open(path);
     auto stats = ms_flag_stats(ms2);
+    (void)stats;
     assert(stats.total_rows == 5);
     assert(stats.flagged_rows == 2);
 
@@ -165,6 +167,7 @@ static void test_unflag_rows() {
 
     auto ms4 = MeasurementSet::open(path);
     auto stats = ms_flag_stats(ms4);
+    (void)stats;
     assert(stats.flagged_rows == 2);
 
     MsMainColumns cols(ms4);
@@ -190,6 +193,9 @@ static void test_flag_preserves_other_data() {
     auto ant1_0 = cols_before.antenna1(0);
     auto time_0 = cols_before.time(0);
     auto scan_0 = cols_before.scan_number(0);
+    (void)ant1_0;
+    (void)time_0;
+    (void)scan_0;
 
     // Flag row 0.
     ms_flag_rows(ms, {0});

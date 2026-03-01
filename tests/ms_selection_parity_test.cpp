@@ -548,6 +548,7 @@ static void test_malformed_per_category() {
         } catch (const std::runtime_error&) {
             caught = true;
         }
+        (void)caught;
         assert(caught);
     };
 

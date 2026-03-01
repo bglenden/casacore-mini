@@ -207,6 +207,13 @@ class Record {
     ///
     /// Complexity: linear in entry count.
     [[nodiscard]] const RecordValue* find(std::string_view key) const;
+    /// Remove entry by key.
+    ///
+    /// @return `true` if an entry was removed, `false` if key was absent.
+    ///
+    /// Complexity: linear in entry count.
+    bool remove(std::string_view key);
+
     /// Number of entries in insertion order.
     [[nodiscard]] std::size_t size() const noexcept;
     /// Ordered entry view.

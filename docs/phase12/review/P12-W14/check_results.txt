@@ -1,0 +1,5 @@
+P12-W14 wave gate: 31/31 passed
+Full test suite: 108/108 passed (from fresh build-closeout directory)
+
+Wave gate sweep (W1-W13): 13/13 passed
+Review artifacts (W1-W14): 14/14 present

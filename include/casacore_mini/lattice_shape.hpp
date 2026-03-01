@@ -180,4 +180,106 @@ void validate_index(const IPosition& index, const IPosition& shape);
 /// @throws std::out_of_range on invalid slice.
 void validate_slicer(const Slicer& slicer, const IPosition& shape);
 
+/// Copy elements between strided Fortran-order arrays using mdspan-style
+/// stride arithmetic.
+///
+/// Copies `count` elements (the product of `slice_shape`) from `src` to `dst`,
+/// where `src` is a flat Fortran-order array with strides `src_strides` and
+/// elements are read at offsets `src_start[d] * src_strides[d]` with increments
+/// of `src_step[d] * src_strides[d]`. The destination is densely packed in
+/// Fortran order.
+///
+/// This replaces manual IPosition-based index iteration with direct stride
+/// computation, matching how mdspan layout_left maps indices to offsets.
+template <typename T>
+void strided_fortran_copy(const T* src, const IPosition& src_strides,
+                          const IPosition& src_start, const IPosition& src_step,
+                          T* dst, const IPosition& slice_shape) {
+    const auto ndim = slice_shape.ndim();
+    const auto n = static_cast<std::size_t>(slice_shape.product());
+    if (n == 0) return;
+
+    // Current position in slice coordinates (all zeros initially).
+    std::vector<std::int64_t> pos(ndim, 0);
+
+    // Compute initial source offset from start position.
+    std::int64_t src_offset = 0;
+    for (std::size_t d = 0; d < ndim; ++d) {
+        src_offset += src_start[d] * src_strides[d];
+    }
+
+    for (std::size_t i = 0; i < n; ++i) {
+        dst[i] = src[static_cast<std::size_t>(src_offset)];
+
+        // Advance position in Fortran order (innermost axis first).
+        for (std::size_t d = 0; d < ndim; ++d) {
+            ++pos[d];
+            src_offset += src_step[d] * src_strides[d];
+            if (pos[d] < slice_shape[d]) break;
+            // Wrap: subtract the full extent advanced on this axis.
+            src_offset -= pos[d] * src_step[d] * src_strides[d];
+            pos[d] = 0;
+        }
+    }
+}
+
+/// Scatter elements from a dense Fortran-order source into a strided
+/// destination array. Inverse of `strided_fortran_copy`.
+template <typename T>
+void strided_fortran_scatter(const T* src, T* dst, const IPosition& dst_strides,
+                             const IPosition& dst_start, const IPosition& dst_step,
+                             const IPosition& slice_shape) {
+    const auto ndim = slice_shape.ndim();
+    const auto n = static_cast<std::size_t>(slice_shape.product());
+    if (n == 0) return;
+
+    std::vector<std::int64_t> pos(ndim, 0);
+
+    std::int64_t dst_offset = 0;
+    for (std::size_t d = 0; d < ndim; ++d) {
+        dst_offset += dst_start[d] * dst_strides[d];
+    }
+
+    for (std::size_t i = 0; i < n; ++i) {
+        dst[static_cast<std::size_t>(dst_offset)] = src[i];
+
+        for (std::size_t d = 0; d < ndim; ++d) {
+            ++pos[d];
+            dst_offset += dst_step[d] * dst_strides[d];
+            if (pos[d] < slice_shape[d]) break;
+            dst_offset -= pos[d] * dst_step[d] * dst_strides[d];
+            pos[d] = 0;
+        }
+    }
+}
+
+/// Create a `ConstLatticeSpan` (mdspan view) over a flat data array.
+///
+/// @tparam N   Compile-time rank of the resulting mdspan.
+/// @param data Pointer to flat Fortran-order data.
+/// @param shape Shape vector whose ndim must equal N.
+/// @throws std::invalid_argument if shape.ndim() != N.
+template <typename T, std::size_t N>
+[[nodiscard]] ConstLatticeSpan<T, N> make_const_lattice_span(
+    const T* data, const IPosition& shape) {
+    if (shape.ndim() != N) {
+        throw std::invalid_argument("make_const_lattice_span: shape rank != N");
+    }
+    return [&]<std::size_t... I>(std::index_sequence<I...>) {
+        return ConstLatticeSpan<T, N>(data, static_cast<std::size_t>(shape[I])...);
+    }(std::make_index_sequence<N>{});
+}
+
+/// Create a `LatticeSpan` (mutable mdspan view) over a flat data array.
+template <typename T, std::size_t N>
+[[nodiscard]] LatticeSpan<T, N> make_lattice_span(
+    T* data, const IPosition& shape) {
+    if (shape.ndim() != N) {
+        throw std::invalid_argument("make_lattice_span: shape rank != N");
+    }
+    return [&]<std::size_t... I>(std::index_sequence<I...>) {
+        return LatticeSpan<T, N>(data, static_cast<std::size_t>(shape[I])...);
+    }(std::make_index_sequence<N>{});
+}
+
 } // namespace casacore_mini

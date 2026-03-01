@@ -1,0 +1,1 @@
+PASS: 5, FAIL: 0 — P12-W3 gate passed

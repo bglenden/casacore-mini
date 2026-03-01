@@ -1,0 +1,16 @@
+=== P12-W9 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: api-parity-test
+  PASS: parse-mode-enum
+  PASS: error-mode-enum
+  PASS: time-range-struct
+  PASS: uv-range-struct
+  PASS: error-handler
+  PASS: ddid-population
+  PASS: feed-lists
+
+=== P12-W9 gate summary ===
+PASS: 10
+FAIL: 0
+P12-W9 gate passed

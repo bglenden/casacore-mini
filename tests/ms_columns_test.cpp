@@ -223,17 +223,21 @@ static void test_main_measure_columns() {
     auto tm = cols.time_measure(0);
     assert(tm.type == MeasureType::epoch);
     auto epoch_ref = std::get<EpochRef>(tm.ref.ref_type);
+    (void)epoch_ref;
     assert(epoch_ref == EpochRef::utc);
     auto epoch_val = std::get<EpochValue>(tm.value);
     double total_days = epoch_val.day + epoch_val.fraction;
+    (void)total_days;
     assert(total_days > 50000.0);
 
     // UVW measure: Muvw J2000.
     auto um = cols.uvw_measure(0);
     assert(um.type == MeasureType::uvw);
     auto uvw_ref = std::get<UvwRef>(um.ref.ref_type);
+    (void)uvw_ref;
     assert(uvw_ref == UvwRef::j2000);
     auto uvw_val = std::get<UvwValue>(um.value);
+    (void)uvw_val;
     assert(std::abs(uvw_val.u_m - 100.0) < 1e-10);
     assert(std::abs(uvw_val.v_m - 101.0) < 1e-10);
     assert(std::abs(uvw_val.w_m - 102.0) < 1e-10);

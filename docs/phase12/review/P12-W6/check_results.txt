@@ -1,0 +1,14 @@
+=== P12-W6 wave gate ===
+  PASS: build
+  PASS: tests
+  PASS: taql_aggregate_test
+  PASS: groupby-implemented
+  PASS: eval_aggregate-exists
+  PASS: gsum-handler
+  PASS: gmin-handler
+  PASS: gmean-handler
+
+=== P12-W6 gate summary ===
+PASS: 8
+FAIL: 0
+P12-W6 gate passed

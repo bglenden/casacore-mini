@@ -267,6 +267,7 @@ static void test_fk_validation_catches_errors() {
         // Should mention DATA_DESC_ID.
         assert(msg.find("DATA_DESC_ID") != std::string::npos);
     }
+    (void)caught;
     assert(caught);
 
     cleanup(ms_path);

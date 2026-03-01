@@ -259,6 +259,7 @@ static void test_antenna_range_selection() {
     assert(result.rows.size() == 9);
     // Check row7 (ant2-ant3) is excluded.
     for (auto r : result.rows) {
+        (void)r;
         assert(r != 7);
     }
 
@@ -722,6 +723,7 @@ static void test_malformed_antenna_expr() {
             std::string msg = e.what();
             assert(msg.find("Antenna") != std::string::npos);
         }
+        (void)caught;
         assert(caught);
     }
 
@@ -735,6 +737,7 @@ static void test_malformed_antenna_expr() {
         } catch (const std::runtime_error& e) {
             caught = true;
         }
+        (void)caught;
         assert(caught);
     }
 
@@ -761,6 +764,7 @@ static void test_malformed_spw_expr() {
             std::string msg = e.what();
             assert(msg.find("SPW") != std::string::npos);
         }
+        (void)caught;
         assert(caught);
     }
 
@@ -784,6 +788,7 @@ static void test_malformed_time_expr() {
         } catch (const std::runtime_error& e) {
             caught = true;
         }
+        (void)caught;
         assert(caught);
     }
 

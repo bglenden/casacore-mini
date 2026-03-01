@@ -1,0 +1,5 @@
+src/taql.cpp                     (modified — +807 lines aggregate engine + groupby)
+tests/taql_aggregate_test.cpp    (new — 12 aggregate/groupby/having tests)
+tests/taql_command_test.cpp      (modified — groupby/having tests updated)
+CMakeLists.txt                   (modified — added taql_aggregate_test target)
+tools/check_phase12_w6.sh        (new — wave gate script)

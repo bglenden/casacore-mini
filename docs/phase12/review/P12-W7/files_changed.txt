@@ -1,0 +1,4 @@
+src/taql.cpp                      (modified — datetime/angle/array/complex/unit/cone/meas functions)
+tests/taql_udf_equiv_test.cpp     (new — 65 checks across all new function families)
+CMakeLists.txt                    (modified — added taql_udf_equiv_test target)
+tools/check_phase12_w7.sh         (new — wave gate script)

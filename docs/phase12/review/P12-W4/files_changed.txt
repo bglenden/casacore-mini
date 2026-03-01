@@ -1,0 +1,6 @@
+src/taql.cpp
+src/record.cpp
+include/casacore_mini/record.hpp
+tests/taql_ddl_test.cpp
+CMakeLists.txt
+tools/check_phase12_w4.sh

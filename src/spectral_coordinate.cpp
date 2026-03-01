@@ -48,6 +48,7 @@ Record SpectralCoordinate::save() const {
     rec.set("coordinate_type", RecordValue(std::string("spectral")));
 
     // Version 2 format expected by casacore's SpectralCoordinate::restore().
+    // Use WCS sub-record fields for broad image-table interoperability.
     rec.set("version", RecordValue(static_cast<std::int32_t>(2)));
     rec.set("system", RecordValue(std::string(frequency_ref_to_string(ref_frame_))));
     rec.set("restfreq", RecordValue(rest_freq_hz_));

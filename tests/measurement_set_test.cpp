@@ -29,12 +29,14 @@ static void test_ms_enums() {
 
     // Check required columns.
     const auto& time_info = casacore_mini::ms_main_column_info(casacore_mini::MsMainColumn::time);
+    (void)time_info;
     assert(time_info.name == "TIME");
     assert(time_info.data_type == casacore_mini::DataType::tp_double);
     assert(time_info.kind == casacore_mini::ColumnKind::scalar);
     assert(time_info.required);
 
     const auto& uvw_info = casacore_mini::ms_main_column_info(casacore_mini::MsMainColumn::uvw);
+    (void)uvw_info;
     assert(uvw_info.name == "UVW");
     assert(uvw_info.data_type == casacore_mini::DataType::tp_double);
     assert(uvw_info.kind == casacore_mini::ColumnKind::array);
@@ -44,15 +46,18 @@ static void test_ms_enums() {
     assert(uvw_info.required);
 
     const auto& data_info = casacore_mini::ms_main_column_info(casacore_mini::MsMainColumn::data);
+    (void)data_info;
     assert(data_info.name == "DATA");
     assert(!data_info.required);
 
     // Name lookup.
     auto ant1 = casacore_mini::ms_main_column_from_name("ANTENNA1");
+    (void)ant1;
     assert(ant1.has_value());
     assert(*ant1 == casacore_mini::MsMainColumn::antenna1);
 
     auto unknown = casacore_mini::ms_main_column_from_name("NONEXISTENT");
+    (void)unknown;
     assert(!unknown.has_value());
 
     // Required columns count.
@@ -68,6 +73,7 @@ static void test_ms_enums() {
 
     // Keyword names.
     auto kw_name = casacore_mini::ms_main_keyword_name(casacore_mini::MsMainKeyword::antenna);
+    (void)kw_name;
     assert(kw_name == "ANTENNA");
     assert(casacore_mini::ms_main_keyword_required(casacore_mini::MsMainKeyword::antenna));
     assert(!casacore_mini::ms_main_keyword_required(casacore_mini::MsMainKeyword::doppler));
@@ -89,6 +95,7 @@ static void test_create_and_reopen() {
         // All 12 required subtables must exist.
         auto req_subs = casacore_mini::ms_required_subtable_names();
         for (const auto& name : req_subs) {
+            (void)name;
             assert(ms.has_subtable(name));
         }
 
@@ -112,6 +119,7 @@ static void test_create_and_reopen() {
 
         // Can read subtable.
         const auto& ant = ms.subtable("ANTENNA");
+        (void)ant;
         assert(ant.nrow() == 0);
         assert(!ant.columns().empty());
     }
@@ -146,6 +154,9 @@ static void test_subtable_schemas() {
                 has_dish_diameter = true;
             }
         }
+        (void)has_name;
+        (void)has_position;
+        (void)has_dish_diameter;
         assert(has_name);
         assert(has_position);
         assert(has_dish_diameter);
@@ -169,6 +180,9 @@ static void test_subtable_schemas() {
                 has_ref_freq = true;
             }
         }
+        (void)has_num_chan;
+        (void)has_chan_freq;
+        (void)has_ref_freq;
         assert(has_num_chan);
         assert(has_chan_freq);
         assert(has_ref_freq);
@@ -188,6 +202,8 @@ static void test_subtable_schemas() {
                 has_corr_type = true;
             }
         }
+        (void)has_num_corr;
+        (void)has_corr_type;
         assert(has_num_corr);
         assert(has_corr_type);
     }
@@ -223,6 +239,9 @@ static void test_subtable_names_list() {
             found_state = true;
         }
     }
+    (void)found_antenna;
+    (void)found_spw;
+    (void)found_state;
     assert(found_antenna);
     assert(found_spw);
     assert(found_state);
@@ -249,14 +268,18 @@ static void test_measure_keywords() {
     for (const auto& col : cols) {
         if (col.name == "TIME") {
             const auto* measinfo = col.keywords.find("MEASINFO");
+            (void)measinfo;
             assert(measinfo != nullptr);
             const auto* units = col.keywords.find("QuantumUnits");
+            (void)units;
             assert(units != nullptr);
         }
         if (col.name == "UVW") {
             const auto* measinfo = col.keywords.find("MEASINFO");
+            (void)measinfo;
             assert(measinfo != nullptr);
             const auto* units = col.keywords.find("QuantumUnits");
+            (void)units;
             assert(units != nullptr);
         }
     }
@@ -275,6 +298,7 @@ static void test_malformed_paths() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     // Create at existing path.
@@ -288,6 +312,7 @@ static void test_malformed_paths() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     cleanup(ms_path);
@@ -302,6 +327,7 @@ static void test_malformed_paths() {
     } catch (const std::runtime_error&) {
         caught = true;
     }
+    (void)caught;
     assert(caught);
 
     cleanup(ms_path2);

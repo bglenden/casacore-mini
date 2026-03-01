@@ -1,0 +1,7 @@
+tools/check_phase12_w4.sh         (modified — fixed stale grep pattern for drop-table check)
+tools/check_phase12_w14.sh        (new — final closeout wave gate)
+docs/phase12/exit_report.md       (new — phase exit report)
+docs/phase12/review/phase12_status.json  (new — phase status summary)
+docs/phase12/review/P12-W14/      (new — W14 review artifacts)
+docs/phase12/plan.md              (modified — workstream table updated to Done)
+docs/casacore_plan.md             (modified — Phase 12 status updated)

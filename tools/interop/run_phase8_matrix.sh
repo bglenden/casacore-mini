@@ -73,11 +73,15 @@ run_cell() {
   local label="${artifact}: ${producer_name}->${verifier_name}"
   local outfile="${ARTIFACT_DIR}/${producer_name}_${artifact}.bin"
 
-  if "${producer_tool}" "produce-${artifact}" --output "${outfile}" 2>/dev/null \
-     && "${verifier_tool}" "verify-${artifact}" --input "${outfile}" 2>/dev/null; then
+  local cell_log="${ARTIFACT_DIR}/${producer_name}_${verifier_name}_${artifact}.log"
+  if "${producer_tool}" "produce-${artifact}" --output "${outfile}" 2>"${cell_log}" \
+     && "${verifier_tool}" "verify-${artifact}" --input "${outfile}" 2>>"${cell_log}"; then
     record_pass "${label}"
   else
     record_fail "${label}"
+    if [ -s "${cell_log}" ]; then
+      echo "    stderr: $(head -5 "${cell_log}")" >&2
+    fi
   fi
 }
 

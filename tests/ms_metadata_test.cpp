@@ -262,6 +262,8 @@ static void test_cache_consistency() {
     // Call twice to verify caching works.
     auto& names1 = md.antenna_names();
     auto& names2 = md.antenna_names();
+    (void)names1;
+    (void)names2;
     assert(&names1 == &names2); // Same reference, not re-computed.
     assert(names1.size() == 3);
 
