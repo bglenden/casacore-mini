@@ -136,7 +136,7 @@ class Table {
     void remove_rows(std::vector<std::uint64_t> rows_to_remove);
 
     /// Add a new column to the table.
-    /// The column is added to the SSM storage manager.
+    /// The column is added to the table's active storage manager.
     /// @throws std::runtime_error if the table is not writable, or a column
     ///         with the same name already exists.
     void add_column(const TableColumnSpec& spec);

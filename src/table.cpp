@@ -36,6 +36,60 @@ struct SmLookup {
     return {};
 }
 
+struct SmClassInfo {
+    std::size_t sm_index = SIZE_MAX;
+    std::uint32_t sequence_number = 0;
+    std::string sm_type;
+    std::string dm_group;
+    std::vector<ColumnDesc> columns;
+};
+
+[[nodiscard]] SmClassInfo collect_sm_class(const TableDatFull& td, std::string_view type_token) {
+    SmClassInfo info;
+    for (const auto& col : td.table_desc.columns) {
+        auto lookup = find_sm_for_column(td, col.name);
+        if (lookup.sm_type.find(type_token) == std::string_view::npos) {
+            continue;
+        }
+        if (lookup.sm_index == SIZE_MAX || lookup.sm_index >= td.storage_managers.size()) {
+            continue;
+        }
+        if (info.sm_index == SIZE_MAX) {
+            info.sm_index = lookup.sm_index;
+            info.sequence_number = td.storage_managers[lookup.sm_index].sequence_number;
+            info.sm_type = std::string(lookup.sm_type);
+        }
+        if (lookup.sm_index != info.sm_index) {
+            continue;
+        }
+        if (info.dm_group.empty() && !col.dm_group.empty()) {
+            info.dm_group = col.dm_group;
+        }
+        info.columns.push_back(col);
+    }
+    if (info.sm_index == SIZE_MAX) {
+        for (std::size_t i = 0; i < td.storage_managers.size(); ++i) {
+            if (td.storage_managers[i].type_name.find(type_token) != std::string::npos) {
+                info.sm_index = i;
+                info.sequence_number = td.storage_managers[i].sequence_number;
+                info.sm_type = td.storage_managers[i].type_name;
+                break;
+            }
+        }
+    }
+    if (info.dm_group.empty() && !info.sm_type.empty()) {
+        info.dm_group = info.sm_type;
+    }
+    return info;
+}
+
+void set_sm_blob(TableDatFull& td, const std::size_t sm_index, std::vector<std::uint8_t> blob) {
+    if (sm_index >= td.storage_managers.size()) {
+        throw std::runtime_error("storage manager index out of range");
+    }
+    td.storage_managers[sm_index].data_blob = std::move(blob);
+}
+
 /// Map DataType to the type string used in ColumnDesc.
 [[nodiscard]] std::string make_type_string(DataType dt, ColumnKind kind) {
     const char* base = nullptr;
@@ -289,46 +343,28 @@ Table Table::open_rw(const std::filesystem::path& path) {
     }
 
     auto& td = t.impl_->dir.table_dat;
-    auto nrow = td.row_count;
+    const auto nrow = td.row_count;
 
-    // Find SSM columns.
-    std::vector<ColumnDesc> ssm_cols;
-    for (const auto& col : td.table_desc.columns) {
-        auto lookup = find_sm_for_column(td, col.name);
-        if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
-            ssm_cols.push_back(col);
-        }
-    }
+    const auto ssm = collect_sm_class(td, "StandardStMan");
+    const auto ism = collect_sm_class(td, "IncrementalStMan");
+    const auto tsm = collect_sm_class(td, "Tiled");
 
-    // Find TSM columns.
-    std::vector<ColumnDesc> tsm_cols;
-    std::string tsm_sm_type;
-    std::string tsm_dm_name;
-    for (const auto& col : td.table_desc.columns) {
-        auto lookup = find_sm_for_column(td, col.name);
-        if (lookup.sm_type.find("Tiled") != std::string::npos) {
-            tsm_cols.push_back(col);
-            if (tsm_sm_type.empty()) {
-                tsm_sm_type = std::string(lookup.sm_type);
-                tsm_dm_name = col.dm_group;
-            }
-        }
-    }
-
-    if (ssm_cols.empty() && tsm_cols.empty()) {
+    if (ssm.columns.empty() && ism.columns.empty() && tsm.columns.empty()) {
         return t;
     }
 
     // Set up SSM writer if needed.
-    if (!ssm_cols.empty()) {
+    if (!ssm.columns.empty()) {
         t.impl_->ensure_ssm_readers();
 
         SsmWriter writer;
-        writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
+        writer.setup(ssm.columns, nrow, td.big_endian,
+                     ssm.dm_group.empty() ? std::string_view{"StandardStMan"}
+                                          : std::string_view{ssm.dm_group});
 
         // Copy all cell data from readers to writer.
-        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
-            const auto& col = ssm_cols[ci];
+        for (std::size_t ci = 0; ci < ssm.columns.size(); ++ci) {
+            const auto& col = ssm.columns[ci];
             auto* reader = t.impl_->find_ssm_for_column(col.name);
             if (reader == nullptr)
                 continue;
@@ -348,19 +384,42 @@ Table Table::open_rw(const std::filesystem::path& path) {
         }
 
         t.impl_->ssm_writer = std::move(writer);
-        t.impl_->writer_columns = ssm_cols;
+        t.impl_->writer_columns = ssm.columns;
     }
 
-    // Set up TSM writer if needed.
-    if (!tsm_cols.empty()) {
+    // Set up ISM writer for pure-ISM writable tables.
+    if (!ism.columns.empty() && ssm.columns.empty()) {
+        t.impl_->ensure_ism_readers();
+
+        IsmWriter writer;
+        writer.setup(ism.columns, nrow, td.big_endian,
+                     ism.dm_group.empty() ? std::string_view{"ISMData"}
+                                          : std::string_view{ism.dm_group});
+
+        for (std::size_t ci = 0; ci < ism.columns.size(); ++ci) {
+            const auto& col = ism.columns[ci];
+            auto* reader = t.impl_->find_ism_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                writer.write_cell(ci, reader->read_cell(col.name, r), r);
+            }
+        }
+
+        t.impl_->ism_writer = std::move(writer);
+        t.impl_->writer_columns = ism.columns;
+    }
+
+    // Set up TSM writer for pure-TSM writable tables.
+    if (!tsm.columns.empty() && ssm.columns.empty() && ism.columns.empty()) {
         t.impl_->ensure_tsm_readers();
 
         TiledStManWriter tsm_wr;
-        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, nrow, td.big_endian);
+        tsm_wr.setup(tsm.sm_type, tsm.dm_group, tsm.columns, nrow, td.big_endian);
 
         // Copy existing data from TSM reader into writer.
-        for (std::size_t ci = 0; ci < tsm_cols.size(); ++ci) {
-            const auto& col = tsm_cols[ci];
+        for (std::size_t ci = 0; ci < tsm.columns.size(); ++ci) {
+            const auto& col = tsm.columns[ci];
             auto* reader = t.impl_->find_tsm_for_column(col.name);
             if (reader == nullptr)
                 continue;
@@ -371,11 +430,8 @@ Table Table::open_rw(const std::filesystem::path& path) {
         }
 
         t.impl_->tsm_writer = std::move(tsm_wr);
-        t.impl_->tsm_writer_seq = 0;
-        // Merge TSM columns into writer_columns.
-        for (const auto& col : tsm_cols) {
-            t.impl_->writer_columns.push_back(col);
-        }
+        t.impl_->tsm_writer_seq = tsm.sequence_number;
+        t.impl_->writer_columns = tsm.columns;
     }
 
     return t;
@@ -727,17 +783,12 @@ void Table::add_rows(std::uint64_t n) {
     td.row_count = new_nrow;
     td.post_td_row_count = new_nrow;
 
-    // Rebuild the SSM writer with the expanded row count, preserving existing data.
+    // Rebuild the active SM writer with the expanded row count, preserving existing data.
     if (impl_->ssm_writer.has_value()) {
-        auto& old_writer = impl_->ssm_writer.value();
-
-        // Collect SSM columns for the writer.
-        std::vector<ColumnDesc> ssm_cols;
-        for (const auto& col : td.table_desc.columns) {
-            auto lookup = find_sm_for_column(td, col.name);
-            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
-                ssm_cols.push_back(col);
-            }
+        auto& old_writer = *impl_->ssm_writer;
+        const auto ssm = collect_sm_class(td, "StandardStMan");
+        if (ssm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::add_rows: unable to locate StandardStMan columns");
         }
 
         // Flush old writer data to disk with old_nrow so the reader can parse it.
@@ -745,7 +796,7 @@ void Table::add_rows(std::uint64_t n) {
         old_writer.write_indirect_file(impl_->path.string(), 0);
         td.row_count = old_nrow;
         td.post_td_row_count = old_nrow;
-        td.storage_managers[0].data_blob = old_writer.make_blob();
+        set_sm_blob(td, ssm.sm_index, old_writer.make_blob());
         write_table_directory(impl_->path.string(), td);
 
         // Re-read using a fresh reader against old_nrow metadata.
@@ -758,10 +809,12 @@ void Table::add_rows(std::uint64_t n) {
         td.post_td_row_count = new_nrow;
 
         SsmWriter new_writer;
-        new_writer.setup(ssm_cols, new_nrow, td.big_endian, "StandardStMan");
+        new_writer.setup(ssm.columns, new_nrow, td.big_endian,
+                         ssm.dm_group.empty() ? std::string_view{"StandardStMan"}
+                                              : std::string_view{ssm.dm_group});
 
-        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
-            const auto& col = ssm_cols[ci];
+        for (std::size_t ci = 0; ci < ssm.columns.size(); ++ci) {
+            const auto& col = ssm.columns[ci];
             auto* reader = impl_->find_ssm_for_column(col.name);
             if (reader == nullptr)
                 continue;
@@ -781,18 +834,107 @@ void Table::add_rows(std::uint64_t n) {
         }
 
         impl_->ssm_writer = std::move(new_writer);
-        impl_->writer_columns = ssm_cols;
+        impl_->writer_columns = ssm.columns;
 
         // Flush new writer to disk so readers see the expanded table.
-        auto& ssm_writer = impl_->ssm_writer.value();
+        auto& ssm_writer = *impl_->ssm_writer;
         ssm_writer.write_file(impl_->path.string(), 0);
         ssm_writer.write_indirect_file(impl_->path.string(), 0);
-        td.storage_managers[0].data_blob = ssm_writer.make_blob();
+        set_sm_blob(td, ssm.sm_index, ssm_writer.make_blob());
         write_table_directory(impl_->path.string(), td);
 
         // Reset reader cache since metadata changed.
         impl_->ssm_readers.clear();
         impl_->ssm_readers_initialized = false;
+    } else if (impl_->ism_writer.has_value()) {
+        auto& old_writer = *impl_->ism_writer;
+        const auto ism = collect_sm_class(td, "IncrementalStMan");
+        if (ism.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::add_rows: unable to locate IncrementalStMan columns");
+        }
+
+        old_writer.write_file(impl_->path.string(), ism.sequence_number);
+        td.row_count = old_nrow;
+        td.post_td_row_count = old_nrow;
+        set_sm_blob(td, ism.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+        impl_->ensure_ism_readers();
+
+        td.row_count = new_nrow;
+        td.post_td_row_count = new_nrow;
+
+        IsmWriter new_writer;
+        new_writer.setup(ism.columns, new_nrow, td.big_endian,
+                         ism.dm_group.empty() ? std::string_view{"ISMData"}
+                                              : std::string_view{ism.dm_group});
+
+        for (std::size_t ci = 0; ci < ism.columns.size(); ++ci) {
+            const auto& col = ism.columns[ci];
+            auto* reader = impl_->find_ism_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < old_nrow; ++r) {
+                new_writer.write_cell(ci, reader->read_cell(col.name, r), r);
+            }
+        }
+
+        impl_->ism_writer = std::move(new_writer);
+        impl_->writer_columns = ism.columns;
+
+        auto& ism_writer = *impl_->ism_writer;
+        ism_writer.write_file(impl_->path.string(), ism.sequence_number);
+        set_sm_blob(td, ism.sm_index, ism_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+    } else if (impl_->tsm_writer.has_value()) {
+        auto& old_writer = *impl_->tsm_writer;
+        const auto tsm = collect_sm_class(td, "Tiled");
+        if (tsm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::add_rows: unable to locate tiled SM columns");
+        }
+
+        old_writer.write_files(impl_->path.string(), tsm.sequence_number);
+        td.row_count = old_nrow;
+        td.post_td_row_count = old_nrow;
+        set_sm_blob(td, tsm.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
+        impl_->ensure_tsm_readers();
+
+        td.row_count = new_nrow;
+        td.post_td_row_count = new_nrow;
+
+        TiledStManWriter new_writer;
+        new_writer.setup(tsm.sm_type, tsm.dm_group, tsm.columns, new_nrow, td.big_endian);
+
+        for (std::size_t ci = 0; ci < tsm.columns.size(); ++ci) {
+            const auto& col = tsm.columns[ci];
+            auto* reader = impl_->find_tsm_for_column(col.name);
+            if (reader == nullptr)
+                continue;
+            for (std::uint64_t r = 0; r < old_nrow; ++r) {
+                new_writer.write_raw_cell(ci, reader->read_raw_cell(col.name, r), r);
+            }
+        }
+
+        impl_->tsm_writer = std::move(new_writer);
+        impl_->tsm_writer_seq = tsm.sequence_number;
+        impl_->writer_columns = tsm.columns;
+
+        auto& tsm_writer = *impl_->tsm_writer;
+        tsm_writer.write_files(impl_->path.string(), tsm.sequence_number);
+        set_sm_blob(td, tsm.sm_index, tsm_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
     }
 }
 
@@ -825,14 +967,10 @@ void Table::remove_rows(std::vector<std::uint64_t> rows_to_remove) {
     td.post_td_row_count = new_nrow;
 
     if (impl_->ssm_writer.has_value()) {
-        auto& old_writer = impl_->ssm_writer.value();
-
-        std::vector<ColumnDesc> ssm_cols;
-        for (const auto& col : td.table_desc.columns) {
-            auto lookup = find_sm_for_column(td, col.name);
-            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
-                ssm_cols.push_back(col);
-            }
+        auto& old_writer = *impl_->ssm_writer;
+        const auto ssm = collect_sm_class(td, "StandardStMan");
+        if (ssm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::remove_rows: unable to locate StandardStMan columns");
         }
 
         // Flush current state to disk so we can re-read.
@@ -842,7 +980,7 @@ void Table::remove_rows(std::vector<std::uint64_t> rows_to_remove) {
         // Temporarily set nrow back to old for reader.
         td.row_count = old_nrow;
         td.post_td_row_count = old_nrow;
-        td.storage_managers[0].data_blob = old_writer.make_blob();
+        set_sm_blob(td, ssm.sm_index, old_writer.make_blob());
         write_table_directory(impl_->path.string(), td);
 
         impl_->ssm_readers.clear();
@@ -854,7 +992,9 @@ void Table::remove_rows(std::vector<std::uint64_t> rows_to_remove) {
         td.post_td_row_count = new_nrow;
 
         SsmWriter new_writer;
-        new_writer.setup(ssm_cols, new_nrow, td.big_endian, "StandardStMan");
+        new_writer.setup(ssm.columns, new_nrow, td.big_endian,
+                         ssm.dm_group.empty() ? std::string_view{"StandardStMan"}
+                                              : std::string_view{ssm.dm_group});
 
         // Build a set for fast removal lookup.
         std::size_t remove_idx = 0;
@@ -864,8 +1004,8 @@ void Table::remove_rows(std::vector<std::uint64_t> rows_to_remove) {
                 ++remove_idx;
                 continue; // skip removed row
             }
-            for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
-                const auto& col = ssm_cols[ci];
+            for (std::size_t ci = 0; ci < ssm.columns.size(); ++ci) {
+                const auto& col = ssm.columns[ci];
                 auto* reader = impl_->find_ssm_for_column(col.name);
                 if (reader == nullptr)
                     continue;
@@ -885,19 +1025,126 @@ void Table::remove_rows(std::vector<std::uint64_t> rows_to_remove) {
         }
 
         impl_->ssm_writer = std::move(new_writer);
-        impl_->writer_columns = ssm_cols;
+        impl_->writer_columns = ssm.columns;
 
         // Flush new writer to disk so readers see the compacted table.
         {
-            auto& w = impl_->ssm_writer.value();
+            auto& w = *impl_->ssm_writer;
             w.write_file(impl_->path.string(), 0);
             w.write_indirect_file(impl_->path.string(), 0);
-            td.storage_managers[0].data_blob = w.make_blob();
+            set_sm_blob(td, ssm.sm_index, w.make_blob());
             write_table_directory(impl_->path.string(), td);
         }
 
         impl_->ssm_readers.clear();
         impl_->ssm_readers_initialized = false;
+    } else if (impl_->ism_writer.has_value()) {
+        auto& old_writer = *impl_->ism_writer;
+        const auto ism = collect_sm_class(td, "IncrementalStMan");
+        if (ism.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::remove_rows: unable to locate IncrementalStMan columns");
+        }
+
+        old_writer.write_file(impl_->path.string(), ism.sequence_number);
+
+        td.row_count = old_nrow;
+        td.post_td_row_count = old_nrow;
+        set_sm_blob(td, ism.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+        impl_->ensure_ism_readers();
+
+        td.row_count = new_nrow;
+        td.post_td_row_count = new_nrow;
+
+        IsmWriter new_writer;
+        new_writer.setup(ism.columns, new_nrow, td.big_endian,
+                         ism.dm_group.empty() ? std::string_view{"ISMData"}
+                                              : std::string_view{ism.dm_group});
+
+        std::size_t remove_idx = 0;
+        std::uint64_t dst_row = 0;
+        for (std::uint64_t src_row = 0; src_row < old_nrow; ++src_row) {
+            if (remove_idx < rows_to_remove.size() && rows_to_remove[remove_idx] == src_row) {
+                ++remove_idx;
+                continue;
+            }
+            for (std::size_t ci = 0; ci < ism.columns.size(); ++ci) {
+                const auto& col = ism.columns[ci];
+                auto* reader = impl_->find_ism_for_column(col.name);
+                if (reader == nullptr) {
+                    continue;
+                }
+                new_writer.write_cell(ci, reader->read_cell(col.name, src_row), dst_row);
+            }
+            ++dst_row;
+        }
+
+        impl_->ism_writer = std::move(new_writer);
+        impl_->writer_columns = ism.columns;
+
+        auto& w = *impl_->ism_writer;
+        w.write_file(impl_->path.string(), ism.sequence_number);
+        set_sm_blob(td, ism.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+    } else if (impl_->tsm_writer.has_value()) {
+        auto& old_writer = *impl_->tsm_writer;
+        const auto tsm = collect_sm_class(td, "Tiled");
+        if (tsm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::remove_rows: unable to locate tiled SM columns");
+        }
+
+        old_writer.write_files(impl_->path.string(), tsm.sequence_number);
+
+        td.row_count = old_nrow;
+        td.post_td_row_count = old_nrow;
+        set_sm_blob(td, tsm.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
+        impl_->ensure_tsm_readers();
+
+        td.row_count = new_nrow;
+        td.post_td_row_count = new_nrow;
+
+        TiledStManWriter new_writer;
+        new_writer.setup(tsm.sm_type, tsm.dm_group, tsm.columns, new_nrow, td.big_endian);
+
+        std::size_t remove_idx = 0;
+        std::uint64_t dst_row = 0;
+        for (std::uint64_t src_row = 0; src_row < old_nrow; ++src_row) {
+            if (remove_idx < rows_to_remove.size() && rows_to_remove[remove_idx] == src_row) {
+                ++remove_idx;
+                continue;
+            }
+            for (std::size_t ci = 0; ci < tsm.columns.size(); ++ci) {
+                const auto& col = tsm.columns[ci];
+                auto* reader = impl_->find_tsm_for_column(col.name);
+                if (reader == nullptr) {
+                    continue;
+                }
+                new_writer.write_raw_cell(ci, reader->read_raw_cell(col.name, src_row), dst_row);
+            }
+            ++dst_row;
+        }
+
+        impl_->tsm_writer = std::move(new_writer);
+        impl_->tsm_writer_seq = tsm.sequence_number;
+        impl_->writer_columns = tsm.columns;
+
+        auto& w = *impl_->tsm_writer;
+        w.write_files(impl_->path.string(), tsm.sequence_number);
+        set_sm_blob(td, tsm.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
     }
 }
 
@@ -915,6 +1162,28 @@ void Table::add_column(const TableColumnSpec& spec) {
         }
     }
 
+    SmClassInfo active_sm;
+    if (impl_->ssm_writer.has_value()) {
+        active_sm = collect_sm_class(td, "StandardStMan");
+    } else if (impl_->ism_writer.has_value()) {
+        active_sm = collect_sm_class(td, "IncrementalStMan");
+    } else if (impl_->tsm_writer.has_value()) {
+        active_sm = collect_sm_class(td, "Tiled");
+    } else {
+        throw std::runtime_error("Table::add_column: no active writer");
+    }
+    if (active_sm.sm_index == SIZE_MAX) {
+        throw std::runtime_error("Table::add_column: unable to resolve storage manager binding");
+    }
+    if (impl_->ism_writer.has_value() && spec.kind != ColumnKind::scalar) {
+        throw std::runtime_error("Table::add_column: IncrementalStMan only supports scalar columns");
+    }
+    if (impl_->tsm_writer.has_value() &&
+        (spec.kind != ColumnKind::array || spec.shape.empty())) {
+        throw std::runtime_error(
+            "Table::add_column: tiled storage managers require fixed-shape array columns");
+    }
+
     // Build ColumnDesc.
     ColumnDesc cd;
     cd.kind = spec.kind;
@@ -922,8 +1191,8 @@ void Table::add_column(const TableColumnSpec& spec) {
     cd.data_type = spec.data_type;
     cd.comment = spec.comment;
     cd.type_string = make_type_string(spec.data_type, spec.kind);
-    cd.dm_type = "StandardStMan";
-    cd.dm_group = "StandardStMan";
+    cd.dm_type = active_sm.sm_type;
+    cd.dm_group = active_sm.dm_group;
     if (spec.kind == ColumnKind::array && !spec.shape.empty()) {
         cd.ndim = static_cast<std::int32_t>(spec.shape.size());
         cd.shape = spec.shape;
@@ -937,17 +1206,21 @@ void Table::add_column(const TableColumnSpec& spec) {
     // Add ColumnManagerSetup.
     ColumnManagerSetup cms;
     cms.column_name = spec.name;
-    cms.sequence_number = 0; // SSM
+    cms.sequence_number = active_sm.sequence_number;
     if (spec.kind == ColumnKind::array && !spec.shape.empty()) {
         cms.has_shape = true;
         cms.shape = spec.shape;
     }
     td.column_setups.push_back(std::move(cms));
 
-    // Rebuild SSM writer with the new column set.
+    // Rebuild the active writer with the new column set.
     if (impl_->ssm_writer.has_value()) {
-        auto& old_writer = impl_->ssm_writer.value();
+        auto& old_writer = *impl_->ssm_writer;
         const auto nrow = td.row_count;
+        const auto ssm = collect_sm_class(td, "StandardStMan");
+        if (ssm.columns.empty() || ssm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::add_column: unable to locate StandardStMan columns");
+        }
 
         // Flush old writer data to disk with old metadata (without new column)
         // so the reader can parse it.
@@ -959,7 +1232,7 @@ void Table::add_column(const TableColumnSpec& spec) {
         td.table_desc.columns.pop_back();
         auto saved_cms = td.column_setups.back();
         td.column_setups.pop_back();
-        td.storage_managers[0].data_blob = old_writer.make_blob();
+        set_sm_blob(td, ssm.sm_index, old_writer.make_blob());
         write_table_directory(impl_->path.string(), td);
 
         impl_->ssm_readers.clear();
@@ -970,21 +1243,16 @@ void Table::add_column(const TableColumnSpec& spec) {
         td.table_desc.columns.push_back(std::move(saved_cd));
         td.column_setups.push_back(std::move(saved_cms));
 
-        // Collect all SSM columns (including new one).
-        std::vector<ColumnDesc> ssm_cols;
-        for (const auto& col : td.table_desc.columns) {
-            auto lookup = find_sm_for_column(td, col.name);
-            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
-                ssm_cols.push_back(col);
-            }
-        }
+        const auto ssm_after = collect_sm_class(td, "StandardStMan");
 
         SsmWriter new_writer;
-        new_writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
+        new_writer.setup(ssm_after.columns, nrow, td.big_endian,
+                         ssm_after.dm_group.empty() ? std::string_view{"StandardStMan"}
+                                                    : std::string_view{ssm_after.dm_group});
 
         // Copy existing column data (skip the new column).
-        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
-            const auto& col = ssm_cols[ci];
+        for (std::size_t ci = 0; ci < ssm_after.columns.size(); ++ci) {
+            const auto& col = ssm_after.columns[ci];
             if (col.name == spec.name) {
                 continue; // new column, no data to copy
             }
@@ -1007,19 +1275,129 @@ void Table::add_column(const TableColumnSpec& spec) {
         }
 
         impl_->ssm_writer = std::move(new_writer);
-        impl_->writer_columns = ssm_cols;
+        impl_->writer_columns = ssm_after.columns;
 
         // Flush new writer to disk so readers see the updated table.
         {
-            auto& w = impl_->ssm_writer.value();
+            auto& w = *impl_->ssm_writer;
             w.write_file(impl_->path.string(), 0);
             w.write_indirect_file(impl_->path.string(), 0);
-            td.storage_managers[0].data_blob = w.make_blob();
+            set_sm_blob(td, ssm_after.sm_index, w.make_blob());
             write_table_directory(impl_->path.string(), td);
         }
 
         impl_->ssm_readers.clear();
         impl_->ssm_readers_initialized = false;
+    } else if (impl_->ism_writer.has_value()) {
+        auto& old_writer = *impl_->ism_writer;
+        const auto nrow = td.row_count;
+        const auto ism = collect_sm_class(td, "IncrementalStMan");
+        if (ism.columns.empty() || ism.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::add_column: unable to locate IncrementalStMan columns");
+        }
+
+        old_writer.write_file(impl_->path.string(), ism.sequence_number);
+
+        auto saved_cd = td.table_desc.columns.back();
+        td.table_desc.columns.pop_back();
+        auto saved_cms = td.column_setups.back();
+        td.column_setups.pop_back();
+        set_sm_blob(td, ism.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+        impl_->ensure_ism_readers();
+
+        td.table_desc.columns.push_back(std::move(saved_cd));
+        td.column_setups.push_back(std::move(saved_cms));
+
+        const auto ism_after = collect_sm_class(td, "IncrementalStMan");
+
+        IsmWriter new_writer;
+        new_writer.setup(ism_after.columns, nrow, td.big_endian,
+                         ism_after.dm_group.empty() ? std::string_view{"ISMData"}
+                                                    : std::string_view{ism_after.dm_group});
+
+        for (std::size_t ci = 0; ci < ism_after.columns.size(); ++ci) {
+            const auto& col = ism_after.columns[ci];
+            if (col.name == spec.name) {
+                continue;
+            }
+            auto* reader = impl_->find_ism_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                new_writer.write_cell(ci, reader->read_cell(col.name, r), r);
+            }
+        }
+
+        impl_->ism_writer = std::move(new_writer);
+        impl_->writer_columns = ism_after.columns;
+
+        auto& w = *impl_->ism_writer;
+        w.write_file(impl_->path.string(), ism_after.sequence_number);
+        set_sm_blob(td, ism_after.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+    } else if (impl_->tsm_writer.has_value()) {
+        auto& old_writer = *impl_->tsm_writer;
+        const auto nrow = td.row_count;
+        const auto tsm = collect_sm_class(td, "Tiled");
+        if (tsm.columns.empty() || tsm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::add_column: unable to locate tiled SM columns");
+        }
+
+        old_writer.write_files(impl_->path.string(), tsm.sequence_number);
+
+        auto saved_cd = td.table_desc.columns.back();
+        td.table_desc.columns.pop_back();
+        auto saved_cms = td.column_setups.back();
+        td.column_setups.pop_back();
+        set_sm_blob(td, tsm.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
+        impl_->ensure_tsm_readers();
+
+        td.table_desc.columns.push_back(std::move(saved_cd));
+        td.column_setups.push_back(std::move(saved_cms));
+
+        const auto tsm_after = collect_sm_class(td, "Tiled");
+
+        TiledStManWriter new_writer;
+        new_writer.setup(tsm_after.sm_type, tsm_after.dm_group, tsm_after.columns, nrow,
+                         td.big_endian);
+
+        for (std::size_t ci = 0; ci < tsm_after.columns.size(); ++ci) {
+            const auto& col = tsm_after.columns[ci];
+            if (col.name == spec.name) {
+                continue;
+            }
+            auto* reader = impl_->find_tsm_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                new_writer.write_raw_cell(ci, reader->read_raw_cell(col.name, r), r);
+            }
+        }
+
+        impl_->tsm_writer = std::move(new_writer);
+        impl_->tsm_writer_seq = tsm_after.sequence_number;
+        impl_->writer_columns = tsm_after.columns;
+
+        auto& w = *impl_->tsm_writer;
+        w.write_files(impl_->path.string(), tsm_after.sequence_number);
+        set_sm_blob(td, tsm_after.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
     }
 }
 
@@ -1039,22 +1417,23 @@ void Table::remove_column(std::string_view name) {
                                  "' not found");
     }
 
-    // Rebuild SSM writer without the removed column.
     if (impl_->ssm_writer.has_value()) {
-        auto& old_writer = impl_->ssm_writer.value();
+        auto& old_writer = *impl_->ssm_writer;
         const auto nrow = td.row_count;
+        const auto ssm = collect_sm_class(td, "StandardStMan");
+        if (ssm.columns.empty() || ssm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::remove_column: unable to locate StandardStMan columns");
+        }
 
-        // Flush old writer data with the FULL column set so reader can parse.
         old_writer.write_file(impl_->path.string(), 0);
         old_writer.write_indirect_file(impl_->path.string(), 0);
-        td.storage_managers[0].data_blob = old_writer.make_blob();
+        set_sm_blob(td, ssm.sm_index, old_writer.make_blob());
         write_table_directory(impl_->path.string(), td);
 
         impl_->ssm_readers.clear();
         impl_->ssm_readers_initialized = false;
         impl_->ensure_ssm_readers();
 
-        // Now remove the column from metadata.
         cols.erase(std::find_if(cols.begin(), cols.end(),
                                 [&](const ColumnDesc& c) { return c.name == name; }));
         std::erase_if(td.column_setups,
@@ -1062,20 +1441,15 @@ void Table::remove_column(std::string_view name) {
         std::erase_if(impl_->writer_columns,
                       [&](const ColumnDesc& c) { return c.name == name; });
 
-        // Collect remaining SSM columns.
-        std::vector<ColumnDesc> ssm_cols;
-        for (const auto& col : td.table_desc.columns) {
-            auto lookup = find_sm_for_column(td, col.name);
-            if (lookup.sm_type.find("StandardStMan") != std::string_view::npos) {
-                ssm_cols.push_back(col);
-            }
-        }
+        const auto ssm_after = collect_sm_class(td, "StandardStMan");
 
         SsmWriter new_writer;
-        new_writer.setup(ssm_cols, nrow, td.big_endian, "StandardStMan");
+        new_writer.setup(ssm_after.columns, nrow, td.big_endian,
+                         ssm_after.dm_group.empty() ? std::string_view{"StandardStMan"}
+                                                    : std::string_view{ssm_after.dm_group});
 
-        for (std::size_t ci = 0; ci < ssm_cols.size(); ++ci) {
-            const auto& col = ssm_cols[ci];
+        for (std::size_t ci = 0; ci < ssm_after.columns.size(); ++ci) {
+            const auto& col = ssm_after.columns[ci];
             auto* reader = impl_->find_ssm_for_column(col.name);
             if (reader == nullptr)
                 continue;
@@ -1095,21 +1469,119 @@ void Table::remove_column(std::string_view name) {
         }
 
         impl_->ssm_writer = std::move(new_writer);
-        impl_->writer_columns = ssm_cols;
+        impl_->writer_columns = ssm_after.columns;
 
-        // Flush new writer to disk so readers see the reduced table.
-        {
-            auto& w = impl_->ssm_writer.value();
-            w.write_file(impl_->path.string(), 0);
-            w.write_indirect_file(impl_->path.string(), 0);
-            td.storage_managers[0].data_blob = w.make_blob();
-            write_table_directory(impl_->path.string(), td);
-        }
+        auto& w = *impl_->ssm_writer;
+        w.write_file(impl_->path.string(), 0);
+        w.write_indirect_file(impl_->path.string(), 0);
+        set_sm_blob(td, ssm_after.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
 
         impl_->ssm_readers.clear();
         impl_->ssm_readers_initialized = false;
+    } else if (impl_->ism_writer.has_value()) {
+        auto& old_writer = *impl_->ism_writer;
+        const auto nrow = td.row_count;
+        const auto ism = collect_sm_class(td, "IncrementalStMan");
+        if (ism.columns.empty() || ism.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::remove_column: unable to locate IncrementalStMan columns");
+        }
+
+        old_writer.write_file(impl_->path.string(), ism.sequence_number);
+        set_sm_blob(td, ism.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+        impl_->ensure_ism_readers();
+
+        cols.erase(std::find_if(cols.begin(), cols.end(),
+                                [&](const ColumnDesc& c) { return c.name == name; }));
+        std::erase_if(td.column_setups,
+                      [&](const ColumnManagerSetup& s) { return s.column_name == name; });
+        std::erase_if(impl_->writer_columns,
+                      [&](const ColumnDesc& c) { return c.name == name; });
+
+        const auto ism_after = collect_sm_class(td, "IncrementalStMan");
+
+        IsmWriter new_writer;
+        new_writer.setup(ism_after.columns, nrow, td.big_endian,
+                         ism_after.dm_group.empty() ? std::string_view{"ISMData"}
+                                                    : std::string_view{ism_after.dm_group});
+
+        for (std::size_t ci = 0; ci < ism_after.columns.size(); ++ci) {
+            const auto& col = ism_after.columns[ci];
+            auto* reader = impl_->find_ism_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                new_writer.write_cell(ci, reader->read_cell(col.name, r), r);
+            }
+        }
+
+        impl_->ism_writer = std::move(new_writer);
+        impl_->writer_columns = ism_after.columns;
+
+        auto& w = *impl_->ism_writer;
+        w.write_file(impl_->path.string(), ism_after.sequence_number);
+        set_sm_blob(td, ism_after.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->ism_readers.clear();
+        impl_->ism_readers_initialized = false;
+    } else if (impl_->tsm_writer.has_value()) {
+        auto& old_writer = *impl_->tsm_writer;
+        const auto nrow = td.row_count;
+        const auto tsm = collect_sm_class(td, "Tiled");
+        if (tsm.columns.empty() || tsm.sm_index == SIZE_MAX) {
+            throw std::runtime_error("Table::remove_column: unable to locate tiled SM columns");
+        }
+
+        old_writer.write_files(impl_->path.string(), tsm.sequence_number);
+        set_sm_blob(td, tsm.sm_index, old_writer.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
+        impl_->ensure_tsm_readers();
+
+        cols.erase(std::find_if(cols.begin(), cols.end(),
+                                [&](const ColumnDesc& c) { return c.name == name; }));
+        std::erase_if(td.column_setups,
+                      [&](const ColumnManagerSetup& s) { return s.column_name == name; });
+        std::erase_if(impl_->writer_columns,
+                      [&](const ColumnDesc& c) { return c.name == name; });
+
+        const auto tsm_after = collect_sm_class(td, "Tiled");
+
+        TiledStManWriter new_writer;
+        new_writer.setup(tsm_after.sm_type, tsm_after.dm_group, tsm_after.columns, nrow,
+                         td.big_endian);
+
+        for (std::size_t ci = 0; ci < tsm_after.columns.size(); ++ci) {
+            const auto& col = tsm_after.columns[ci];
+            auto* reader = impl_->find_tsm_for_column(col.name);
+            if (reader == nullptr) {
+                continue;
+            }
+            for (std::uint64_t r = 0; r < nrow; ++r) {
+                new_writer.write_raw_cell(ci, reader->read_raw_cell(col.name, r), r);
+            }
+        }
+
+        impl_->tsm_writer = std::move(new_writer);
+        impl_->tsm_writer_seq = tsm_after.sequence_number;
+        impl_->writer_columns = tsm_after.columns;
+
+        auto& w = *impl_->tsm_writer;
+        w.write_files(impl_->path.string(), tsm_after.sequence_number);
+        set_sm_blob(td, tsm_after.sm_index, w.make_blob());
+        write_table_directory(impl_->path.string(), td);
+
+        impl_->tsm_readers.clear();
+        impl_->tsm_readers_initialized = false;
     } else {
-        // No SSM writer, just update metadata.
         cols.erase(col_it);
         std::erase_if(td.column_setups,
                       [&](const ColumnManagerSetup& s) { return s.column_name == name; });
