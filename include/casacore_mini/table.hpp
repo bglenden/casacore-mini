@@ -302,6 +302,7 @@ class Table {
 
     /// Drop (delete) a table directory from disk.
     /// @param path  Path to the table directory.
+    /// @param force Skip lock checks and remove even if lock metadata exists.
     /// @return True if successfully removed, false if path doesn't exist.
     /// @throws std::runtime_error if the table is locked (unless force is true).
     [[nodiscard]] static bool drop_table(const std::filesystem::path& path, bool force = false);
