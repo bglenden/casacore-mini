@@ -32,7 +32,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 static Table make_table(const fs::path& path, int start, int count) {
@@ -56,10 +57,11 @@ static Table make_table(const fs::path& path, int start, int count) {
 static void test_basic_concat() {
     auto p1 = make_temp_dir("a");
     auto p2 = make_temp_dir("b");
-    cleanup(p1); cleanup(p2);
+    cleanup(p1);
+    cleanup(p2);
 
-    auto t1 = make_table(p1, 0, 3);   // rows 0,1,2 → IDs 0,1,2
-    auto t2 = make_table(p2, 10, 2);  // rows 0,1   → IDs 10,11
+    auto t1 = make_table(p1, 0, 3);  // rows 0,1,2 → IDs 0,1,2
+    auto t2 = make_table(p2, 10, 2); // rows 0,1   → IDs 10,11
 
     ConcatTable ct({&t1, &t2});
 
@@ -83,7 +85,8 @@ static void test_basic_concat() {
     auto val3 = std::get<double>(ct.read_scalar_cell("VAL", 3));
     check(val3 == 5.0, "row 3 → table2 row 0, VAL=5.0");
 
-    cleanup(p1); cleanup(p2);
+    cleanup(p1);
+    cleanup(p2);
 }
 
 // ============================================================================
@@ -93,7 +96,9 @@ static void test_decompose_row() {
     auto p1 = make_temp_dir("d1");
     auto p2 = make_temp_dir("d2");
     auto p3 = make_temp_dir("d3");
-    cleanup(p1); cleanup(p2); cleanup(p3);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(p3);
 
     auto t1 = make_table(p1, 0, 2);
     auto t2 = make_table(p2, 0, 3);
@@ -117,7 +122,9 @@ static void test_decompose_row() {
     auto [ti5, lr5] = ct.decompose_row(5);
     check(ti5 == 2 && lr5 == 0, "row 5 → table 2, local 0");
 
-    cleanup(p1); cleanup(p2); cleanup(p3);
+    cleanup(p1);
+    cleanup(p2);
+    cleanup(p3);
 }
 
 // ============================================================================
@@ -160,7 +167,8 @@ static void test_empty_throws() {
 static void test_table_at() {
     auto p1 = make_temp_dir("at1");
     auto p2 = make_temp_dir("at2");
-    cleanup(p1); cleanup(p2);
+    cleanup(p1);
+    cleanup(p2);
 
     auto t1 = make_table(p1, 0, 2);
     auto t2 = make_table(p2, 0, 3);
@@ -177,7 +185,8 @@ static void test_table_at() {
     }
     check(threw, "table_at out-of-range throws");
 
-    cleanup(p1); cleanup(p2);
+    cleanup(p1);
+    cleanup(p2);
 }
 
 // ============================================================================
@@ -186,7 +195,8 @@ static void test_table_at() {
 static void test_columns_keywords() {
     auto p1 = make_temp_dir("ck1");
     auto p2 = make_temp_dir("ck2");
-    cleanup(p1); cleanup(p2);
+    cleanup(p1);
+    cleanup(p2);
 
     auto t1 = make_table(p1, 0, 1);
     auto t2 = make_table(p2, 0, 1);
@@ -195,7 +205,8 @@ static void test_columns_keywords() {
     check(&ct.columns() == &t1.columns(), "columns from first table");
     check(&ct.keywords() == &t1.keywords(), "keywords from first table");
 
-    cleanup(p1); cleanup(p2);
+    cleanup(p1);
+    cleanup(p2);
 }
 
 int main() {

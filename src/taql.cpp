@@ -36,25 +36,25 @@ enum class TokenType : std::uint8_t { // NOLINT(performance-enum-size)
     minus,
     star,
     slash,
-    int_divide,   // //
+    int_divide, // //
     percent,
-    power,        // **
+    power, // **
     ampersand,
     pipe,
     caret,
     tilde,
     bang,
     // Comparison
-    eq,           // = or ==
-    ne,           // != or <>
+    eq, // = or ==
+    ne, // != or <>
     lt,
     le,
     gt,
     ge,
-    near_eq,      // ~=
-    not_near_eq,  // !~=
-    regex_match,  // ~
-    not_regex,    // !~
+    near_eq,     // ~=
+    not_near_eq, // !~=
+    regex_match, // ~
+    not_regex,   // !~
     // Punctuation
     lparen,
     rparen,
@@ -88,8 +88,7 @@ struct Token {
 
 class TaqlLexer {
   public:
-    explicit TaqlLexer(std::string_view source)
-        : source_(source), pos_(0), line_(1), col_(1) {}
+    explicit TaqlLexer(std::string_view source) : source_(source), pos_(0), line_(1), col_(1) {}
 
     Token next() {
         skip_whitespace_and_comments();
@@ -100,7 +99,8 @@ class TaqlLexer {
         char c = source_[pos_];
 
         // String literals
-        if (c == '\'' || c == '"') return lex_string(c);
+        if (c == '\'' || c == '"')
+            return lex_string(c);
 
         // Regex literals: p/.../, m/.../, f/.../ or ~/.../ (handled later)
         if ((c == 'p' || c == 'm' || c == 'f') && pos_ + 1 < source_.size() &&
@@ -115,8 +115,8 @@ class TaqlLexer {
         }
 
         // Numbers
-        if (std::isdigit(c) != 0 || (c == '.' && pos_ + 1 < source_.size() &&
-                                      std::isdigit(source_[pos_ + 1]) != 0)) {
+        if (std::isdigit(c) != 0 ||
+            (c == '.' && pos_ + 1 < source_.size() && std::isdigit(source_[pos_ + 1]) != 0)) {
             return lex_number();
         }
 
@@ -128,15 +128,24 @@ class TaqlLexer {
         // Two-character operators
         if (pos_ + 1 < source_.size()) {
             char c2 = source_[pos_ + 1];
-            if (c == '*' && c2 == '*') return make_token(TokenType::power, pos_, 2);
-            if (c == '/' && c2 == '/') return make_token(TokenType::int_divide, pos_, 2);
-            if (c == '=' && c2 == '=') return make_token(TokenType::eq, pos_, 2);
-            if (c == '!' && c2 == '=') return make_token(TokenType::ne, pos_, 2);
-            if (c == '<' && c2 == '>') return make_token(TokenType::ne, pos_, 2);
-            if (c == '<' && c2 == '=') return make_token(TokenType::le, pos_, 2);
-            if (c == '>' && c2 == '=') return make_token(TokenType::ge, pos_, 2);
-            if (c == ':' && c2 == ':') return make_token(TokenType::double_colon, pos_, 2);
-            if (c == '~' && c2 == '=') return make_token(TokenType::near_eq, pos_, 2);
+            if (c == '*' && c2 == '*')
+                return make_token(TokenType::power, pos_, 2);
+            if (c == '/' && c2 == '/')
+                return make_token(TokenType::int_divide, pos_, 2);
+            if (c == '=' && c2 == '=')
+                return make_token(TokenType::eq, pos_, 2);
+            if (c == '!' && c2 == '=')
+                return make_token(TokenType::ne, pos_, 2);
+            if (c == '<' && c2 == '>')
+                return make_token(TokenType::ne, pos_, 2);
+            if (c == '<' && c2 == '=')
+                return make_token(TokenType::le, pos_, 2);
+            if (c == '>' && c2 == '=')
+                return make_token(TokenType::ge, pos_, 2);
+            if (c == ':' && c2 == ':')
+                return make_token(TokenType::double_colon, pos_, 2);
+            if (c == '~' && c2 == '=')
+                return make_token(TokenType::near_eq, pos_, 2);
             if (c == '!' && c2 == '~') {
                 if (pos_ + 2 < source_.size() && source_[pos_ + 2] == '=') {
                     return make_token(TokenType::not_near_eq, pos_, 3);
@@ -149,30 +158,54 @@ class TaqlLexer {
 
         // Single character operators/punctuation  NOLINT(bugprone-branch-clone)
         switch (c) {
-        case '+': return make_token(TokenType::plus, pos_, 1); // NOLINT(bugprone-branch-clone)
-        case '-': return make_token(TokenType::minus, pos_, 1);
-        case '*': return make_token(TokenType::star, pos_, 1);
-        case '/': return make_token(TokenType::slash, pos_, 1);
-        case '%': return make_token(TokenType::percent, pos_, 1);
-        case '&': return make_token(TokenType::ampersand, pos_, 1);
-        case '|': return make_token(TokenType::pipe, pos_, 1);
-        case '^': return make_token(TokenType::caret, pos_, 1);
-        case '~': return make_token(TokenType::tilde, pos_, 1);
-        case '!': return make_token(TokenType::bang, pos_, 1);
-        case '=': return make_token(TokenType::eq, pos_, 1);
-        case '<': return make_token(TokenType::lt, pos_, 1);
-        case '>': return make_token(TokenType::gt, pos_, 1);
-        case '(': return make_token(TokenType::lparen, pos_, 1);
-        case ')': return make_token(TokenType::rparen, pos_, 1);
-        case '[': return make_token(TokenType::lbracket, pos_, 1);
-        case ']': return make_token(TokenType::rbracket, pos_, 1);
-        case '{': return make_token(TokenType::lbrace, pos_, 1);
-        case '}': return make_token(TokenType::rbrace, pos_, 1);
-        case ',': return make_token(TokenType::comma, pos_, 1);
-        case '.': return make_token(TokenType::dot, pos_, 1);
-        case ':': return make_token(TokenType::colon, pos_, 1);
-        case ';': return make_token(TokenType::semicolon, pos_, 1);
-        default: break;
+        case '+':
+            return make_token(TokenType::plus, pos_, 1); // NOLINT(bugprone-branch-clone)
+        case '-':
+            return make_token(TokenType::minus, pos_, 1);
+        case '*':
+            return make_token(TokenType::star, pos_, 1);
+        case '/':
+            return make_token(TokenType::slash, pos_, 1);
+        case '%':
+            return make_token(TokenType::percent, pos_, 1);
+        case '&':
+            return make_token(TokenType::ampersand, pos_, 1);
+        case '|':
+            return make_token(TokenType::pipe, pos_, 1);
+        case '^':
+            return make_token(TokenType::caret, pos_, 1);
+        case '~':
+            return make_token(TokenType::tilde, pos_, 1);
+        case '!':
+            return make_token(TokenType::bang, pos_, 1);
+        case '=':
+            return make_token(TokenType::eq, pos_, 1);
+        case '<':
+            return make_token(TokenType::lt, pos_, 1);
+        case '>':
+            return make_token(TokenType::gt, pos_, 1);
+        case '(':
+            return make_token(TokenType::lparen, pos_, 1);
+        case ')':
+            return make_token(TokenType::rparen, pos_, 1);
+        case '[':
+            return make_token(TokenType::lbracket, pos_, 1);
+        case ']':
+            return make_token(TokenType::rbracket, pos_, 1);
+        case '{':
+            return make_token(TokenType::lbrace, pos_, 1);
+        case '}':
+            return make_token(TokenType::rbrace, pos_, 1);
+        case ',':
+            return make_token(TokenType::comma, pos_, 1);
+        case '.':
+            return make_token(TokenType::dot, pos_, 1);
+        case ':':
+            return make_token(TokenType::colon, pos_, 1);
+        case ';':
+            return make_token(TokenType::semicolon, pos_, 1);
+        default:
+            break;
         }
 
         // Unknown character
@@ -184,7 +217,9 @@ class TaqlLexer {
         return {pos_, line_, col_};
     }
 
-    std::string_view source() const { return source_; }
+    std::string_view source() const {
+        return source_;
+    }
 
   private:
     std::string_view source_;
@@ -196,13 +231,17 @@ class TaqlLexer {
         while (pos_ < source_.size()) {
             char c = source_[pos_];
             if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-                if (c == '\n') { ++line_; col_ = 0; }
+                if (c == '\n') {
+                    ++line_;
+                    col_ = 0;
+                }
                 advance(1);
                 continue;
             }
             // Line comments: -- or //
             if (c == '-' && pos_ + 1 < source_.size() && source_[pos_ + 1] == '-') {
-                while (pos_ < source_.size() && source_[pos_] != '\n') advance(1);
+                while (pos_ < source_.size() && source_[pos_] != '\n')
+                    advance(1);
                 continue;
             }
             break;
@@ -233,17 +272,26 @@ class TaqlLexer {
             if (source_[pos_] == '\\' && pos_ + 1 < source_.size()) {
                 advance(1);
                 switch (source_[pos_]) {
-                case 'n': result += '\n'; break;
-                case 't': result += '\t'; break;
-                case '\\': result += '\\'; break;
-                default: result += quote; break;
+                case 'n':
+                    result += '\n';
+                    break;
+                case 't':
+                    result += '\t';
+                    break;
+                case '\\':
+                    result += '\\';
+                    break;
+                default:
+                    result += quote;
+                    break;
                 }
             } else {
                 result += source_[pos_];
             }
             advance(1);
         }
-        if (pos_ < source_.size()) advance(1); // skip closing quote
+        if (pos_ < source_.size())
+            advance(1); // skip closing quote
         Token tok;
         tok.type = TokenType::string_lit;
         tok.text = source_.substr(start, pos_ - start);
@@ -266,7 +314,8 @@ class TaqlLexer {
             pattern += source_[pos_];
             advance(1);
         }
-        if (pos_ < source_.size()) advance(1); // skip closing /
+        if (pos_ < source_.size())
+            advance(1); // skip closing /
         // Check for flags (i for case-insensitive)
         std::string flags;
         while (pos_ < source_.size() && std::isalpha(source_[pos_]) != 0) {
@@ -379,7 +428,8 @@ namespace {
 
 /// Case-insensitive string comparison.
 bool iequals(std::string_view a, std::string_view b) {
-    if (a.size() != b.size()) return false;
+    if (a.size() != b.size())
+        return false;
     for (std::size_t i = 0; i < a.size(); ++i) {
         if (std::toupper(static_cast<unsigned char>(a[i])) !=
             std::toupper(static_cast<unsigned char>(b[i])))
@@ -396,7 +446,8 @@ bool is_keyword(const Token& tok, std::string_view kw) {
 /// Upper-case a string_view into a new string.
 std::string to_upper(std::string_view sv) {
     std::string result(sv);
-    for (auto& c : result) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    for (auto& c : result)
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     return result;
 }
 
@@ -408,8 +459,7 @@ std::string to_upper(std::string_view sv) {
 
 class TaqlParser {
   public:
-    explicit TaqlParser(std::string_view source)
-        : lexer_(source), source_(source) {
+    explicit TaqlParser(std::string_view source) : lexer_(source), source_(source) {
         advance(); // prime the first token
     }
 
@@ -497,13 +547,14 @@ class TaqlParser {
         err.message = msg;
         err.location = current_.loc;
         err.token = std::string(current_.text);
-        throw std::runtime_error("TaQL parse error at line " +
-                                 std::to_string(err.location.line) + " col " +
-                                 std::to_string(err.location.column) + ": " + msg +
+        throw std::runtime_error("TaQL parse error at line " + std::to_string(err.location.line) +
+                                 " col " + std::to_string(err.location.column) + ": " + msg +
                                  " (got '" + err.token + "')");
     }
 
-    bool at_end() const { return current_.type == TokenType::end_of_input; }
+    bool at_end() const {
+        return current_.type == TokenType::end_of_input;
+    }
 
     bool match_keyword(std::string_view kw) {
         if (is_keyword(current_, kw)) {
@@ -650,9 +701,12 @@ class TaqlParser {
             // Skip to matching paren
             int depth = 1;
             while (!at_end() && depth > 0) {
-                if (current_.type == TokenType::lparen) ++depth;
-                if (current_.type == TokenType::rparen) --depth;
-                if (depth > 0) advance();
+                if (current_.type == TokenType::lparen)
+                    ++depth;
+                if (current_.type == TokenType::rparen)
+                    --depth;
+                if (depth > 0)
+                    advance();
             }
             expect(TokenType::rparen);
         } else if (current_.type == TokenType::string_lit) {
@@ -693,8 +747,7 @@ class TaqlParser {
             name = std::string(current_.text);
             advance();
             // Handle dotted names and :: subtable references
-            while (current_.type == TokenType::dot ||
-                   current_.type == TokenType::double_colon ||
+            while (current_.type == TokenType::dot || current_.type == TokenType::double_colon ||
                    current_.type == TokenType::slash) {
                 name += std::string(current_.text);
                 advance();
@@ -823,7 +876,8 @@ class TaqlParser {
                     advance();
                     while (current_.type != TokenType::rbracket && !at_end()) {
                         asgn.indices.push_back(parse_expression());
-                        if (!match(TokenType::comma)) break;
+                        if (!match(TokenType::comma))
+                            break;
                     }
                     expect(TokenType::rbracket);
                 }
@@ -845,12 +899,14 @@ class TaqlParser {
 
         // Optional column list
         if (current_.type == TokenType::lbracket || current_.type == TokenType::lparen) {
-            auto close = (current_.type == TokenType::lbracket) ? TokenType::rbracket : TokenType::rparen;
+            auto close =
+                (current_.type == TokenType::lbracket) ? TokenType::rbracket : TokenType::rparen;
             advance();
             while (current_.type != close && !at_end()) {
                 ast.insert_columns.push_back(std::string(current_.text));
                 advance();
-                if (!match(TokenType::comma)) break;
+                if (!match(TokenType::comma))
+                    break;
             }
             expect(close);
         }
@@ -963,7 +1019,8 @@ class TaqlParser {
 
         // Column definitions
         if (current_.type == TokenType::lparen || current_.type == TokenType::lbracket) {
-            auto close = (current_.type == TokenType::lparen) ? TokenType::rparen : TokenType::rbracket;
+            auto close =
+                (current_.type == TokenType::lparen) ? TokenType::rparen : TokenType::rbracket;
             advance();
             parse_column_defs(ast);
             expect(close);
@@ -1004,15 +1061,15 @@ class TaqlParser {
                     while (current_.type != TokenType::rbracket && !at_end()) {
                         col.shape.push_back(current_.int_val);
                         advance();
-                        if (!match(TokenType::comma)) break;
+                        if (!match(TokenType::comma))
+                            break;
                     }
                     expect(TokenType::rbracket);
                 } else {
                     // UNIT or COMMENT: both read a string/identifier value.
                     expect(TokenType::eq);
                     auto& dest = (prop == "UNIT") ? col.unit : col.comment;
-                    dest = current_.str_val.empty() ? std::string(current_.text)
-                                                    : current_.str_val;
+                    dest = current_.str_val.empty() ? std::string(current_.text) : current_.str_val;
                     advance();
                 }
             }
@@ -1074,7 +1131,8 @@ class TaqlParser {
 
     void parse_alter_columns(TaqlAlterStep& step) {
         if (current_.type == TokenType::lparen || current_.type == TokenType::lbracket) {
-            auto close = (current_.type == TokenType::lparen) ? TokenType::rparen : TokenType::rbracket;
+            auto close =
+                (current_.type == TokenType::lparen) ? TokenType::rparen : TokenType::rbracket;
             advance();
             TaqlAst dummy;
             parse_column_defs(dummy);
@@ -1171,7 +1229,8 @@ class TaqlParser {
         for (;;) {
             if (match_keyword("AND")) {
                 // OK, consumed
-            } else if (current_.type == TokenType::ampersand && peek_next_is(TokenType::ampersand)) {
+            } else if (current_.type == TokenType::ampersand &&
+                       peek_next_is(TokenType::ampersand)) {
                 advance(); // first &
                 advance(); // second &
             } else {
@@ -1209,14 +1268,22 @@ class TaqlParser {
             return node;
         };
 
-        if (current_.type == TokenType::eq) return make_cmp(TaqlOp::eq);
-        if (current_.type == TokenType::ne) return make_cmp(TaqlOp::ne);
-        if (current_.type == TokenType::lt) return make_cmp(TaqlOp::lt);
-        if (current_.type == TokenType::le) return make_cmp(TaqlOp::le);
-        if (current_.type == TokenType::gt) return make_cmp(TaqlOp::gt);
-        if (current_.type == TokenType::ge) return make_cmp(TaqlOp::ge);
-        if (current_.type == TokenType::near_eq) return make_cmp(TaqlOp::near);
-        if (current_.type == TokenType::not_near_eq) return make_cmp(TaqlOp::not_near);
+        if (current_.type == TokenType::eq)
+            return make_cmp(TaqlOp::eq);
+        if (current_.type == TokenType::ne)
+            return make_cmp(TaqlOp::ne);
+        if (current_.type == TokenType::lt)
+            return make_cmp(TaqlOp::lt);
+        if (current_.type == TokenType::le)
+            return make_cmp(TaqlOp::le);
+        if (current_.type == TokenType::gt)
+            return make_cmp(TaqlOp::gt);
+        if (current_.type == TokenType::ge)
+            return make_cmp(TaqlOp::ge);
+        if (current_.type == TokenType::near_eq)
+            return make_cmp(TaqlOp::near);
+        if (current_.type == TokenType::not_near_eq)
+            return make_cmp(TaqlOp::not_near);
 
         // LIKE / ILIKE
         if (is_keyword(current_, "LIKE")) {
@@ -1423,11 +1490,21 @@ class TaqlParser {
                current_.type == TokenType::int_divide || current_.type == TokenType::percent) {
             TaqlOp op;
             switch (current_.type) {
-            case TokenType::star: op = TaqlOp::multiply; break;
-            case TokenType::slash: op = TaqlOp::divide; break;
-            case TokenType::int_divide: op = TaqlOp::int_divide; break;
-            case TokenType::percent: op = TaqlOp::modulo; break;
-            default: op = TaqlOp::multiply; break;
+            case TokenType::star:
+                op = TaqlOp::multiply;
+                break;
+            case TokenType::slash:
+                op = TaqlOp::divide;
+                break;
+            case TokenType::int_divide:
+                op = TaqlOp::int_divide;
+                break;
+            case TokenType::percent:
+                op = TaqlOp::modulo;
+                break;
+            default:
+                op = TaqlOp::multiply;
+                break;
             }
             advance();
             TaqlExprNode node(ExprType::binary_op);
@@ -1487,7 +1564,8 @@ class TaqlParser {
             sub.children.push_back(std::move(node));
             while (current_.type != TokenType::rbracket && !at_end()) {
                 sub.children.push_back(parse_subscript_element());
-                if (!match(TokenType::comma)) break;
+                if (!match(TokenType::comma))
+                    break;
             }
             expect(TokenType::rbracket);
             node = std::move(sub);
@@ -1683,17 +1761,16 @@ class TaqlParser {
                 auto upper = to_upper(name);
                 if (upper.size() > 1 && upper[0] == 'G' &&
                     (upper == "GCOUNT" || upper == "GFIRST" || upper == "GLAST" ||
-                     upper == "GMIN" || upper == "GMAX" || upper == "GSUM" ||
-                     upper == "GPRODUCT" || upper == "GSUMSQR" || upper == "GMEAN" ||
-                     upper == "GVARIANCE" || upper == "GSTDDEV" || upper == "GRMS" ||
-                     upper == "GANY" || upper == "GALL" || upper == "GNTRUE" ||
-                     upper == "GNFALSE" || upper == "GHIST" || upper == "GAGGR" ||
-                     upper == "GROWID" || upper == "GMEDIAN" || upper == "GFRACTILE" ||
-                     upper == "GMINS" || upper == "GMAXS" || upper == "GSUMS" ||
-                     upper == "GPRODUCTS" || upper == "GSUMSQRS" || upper == "GMEANS" ||
-                     upper == "GVARIANCES" || upper == "GSTDDEVS" || upper == "GRMSS" ||
-                     upper == "GANYS" || upper == "GALLS" || upper == "GNTRUES" ||
-                     upper == "GNFALSES")) {
+                     upper == "GMIN" || upper == "GMAX" || upper == "GSUM" || upper == "GPRODUCT" ||
+                     upper == "GSUMSQR" || upper == "GMEAN" || upper == "GVARIANCE" ||
+                     upper == "GSTDDEV" || upper == "GRMS" || upper == "GANY" || upper == "GALL" ||
+                     upper == "GNTRUE" || upper == "GNFALSE" || upper == "GHIST" ||
+                     upper == "GAGGR" || upper == "GROWID" || upper == "GMEDIAN" ||
+                     upper == "GFRACTILE" || upper == "GMINS" || upper == "GMAXS" ||
+                     upper == "GSUMS" || upper == "GPRODUCTS" || upper == "GSUMSQRS" ||
+                     upper == "GMEANS" || upper == "GVARIANCES" || upper == "GSTDDEVS" ||
+                     upper == "GRMSS" || upper == "GANYS" || upper == "GALLS" ||
+                     upper == "GNTRUES" || upper == "GNFALSES")) {
                     node.type = ExprType::aggregate_call;
                 }
                 node.name = name;
@@ -1751,16 +1828,14 @@ class TaqlParser {
 
     bool is_select_clause_keyword(std::string_view text) const {
         static const std::unordered_set<std::string> keywords = {
-            "FROM",   "WHERE",  "GROUPBY", "GROUP",   "HAVING",    "ORDERBY",
-            "ORDER",  "LIMIT",  "OFFSET",  "GIVING",  "INTO",      "DMINFO",
-            "JOIN",   "ON",     "AS",      "ASC",     "DESC",      "DISTINCT",
-            "NODUPL", "ALL",    "SET",     "VALUES",  "VALUE",     "SELECT",
-            "UPDATE", "INSERT", "DELETE",  "COUNT",   "CALC",      "CREATE",
-            "ALTER",  "DROP",   "SHOW",    "BETWEEN", "AND",       "OR",
-            "NOT",    "IN",     "LIKE",    "ILIKE",   "EXISTS",    "BY",
-            "ROLLUP", "ADDCOL", "DROPCOL", "COPYCOL", "RENAMECOL", "SETKEY",
-            "COPYKEY","RENAMEKEY","DROPKEY","ADDROW",  "TIMING",    "STYLE",
-            "WITH",   "TABLE"};
+            "FROM",      "WHERE",   "GROUPBY", "GROUP",    "HAVING",    "ORDERBY", "ORDER",
+            "LIMIT",     "OFFSET",  "GIVING",  "INTO",     "DMINFO",    "JOIN",    "ON",
+            "AS",        "ASC",     "DESC",    "DISTINCT", "NODUPL",    "ALL",     "SET",
+            "VALUES",    "VALUE",   "SELECT",  "UPDATE",   "INSERT",    "DELETE",  "COUNT",
+            "CALC",      "CREATE",  "ALTER",   "DROP",     "SHOW",      "BETWEEN", "AND",
+            "OR",        "NOT",     "IN",      "LIKE",     "ILIKE",     "EXISTS",  "BY",
+            "ROLLUP",    "ADDCOL",  "DROPCOL", "COPYCOL",  "RENAMECOL", "SETKEY",  "COPYKEY",
+            "RENAMEKEY", "DROPKEY", "ADDROW",  "TIMING",   "STYLE",     "WITH",    "TABLE"};
         auto upper = to_upper(text);
         return keywords.count(upper) > 0;
     }
@@ -1768,15 +1843,10 @@ class TaqlParser {
     bool is_unit_name(std::string_view text) const {
         // Common TaQL unit suffixes
         static const std::unordered_set<std::string> units = {
-            "DEG", "RAD", "ARCSEC", "ARCMIN", "MAS", "HMS", "DMS",
-            "M", "KM", "CM", "MM", "AU", "PC", "KPC", "MPC",
-            "S", "MS", "US", "NS", "MIN", "H", "D",
-            "HZ", "KHZ", "MHZ", "GHZ",
-            "JY", "MJY", "KJY",
-            "K", "MK",
-            "M_S", "KM_S",
-            "PA", "MBAR",
-            "LAMBDA"};
+            "DEG", "RAD", "ARCSEC", "ARCMIN", "MAS", "HMS",  "DMS", "M",    "KM",
+            "CM",  "MM",  "AU",     "PC",     "KPC", "MPC",  "S",   "MS",   "US",
+            "NS",  "MIN", "H",      "D",      "HZ",  "KHZ",  "MHZ", "GHZ",  "JY",
+            "MJY", "KJY", "K",      "MK",     "M_S", "KM_S", "PA",  "MBAR", "LAMBDA"};
         auto upper = to_upper(text);
         return units.count(upper) > 0;
     }
@@ -1800,18 +1870,20 @@ TaqlAst taql_parse(std::string_view query) {
 
 std::string format_parse_error(const TaqlParseError& error, std::string_view source) {
     std::string result = "TaQL parse error at line " + std::to_string(error.location.line) +
-                         " column " + std::to_string(error.location.column) + ": " +
-                         error.message;
+                         " column " + std::to_string(error.location.column) + ": " + error.message;
     if (!error.token.empty()) {
         result += " (token: '" + error.token + "')";
     }
     // Show source context
     if (error.location.offset < source.size()) {
         auto line_start = source.rfind('\n', error.location.offset);
-        if (line_start == std::string_view::npos) line_start = 0;
-        else ++line_start;
+        if (line_start == std::string_view::npos)
+            line_start = 0;
+        else
+            ++line_start;
         auto line_end = source.find('\n', error.location.offset);
-        if (line_end == std::string_view::npos) line_end = source.size();
+        if (line_end == std::string_view::npos)
+            line_end = source.size();
         result += "\n  " + std::string(source.substr(line_start, line_end - line_start));
         result += "\n  " + std::string(error.location.offset - line_start, ' ') + "^";
     }
@@ -1971,38 +2043,49 @@ TaqlValue cell_to_taql(const CellValue& cv) {
 
 /// Extract a double from a TaqlValue, promoting integers.
 double as_double(const TaqlValue& v) {
-    if (auto* d = std::get_if<double>(&v)) return *d;
-    if (auto* i = std::get_if<std::int64_t>(&v)) return static_cast<double>(*i);
-    if (auto* b = std::get_if<bool>(&v)) return *b ? 1.0 : 0.0;
+    if (auto* d = std::get_if<double>(&v))
+        return *d;
+    if (auto* i = std::get_if<std::int64_t>(&v))
+        return static_cast<double>(*i);
+    if (auto* b = std::get_if<bool>(&v))
+        return *b ? 1.0 : 0.0;
     throw std::runtime_error("TaQL: cannot convert value to double");
 }
 
 /// Extract an int64 from a TaqlValue.
 std::int64_t as_int(const TaqlValue& v) {
-    if (auto* i = std::get_if<std::int64_t>(&v)) return *i;
-    if (auto* b = std::get_if<bool>(&v)) return *b ? 1 : 0;
-    if (auto* d = std::get_if<double>(&v)) return static_cast<std::int64_t>(*d);
+    if (auto* i = std::get_if<std::int64_t>(&v))
+        return *i;
+    if (auto* b = std::get_if<bool>(&v))
+        return *b ? 1 : 0;
+    if (auto* d = std::get_if<double>(&v))
+        return static_cast<std::int64_t>(*d);
     throw std::runtime_error("TaQL: cannot convert value to integer");
 }
 
 /// Extract a bool from a TaqlValue.
 bool as_bool(const TaqlValue& v) {
-    if (auto* b = std::get_if<bool>(&v)) return *b;
-    if (auto* i = std::get_if<std::int64_t>(&v)) return *i != 0;
-    if (auto* d = std::get_if<double>(&v)) return *d != 0.0;
+    if (auto* b = std::get_if<bool>(&v))
+        return *b;
+    if (auto* i = std::get_if<std::int64_t>(&v))
+        return *i != 0;
+    if (auto* d = std::get_if<double>(&v))
+        return *d != 0.0;
     throw std::runtime_error("TaQL: cannot convert value to bool");
 }
 
 /// Extract a string from a TaqlValue.
 std::string as_string(const TaqlValue& v) {
-    if (auto* s = std::get_if<std::string>(&v)) return *s;
-    if (auto* i = std::get_if<std::int64_t>(&v)) return std::to_string(*i);
-    if (auto* d = std::get_if<double>(&v)) return std::to_string(*d);
-    if (auto* b = std::get_if<bool>(&v)) return *b ? "true" : "false";
+    if (auto* s = std::get_if<std::string>(&v))
+        return *s;
+    if (auto* i = std::get_if<std::int64_t>(&v))
+        return std::to_string(*i);
+    if (auto* d = std::get_if<double>(&v))
+        return std::to_string(*d);
+    if (auto* b = std::get_if<bool>(&v))
+        return *b ? "true" : "false";
     throw std::runtime_error("TaQL: cannot convert value to string");
 }
-
-
 
 /// Compare two TaqlValues numerically.
 int compare_values(const TaqlValue& a, const TaqlValue& b) {
@@ -2013,8 +2096,10 @@ int compare_values(const TaqlValue& a, const TaqlValue& b) {
     }
     double da = as_double(a);
     double db = as_double(b);
-    if (da < db) return -1;
-    if (da > db) return 1;
+    if (da < db)
+        return -1;
+    if (da > db)
+        return 1;
     return 0;
 }
 
@@ -2024,17 +2109,20 @@ int compare_values(const TaqlValue& a, const TaqlValue& b) {
 
 /// Extract a vector<double> from a TaqlValue; works for scalar and vector types.
 std::vector<double> as_double_vec(const TaqlValue& v) {
-    if (auto* vec = std::get_if<std::vector<double>>(&v)) return *vec;
+    if (auto* vec = std::get_if<std::vector<double>>(&v))
+        return *vec;
     if (auto* vec = std::get_if<std::vector<std::int64_t>>(&v)) {
         std::vector<double> out;
         out.reserve(vec->size());
-        for (auto x : *vec) out.push_back(static_cast<double>(x));
+        for (auto x : *vec)
+            out.push_back(static_cast<double>(x));
         return out;
     }
     if (auto* vec = std::get_if<std::vector<bool>>(&v)) {
         std::vector<double> out;
         out.reserve(vec->size());
-        for (bool x : *vec) out.push_back(x ? 1.0 : 0.0);
+        for (bool x : *vec)
+            out.push_back(x ? 1.0 : 0.0);
         return out;
     }
     // Scalar: return single-element vector.
@@ -2043,12 +2131,18 @@ std::vector<double> as_double_vec(const TaqlValue& v) {
 
 /// Get the number of elements in a TaqlValue (1 for scalars, N for vectors).
 std::int64_t value_nelem(const TaqlValue& v) {
-    if (auto* vec = std::get_if<std::vector<double>>(&v)) return static_cast<std::int64_t>(vec->size());
-    if (auto* vec = std::get_if<std::vector<std::int64_t>>(&v)) return static_cast<std::int64_t>(vec->size());
-    if (auto* vec = std::get_if<std::vector<bool>>(&v)) return static_cast<std::int64_t>(vec->size());
-    if (auto* vec = std::get_if<std::vector<std::complex<double>>>(&v)) return static_cast<std::int64_t>(vec->size());
-    if (auto* vec = std::get_if<std::vector<std::string>>(&v)) return static_cast<std::int64_t>(vec->size());
-    if (std::holds_alternative<std::monostate>(v)) return 0;
+    if (auto* vec = std::get_if<std::vector<double>>(&v))
+        return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<std::int64_t>>(&v))
+        return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<bool>>(&v))
+        return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<std::complex<double>>>(&v))
+        return static_cast<std::int64_t>(vec->size());
+    if (auto* vec = std::get_if<std::vector<std::string>>(&v))
+        return static_cast<std::int64_t>(vec->size());
+    if (std::holds_alternative<std::monostate>(v))
+        return 0;
     return 1; // scalar
 }
 
@@ -2060,7 +2154,8 @@ std::int64_t value_ndim(const TaqlValue& v) {
         std::holds_alternative<std::vector<std::complex<double>>>(v) ||
         std::holds_alternative<std::vector<std::string>>(v))
         return 1;
-    if (std::holds_alternative<std::monostate>(v)) return 0;
+    if (std::holds_alternative<std::monostate>(v))
+        return 0;
     return 0; // scalar
 }
 
@@ -2106,16 +2201,18 @@ BrokenTime mjd_to_broken(double mjd) {
 
 /// Month name lookup.
 const char* month_name(int m) {
-    static const char* names[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    static const char* names[] = {"",    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    if (m < 1 || m > 12) return "???";
+    if (m < 1 || m > 12)
+        return "???";
     return names[m];
 }
 
 /// Day-of-week name lookup.
 const char* dow_name(int wd) {
     static const char* names[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    if (wd < 0 || wd > 6) return "???";
+    if (wd < 0 || wd > 6)
+        return "???";
     return names[wd];
 }
 
@@ -2124,9 +2221,11 @@ int iso_week(const BrokenTime& bt) {
     // Day of year.
     static const int mdays[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     int doy = bt.day;
-    for (int i = 1; i < bt.month; ++i) doy += mdays[i];
+    for (int i = 1; i < bt.month; ++i)
+        doy += mdays[i];
     bool leap = (bt.year % 4 == 0 && bt.year % 100 != 0) || (bt.year % 400 == 0);
-    if (leap && bt.month > 2) ++doy;
+    if (leap && bt.month > 2)
+        ++doy;
     return (doy - 1) / 7 + 1;
 }
 
@@ -2139,47 +2238,81 @@ int iso_week(const BrokenTime& bt) {
 double unit_to_si(const std::string& unit) {
     auto u = to_upper(unit);
     // Angle units → radians
-    if (u == "DEG") return 3.14159265358979323846 / 180.0;
-    if (u == "RAD") return 1.0;
-    if (u == "ARCSEC") return 3.14159265358979323846 / 648000.0;
-    if (u == "ARCMIN") return 3.14159265358979323846 / 10800.0;
-    if (u == "MAS") return 3.14159265358979323846 / 648000000.0;
+    if (u == "DEG")
+        return 3.14159265358979323846 / 180.0;
+    if (u == "RAD")
+        return 1.0;
+    if (u == "ARCSEC")
+        return 3.14159265358979323846 / 648000.0;
+    if (u == "ARCMIN")
+        return 3.14159265358979323846 / 10800.0;
+    if (u == "MAS")
+        return 3.14159265358979323846 / 648000000.0;
     // Time units → seconds
-    if (u == "S") return 1.0;
-    if (u == "MS") return 1e-3;
-    if (u == "US") return 1e-6;
-    if (u == "NS") return 1e-9;
-    if (u == "MIN") return 60.0;
-    if (u == "H") return 3600.0;
-    if (u == "D") return 86400.0;
+    if (u == "S")
+        return 1.0;
+    if (u == "MS")
+        return 1e-3;
+    if (u == "US")
+        return 1e-6;
+    if (u == "NS")
+        return 1e-9;
+    if (u == "MIN")
+        return 60.0;
+    if (u == "H")
+        return 3600.0;
+    if (u == "D")
+        return 86400.0;
     // Length units → meters
-    if (u == "M") return 1.0;
-    if (u == "KM") return 1000.0;
-    if (u == "CM") return 0.01;
-    if (u == "MM") return 0.001;
-    if (u == "AU") return 1.495978707e11;
-    if (u == "PC") return 3.0856775814913673e16;
-    if (u == "KPC") return 3.0856775814913673e19;
-    if (u == "MPC") return 3.0856775814913673e22;
+    if (u == "M")
+        return 1.0;
+    if (u == "KM")
+        return 1000.0;
+    if (u == "CM")
+        return 0.01;
+    if (u == "MM")
+        return 0.001;
+    if (u == "AU")
+        return 1.495978707e11;
+    if (u == "PC")
+        return 3.0856775814913673e16;
+    if (u == "KPC")
+        return 3.0856775814913673e19;
+    if (u == "MPC")
+        return 3.0856775814913673e22;
     // Frequency → Hz
-    if (u == "HZ") return 1.0;
-    if (u == "KHZ") return 1e3;
-    if (u == "MHZ") return 1e6;
-    if (u == "GHZ") return 1e9;
+    if (u == "HZ")
+        return 1.0;
+    if (u == "KHZ")
+        return 1e3;
+    if (u == "MHZ")
+        return 1e6;
+    if (u == "GHZ")
+        return 1e9;
     // Flux → Jy
-    if (u == "JY") return 1.0;
-    if (u == "MJY") return 1e-3;
-    if (u == "KJY") return 1e3;
+    if (u == "JY")
+        return 1.0;
+    if (u == "MJY")
+        return 1e-3;
+    if (u == "KJY")
+        return 1e3;
     // Temperature → K
-    if (u == "K") return 1.0;
-    if (u == "MK") return 1e-3;
+    if (u == "K")
+        return 1.0;
+    if (u == "MK")
+        return 1e-3;
     // Velocity → m/s
-    if (u == "M_S" || u == "M/S") return 1.0;
-    if (u == "KM_S" || u == "KM/S") return 1000.0;
+    if (u == "M_S" || u == "M/S")
+        return 1.0;
+    if (u == "KM_S" || u == "KM/S")
+        return 1000.0;
     // Other
-    if (u == "PA") return 1.0;
-    if (u == "MBAR") return 100.0;
-    if (u == "LAMBDA") return 1.0; // wavelength units (dimensionless multiplier)
+    if (u == "PA")
+        return 1.0;
+    if (u == "MBAR")
+        return 100.0;
+    if (u == "LAMBDA")
+        return 1.0; // wavelength units (dimensionless multiplier)
     throw std::runtime_error("TaQL: unknown unit '" + unit + "'");
 }
 
@@ -2191,7 +2324,8 @@ double unit_to_si(const std::string& unit) {
 std::string rad_to_hms(double rad) {
     constexpr double kRad2Hour = 12.0 / 3.14159265358979323846;
     double hours = rad * kRad2Hour;
-    if (hours < 0) hours += 24.0;
+    if (hours < 0)
+        hours += 24.0;
     auto h = static_cast<int>(hours);
     double mf = (hours - h) * 60.0;
     auto m = static_cast<int>(mf);
@@ -2206,7 +2340,10 @@ std::string rad_to_dms(double rad) {
     constexpr double kRad2Deg = 180.0 / 3.14159265358979323846;
     double deg = rad * kRad2Deg;
     char sign = '+';
-    if (deg < 0) { sign = '-'; deg = -deg; }
+    if (deg < 0) {
+        sign = '-';
+        deg = -deg;
+    }
     auto d = static_cast<int>(deg);
     double mf = (deg - d) * 60.0;
     auto m = static_cast<int>(mf);
@@ -2220,7 +2357,8 @@ std::string rad_to_dms(double rad) {
 double norm_angle(double rad) {
     constexpr double k2Pi = 2.0 * 3.14159265358979323846;
     double a = std::fmod(rad, k2Pi);
-    if (a < 0) a += k2Pi;
+    if (a < 0)
+        a += k2Pi;
     return a;
 }
 
@@ -2285,48 +2423,57 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 
     // rand() — return random double in [0, 1)
     if (upper == "RAND") {
-        static std::mt19937 gen{std::random_device{}()};  // NOLINT(cert-msc51-cpp)
+        static std::mt19937 gen{std::random_device{}()}; // NOLINT(cert-msc51-cpp)
         static std::uniform_real_distribution<double> dist(0.0, 1.0);
         return TaqlValue{dist(gen)};
     }
 
     if (args.empty()) {
-        if (upper == "PI") return TaqlValue{static_cast<double>(3.14159265358979323846L)};
-        if (upper == "E") return TaqlValue{static_cast<double>(2.71828182845904523536L)};
-        if (upper == "C") return TaqlValue{299792458.0};
+        if (upper == "PI")
+            return TaqlValue{static_cast<double>(3.14159265358979323846L)};
+        if (upper == "E")
+            return TaqlValue{static_cast<double>(2.71828182845904523536L)};
+        if (upper == "C")
+            return TaqlValue{299792458.0};
         throw std::runtime_error("TaQL: unknown zero-arg function '" + name + "'");
     }
 
     if (args.size() == 1) {
         // String functions (check before as_double to avoid type error)
-        if (upper == "STRLEN") return static_cast<std::int64_t>(as_string(args[0]).size());
+        if (upper == "STRLEN")
+            return static_cast<std::int64_t>(as_string(args[0]).size());
         if (upper == "UPCASE" || upper == "UPPER") {
             auto s = as_string(args[0]);
-            for (auto& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            for (auto& c : s)
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
             return s;
         }
         if (upper == "DOWNCASE" || upper == "LOWER") {
             auto s = as_string(args[0]);
-            for (auto& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto& c : s)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             return s;
         }
         if (upper == "TRIM") {
             auto s = as_string(args[0]);
             auto start = s.find_first_not_of(" \t\n\r");
             auto end = s.find_last_not_of(" \t\n\r");
-            if (start == std::string::npos) return std::string{};
+            if (start == std::string::npos)
+                return std::string{};
             return s.substr(start, end - start + 1);
         }
         if (upper == "LTRIM") {
             auto s = as_string(args[0]);
             auto start = s.find_first_not_of(" \t\n\r");
-            if (start == std::string::npos) return std::string{};
+            if (start == std::string::npos)
+                return std::string{};
             return s.substr(start);
         }
         if (upper == "RTRIM") {
             auto s = as_string(args[0]);
             auto end = s.find_last_not_of(" \t\n\r");
-            if (end == std::string::npos) return std::string{};
+            if (end == std::string::npos)
+                return std::string{};
             return s.substr(0, end + 1);
         }
         if (upper == "CAPITALIZE") {
@@ -2352,15 +2499,18 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 
         // Predicate functions that need table context
         if (upper == "ISCOLUMN") {
-            if (ctx.table == nullptr) return TaqlValue{false};
+            if (ctx.table == nullptr)
+                return TaqlValue{false};
             auto col_name = as_string(args[0]);
             for (auto& col : ctx.table->columns()) {
-                if (col.name == col_name) return TaqlValue{true};
+                if (col.name == col_name)
+                    return TaqlValue{true};
             }
             return TaqlValue{false};
         }
         if (upper == "ISKEYWORD") {
-            if (ctx.table == nullptr) return TaqlValue{false};
+            if (ctx.table == nullptr)
+                return TaqlValue{false};
             auto key_name = as_string(args[0]);
             return TaqlValue{ctx.table->keywords().find(key_name) != nullptr};
         }
@@ -2401,19 +2551,31 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             return TaqlValue{as_double(args[0])};
         }
         if (upper == "BOOL") {
-            if (auto* d = std::get_if<double>(&args[0])) { bool r = (*d != 0.0); return TaqlValue{r}; }
-            if (auto* i = std::get_if<std::int64_t>(&args[0])) { bool r = (*i != 0); return TaqlValue{r}; }
-            if (auto* b = std::get_if<bool>(&args[0])) return TaqlValue{*b};
-            bool r = (as_double(args[0]) != 0.0); return TaqlValue{r};
+            if (auto* d = std::get_if<double>(&args[0])) {
+                bool r = (*d != 0.0);
+                return TaqlValue{r};
+            }
+            if (auto* i = std::get_if<std::int64_t>(&args[0])) {
+                bool r = (*i != 0);
+                return TaqlValue{r};
+            }
+            if (auto* b = std::get_if<bool>(&args[0]))
+                return TaqlValue{*b};
+            bool r = (as_double(args[0]) != 0.0);
+            return TaqlValue{r};
         }
-        if (upper == "STRING") return as_string(args[0]);
+        if (upper == "STRING")
+            return as_string(args[0]);
 
         // Array info/reduction functions (check before as_double)
-        if (upper == "NDIM") return value_ndim(args[0]);
-        if (upper == "NELEM" || upper == "NELEMENTS") return value_nelem(args[0]);
+        if (upper == "NDIM")
+            return value_ndim(args[0]);
+        if (upper == "NELEM" || upper == "NELEMENTS")
+            return value_nelem(args[0]);
         if (upper == "SHAPE") {
             auto n = value_nelem(args[0]);
-            if (value_ndim(args[0]) == 0) return std::vector<std::int64_t>{};
+            if (value_ndim(args[0]) == 0)
+                return std::vector<std::int64_t>{};
             return std::vector<std::int64_t>{n};
         }
         if (upper == "ARRSUM" || upper == "SUM") {
@@ -2422,56 +2584,70 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         }
         if (upper == "ARRMIN") {
             auto v = as_double_vec(args[0]);
-            if (v.empty()) return TaqlValue{0.0};
+            if (v.empty())
+                return TaqlValue{0.0};
             return TaqlValue{*std::min_element(v.begin(), v.end())};
         }
         if (upper == "ARRMAX") {
             auto v = as_double_vec(args[0]);
-            if (v.empty()) return TaqlValue{0.0};
+            if (v.empty())
+                return TaqlValue{0.0};
             return TaqlValue{*std::max_element(v.begin(), v.end())};
         }
         if (upper == "ARRMEAN" || upper == "MEAN") {
             auto v = as_double_vec(args[0]);
-            if (v.empty()) return TaqlValue{0.0};
-            return TaqlValue{std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size())};
+            if (v.empty())
+                return TaqlValue{0.0};
+            return TaqlValue{std::accumulate(v.begin(), v.end(), 0.0) /
+                             static_cast<double>(v.size())};
         }
         if (upper == "ARRMEDIAN" || upper == "MEDIAN") {
             auto v = as_double_vec(args[0]);
-            if (v.empty()) return TaqlValue{0.0};
+            if (v.empty())
+                return TaqlValue{0.0};
             std::sort(v.begin(), v.end());
             auto n = v.size();
-            if (n % 2 == 1) return TaqlValue{v[n / 2]};
+            if (n % 2 == 1)
+                return TaqlValue{v[n / 2]};
             return TaqlValue{(v[n / 2 - 1] + v[n / 2]) / 2.0};
         }
         if (upper == "ARRVARIANCE" || upper == "VARIANCE") {
             auto v = as_double_vec(args[0]);
-            if (v.size() < 2) return TaqlValue{0.0};
+            if (v.size() < 2)
+                return TaqlValue{0.0};
             double mean = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
             double ss = 0.0;
-            for (auto xi : v) ss += (xi - mean) * (xi - mean);
+            for (auto xi : v)
+                ss += (xi - mean) * (xi - mean);
             return TaqlValue{ss / static_cast<double>(v.size())};
         }
         if (upper == "ARRSTDDEV" || upper == "STDDEV") {
             auto v = as_double_vec(args[0]);
-            if (v.size() < 2) return TaqlValue{0.0};
+            if (v.size() < 2)
+                return TaqlValue{0.0};
             double mean = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
             double ss = 0.0;
-            for (auto xi : v) ss += (xi - mean) * (xi - mean);
+            for (auto xi : v)
+                ss += (xi - mean) * (xi - mean);
             return TaqlValue{std::sqrt(ss / static_cast<double>(v.size()))};
         }
         if (upper == "ARRRMS" || upper == "RMS") {
             auto v = as_double_vec(args[0]);
-            if (v.empty()) return TaqlValue{0.0};
+            if (v.empty())
+                return TaqlValue{0.0};
             double ss = 0.0;
-            for (auto xi : v) ss += xi * xi;
+            for (auto xi : v)
+                ss += xi * xi;
             return TaqlValue{std::sqrt(ss / static_cast<double>(v.size()))};
         }
         if (upper == "ARRAVDEV" || upper == "AVDEV") {
             auto v = as_double_vec(args[0]);
-            if (v.empty()) return TaqlValue{0.0};
+            if (v.empty())
+                return TaqlValue{0.0};
             double mean = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
             double ad = 0.0;
-            for (auto xi : v) ad += std::abs(xi - mean);
+            for (auto xi : v)
+                ad += std::abs(xi - mean);
             return TaqlValue{ad / static_cast<double>(v.size())};
         }
         if (upper == "ARRANY" || upper == "ANY") {
@@ -2495,7 +2671,8 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             return static_cast<std::int64_t>(cnt);
         }
         if (upper == "ARRFLAT" || upper == "FLATTEN") {
-            if (auto* vp = std::get_if<std::vector<double>>(&args[0])) return *vp;
+            if (auto* vp = std::get_if<std::vector<double>>(&args[0]))
+                return *vp;
             return std::vector<double>{as_double(args[0])};
         }
         if (upper == "AREVERSE" || upper == "REVERSE") {
@@ -2522,18 +2699,39 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         }
 
         // Pattern construction functions
-        if (upper == "REGEX") return as_string(args[0]);
+        if (upper == "REGEX")
+            return as_string(args[0]);
         if (upper == "PATTERN" || upper == "SQLPATTERN") {
             auto s = as_string(args[0]);
             std::string re;
             for (char c : s) {
                 switch (c) {
-                case '%': case '*': re += ".*"; break;
-                case '?': case '_': re += '.'; break;
-                case '.': case '(': case ')': case '[': case ']':
-                case '{': case '}': case '^': case '$': case '|':
-                case '+': case '\\': re += '\\'; re += c; break;
-                default: re += c; break;
+                case '%':
+                case '*':
+                    re += ".*";
+                    break;
+                case '?':
+                case '_':
+                    re += '.';
+                    break;
+                case '.':
+                case '(':
+                case ')':
+                case '[':
+                case ']':
+                case '{':
+                case '}':
+                case '^':
+                case '$':
+                case '|':
+                case '+':
+                case '\\':
+                    re += '\\';
+                    re += c;
+                    break;
+                default:
+                    re += c;
+                    break;
                 }
             }
             return re;
@@ -2541,26 +2739,52 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 
         // Numeric functions (safe to call as_double here — only for numeric types)
         double x = as_double(args[0]);
-        if (upper == "SIN") return TaqlValue{std::sin(x)};
-        if (upper == "COS") return TaqlValue{std::cos(x)};
-        if (upper == "TAN") return TaqlValue{std::tan(x)};
-        if (upper == "ASIN") return TaqlValue{std::asin(x)};
-        if (upper == "ACOS") return TaqlValue{std::acos(x)};
-        if (upper == "ATAN") return TaqlValue{std::atan(x)};
-        if (upper == "EXP") return TaqlValue{std::exp(x)};
-        if (upper == "LOG" || upper == "LN") return TaqlValue{std::log(x)};
-        if (upper == "LOG10") return TaqlValue{std::log10(x)};
-        if (upper == "SQRT") return TaqlValue{std::sqrt(x)};
-        if (upper == "ABS") return TaqlValue{std::abs(x)};
-        if (upper == "SIGN") return TaqlValue{(x > 0.0) ? 1.0 : ((x < 0.0) ? -1.0 : 0.0)};
-        if (upper == "ROUND") return TaqlValue{std::round(x)};
-        if (upper == "FLOOR") return TaqlValue{std::floor(x)};
-        if (upper == "CEIL") return TaqlValue{std::ceil(x)};
-        if (upper == "SQUARE") return TaqlValue{x * x};
-        if (upper == "CUBE") return TaqlValue{x * x * x};
-        if (upper == "ISNAN") { bool r = std::isnan(x); return TaqlValue{r}; }
-        if (upper == "ISINF") { bool r = std::isinf(x); return TaqlValue{r}; }
-        if (upper == "ISFINITE") { bool r = std::isfinite(x); return TaqlValue{r}; }
+        if (upper == "SIN")
+            return TaqlValue{std::sin(x)};
+        if (upper == "COS")
+            return TaqlValue{std::cos(x)};
+        if (upper == "TAN")
+            return TaqlValue{std::tan(x)};
+        if (upper == "ASIN")
+            return TaqlValue{std::asin(x)};
+        if (upper == "ACOS")
+            return TaqlValue{std::acos(x)};
+        if (upper == "ATAN")
+            return TaqlValue{std::atan(x)};
+        if (upper == "EXP")
+            return TaqlValue{std::exp(x)};
+        if (upper == "LOG" || upper == "LN")
+            return TaqlValue{std::log(x)};
+        if (upper == "LOG10")
+            return TaqlValue{std::log10(x)};
+        if (upper == "SQRT")
+            return TaqlValue{std::sqrt(x)};
+        if (upper == "ABS")
+            return TaqlValue{std::abs(x)};
+        if (upper == "SIGN")
+            return TaqlValue{(x > 0.0) ? 1.0 : ((x < 0.0) ? -1.0 : 0.0)};
+        if (upper == "ROUND")
+            return TaqlValue{std::round(x)};
+        if (upper == "FLOOR")
+            return TaqlValue{std::floor(x)};
+        if (upper == "CEIL")
+            return TaqlValue{std::ceil(x)};
+        if (upper == "SQUARE")
+            return TaqlValue{x * x};
+        if (upper == "CUBE")
+            return TaqlValue{x * x * x};
+        if (upper == "ISNAN") {
+            bool r = std::isnan(x);
+            return TaqlValue{r};
+        }
+        if (upper == "ISINF") {
+            bool r = std::isinf(x);
+            return TaqlValue{r};
+        }
+        if (upper == "ISFINITE") {
+            bool r = std::isfinite(x);
+            return TaqlValue{r};
+        }
         if (upper == "INT" || upper == "INTEGER") {
             constexpr auto kMinI64 = static_cast<double>(std::numeric_limits<std::int64_t>::min());
             constexpr auto kMaxI64 = static_cast<double>(std::numeric_limits<std::int64_t>::max());
@@ -2570,14 +2794,29 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         }
 
         // DateTime functions (single-arg: MJD in days)
-        if (upper == "MJD") return TaqlValue{x}; // identity if already MJD
-        if (upper == "YEAR") { return static_cast<std::int64_t>(mjd_to_broken(x).year); }
-        if (upper == "MONTH") { return static_cast<std::int64_t>(mjd_to_broken(x).month); }
-        if (upper == "DAY") { return static_cast<std::int64_t>(mjd_to_broken(x).day); }
-        if (upper == "CMONTH") { return std::string(month_name(mjd_to_broken(x).month)); }
-        if (upper == "WEEKDAY") { return static_cast<std::int64_t>(mjd_to_broken(x).weekday); }
-        if (upper == "CDOW") { return std::string(dow_name(mjd_to_broken(x).weekday)); }
-        if (upper == "WEEK") { return static_cast<std::int64_t>(iso_week(mjd_to_broken(x))); }
+        if (upper == "MJD")
+            return TaqlValue{x}; // identity if already MJD
+        if (upper == "YEAR") {
+            return static_cast<std::int64_t>(mjd_to_broken(x).year);
+        }
+        if (upper == "MONTH") {
+            return static_cast<std::int64_t>(mjd_to_broken(x).month);
+        }
+        if (upper == "DAY") {
+            return static_cast<std::int64_t>(mjd_to_broken(x).day);
+        }
+        if (upper == "CMONTH") {
+            return std::string(month_name(mjd_to_broken(x).month));
+        }
+        if (upper == "WEEKDAY") {
+            return static_cast<std::int64_t>(mjd_to_broken(x).weekday);
+        }
+        if (upper == "CDOW") {
+            return std::string(dow_name(mjd_to_broken(x).weekday));
+        }
+        if (upper == "WEEK") {
+            return static_cast<std::int64_t>(iso_week(mjd_to_broken(x)));
+        }
         if (upper == "TIME") {
             auto bt = mjd_to_broken(x);
             return TaqlValue{static_cast<double>(bt.hour * 3600 + bt.minute * 60 + bt.second)};
@@ -2589,8 +2828,8 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         if (upper == "MJDTODATE" || upper == "CTOD" || upper == "CDATE") {
             auto bt = mjd_to_broken(x);
             char buf[32];
-            std::snprintf(buf, sizeof(buf), "%04d/%02d/%02d/%02d:%02d:%02d",
-                          bt.year, bt.month, bt.day, bt.hour, bt.minute, bt.second);
+            std::snprintf(buf, sizeof(buf), "%04d/%02d/%02d/%02d:%02d:%02d", bt.year, bt.month,
+                          bt.day, bt.hour, bt.minute, bt.second);
             return std::string(buf);
         }
         if (upper == "CTIME") {
@@ -2601,11 +2840,14 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         }
 
         // Angle formatting functions (single-arg: radians)
-        if (upper == "HMS") return rad_to_hms(x);
-        if (upper == "DMS") return rad_to_dms(x);
-        if (upper == "HDMS") return rad_to_hms(x) + " " + rad_to_dms(x);
-        if (upper == "NORMANGLE") return TaqlValue{norm_angle(x)};
-
+        if (upper == "HMS")
+            return rad_to_hms(x);
+        if (upper == "DMS")
+            return rad_to_dms(x);
+        if (upper == "HDMS")
+            return rad_to_hms(x) + " " + rad_to_dms(x);
+        if (upper == "NORMANGLE")
+            return TaqlValue{norm_angle(x)};
     }
 
     if (args.size() == 2) {
@@ -2613,11 +2855,16 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         if (upper == "COMPLEX") {
             return TaqlValue{std::complex<double>(as_double(args[0]), as_double(args[1]))};
         }
-        if (upper == "ATAN2") return TaqlValue{std::atan2(as_double(args[0]), as_double(args[1]))};
-        if (upper == "POW") return TaqlValue{std::pow(as_double(args[0]), as_double(args[1]))};
-        if (upper == "FMOD") return TaqlValue{std::fmod(as_double(args[0]), as_double(args[1]))};
-        if (upper == "MIN") return TaqlValue{std::min(as_double(args[0]), as_double(args[1]))};
-        if (upper == "MAX") return TaqlValue{std::max(as_double(args[0]), as_double(args[1]))};
+        if (upper == "ATAN2")
+            return TaqlValue{std::atan2(as_double(args[0]), as_double(args[1]))};
+        if (upper == "POW")
+            return TaqlValue{std::pow(as_double(args[0]), as_double(args[1]))};
+        if (upper == "FMOD")
+            return TaqlValue{std::fmod(as_double(args[0]), as_double(args[1]))};
+        if (upper == "MIN")
+            return TaqlValue{std::min(as_double(args[0]), as_double(args[1]))};
+        if (upper == "MAX")
+            return TaqlValue{std::max(as_double(args[0]), as_double(args[1]))};
         if (upper == "NEAR" || upper == "NEARABS") {
             bool r = std::abs(as_double(args[0]) - as_double(args[1])) < 1e-13;
             return TaqlValue{r};
@@ -2626,7 +2873,8 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         if (upper == "SUBSTR") {
             auto s = as_string(args[0]);
             auto start = static_cast<std::size_t>(as_int(args[1]));
-            if (start >= s.size()) return std::string{};
+            if (start >= s.size())
+                return std::string{};
             return s.substr(start);
         }
     }
@@ -2641,7 +2889,8 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             auto s = as_string(args[0]);
             auto start = static_cast<std::size_t>(as_int(args[1]));
             auto len = static_cast<std::size_t>(as_int(args[2]));
-            if (start >= s.size()) return std::string{};
+            if (start >= s.size())
+                return std::string{};
             return s.substr(start, len);
         }
         // REPLACE(str, old, new)
@@ -2649,12 +2898,16 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
             auto s = as_string(args[0]);
             auto old_str = as_string(args[1]);
             auto new_str = as_string(args[2]);
-            if (old_str.empty()) return s;
+            if (old_str.empty())
+                return s;
             std::string result;
             std::size_t pos = 0;
             while (true) {
                 auto found = s.find(old_str, pos);
-                if (found == std::string::npos) { result += s.substr(pos); break; }
+                if (found == std::string::npos) {
+                    result += s.substr(pos);
+                    break;
+                }
                 result += s.substr(pos, found - pos);
                 result += new_str;
                 pos = found + old_str.size();
@@ -2667,13 +2920,13 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 
     // ANGDIST(lon1, lat1, lon2, lat2) — angular distance in radians
     if (upper == "ANGDIST" && args.size() == 4) {
-        return TaqlValue{ang_dist(as_double(args[0]), as_double(args[1]),
-                                  as_double(args[2]), as_double(args[3]))};
+        return TaqlValue{ang_dist(as_double(args[0]), as_double(args[1]), as_double(args[2]),
+                                  as_double(args[3]))};
     }
     // ANGDISTX — same as ANGDIST but returns [dist, pa] pair (pa simplified to 0)
     if (upper == "ANGDISTX" && args.size() == 4) {
-        double d = ang_dist(as_double(args[0]), as_double(args[1]),
-                            as_double(args[2]), as_double(args[3]));
+        double d = ang_dist(as_double(args[0]), as_double(args[1]), as_double(args[2]),
+                            as_double(args[3]));
         return std::vector<double>{d, 0.0};
     }
 
@@ -2681,24 +2934,24 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 
     // INCONE(lon, lat, cone_lon, cone_lat, radius) — point-in-cone test
     if ((upper == "INCONE" || upper == "ANYCONE") && args.size() == 5) {
-        double d = ang_dist(as_double(args[0]), as_double(args[1]),
-                            as_double(args[2]), as_double(args[3]));
+        double d = ang_dist(as_double(args[0]), as_double(args[1]), as_double(args[2]),
+                            as_double(args[3]));
         bool r = (d <= as_double(args[4]));
         return TaqlValue{r};
     }
 
     // FINDCONE(lon, lat, cone_lon, cone_lat, radius) — returns index (0 if inside, -1 if not)
     if (upper == "FINDCONE" && args.size() == 5) {
-        double d = ang_dist(as_double(args[0]), as_double(args[1]),
-                            as_double(args[2]), as_double(args[3]));
+        double d = ang_dist(as_double(args[0]), as_double(args[1]), as_double(args[2]),
+                            as_double(args[3]));
         return static_cast<std::int64_t>(d <= as_double(args[4]) ? 0 : -1);
     }
 
     // CONES / CONES3 / ANYCONE3 / FINDCONE3 — 3-element vectors (lon, lat, radius)
     if ((upper == "CONES3" || upper == "ANYCONE3") && args.size() == 3) {
         // args = point_lon, point_lat, [cone_lon, cone_lat, radius] as 3 scalars
-        double d = ang_dist(as_double(args[0]), as_double(args[1]),
-                            as_double(args[0]), as_double(args[1])); // self-dist = 0
+        double d = ang_dist(as_double(args[0]), as_double(args[1]), as_double(args[0]),
+                            as_double(args[1])); // self-dist = 0
         (void)d;
         return TaqlValue{true}; // trivially in cone of itself
     }
@@ -2714,14 +2967,16 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 
     // TRANSPOSE — for 1D just returns same vector
     if (upper == "TRANSPOSE" && args.size() >= 1) {
-        if (auto* vp = std::get_if<std::vector<double>>(&args[0])) return *vp;
+        if (auto* vp = std::get_if<std::vector<double>>(&args[0]))
+            return *vp;
         return std::vector<double>{as_double(args[0])};
     }
 
     // DIAGONAL — extract diagonal (for 1D, return first element)
     if (upper == "DIAGONAL" && args.size() == 1) {
         if (auto* vp = std::get_if<std::vector<double>>(&args[0])) {
-            if (!vp->empty()) return TaqlValue{(*vp)[0]};
+            if (!vp->empty())
+                return TaqlValue{(*vp)[0]};
             return TaqlValue{0.0};
         }
         return TaqlValue{as_double(args[0])};
@@ -2739,10 +2994,12 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
     if ((upper == "ARRFRACTILE" || upper == "FRACTILE") && args.size() == 2) {
         auto v = as_double_vec(args[0]);
         double frac = as_double(args[1]);
-        if (v.empty()) return TaqlValue{0.0};
+        if (v.empty())
+            return TaqlValue{0.0};
         std::sort(v.begin(), v.end());
         auto idx = static_cast<std::size_t>(frac * static_cast<double>(v.size() - 1));
-        if (idx >= v.size()) idx = v.size() - 1;
+        if (idx >= v.size())
+            idx = v.size() - 1;
         return TaqlValue{v[idx]};
     }
 
@@ -2753,15 +3010,19 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
         auto target_str = upper.substr(9);
         double lon = as_double(args[0]);
         double lat = as_double(args[1]);
-        Measure dir_in{MeasureType::direction,
-                       MeasureRef{DirectionRef::j2000, std::nullopt},
+        Measure dir_in{MeasureType::direction, MeasureRef{DirectionRef::j2000, std::nullopt},
                        DirectionValue{lon, lat}};
         MeasureRefType target_ref = DirectionRef::j2000;
-        if (target_str == "J2000") target_ref = DirectionRef::j2000;
-        else if (target_str == "GALACTIC" || target_str == "GAL") target_ref = DirectionRef::galactic;
-        else if (target_str == "ECLIPTIC" || target_str == "ECL") target_ref = DirectionRef::ecliptic;
-        else if (target_str == "ICRS") target_ref = DirectionRef::icrs;
-        else throw std::runtime_error("TaQL: unsupported MEAS_DIR target '" + target_str + "'");
+        if (target_str == "J2000")
+            target_ref = DirectionRef::j2000;
+        else if (target_str == "GALACTIC" || target_str == "GAL")
+            target_ref = DirectionRef::galactic;
+        else if (target_str == "ECLIPTIC" || target_str == "ECL")
+            target_ref = DirectionRef::ecliptic;
+        else if (target_str == "ICRS")
+            target_ref = DirectionRef::icrs;
+        else
+            throw std::runtime_error("TaQL: unsupported MEAS_DIR target '" + target_str + "'");
         auto result = convert_measure(dir_in, target_ref);
         auto& dv = std::get<DirectionValue>(result.value);
         return std::vector<double>{dv.lon_rad, dv.lat_rad};
@@ -2771,15 +3032,19 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
     if (upper.starts_with("MEAS_EPOCH_") && args.size() == 1) {
         auto target_str = upper.substr(11);
         double mjd = as_double(args[0]);
-        Measure ep_in{MeasureType::epoch,
-                      MeasureRef{EpochRef::utc, std::nullopt},
+        Measure ep_in{MeasureType::epoch, MeasureRef{EpochRef::utc, std::nullopt},
                       EpochValue{std::floor(mjd), mjd - std::floor(mjd)}};
         MeasureRefType target_ref = EpochRef::utc;
-        if (target_str == "UTC") target_ref = EpochRef::utc;
-        else if (target_str == "TAI") target_ref = EpochRef::tai;
-        else if (target_str == "TDT" || target_str == "TT") target_ref = EpochRef::tdt;
-        else if (target_str == "TDB") target_ref = EpochRef::tdb;
-        else throw std::runtime_error("TaQL: unsupported MEAS_EPOCH target '" + target_str + "'");
+        if (target_str == "UTC")
+            target_ref = EpochRef::utc;
+        else if (target_str == "TAI")
+            target_ref = EpochRef::tai;
+        else if (target_str == "TDT" || target_str == "TT")
+            target_ref = EpochRef::tdt;
+        else if (target_str == "TDB")
+            target_ref = EpochRef::tdb;
+        else
+            throw std::runtime_error("TaQL: unsupported MEAS_EPOCH target '" + target_str + "'");
         auto result = convert_measure(ep_in, target_ref);
         auto& ev = std::get<EpochValue>(result.value);
         return TaqlValue{ev.day + ev.fraction};
@@ -2788,13 +3053,15 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
     // MEAS.POS.<ref>(x, y, z) — convert position (assumes ITRF input)
     if (upper.starts_with("MEAS_POS_") && args.size() == 3) {
         auto target_str = upper.substr(9);
-        Measure pos_in{MeasureType::position,
-                       MeasureRef{PositionRef::itrf, std::nullopt},
+        Measure pos_in{MeasureType::position, MeasureRef{PositionRef::itrf, std::nullopt},
                        PositionValue{as_double(args[0]), as_double(args[1]), as_double(args[2])}};
         MeasureRefType target_ref = PositionRef::itrf;
-        if (target_str == "ITRF") target_ref = PositionRef::itrf;
-        else if (target_str == "WGS84") target_ref = PositionRef::wgs84;
-        else throw std::runtime_error("TaQL: unsupported MEAS_POS target '" + target_str + "'");
+        if (target_str == "ITRF")
+            target_ref = PositionRef::itrf;
+        else if (target_str == "WGS84")
+            target_ref = PositionRef::wgs84;
+        else
+            throw std::runtime_error("TaQL: unsupported MEAS_POS target '" + target_str + "'");
         auto result = convert_measure(pos_in, target_ref);
         auto& pv = std::get<PositionValue>(result.value);
         return std::vector<double>{pv.x_m, pv.y_m, pv.z_m};
@@ -2807,10 +3074,13 @@ TaqlValue eval_math_func(const std::string& name, const std::vector<TaqlValue>& 
 TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
     // Helper: apply unit conversion if unit suffix is present on the node.
     auto apply_unit = [&](TaqlValue val) -> TaqlValue {
-        if (node.unit.empty()) return val;
+        if (node.unit.empty())
+            return val;
         double factor = unit_to_si(node.unit);
-        if (auto* d = std::get_if<double>(&val)) return TaqlValue{*d * factor};
-        if (auto* i = std::get_if<std::int64_t>(&val)) return TaqlValue{static_cast<double>(*i) * factor};
+        if (auto* d = std::get_if<double>(&val))
+            return TaqlValue{*d * factor};
+        if (auto* i = std::get_if<std::int64_t>(&val))
+            return TaqlValue{static_cast<double>(*i) * factor};
         return val; // non-numeric: ignore unit
     };
 
@@ -2833,7 +3103,8 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         auto operand = eval_expr(node.children[0], ctx);
         switch (node.op) {
         case TaqlOp::negate:
-            if (auto* i = std::get_if<std::int64_t>(&operand)) return -*i;
+            if (auto* i = std::get_if<std::int64_t>(&operand))
+                return -*i;
             return TaqlValue{-as_double(operand)};
         case TaqlOp::logical_not: {
             bool r = !as_bool(operand);
@@ -2853,8 +3124,8 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         auto rhs = eval_expr(node.children[1], ctx);
 
         // String concatenation for +
-        if (node.op == TaqlOp::plus &&
-            (std::holds_alternative<std::string>(lhs) || std::holds_alternative<std::string>(rhs))) {
+        if (node.op == TaqlOp::plus && (std::holds_alternative<std::string>(lhs) ||
+                                        std::holds_alternative<std::string>(rhs))) {
             return as_string(lhs) + as_string(rhs);
         }
 
@@ -2864,17 +3135,30 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
             auto a = std::get<std::int64_t>(lhs);
             auto b = std::get<std::int64_t>(rhs);
             switch (node.op) {
-            case TaqlOp::plus: return a + b; // NOLINT(bugprone-branch-clone)
-            case TaqlOp::minus: return a - b;
-            case TaqlOp::multiply: return a * b;
-            case TaqlOp::divide: [[fallthrough]];
-            case TaqlOp::int_divide: return (b != 0) ? a / b : throw std::runtime_error("TaQL: division by zero"); // NOLINT(bugprone-branch-clone)
-            case TaqlOp::modulo: return (b != 0) ? a % b : throw std::runtime_error("TaQL: modulo by zero");
-            case TaqlOp::power: return static_cast<std::int64_t>(std::pow(a, b));
-            case TaqlOp::bit_and: return a & b;
-            case TaqlOp::bit_or: return a | b;
-            case TaqlOp::bit_xor: return a ^ b;
-            default: break;
+            case TaqlOp::plus:
+                return a + b; // NOLINT(bugprone-branch-clone)
+            case TaqlOp::minus:
+                return a - b;
+            case TaqlOp::multiply:
+                return a * b;
+            case TaqlOp::divide:
+                [[fallthrough]];
+            case TaqlOp::int_divide:
+                return (b != 0) ? a / b
+                                : throw std::runtime_error(
+                                      "TaQL: division by zero"); // NOLINT(bugprone-branch-clone)
+            case TaqlOp::modulo:
+                return (b != 0) ? a % b : throw std::runtime_error("TaQL: modulo by zero");
+            case TaqlOp::power:
+                return static_cast<std::int64_t>(std::pow(a, b));
+            case TaqlOp::bit_and:
+                return a & b;
+            case TaqlOp::bit_or:
+                return a | b;
+            case TaqlOp::bit_xor:
+                return a ^ b;
+            default:
+                break;
             }
         }
 
@@ -2882,14 +3166,21 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         double a = as_double(lhs);
         double b = as_double(rhs);
         switch (node.op) {
-        case TaqlOp::plus: return TaqlValue{a + b}; // NOLINT(bugprone-branch-clone)
-        case TaqlOp::minus: return TaqlValue{a - b};
-        case TaqlOp::multiply: return TaqlValue{a * b};
+        case TaqlOp::plus:
+            return TaqlValue{a + b}; // NOLINT(bugprone-branch-clone)
+        case TaqlOp::minus:
+            return TaqlValue{a - b};
+        case TaqlOp::multiply:
+            return TaqlValue{a * b};
         case TaqlOp::divide:
-            return TaqlValue{(b != 0.0) ? a / b : throw std::runtime_error("TaQL: division by zero")};
-        case TaqlOp::int_divide: return static_cast<std::int64_t>(a / b); // NOLINT(bugprone-narrowing-conversions)
-        case TaqlOp::modulo: return TaqlValue{std::fmod(a, b)}; // NOLINT(bugprone-branch-clone)
-        case TaqlOp::power: return TaqlValue{std::pow(a, b)};
+            return TaqlValue{(b != 0.0) ? a / b
+                                        : throw std::runtime_error("TaQL: division by zero")};
+        case TaqlOp::int_divide:
+            return static_cast<std::int64_t>(a / b); // NOLINT(bugprone-narrowing-conversions)
+        case TaqlOp::modulo:
+            return TaqlValue{std::fmod(a, b)}; // NOLINT(bugprone-branch-clone)
+        case TaqlOp::power:
+            return TaqlValue{std::pow(a, b)};
         default:
             throw std::runtime_error("TaQL: unsupported binary operator");
         }
@@ -2901,12 +3192,24 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         int cmp = compare_values(lhs, rhs);
         bool result = false;
         switch (node.op) {
-        case TaqlOp::eq: result = (cmp == 0); break; // NOLINT(bugprone-branch-clone)
-        case TaqlOp::ne: result = (cmp != 0); break;
-        case TaqlOp::lt: result = (cmp < 0); break;
-        case TaqlOp::le: result = (cmp <= 0); break;
-        case TaqlOp::gt: result = (cmp > 0); break;
-        case TaqlOp::ge: result = (cmp >= 0); break;
+        case TaqlOp::eq:
+            result = (cmp == 0);
+            break; // NOLINT(bugprone-branch-clone)
+        case TaqlOp::ne:
+            result = (cmp != 0);
+            break;
+        case TaqlOp::lt:
+            result = (cmp < 0);
+            break;
+        case TaqlOp::le:
+            result = (cmp <= 0);
+            break;
+        case TaqlOp::gt:
+            result = (cmp > 0);
+            break;
+        case TaqlOp::ge:
+            result = (cmp >= 0);
+            break;
         case TaqlOp::near: // NOLINT(bugprone-branch-clone)
             result = std::abs(as_double(lhs) - as_double(rhs)) < 1e-5;
             break;
@@ -2978,21 +3281,42 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         std::string target = val;
         std::string pattern = pat;
         if (case_insensitive) {
-            for (auto& c : target) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            for (auto& c : pattern) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto& c : target)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto& c : pattern)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
         // Convert SQL/glob pattern to regex: % and * -> .*, ? and _ -> .
         std::string re_str;
         re_str.reserve(pattern.size() * 2);
         for (auto c : pattern) {
             switch (c) {
-            case '%': case '*': re_str += ".*"; break;
-            case '?': case '_': re_str += '.'; break;
-            case '.': case '(': case ')': case '[': case ']':
-            case '{': case '}': case '^': case '$': case '|':
-            case '+': case '\\':
-                re_str += '\\'; re_str += c; break;
-            default: re_str += c; break;
+            case '%':
+            case '*':
+                re_str += ".*";
+                break;
+            case '?':
+            case '_':
+                re_str += '.';
+                break;
+            case '.':
+            case '(':
+            case ')':
+            case '[':
+            case ']':
+            case '{':
+            case '}':
+            case '^':
+            case '$':
+            case '|':
+            case '+':
+            case '\\':
+                re_str += '\\';
+                re_str += c;
+                break;
+            default:
+                re_str += c;
+                break;
             }
         }
         bool match = false;
@@ -3022,8 +3346,10 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
 
     case ExprType::set_expr: {
         // Return the first element for scalar context, or build a vector
-        if (node.children.empty()) return std::monostate{};
-        if (node.children.size() == 1) return eval_expr(node.children[0], ctx);
+        if (node.children.empty())
+            return std::monostate{};
+        if (node.children.size() == 1)
+            return eval_expr(node.children[0], ctx);
         // Build vector
         std::vector<double> vec;
         for (auto& child : node.children) {
@@ -3041,15 +3367,22 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
             throw std::runtime_error("TaQL: keyword reference without table context");
         auto& kw = ctx.table->keywords();
         auto* found = kw.find(node.name);
-        if (found == nullptr) return std::monostate{};
+        if (found == nullptr)
+            return std::monostate{};
         // Extract scalar types from RecordValue storage variant.
         auto& st = found->storage();
-        if (auto* v = std::get_if<double>(&st)) return *v;
-        if (auto* v = std::get_if<float>(&st)) return static_cast<double>(*v);
-        if (auto* v = std::get_if<std::int32_t>(&st)) return static_cast<std::int64_t>(*v);
-        if (auto* v = std::get_if<std::int64_t>(&st)) return *v;
-        if (auto* v = std::get_if<std::string>(&st)) return *v;
-        if (auto* v = std::get_if<bool>(&st)) return *v;
+        if (auto* v = std::get_if<double>(&st))
+            return *v;
+        if (auto* v = std::get_if<float>(&st))
+            return static_cast<double>(*v);
+        if (auto* v = std::get_if<std::int32_t>(&st))
+            return static_cast<std::int64_t>(*v);
+        if (auto* v = std::get_if<std::int64_t>(&st))
+            return *v;
+        if (auto* v = std::get_if<std::string>(&st))
+            return *v;
+        if (auto* v = std::get_if<bool>(&st))
+            return *v;
         return std::monostate{};
     }
 
@@ -3057,8 +3390,10 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
         // Evaluate the child expression and multiply by unit conversion factor.
         auto val = eval_expr(node.children[0], ctx);
         double factor = unit_to_si(node.unit);
-        if (auto* d = std::get_if<double>(&val)) return TaqlValue{*d * factor};
-        if (auto* i = std::get_if<std::int64_t>(&val)) return TaqlValue{static_cast<double>(*i) * factor};
+        if (auto* d = std::get_if<double>(&val))
+            return TaqlValue{*d * factor};
+        if (auto* i = std::get_if<std::int64_t>(&val))
+            return TaqlValue{static_cast<double>(*i) * factor};
         throw std::runtime_error("TaQL: unit suffix on non-numeric value");
     }
 
@@ -3112,7 +3447,8 @@ TaqlValue eval_expr(const TaqlExprNode& node, const EvalContext& ctx) {
     case ExprType::range_expr:
     case ExprType::record_literal:
     case ExprType::subquery:
-        throw std::runtime_error("TaQL: expression type '" + std::to_string(static_cast<int>(node.type)) +
+        throw std::runtime_error("TaQL: expression type '" +
+                                 std::to_string(static_cast<int>(node.type)) +
                                  "' is parsed but not yet evaluated");
 
     case ExprType::aggregate_call:
@@ -3145,36 +3481,45 @@ TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
     }
 
     if (upper == "GMIN" || upper == "GMINS") {
-        if (vals.empty()) return std::monostate{};
+        if (vals.empty())
+            return std::monostate{};
         auto best = vals[0];
         for (std::size_t i = 1; i < vals.size(); ++i) {
-            if (compare_values(vals[i], best) < 0) best = vals[i];
+            if (compare_values(vals[i], best) < 0)
+                best = vals[i];
         }
         return best;
     }
     if (upper == "GMAX" || upper == "GMAXS") {
-        if (vals.empty()) return std::monostate{};
+        if (vals.empty())
+            return std::monostate{};
         auto best = vals[0];
         for (std::size_t i = 1; i < vals.size(); ++i) {
-            if (compare_values(vals[i], best) > 0) best = vals[i];
+            if (compare_values(vals[i], best) > 0)
+                best = vals[i];
         }
         return best;
     }
     if (upper == "GSUM" || upper == "GSUMS") {
         double sum = 0.0;
-        for (auto& v : vals) sum += as_double(v);
+        for (auto& v : vals)
+            sum += as_double(v);
         return sum;
     }
     if (upper == "GMEAN" || upper == "GMEANS") {
-        if (vals.empty()) return std::monostate{};
+        if (vals.empty())
+            return std::monostate{};
         double sum = 0.0;
-        for (auto& v : vals) sum += as_double(v);
+        for (auto& v : vals)
+            sum += as_double(v);
         return sum / static_cast<double>(vals.size());
     }
     if (upper == "GVARIANCE" || upper == "GVARIANCES") {
-        if (vals.size() < 2) return 0.0;
+        if (vals.size() < 2)
+            return 0.0;
         double sum = 0.0;
-        for (auto& v : vals) sum += as_double(v);
+        for (auto& v : vals)
+            sum += as_double(v);
         double mean = sum / static_cast<double>(vals.size());
         double sq_sum = 0.0;
         for (auto& v : vals) {
@@ -3184,9 +3529,11 @@ TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
         return sq_sum / static_cast<double>(vals.size() - 1);
     }
     if (upper == "GSTDDEV" || upper == "GSTDDEVS") {
-        if (vals.size() < 2) return 0.0;
+        if (vals.size() < 2)
+            return 0.0;
         double sum = 0.0;
-        for (auto& v : vals) sum += as_double(v);
+        for (auto& v : vals)
+            sum += as_double(v);
         double mean = sum / static_cast<double>(vals.size());
         double sq_sum = 0.0;
         for (auto& v : vals) {
@@ -3196,7 +3543,8 @@ TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
         return std::sqrt(sq_sum / static_cast<double>(vals.size() - 1));
     }
     if (upper == "GRMS" || upper == "GRMSS") {
-        if (vals.empty()) return 0.0;
+        if (vals.empty())
+            return 0.0;
         double sq_sum = 0.0;
         for (auto& v : vals) {
             double d = as_double(v);
@@ -3206,27 +3554,31 @@ TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
     }
     if (upper == "GANY" || upper == "GANYS") {
         for (auto& v : vals) {
-            if (as_bool(v)) return true;
+            if (as_bool(v))
+                return true;
         }
         return false;
     }
     if (upper == "GALL" || upper == "GALLS") {
         for (auto& v : vals) {
-            if (!as_bool(v)) return false;
+            if (!as_bool(v))
+                return false;
         }
         return true;
     }
     if (upper == "GNTRUE" || upper == "GNTRUES") {
         std::int64_t count = 0;
         for (auto& v : vals) {
-            if (as_bool(v)) ++count;
+            if (as_bool(v))
+                ++count;
         }
         return count;
     }
     if (upper == "GNFALSE" || upper == "GNFALSES") {
         std::int64_t count = 0;
         for (auto& v : vals) {
-            if (!as_bool(v)) ++count;
+            if (!as_bool(v))
+                ++count;
         }
         return count;
     }
@@ -3240,30 +3592,37 @@ TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
     }
     if (upper == "GPRODUCT" || upper == "GPRODUCTS") {
         double prod = 1.0;
-        for (auto& v : vals) prod *= as_double(v);
+        for (auto& v : vals)
+            prod *= as_double(v);
         return prod;
     }
     if (upper == "GFIRST") {
-        if (vals.empty()) return std::monostate{};
+        if (vals.empty())
+            return std::monostate{};
         return vals.front();
     }
     if (upper == "GLAST") {
-        if (vals.empty()) return std::monostate{};
+        if (vals.empty())
+            return std::monostate{};
         return vals.back();
     }
     if (upper == "GMEDIAN") {
-        if (vals.empty()) return std::monostate{};
+        if (vals.empty())
+            return std::monostate{};
         std::vector<double> dv;
         dv.reserve(vals.size());
-        for (auto& v : vals) dv.push_back(as_double(v));
+        for (auto& v : vals)
+            dv.push_back(as_double(v));
         std::sort(dv.begin(), dv.end());
         auto n = dv.size();
-        if (n % 2 == 0) return (dv[n / 2 - 1] + dv[n / 2]) / 2.0;
+        if (n % 2 == 0)
+            return (dv[n / 2 - 1] + dv[n / 2]) / 2.0;
         return dv[n / 2];
     }
     if (upper == "GROWID") {
         // Return first row ID of the group.
-        if (rows.empty()) return static_cast<std::int64_t>(0);
+        if (rows.empty())
+            return static_cast<std::int64_t>(0);
         return static_cast<std::int64_t>(rows[0]);
     }
 
@@ -3272,17 +3631,18 @@ TaqlValue eval_aggregate(const TaqlExprNode& node, Table& table,
 
 /// Check if an expression tree contains any aggregate calls.
 bool contains_aggregate(const TaqlExprNode& node) {
-    if (node.type == ExprType::aggregate_call) return true;
+    if (node.type == ExprType::aggregate_call)
+        return true;
     for (auto& child : node.children) {
-        if (contains_aggregate(child)) return true;
+        if (contains_aggregate(child))
+            return true;
     }
     return false;
 }
 
 /// Evaluate an expression, resolving aggregate calls against the given row group.
 /// This creates a modified expression tree with aggregates pre-evaluated.
-TaqlValue eval_with_aggregates(const TaqlExprNode& node, const EvalContext& ctx,
-                               Table& table,
+TaqlValue eval_with_aggregates(const TaqlExprNode& node, const EvalContext& ctx, Table& table,
                                const std::vector<std::uint64_t>& group_rows) {
     if (node.type == ExprType::aggregate_call) {
         return eval_aggregate(node, table, group_rows);
@@ -3295,7 +3655,8 @@ TaqlValue eval_with_aggregates(const TaqlExprNode& node, const EvalContext& ctx,
 
     // For binary/unary/comparison/logical ops containing aggregates, recursively evaluate children.
     if ((node.type == ExprType::binary_op || node.type == ExprType::comparison ||
-         node.type == ExprType::logical_op) && node.children.size() == 2) {
+         node.type == ExprType::logical_op) &&
+        node.children.size() == 2) {
         auto lhs = eval_with_aggregates(node.children[0], ctx, table, group_rows);
         auto rhs = eval_with_aggregates(node.children[1], ctx, table, group_rows);
 
@@ -3364,7 +3725,8 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             ctx.row = r;
             if (ast.where_expr.has_value()) {
                 auto where_val = eval_expr(*ast.where_expr, ctx);
-                if (!as_bool(where_val)) continue;
+                if (!as_bool(where_val))
+                    continue;
             }
             filtered_rows.push_back(r);
         }
@@ -3399,7 +3761,8 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
                     // Evaluate HAVING in context of first row of group.
                     EvalContext hc{&table, groups[gi][0], true, {}};
                     auto hval = eval_with_aggregates(*ast.having_expr, hc, table, groups[gi]);
-                    if (!as_bool(hval)) continue;
+                    if (!as_bool(hval))
+                        continue;
                 }
                 passing_groups.push_back(gi);
             }
@@ -3423,8 +3786,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
                 result.rows.push_back(group[0]); // representative row
                 EvalContext rc{&table, group[0], true, {}};
                 for (auto& proj : ast.projections) {
-                    result.values.push_back(
-                        eval_with_aggregates(proj.expr, rc, table, group));
+                    result.values.push_back(eval_with_aggregates(proj.expr, rc, table, group));
                 }
             }
             break;
@@ -3444,8 +3806,10 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
                               auto va = eval_expr(key.expr, ca);
                               auto vb = eval_expr(key.expr, cb);
                               int cmp = compare_values(va, vb);
-                              if (key.order == SortOrder::descending) cmp = -cmp;
-                              if (cmp != 0) return cmp < 0;
+                              if (key.order == SortOrder::descending)
+                                  cmp = -cmp;
+                              if (cmp != 0)
+                                  return cmp < 0;
                           }
                           return false;
                       });
@@ -3524,8 +3888,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             }
             std::vector<TaqlValue> agg_vals;
             for (auto& proj : ast.projections) {
-                agg_vals.push_back(
-                    eval_with_aggregates(proj.expr, rc, table, all_rows));
+                agg_vals.push_back(eval_with_aggregates(proj.expr, rc, table, all_rows));
             }
             result.values = std::move(agg_vals);
             result.rows = {0}; // single result row
@@ -3563,26 +3926,34 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             ctx.row = r;
             if (ast.where_expr.has_value()) {
                 auto where_val = eval_expr(*ast.where_expr, ctx);
-                if (!as_bool(where_val)) continue;
+                if (!as_bool(where_val))
+                    continue;
             }
             // Apply assignments
             for (auto& asgn : ast.assignments) {
                 auto val = eval_expr(asgn.value, ctx);
                 // Convert TaqlValue to CellValue
                 CellValue cv;
-                if (auto* b = std::get_if<bool>(&val)) cv = *b;
-                else if (auto* i = std::get_if<std::int64_t>(&val)) cv = static_cast<std::int32_t>(*i);
-                else if (auto* d = std::get_if<double>(&val)) cv = *d;
-                else if (auto* s = std::get_if<std::string>(&val)) cv = *s;
-                else if (auto* c = std::get_if<std::complex<double>>(&val)) cv = *c;
-                else throw std::runtime_error("TaQL: unsupported value type in UPDATE");
+                if (auto* b = std::get_if<bool>(&val))
+                    cv = *b;
+                else if (auto* i = std::get_if<std::int64_t>(&val))
+                    cv = static_cast<std::int32_t>(*i);
+                else if (auto* d = std::get_if<double>(&val))
+                    cv = *d;
+                else if (auto* s = std::get_if<std::string>(&val))
+                    cv = *s;
+                else if (auto* c = std::get_if<std::complex<double>>(&val))
+                    cv = *c;
+                else
+                    throw std::runtime_error("TaQL: unsupported value type in UPDATE");
                 table.write_scalar_cell(asgn.column, r, cv);
             }
             result.rows.push_back(r);
             ++affected;
         }
         result.affected_rows = affected;
-        if (affected > 0) table.flush();
+        if (affected > 0)
+            table.flush();
         break;
     }
 
@@ -3601,7 +3972,8 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             ctx.row = r;
             if (ast.where_expr.has_value()) {
                 auto where_val = eval_expr(*ast.where_expr, ctx);
-                if (!as_bool(where_val)) continue;
+                if (!as_bool(where_val))
+                    continue;
             }
             rows_to_delete.push_back(r);
         }
@@ -3622,10 +3994,10 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         }
 
         result.affected_rows = rows_to_delete.size();
-        if (!rows_to_delete.empty()) table.flush();
+        if (!rows_to_delete.empty())
+            table.flush();
         break;
     }
-
 
     case TaqlCommand::count_cmd: {
         EvalContext ctx;
@@ -3637,7 +4009,8 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
             ctx.row = r;
             if (ast.where_expr.has_value()) {
                 auto where_val = eval_expr(*ast.where_expr, ctx);
-                if (!as_bool(where_val)) continue;
+                if (!as_bool(where_val))
+                    continue;
             }
             ++count;
         }
@@ -3674,11 +4047,16 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         }
 
         auto taql_to_cell = [](const TaqlValue& val) -> CellValue {
-            if (auto* b = std::get_if<bool>(&val)) return *b;
-            if (auto* i = std::get_if<std::int64_t>(&val)) return static_cast<std::int32_t>(*i);
-            if (auto* d = std::get_if<double>(&val)) return *d;
-            if (auto* s = std::get_if<std::string>(&val)) return *s;
-            if (auto* c = std::get_if<std::complex<double>>(&val)) return *c;
+            if (auto* b = std::get_if<bool>(&val))
+                return *b;
+            if (auto* i = std::get_if<std::int64_t>(&val))
+                return static_cast<std::int32_t>(*i);
+            if (auto* d = std::get_if<double>(&val))
+                return *d;
+            if (auto* s = std::get_if<std::string>(&val))
+                return *s;
+            if (auto* c = std::get_if<std::complex<double>>(&val))
+                return *c;
             throw std::runtime_error("TaQL: unsupported value type in INSERT");
         };
 
@@ -3704,10 +4082,10 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
         }
 
         result.affected_rows = ast.insert_values.size();
-        if (result.affected_rows > 0) table.flush();
+        if (result.affected_rows > 0)
+            table.flush();
         break;
     }
-
 
     case TaqlCommand::create_table_cmd: {
         // CREATE TABLE <name> (col1 TYPE, col2 TYPE, ...)
@@ -3764,12 +4142,16 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
                     ctx.has_row = false;
                     auto val = eval_expr(expr, ctx);
                     RecordValue rv;
-                    if (auto* b = std::get_if<bool>(&val)) rv = RecordValue(*b);
+                    if (auto* b = std::get_if<bool>(&val))
+                        rv = RecordValue(*b);
                     else if (auto* i = std::get_if<std::int64_t>(&val))
                         rv = RecordValue(static_cast<std::int32_t>(*i));
-                    else if (auto* d = std::get_if<double>(&val)) rv = RecordValue(*d);
-                    else if (auto* s = std::get_if<std::string>(&val)) rv = RecordValue(*s);
-                    else throw std::runtime_error("TaQL: unsupported keyword value type");
+                    else if (auto* d = std::get_if<double>(&val))
+                        rv = RecordValue(*d);
+                    else if (auto* s = std::get_if<std::string>(&val))
+                        rv = RecordValue(*s);
+                    else
+                        throw std::runtime_error("TaQL: unsupported keyword value type");
                     table.rw_keywords().set(key, std::move(rv));
                 }
                 break;
@@ -3806,8 +4188,7 @@ TaqlResult taql_execute(std::string_view query, Table& table) {
     return result;
 }
 
-TaqlResult taql_execute(std::string_view query,
-                        std::unordered_map<std::string, Table*> tables) {
+TaqlResult taql_execute(std::string_view query, std::unordered_map<std::string, Table*> tables) {
     auto ast = taql_parse(query);
 
     if (ast.command != TaqlCommand::select_cmd) {
@@ -3936,8 +4317,7 @@ TaqlResult taql_execute(std::string_view query,
         EvalContext empty_ctx{};
         auto offset = static_cast<std::size_t>(as_int(eval_expr(*ast.offset_expr, empty_ctx)));
         if (offset < combos.size()) {
-            combos.erase(combos.begin(),
-                         combos.begin() + static_cast<std::ptrdiff_t>(offset));
+            combos.erase(combos.begin(), combos.begin() + static_cast<std::ptrdiff_t>(offset));
         } else {
             combos.clear();
         }

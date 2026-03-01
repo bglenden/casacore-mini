@@ -32,7 +32,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 /// Create a table with SCAN and FIELD_ID columns, 6 rows:
@@ -48,7 +49,7 @@ static Table make_test_table(const fs::path& path) {
         {.name = "FIELD_ID", .data_type = DataType::tp_int},
     };
     auto table = Table::create(path, cols, 6);
-    std::int32_t scans[]  = {1, 2, 1, 3, 2, 1};
+    std::int32_t scans[] = {1, 2, 1, 3, 2, 1};
     std::int32_t fields[] = {0, 0, 1, 0, 1, 0};
     for (int i = 0; i < 6; ++i) {
         auto r = static_cast<std::uint64_t>(i);

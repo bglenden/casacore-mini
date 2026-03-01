@@ -44,10 +44,8 @@ Table make_test_table(const fs::path& dir) {
     for (int i = 0; i < 6; ++i) {
         table.write_scalar_cell("CATEGORY", static_cast<std::uint64_t>(i),
                                 CellValue(std::string(cats[i])));
-        table.write_scalar_cell("AMOUNT", static_cast<std::uint64_t>(i),
-                                CellValue(amounts[i]));
-        table.write_scalar_cell("FLAG", static_cast<std::uint64_t>(i),
-                                CellValue(flags[i]));
+        table.write_scalar_cell("AMOUNT", static_cast<std::uint64_t>(i), CellValue(amounts[i]));
+        table.write_scalar_cell("FLAG", static_cast<std::uint64_t>(i), CellValue(flags[i]));
     }
     table.flush();
     return table;
@@ -135,7 +133,7 @@ void test_gproduct() {
     auto result = taql_execute("SELECT gproduct(AMOUNT) FROM t WHERE AMOUNT <= 30", table);
     auto prod = std::get<double>(result.values[0]);
     (void)prod;
-    assert(approx(prod, 6000.0));  // 10 * 20 * 30
+    assert(approx(prod, 6000.0)); // 10 * 20 * 30
 
     cleanup(dir);
 }
@@ -146,12 +144,11 @@ void test_groupby_gcount() {
     auto dir = temp_dir() / "gb_gcount";
     auto table = make_test_table(dir);
 
-    auto result = taql_execute(
-        "SELECT CATEGORY, gcount() AS cnt FROM t GROUPBY CATEGORY", table);
+    auto result = taql_execute("SELECT CATEGORY, gcount() AS cnt FROM t GROUPBY CATEGORY", table);
 
     // 3 categories.
     assert(result.rows.size() == 3);
-    assert(result.values.size() == 6);  // 3 groups * 2 cols
+    assert(result.values.size() == 6); // 3 groups * 2 cols
 
     // Each category has 2 rows.
     // values: [cat, cnt, cat, cnt, cat, cnt]
@@ -168,8 +165,8 @@ void test_groupby_gsum() {
     auto dir = temp_dir() / "gb_gsum";
     auto table = make_test_table(dir);
 
-    auto result = taql_execute(
-        "SELECT CATEGORY, gsum(AMOUNT) AS total FROM t GROUPBY CATEGORY", table);
+    auto result =
+        taql_execute("SELECT CATEGORY, gsum(AMOUNT) AS total FROM t GROUPBY CATEGORY", table);
 
     assert(result.rows.size() == 3);
 
@@ -196,9 +193,9 @@ void test_having_filter() {
     auto table = make_test_table(dir);
 
     // Only groups where sum > 50.
-    auto result = taql_execute(
-        "SELECT CATEGORY, gsum(AMOUNT) AS total FROM t "
-        "GROUPBY CATEGORY HAVING gsum(AMOUNT) > 50", table);
+    auto result = taql_execute("SELECT CATEGORY, gsum(AMOUNT) AS total FROM t "
+                               "GROUPBY CATEGORY HAVING gsum(AMOUNT) > 50",
+                               table);
 
     // B(70) and C(110) pass. A(30) is filtered.
     assert(result.rows.size() == 2);
@@ -211,13 +208,13 @@ void test_having_with_count() {
     auto table = make_test_table(dir);
 
     // All groups have count == 2, so HAVING gcount() > 1 keeps all.
-    auto result = taql_execute(
-        "SELECT CATEGORY FROM t GROUPBY CATEGORY HAVING gcount() > 1", table);
+    auto result =
+        taql_execute("SELECT CATEGORY FROM t GROUPBY CATEGORY HAVING gcount() > 1", table);
     assert(result.rows.size() == 3);
 
     // HAVING gcount() > 2 keeps none.
-    auto result2 = taql_execute(
-        "SELECT CATEGORY FROM t GROUPBY CATEGORY HAVING gcount() > 2", table);
+    auto result2 =
+        taql_execute("SELECT CATEGORY FROM t GROUPBY CATEGORY HAVING gcount() > 2", table);
     assert(result2.rows.empty());
 
     cleanup(dir);
@@ -244,14 +241,15 @@ void test_multiple_aggregates() {
     auto dir = temp_dir() / "multi_agg";
     auto table = make_test_table(dir);
 
-    auto result = taql_execute(
-        "SELECT gmin(AMOUNT), gmax(AMOUNT), gmean(AMOUNT) FROM t", table);
+    auto result = taql_execute("SELECT gmin(AMOUNT), gmax(AMOUNT), gmean(AMOUNT) FROM t", table);
     assert(result.values.size() == 3);
 
     auto vmin = std::get<double>(result.values[0]);
     auto vmax = std::get<double>(result.values[1]);
     auto vmean = std::get<double>(result.values[2]);
-    (void)vmin; (void)vmax; (void)vmean;
+    (void)vmin;
+    (void)vmax;
+    (void)vmean;
     assert(approx(vmin, 10.0));
     assert(approx(vmax, 60.0));
     assert(approx(vmean, 35.0));

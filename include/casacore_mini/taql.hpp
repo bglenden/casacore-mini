@@ -27,16 +27,9 @@ class Table;
 
 /// Typed value used in TaQL expression evaluation.
 using TaqlValue = std::variant<std::monostate, // null
-                               bool,
-                               std::int64_t,
-                               double,
-                               std::complex<double>,
-                               std::string,
-                               std::vector<bool>,
-                               std::vector<std::int64_t>,
-                               std::vector<double>,
-                               std::vector<std::complex<double>>,
-                               std::vector<std::string>>;
+                               bool, std::int64_t, double, std::complex<double>, std::string,
+                               std::vector<bool>, std::vector<std::int64_t>, std::vector<double>,
+                               std::vector<std::complex<double>>, std::vector<std::string>>;
 
 // ---------------------------------------------------------------------------
 // AST node types
@@ -147,14 +140,14 @@ enum class RangeIncl : std::uint8_t { closed, left_open, right_open, open };
 /// A single node in the TaQL expression tree.
 struct TaqlExprNode {
     ExprType type;
-    TaqlOp op = TaqlOp::plus;          ///< operator for unary/binary/comparison
-    TaqlValue value;                     ///< for literals
-    std::string name;                    ///< for column_ref, func_call, keyword_ref
-    std::vector<TaqlExprNode> children;  ///< sub-expressions / arguments
-    std::string unit;                    ///< unit suffix (if any)
+    TaqlOp op = TaqlOp::plus;           ///< operator for unary/binary/comparison
+    TaqlValue value;                    ///< for literals
+    std::string name;                   ///< for column_ref, func_call, keyword_ref
+    std::vector<TaqlExprNode> children; ///< sub-expressions / arguments
+    std::string unit;                   ///< unit suffix (if any)
     SortOrder sort_order = SortOrder::ascending;
     RangeIncl range_incl = RangeIncl::closed;
-    bool distinct = false;               ///< for aggregate DISTINCT
+    bool distinct = false; ///< for aggregate DISTINCT
 
     TaqlExprNode() : type(ExprType::literal) {}
     explicit TaqlExprNode(ExprType t) : type(t) {}
@@ -180,9 +173,9 @@ struct TaqlColumnDef {
 
 /// Table creation options from AS clause.
 struct TaqlTableOptions {
-    std::string type;       // PLAIN, MEMORY, SCRATCH, etc.
-    std::string endian;     // BIG, LITTLE, LOCAL, AIPSRC
-    std::string storage;    // SEPFILE, MULTIFILE, MULTIHDF5
+    std::string type;    // PLAIN, MEMORY, SCRATCH, etc.
+    std::string endian;  // BIG, LITTLE, LOCAL, AIPSRC
+    std::string storage; // SEPFILE, MULTIFILE, MULTIHDF5
     bool overwrite = false;
 };
 
@@ -209,17 +202,17 @@ enum class AlterAction : std::uint8_t {
 
 struct TaqlAlterStep {
     AlterAction action;
-    std::vector<TaqlColumnDef> columns;       // for add_column
-    std::vector<std::pair<std::string, std::string>> renames; // from->to
-    std::vector<std::string> names;           // for drop
+    std::vector<TaqlColumnDef> columns;                         // for add_column
+    std::vector<std::pair<std::string, std::string>> renames;   // from->to
+    std::vector<std::string> names;                             // for drop
     std::vector<std::pair<std::string, TaqlExprNode>> keywords; // for set_keyword
-    TaqlExprNode row_count;                   // for add_row
+    TaqlExprNode row_count;                                     // for add_row
 };
 
 /// Table reference (name or subquery).
 struct TaqlTableRef {
-    std::string name;                        // table path or name
-    std::string shorthand;                   // alias (t0, t1, etc.)
+    std::string name;                         // table path or name
+    std::string shorthand;                    // alias (t0, t1, etc.)
     std::optional<TaqlExprNode> subquery_ast; // if FROM (subquery)
 };
 
@@ -246,8 +239,8 @@ struct TaqlAst {
 
     // SELECT / COUNT
     std::vector<TaqlProjection> projections;
-    std::vector<TaqlTableRef> tables;       // FROM
-    std::vector<TaqlTableRef> with_tables;  // WITH
+    std::vector<TaqlTableRef> tables;      // FROM
+    std::vector<TaqlTableRef> with_tables; // WITH
     std::vector<TaqlJoin> joins;
     std::optional<TaqlExprNode> where_expr;
     std::vector<TaqlExprNode> group_by;
@@ -324,8 +317,7 @@ struct TaqlParseError {
 [[nodiscard]] TaqlAst taql_parse(std::string_view query);
 
 /// Format a TaQL parse error as a human-readable string.
-[[nodiscard]] std::string format_parse_error(const TaqlParseError& error,
-                                              std::string_view source);
+[[nodiscard]] std::string format_parse_error(const TaqlParseError& error, std::string_view source);
 
 // ---------------------------------------------------------------------------
 // SHOW command

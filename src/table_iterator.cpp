@@ -19,14 +19,20 @@ int cell_compare(const CellValue& a, const CellValue& b) {
             if constexpr (std::is_same_v<T, std::complex<float>> ||
                           std::is_same_v<T, std::complex<double>>) {
                 // Complex: compare by real then imag.
-                if (va.real() < vb.real()) return -1;
-                if (va.real() > vb.real()) return 1;
-                if (va.imag() < vb.imag()) return -1;
-                if (va.imag() > vb.imag()) return 1;
+                if (va.real() < vb.real())
+                    return -1;
+                if (va.real() > vb.real())
+                    return 1;
+                if (va.imag() < vb.imag())
+                    return -1;
+                if (va.imag() > vb.imag())
+                    return 1;
                 return 0;
             } else {
-                if (va < vb) return -1;
-                if (vb < va) return 1;
+                if (va < vb)
+                    return -1;
+                if (vb < va)
+                    return 1;
                 return 0;
             }
         },
@@ -51,30 +57,33 @@ void TableIterator::build_sorted_rows() {
     }
 
     // Sort rows by key column values.
-    std::sort(sorted_rows_.begin(), sorted_rows_.end(),
-              [this](std::uint64_t a, std::uint64_t b) {
-                  for (const auto& col : key_columns_) {
-                      auto va = table_->read_scalar_cell(col, a);
-                      auto vb = table_->read_scalar_cell(col, b);
-                      int cmp = cell_compare(va, vb);
-                      if (cmp < 0) return true;
-                      if (cmp > 0) return false;
-                  }
-                  return false;
-              });
+    std::sort(sorted_rows_.begin(), sorted_rows_.end(), [this](std::uint64_t a, std::uint64_t b) {
+        for (const auto& col : key_columns_) {
+            auto va = table_->read_scalar_cell(col, a);
+            auto vb = table_->read_scalar_cell(col, b);
+            int cmp = cell_compare(va, vb);
+            if (cmp < 0)
+                return true;
+            if (cmp > 0)
+                return false;
+        }
+        return false;
+    });
 }
 
 bool TableIterator::keys_equal(std::uint64_t row_a, std::uint64_t row_b) const {
     for (const auto& col : key_columns_) {
         auto va = table_->read_scalar_cell(col, row_a);
         auto vb = table_->read_scalar_cell(col, row_b);
-        if (cell_compare(va, vb) != 0) return false;
+        if (cell_compare(va, vb) != 0)
+            return false;
     }
     return true;
 }
 
 bool TableIterator::next() {
-    if (sorted_rows_.empty()) return false;
+    if (sorted_rows_.empty())
+        return false;
 
     if (!started_) {
         started_ = true;
@@ -83,7 +92,8 @@ bool TableIterator::next() {
         group_start_ = group_end_;
     }
 
-    if (group_start_ >= sorted_rows_.size()) return false;
+    if (group_start_ >= sorted_rows_.size())
+        return false;
 
     // Find end of current group.
     group_end_ = group_start_ + 1;
@@ -93,8 +103,9 @@ bool TableIterator::next() {
     }
 
     // Build RefTable for this group.
-    std::vector<std::uint64_t> group_rows(sorted_rows_.begin() + static_cast<std::ptrdiff_t>(group_start_),
-                                           sorted_rows_.begin() + static_cast<std::ptrdiff_t>(group_end_));
+    std::vector<std::uint64_t> group_rows(
+        sorted_rows_.begin() + static_cast<std::ptrdiff_t>(group_start_),
+        sorted_rows_.begin() + static_cast<std::ptrdiff_t>(group_end_));
     current_group_.emplace(*table_, std::move(group_rows));
     return true;
 }

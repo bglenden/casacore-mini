@@ -24,8 +24,7 @@ namespace casacore_mini {
 /// Storage is shared between copies until mutation is requested via
 /// `make_unique()`. The primary data access interface is through mdspan
 /// views returned by `view()` and `const_view()`.
-template <typename T>
-class LatticeArray {
+template <typename T> class LatticeArray {
   public:
     /// Construct an empty (rank-0, zero-element) array.
     LatticeArray() : shape_{}, storage_(std::make_shared<std::vector<T>>()) {}
@@ -33,32 +32,33 @@ class LatticeArray {
     /// Construct array with given shape, all elements value-initialized.
     explicit LatticeArray(IPosition shape)
         : shape_(std::move(shape)),
-          storage_(std::make_shared<std::vector<T>>(
-              static_cast<std::size_t>(shape_.product()))) {}
+          storage_(std::make_shared<std::vector<T>>(static_cast<std::size_t>(shape_.product()))) {}
 
     /// Construct array with given shape and initial value.
     LatticeArray(IPosition shape, T value)
-        : shape_(std::move(shape)),
-          storage_(std::make_shared<std::vector<T>>(
-              static_cast<std::size_t>(shape_.product()), value)) {}
+        : shape_(std::move(shape)), storage_(std::make_shared<std::vector<T>>(
+                                        static_cast<std::size_t>(shape_.product()), value)) {}
 
     /// Construct from shape and pre-existing flat data (takes ownership).
     /// @throws std::invalid_argument if data size != shape product.
     LatticeArray(IPosition shape, std::vector<T> data)
-        : shape_(std::move(shape)),
-          storage_(std::make_shared<std::vector<T>>(std::move(data))) {
+        : shape_(std::move(shape)), storage_(std::make_shared<std::vector<T>>(std::move(data))) {
         if (static_cast<std::int64_t>(storage_->size()) != shape_.product()) {
-            throw std::invalid_argument(
-                "LatticeArray: data size (" + std::to_string(storage_->size()) +
-                ") != shape product (" + std::to_string(shape_.product()) + ")");
+            throw std::invalid_argument("LatticeArray: data size (" +
+                                        std::to_string(storage_->size()) + ") != shape product (" +
+                                        std::to_string(shape_.product()) + ")");
         }
     }
 
     /// Shape of the array.
-    [[nodiscard]] const IPosition& shape() const noexcept { return shape_; }
+    [[nodiscard]] const IPosition& shape() const noexcept {
+        return shape_;
+    }
 
     /// Number of dimensions (rank).
-    [[nodiscard]] std::size_t ndim() const noexcept { return shape_.ndim(); }
+    [[nodiscard]] std::size_t ndim() const noexcept {
+        return shape_.ndim();
+    }
 
     /// Total number of elements.
     [[nodiscard]] std::size_t nelements() const noexcept {
@@ -79,7 +79,9 @@ class LatticeArray {
     }
 
     /// Const pointer to the flat Fortran-order data.
-    [[nodiscard]] const T* data() const noexcept { return storage_->data(); }
+    [[nodiscard]] const T* data() const noexcept {
+        return storage_->data();
+    }
 
     /// Mutable pointer to the flat data. Caller must ensure unique ownership
     /// (call `make_unique()` first if the array might be shared).
@@ -97,8 +99,7 @@ class LatticeArray {
     ///
     /// Usage: `auto v = arr.const_view<3>();` gives a 3D column-major view.
     /// @pre `N == ndim()`
-    template <std::size_t N>
-    [[nodiscard]] ConstLatticeSpan<T, N> const_view() const {
+    template <std::size_t N> [[nodiscard]] ConstLatticeSpan<T, N> const_view() const {
         check_rank<N>();
         return make_const_span<N>(std::make_index_sequence<N>{});
     }
@@ -106,15 +107,16 @@ class LatticeArray {
     /// Return a rank-N mdspan view over the data (mutable).
     ///
     /// @pre `N == ndim()` and `is_unique()`
-    template <std::size_t N>
-    [[nodiscard]] LatticeSpan<T, N> view() {
+    template <std::size_t N> [[nodiscard]] LatticeSpan<T, N> view() {
         check_rank<N>();
         assert(is_unique() && "view() called on shared storage");
         return make_span<N>(std::make_index_sequence<N>{});
     }
 
     /// Element access by flat index (returns by value to support vector<bool>).
-    [[nodiscard]] T operator[](std::size_t i) const { return (*storage_)[i]; }
+    [[nodiscard]] T operator[](std::size_t i) const {
+        return (*storage_)[i];
+    }
 
     /// Read a single element by multidimensional index.
     [[nodiscard]] T at(const IPosition& index) const {
@@ -149,9 +151,8 @@ class LatticeArray {
             // vector<bool> has no .data(); use element-wise access.
             get_slice_elementwise(slicer, result);
         } else {
-            strided_fortran_copy(storage_->data(), fortran_strides(shape_),
-                                 slicer.start(), slicer.stride(),
-                                 result.data(), sl);
+            strided_fortran_copy(storage_->data(), fortran_strides(shape_), slicer.start(),
+                                 slicer.stride(), result.data(), sl);
         }
         return LatticeArray<T>(IPosition(sl), std::move(result));
     }
@@ -166,10 +167,8 @@ class LatticeArray {
         if constexpr (std::is_same_v<T, bool>) {
             put_slice_elementwise(source, slicer);
         } else {
-            strided_fortran_scatter(source.flat().data(), storage_->data(),
-                                    fortran_strides(shape_),
-                                    slicer.start(), slicer.stride(),
-                                    slicer.length());
+            strided_fortran_scatter(source.flat().data(), storage_->data(), fortran_strides(shape_),
+                                    slicer.start(), slicer.stride(), slicer.length());
         }
     }
 
@@ -178,29 +177,21 @@ class LatticeArray {
     }
 
   private:
-    template <std::size_t N>
-    void check_rank() const {
+    template <std::size_t N> void check_rank() const {
         if (N != ndim()) {
-            throw std::invalid_argument(
-                "mdspan rank " + std::to_string(N) +
-                " does not match array ndim " + std::to_string(ndim()));
+            throw std::invalid_argument("mdspan rank " + std::to_string(N) +
+                                        " does not match array ndim " + std::to_string(ndim()));
         }
     }
 
     template <std::size_t N, std::size_t... I>
-    [[nodiscard]] ConstLatticeSpan<T, N> make_const_span(
-        std::index_sequence<I...> /*seq*/) const {
-        return ConstLatticeSpan<T, N>(
-            storage_->data(),
-            static_cast<std::size_t>(shape_[I])...);
+    [[nodiscard]] ConstLatticeSpan<T, N> make_const_span(std::index_sequence<I...> /*seq*/) const {
+        return ConstLatticeSpan<T, N>(storage_->data(), static_cast<std::size_t>(shape_[I])...);
     }
 
     template <std::size_t N, std::size_t... I>
-    [[nodiscard]] LatticeSpan<T, N> make_span(
-        std::index_sequence<I...> /*seq*/) {
-        return LatticeSpan<T, N>(
-            storage_->data(),
-            static_cast<std::size_t>(shape_[I])...);
+    [[nodiscard]] LatticeSpan<T, N> make_span(std::index_sequence<I...> /*seq*/) {
+        return LatticeSpan<T, N>(storage_->data(), static_cast<std::size_t>(shape_[I])...);
     }
 
     /// Element-wise slice copy for vector<bool> (no .data() pointer).
@@ -217,10 +208,10 @@ class LatticeArray {
             for (std::size_t d = 0; d < sl.ndim(); ++d) {
                 src_idx[d] = ss[d] + idx[d] * st[d];
             }
-            result[i] = (*storage_)[static_cast<std::size_t>(
-                linear_index(src_idx, src_strides))];
+            result[i] = (*storage_)[static_cast<std::size_t>(linear_index(src_idx, src_strides))];
             for (std::size_t d = 0; d < sl.ndim(); ++d) {
-                if (++idx[d] < sl[d]) break;
+                if (++idx[d] < sl[d])
+                    break;
                 idx[d] = 0;
             }
         }
@@ -244,7 +235,8 @@ class LatticeArray {
             (*storage_)[static_cast<std::size_t>(linear_index(dst_idx, dst_strides))] =
                 source.flat()[static_cast<std::size_t>(linear_index(idx, src_strides))];
             for (std::size_t d = 0; d < sl.ndim(); ++d) {
-                if (++idx[d] < sl[d]) break;
+                if (++idx[d] < sl[d])
+                    break;
                 idx[d] = 0;
             }
         }

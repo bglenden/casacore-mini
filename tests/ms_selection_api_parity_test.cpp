@@ -44,7 +44,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 /// Build test MS with known data for W9 tests.
@@ -66,22 +67,48 @@ static MeasurementSet make_w9_test_ms(const fs::path& path) {
     }
 
     // 2 fields
-    writer.add_field({.name = "SRC_A", .code = "T", .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
-    writer.add_field({.name = "SRC_B", .code = "T", .time = 0.0, .num_poly = 0,
-                      .source_id = -1, .flag_row = false});
+    writer.add_field({.name = "SRC_A",
+                      .code = "T",
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
+    writer.add_field({.name = "SRC_B",
+                      .code = "T",
+                      .time = 0.0,
+                      .num_poly = 0,
+                      .source_id = -1,
+                      .flag_row = false});
 
     // 2 SPWs
-    writer.add_spectral_window({.num_chan = 64, .name = "SPW_L", .ref_frequency = 1.4e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0, .total_bandwidth = 0.0,
-                                .net_sideband = 0, .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
-    writer.add_spectral_window({.num_chan = 128, .name = "SPW_S", .ref_frequency = 3.0e9,
-                                .chan_freq = {}, .chan_width = {}, .effective_bw = {},
-                                .resolution = {}, .meas_freq_ref = 0, .total_bandwidth = 0.0,
-                                .net_sideband = 0, .if_conv_chain = 0, .freq_group = 0,
-                                .freq_group_name = {}, .flag_row = false});
+    writer.add_spectral_window({.num_chan = 64,
+                                .name = "SPW_L",
+                                .ref_frequency = 1.4e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
+    writer.add_spectral_window({.num_chan = 128,
+                                .name = "SPW_S",
+                                .ref_frequency = 3.0e9,
+                                .chan_freq = {},
+                                .chan_width = {},
+                                .effective_bw = {},
+                                .resolution = {},
+                                .meas_freq_ref = 0,
+                                .total_bandwidth = 0.0,
+                                .net_sideband = 0,
+                                .if_conv_chain = 0,
+                                .freq_group = 0,
+                                .freq_group_name = {},
+                                .flag_row = false});
 
     // 2 data descriptions: DDID 0 -> SPW 0, pol 0; DDID 1 -> SPW 1, pol 1
     writer.add_data_description({.spectral_window_id = 0, .polarization_id = 0, .flag_row = false});
@@ -92,14 +119,27 @@ static MeasurementSet make_w9_test_ms(const fs::path& path) {
     writer.add_polarization({.num_corr = 4, .corr_type = {5, 6, 7, 8}, .flag_row = false});
 
     // 2 states
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0, .sub_scan = 0,
-                      .obs_mode = "OBSERVE_TARGET.ON_SOURCE", .flag_row = false});
-    writer.add_state({.sig = true, .ref = false, .cal = 0.0, .load = 0.0, .sub_scan = 0,
-                      .obs_mode = "CALIBRATE_BANDPASS.ON_SOURCE", .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "OBSERVE_TARGET.ON_SOURCE",
+                      .flag_row = false});
+    writer.add_state({.sig = true,
+                      .ref = false,
+                      .cal = 0.0,
+                      .load = 0.0,
+                      .sub_scan = 0,
+                      .obs_mode = "CALIBRATE_BANDPASS.ON_SOURCE",
+                      .flag_row = false});
 
     // Observation
-    writer.add_observation({.telescope_name = "VLA", .observer = "test", .project = {},
-                            .release_date = 0.0, .flag_row = false});
+    writer.add_observation({.telescope_name = "VLA",
+                            .observer = "test",
+                            .project = {},
+                            .release_date = 0.0,
+                            .flag_row = false});
 
     double time_base = 58849.0 * 86400.0;
 
@@ -246,7 +286,8 @@ static void test_time_ranges() {
         auto res = sel.evaluate(ms);
         check(res.time_ranges.size() == 1, "time_ranges has one entry");
         check(std::abs(res.time_ranges[0].lo - time_base) < 1.0, "time_ranges lo correct");
-        check(std::abs(res.time_ranges[0].hi - (time_base + 3600.0)) < 1.0, "time_ranges hi correct");
+        check(std::abs(res.time_ranges[0].hi - (time_base + 3600.0)) < 1.0,
+              "time_ranges hi correct");
         check(res.time_ranges[0].is_seconds, "time_ranges is_seconds for numeric");
         std::cout << "  time ranges (numeric)... PASS\n";
     }
@@ -258,7 +299,8 @@ static void test_time_ranges() {
         auto res = sel.evaluate(ms);
         check(res.time_ranges.size() == 1, "time_ranges has entry for date bound");
         check(!res.time_ranges[0].is_seconds, "time_ranges !is_seconds for date string");
-        // All 12 rows are at MJD 58849+, which is 2020/01/01, so >(midnight) should select later rows
+        // All 12 rows are at MJD 58849+, which is 2020/01/01, so >(midnight) should select later
+        // rows
         std::cout << "  time ranges (date bound)... PASS\n";
     }
 
@@ -393,7 +435,7 @@ static void test_parse_late() {
         // ParseLate: setting an expression doesn't throw, evaluate does
         MsSelection sel;
         sel.set_parse_mode(ParseMode::ParseLate);
-        sel.set_antenna_expr("0,1");  // valid — should work
+        sel.set_antenna_expr("0,1"); // valid — should work
         auto res = sel.evaluate(ms);
         check(!res.rows.empty(), "ParseLate valid expression works");
         check(res.antennas.size() == 2, "ParseLate antennas populated");

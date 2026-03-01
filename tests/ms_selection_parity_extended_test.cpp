@@ -43,7 +43,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 /// Build test MS with known data for W8 tests.
@@ -234,10 +235,13 @@ static void test_antenna_with_auto() {
     bool has_auto0 = false, has_auto1 = false, has_cross = false;
     for (auto r : result.rows) {
         // Check auto-correlations
-        if (r == 0) has_auto0 = true;
-        if (r == 1) has_auto1 = true;
+        if (r == 0)
+            has_auto0 = true;
+        if (r == 1)
+            has_auto1 = true;
         // Check cross baselines (rows with a1=0,a2=1 or vice versa)
-        if (r == 4 || r == 8 || r == 15) has_cross = true;
+        if (r == 4 || r == 8 || r == 15)
+            has_cross = true;
     }
     check(has_auto0, "antenna && includes auto-corr 0-0");
     check(has_auto1, "antenna && includes auto-corr 1-1");
@@ -281,8 +285,10 @@ static void test_antenna_regex() {
     check(result.antennas.size() == 2, "antenna regex selects 2 antennas");
     bool has0 = false, has2 = false;
     for (auto a : result.antennas) {
-        if (a == 0) has0 = true;
-        if (a == 2) has2 = true;
+        if (a == 0)
+            has0 = true;
+        if (a == 2)
+            has2 = true;
     }
     check(has0 && has2, "antenna regex matches ANT0 and ANT2");
 
@@ -543,7 +549,8 @@ static void test_uvdist_km() {
     check(!result.rows.empty(), "UV >0.5km returns rows");
     bool has_row14 = false;
     for (auto r : result.rows) {
-        if (r == 14) has_row14 = true;
+        if (r == 14)
+            has_row14 = true;
     }
     check(has_row14, "UV >0.5km includes large-UV row");
 

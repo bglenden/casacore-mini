@@ -32,7 +32,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 static Table make_test_table(const fs::path& path) {

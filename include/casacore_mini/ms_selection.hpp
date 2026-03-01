@@ -165,10 +165,14 @@ class MsSelection {
     void set_error_mode(ErrorMode mode) noexcept;
 
     /// Get the current parse mode.
-    [[nodiscard]] ParseMode parse_mode() const noexcept { return parse_mode_; }
+    [[nodiscard]] ParseMode parse_mode() const noexcept {
+        return parse_mode_;
+    }
 
     /// Get the current error mode.
-    [[nodiscard]] ErrorMode error_mode() const noexcept { return error_mode_; }
+    [[nodiscard]] ErrorMode error_mode() const noexcept {
+        return error_mode_;
+    }
 
     /// Evaluate all set expressions against an MS.
     /// In ThrowOnError mode, throws std::runtime_error on malformed expressions.
@@ -194,29 +198,53 @@ class MsSelection {
     // --- Selected-ID accessors (populated after evaluate()) ---
 
     /// Get the antenna expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& antenna_expr() const noexcept { return antenna_expr_; }
+    [[nodiscard]] const std::optional<std::string>& antenna_expr() const noexcept {
+        return antenna_expr_;
+    }
     /// Get the field expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& field_expr() const noexcept { return field_expr_; }
+    [[nodiscard]] const std::optional<std::string>& field_expr() const noexcept {
+        return field_expr_;
+    }
     /// Get the spw expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& spw_expr() const noexcept { return spw_expr_; }
+    [[nodiscard]] const std::optional<std::string>& spw_expr() const noexcept {
+        return spw_expr_;
+    }
     /// Get the scan expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& scan_expr() const noexcept { return scan_expr_; }
+    [[nodiscard]] const std::optional<std::string>& scan_expr() const noexcept {
+        return scan_expr_;
+    }
     /// Get the time expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& time_expr() const noexcept { return time_expr_; }
+    [[nodiscard]] const std::optional<std::string>& time_expr() const noexcept {
+        return time_expr_;
+    }
     /// Get the uvdist expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& uvdist_expr() const noexcept { return uvdist_expr_; }
+    [[nodiscard]] const std::optional<std::string>& uvdist_expr() const noexcept {
+        return uvdist_expr_;
+    }
     /// Get the corr expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& corr_expr() const noexcept { return corr_expr_; }
+    [[nodiscard]] const std::optional<std::string>& corr_expr() const noexcept {
+        return corr_expr_;
+    }
     /// Get the state expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& state_expr() const noexcept { return state_expr_; }
+    [[nodiscard]] const std::optional<std::string>& state_expr() const noexcept {
+        return state_expr_;
+    }
     /// Get the observation expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& observation_expr() const noexcept { return observation_expr_; }
+    [[nodiscard]] const std::optional<std::string>& observation_expr() const noexcept {
+        return observation_expr_;
+    }
     /// Get the array expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& array_expr() const noexcept { return array_expr_; }
+    [[nodiscard]] const std::optional<std::string>& array_expr() const noexcept {
+        return array_expr_;
+    }
     /// Get the feed expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& feed_expr() const noexcept { return feed_expr_; }
+    [[nodiscard]] const std::optional<std::string>& feed_expr() const noexcept {
+        return feed_expr_;
+    }
     /// Get the taql expression string (if set).
-    [[nodiscard]] const std::optional<std::string>& taql_expr() const noexcept { return taql_expr_; }
+    [[nodiscard]] const std::optional<std::string>& taql_expr() const noexcept {
+        return taql_expr_;
+    }
 
   private:
     std::optional<std::string> antenna_expr_;

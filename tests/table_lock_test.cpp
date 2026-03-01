@@ -31,7 +31,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 static Table make_test_table(const fs::path& path) {
@@ -169,17 +170,29 @@ static void test_drop_table() {
 }
 
 int main() {
-    try { test_lock_unlock(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_lock_unlock();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_read_write_lock(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_read_write_lock();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_lock_mode(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_lock_mode();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_drop_table(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_drop_table();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
 
     std::cout << "table_lock_test: " << g_pass << " passed, " << g_fail << " failed\n";

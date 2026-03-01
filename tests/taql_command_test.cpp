@@ -1,8 +1,8 @@
 /// @file taql_command_test.cpp
 /// @brief Tests for TaQL command execution against real tables.
 
-#include "casacore_mini/taql.hpp"
 #include "casacore_mini/table.hpp"
+#include "casacore_mini/taql.hpp"
 
 #include <cstdlib>
 #include <filesystem>
@@ -26,7 +26,8 @@ static void check(bool cond, const char* label) {
 /// Create a small test table with 10 rows and 3 columns.
 static fs::path create_test_table() {
     auto path = fs::temp_directory_path() / "taql_cmd_test_table";
-    if (fs::exists(path)) fs::remove_all(path);
+    if (fs::exists(path))
+        fs::remove_all(path);
 
     std::vector<TableColumnSpec> cols = {
         {"ID", DataType::tp_int, ColumnKind::scalar, {}, "Row ID"},

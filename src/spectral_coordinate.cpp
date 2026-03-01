@@ -52,8 +52,7 @@ Record SpectralCoordinate::save() const {
     rec.set("version", RecordValue(static_cast<std::int32_t>(2)));
     rec.set("system", RecordValue(std::string(frequency_ref_to_string(ref_frame_))));
     rec.set("restfreq", RecordValue(rest_freq_hz_));
-    rec.set("restfreqs",
-            RecordValue(RecordValue::double_array{{1}, {rest_freq_hz_}}));
+    rec.set("restfreqs", RecordValue(RecordValue::double_array{{1}, {rest_freq_hz_}}));
     rec.set("unit", RecordValue(std::string("Hz")));
     rec.set("name", RecordValue(std::string("Frequency")));
 
@@ -100,10 +99,9 @@ std::unique_ptr<SpectralCoordinate> SpectralCoordinate::from_record(const Record
         if (const auto* wp = std::get_if<RecordValue::record_ptr>(&wv->storage());
             wp != nullptr && *wp != nullptr) {
             const auto& wrec = **wp;
-            return std::make_unique<SpectralCoordinate>(
-                ref, get_double(wrec, "crval", 0.0),
-                get_double(wrec, "cdelt", 1.0),
-                get_double(wrec, "crpix", 0.0), restfreq);
+            return std::make_unique<SpectralCoordinate>(ref, get_double(wrec, "crval", 0.0),
+                                                        get_double(wrec, "cdelt", 1.0),
+                                                        get_double(wrec, "crpix", 0.0), restfreq);
         }
     }
 

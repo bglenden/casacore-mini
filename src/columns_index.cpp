@@ -17,14 +17,20 @@ int cell_compare(const CellValue& a, const CellValue& b) {
             const auto& vb = std::get<T>(b);
             if constexpr (std::is_same_v<T, std::complex<float>> ||
                           std::is_same_v<T, std::complex<double>>) {
-                if (va.real() < vb.real()) return -1;
-                if (va.real() > vb.real()) return 1;
-                if (va.imag() < vb.imag()) return -1;
-                if (va.imag() > vb.imag()) return 1;
+                if (va.real() < vb.real())
+                    return -1;
+                if (va.real() > vb.real())
+                    return 1;
+                if (va.imag() < vb.imag())
+                    return -1;
+                if (va.imag() > vb.imag())
+                    return 1;
                 return 0;
             } else {
-                if (va < vb) return -1;
-                if (vb < va) return 1;
+                if (va < vb)
+                    return -1;
+                if (vb < va)
+                    return 1;
                 return 0;
             }
         },
@@ -36,8 +42,10 @@ int cell_compare(const CellValue& a, const CellValue& b) {
 bool ColumnsIndex::KeyCompare::operator()(const IndexKey& a, const IndexKey& b) const {
     for (std::size_t i = 0; i < a.size() && i < b.size(); ++i) {
         int cmp = cell_compare(a[i], b[i]);
-        if (cmp < 0) return true;
-        if (cmp > 0) return false;
+        if (cmp < 0)
+            return true;
+        if (cmp > 0)
+            return false;
     }
     return a.size() < b.size();
 }
@@ -64,8 +72,7 @@ ColumnsIndex::IndexKey ColumnsIndex::make_key(const Record& rec) const {
     for (const auto& col : key_columns_) {
         const auto* val = rec.find(col);
         if (!val) {
-            throw std::runtime_error("ColumnsIndex: key column '" + col +
-                                     "' not found in Record");
+            throw std::runtime_error("ColumnsIndex: key column '" + col + "' not found in Record");
         }
         // Convert RecordValue storage to CellValue.
         std::visit(
@@ -99,7 +106,8 @@ ColumnsIndex::IndexKey ColumnsIndex::make_key_from_row(std::uint64_t row) const 
 std::vector<std::uint64_t> ColumnsIndex::get_row_numbers(const Record& key) const {
     auto k = make_key(key);
     auto it = index_.find(k);
-    if (it == index_.end()) return {};
+    if (it == index_.end())
+        return {};
     return it->second;
 }
 
@@ -109,8 +117,8 @@ std::uint64_t ColumnsIndex::get_row_number(const Record& key) const {
         throw std::runtime_error("ColumnsIndex: key not found");
     }
     if (rows.size() > 1) {
-        throw std::runtime_error("ColumnsIndex: key is not unique (" +
-                                 std::to_string(rows.size()) + " matches)");
+        throw std::runtime_error("ColumnsIndex: key is not unique (" + std::to_string(rows.size()) +
+                                 " matches)");
     }
     return rows[0];
 }

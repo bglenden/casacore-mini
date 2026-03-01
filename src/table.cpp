@@ -843,8 +843,7 @@ void Table::add_row(std::uint64_t n) {
         impl_->ensure_tsm_readers();
 
         TiledStManWriter tsm_wr;
-        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, new_nrow,
-                     impl_->dir.table_dat.big_endian);
+        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, new_nrow, impl_->dir.table_dat.big_endian);
 
         for (std::size_t ci = 0; ci < tsm_cols.size(); ++ci) {
             const auto& col = tsm_cols[ci];
@@ -990,8 +989,7 @@ void Table::remove_row(std::uint64_t row) {
         impl_->ensure_tsm_readers();
 
         TiledStManWriter tsm_wr;
-        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, new_nrow,
-                     impl_->dir.table_dat.big_endian);
+        tsm_wr.setup(tsm_sm_type, tsm_dm_name, tsm_cols, new_nrow, impl_->dir.table_dat.big_endian);
 
         for (std::size_t ci = 0; ci < tsm_cols.size(); ++ci) {
             const auto& col = tsm_cols[ci];
@@ -1628,7 +1626,8 @@ TableInfo Table::table_info() const {
     TableInfo info;
     auto info_path = impl_->path / "table.info";
     std::ifstream in(info_path);
-    if (!in) return info;
+    if (!in)
+        return info;
 
     std::string line;
     while (std::getline(in, line)) {
@@ -1697,7 +1696,8 @@ bool Table::has_lock() const {
 bool Table::is_locked() const {
     auto lock_path = impl_->path / "table.lock";
     std::ifstream in(lock_path);
-    if (!in) return false;
+    if (!in)
+        return false;
     std::string content;
     std::getline(in, content);
     return !content.empty();
@@ -1716,7 +1716,8 @@ void Table::set_lock_mode(TableLockMode mode) {
 // ---------------------------------------------------------------------------
 
 bool Table::drop_table(const std::filesystem::path& path, bool force) {
-    if (!std::filesystem::exists(path)) return false;
+    if (!std::filesystem::exists(path))
+        return false;
 
     if (!force) {
         auto lock_path = path / "table.lock";
@@ -1740,36 +1741,57 @@ bool Table::drop_table(const std::filesystem::path& path, bool force) {
 // ---------------------------------------------------------------------------
 
 DataType parse_data_type_name(std::string_view name) {
-    if (name == "BOOL" || name == "Bool" || name == "B") return DataType::tp_bool;
+    if (name == "BOOL" || name == "Bool" || name == "B")
+        return DataType::tp_bool;
     if (name == "INT" || name == "Int" || name == "I4" || name == "INT32" || name == "I")
         return DataType::tp_int;
-    if (name == "INT64" || name == "I8") return DataType::tp_int64;
-    if (name == "SHORT" || name == "Short" || name == "I2") return DataType::tp_short;
-    if (name == "FLOAT" || name == "Float" || name == "R4") return DataType::tp_float;
+    if (name == "INT64" || name == "I8")
+        return DataType::tp_int64;
+    if (name == "SHORT" || name == "Short" || name == "I2")
+        return DataType::tp_short;
+    if (name == "FLOAT" || name == "Float" || name == "R4")
+        return DataType::tp_float;
     if (name == "DOUBLE" || name == "Double" || name == "R8" || name == "D")
         return DataType::tp_double;
-    if (name == "COMPLEX" || name == "Complex" || name == "C4") return DataType::tp_complex;
-    if (name == "DCOMPLEX" || name == "DComplex" || name == "C8") return DataType::tp_dcomplex;
-    if (name == "STRING" || name == "String" || name == "S") return DataType::tp_string;
+    if (name == "COMPLEX" || name == "Complex" || name == "C4")
+        return DataType::tp_complex;
+    if (name == "DCOMPLEX" || name == "DComplex" || name == "C8")
+        return DataType::tp_dcomplex;
+    if (name == "STRING" || name == "String" || name == "S")
+        return DataType::tp_string;
     throw std::runtime_error("unknown data type name: '" + std::string(name) + "'");
 }
 
 std::string data_type_to_string(DataType dt) {
     switch (dt) {
-    case DataType::tp_bool: return "Bool";
-    case DataType::tp_char: return "Char";
-    case DataType::tp_uchar: return "uChar";
-    case DataType::tp_short: return "Short";
-    case DataType::tp_ushort: return "uShort";
-    case DataType::tp_int: return "Int";
-    case DataType::tp_uint: return "uInt";
-    case DataType::tp_int64: return "Int64";
-    case DataType::tp_float: return "Float";
-    case DataType::tp_double: return "Double";
-    case DataType::tp_complex: return "Complex";
-    case DataType::tp_dcomplex: return "DComplex";
-    case DataType::tp_string: return "String";
-    default: return "Unknown";
+    case DataType::tp_bool:
+        return "Bool";
+    case DataType::tp_char:
+        return "Char";
+    case DataType::tp_uchar:
+        return "uChar";
+    case DataType::tp_short:
+        return "Short";
+    case DataType::tp_ushort:
+        return "uShort";
+    case DataType::tp_int:
+        return "Int";
+    case DataType::tp_uint:
+        return "uInt";
+    case DataType::tp_int64:
+        return "Int64";
+    case DataType::tp_float:
+        return "Float";
+    case DataType::tp_double:
+        return "Double";
+    case DataType::tp_complex:
+        return "Complex";
+    case DataType::tp_dcomplex:
+        return "DComplex";
+    case DataType::tp_string:
+        return "String";
+    default:
+        return "Unknown";
     }
 }
 

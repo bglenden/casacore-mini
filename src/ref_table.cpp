@@ -9,7 +9,8 @@ RefTable::RefTable(Table& base, std::vector<std::uint64_t> row_indices)
 
 RefTable::RefTable(Table& base, const std::vector<bool>& row_mask) : base_(&base) {
     for (std::uint64_t i = 0; i < row_mask.size(); ++i) {
-        if (row_mask[i]) rows_.push_back(i);
+        if (row_mask[i])
+            rows_.push_back(i);
     }
 }
 
@@ -40,17 +41,17 @@ CellValue RefTable::read_scalar_cell(std::string_view col_name, std::uint64_t ro
 }
 
 std::vector<double> RefTable::read_array_double_cell(std::string_view col_name,
-                                                      std::uint64_t row) const {
+                                                     std::uint64_t row) const {
     return base_->read_array_double_cell(col_name, base_row(row));
 }
 
 std::vector<float> RefTable::read_array_float_cell(std::string_view col_name,
-                                                    std::uint64_t row) const {
+                                                   std::uint64_t row) const {
     return base_->read_array_float_cell(col_name, base_row(row));
 }
 
 std::vector<std::int32_t> RefTable::read_array_int_cell(std::string_view col_name,
-                                                         std::uint64_t row) const {
+                                                        std::uint64_t row) const {
     return base_->read_array_int_cell(col_name, base_row(row));
 }
 

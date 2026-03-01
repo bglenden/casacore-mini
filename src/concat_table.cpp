@@ -39,7 +39,7 @@ CellValue ConcatTable::read_scalar_cell(std::string_view col_name, std::uint64_t
 }
 
 std::vector<double> ConcatTable::read_array_double_cell(std::string_view col_name,
-                                                         std::uint64_t row) const {
+                                                        std::uint64_t row) const {
     auto [ti, lr] = decompose_row(row);
     return tables_[ti]->read_array_double_cell(col_name, lr);
 }

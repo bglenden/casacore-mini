@@ -43,7 +43,7 @@ class ConcatTable {
 
     /// Read a double array cell through the row mapping.
     [[nodiscard]] std::vector<double> read_array_double_cell(std::string_view col_name,
-                                                              std::uint64_t row) const;
+                                                             std::uint64_t row) const;
 
     /// Number of component tables.
     [[nodiscard]] std::size_t table_count() const;

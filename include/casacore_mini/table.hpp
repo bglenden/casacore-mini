@@ -25,10 +25,10 @@ namespace casacore_mini {
 /// Mirrors upstream casacore's TableLock options. The actual locking in
 /// casacore-mini uses a simple lock-file approach (table.lock).
 enum class TableLockMode : std::uint8_t {
-    NoLock,         ///< No locking (default for read-only tables).
-    AutoLock,       ///< Lock automatically on read/write, release on flush.
-    PermanentLock,  ///< Lock once, hold until close.
-    UserLock,       ///< Lock/unlock manually via lock()/unlock().
+    NoLock,        ///< No locking (default for read-only tables).
+    AutoLock,      ///< Lock automatically on read/write, release on flush.
+    PermanentLock, ///< Lock once, hold until close.
+    UserLock,      ///< Lock/unlock manually via lock()/unlock().
 };
 
 /// Information about table.info metadata.

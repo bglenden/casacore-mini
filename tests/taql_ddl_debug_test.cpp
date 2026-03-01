@@ -18,8 +18,7 @@ int main() {
     std::printf("Exists before: %d\n", fs::exists(dir) ? 1 : 0);
 
     auto ast = taql_parse("DROP TABLE '" + dir.string() + "'");
-    std::printf("Command enum: %d (expected %d)\n",
-                static_cast<int>(ast.command),
+    std::printf("Command enum: %d (expected %d)\n", static_cast<int>(ast.command),
                 static_cast<int>(TaqlCommand::drop_table_cmd));
     std::printf("drop_tables.size: %zu\n", ast.drop_tables.size());
     for (const auto& dt : ast.drop_tables) {

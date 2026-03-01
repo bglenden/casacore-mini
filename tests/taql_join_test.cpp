@@ -85,8 +85,7 @@ void test_multi_from_cross_product() {
     };
 
     // Cross product: 4 employees * 3 departments = 12 rows without WHERE.
-    auto result = taql_execute(
-        "SELECT e.EMP_NAME, d.DEPT_NAME FROM e, d", tables);
+    auto result = taql_execute("SELECT e.EMP_NAME, d.DEPT_NAME FROM e, d", tables);
 
     // 12 combos * 2 values each = 24 values.
     assert(result.values.size() == 24);
@@ -109,24 +108,25 @@ void test_join_on() {
     };
 
     auto result = taql_execute(
-        "SELECT e.EMP_NAME, d.DEPT_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID",
-        tables);
+        "SELECT e.EMP_NAME, d.DEPT_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID", tables);
 
     // 4 employees each matched to their department = 4 result rows.
     assert(result.column_names.size() == 2);
-    assert(result.values.size() == 8);  // 4 rows * 2 cols
+    assert(result.values.size() == 8); // 4 rows * 2 cols
 
     // Verify the join correctness:
     // Alice -> Engineering, Bob -> Marketing, Carol -> Engineering, Dave -> Sales
     auto name0 = std::get<std::string>(result.values[0]);
     auto dept0 = std::get<std::string>(result.values[1]);
-    (void)name0; (void)dept0;
+    (void)name0;
+    (void)dept0;
     assert(name0 == "Alice");
     assert(dept0 == "Engineering");
 
     auto name1 = std::get<std::string>(result.values[2]);
     auto dept1 = std::get<std::string>(result.values[3]);
-    (void)name1; (void)dept1;
+    (void)name1;
+    (void)dept1;
     assert(name1 == "Bob");
     assert(dept1 == "Marketing");
 
@@ -148,15 +148,15 @@ void test_join_with_where() {
     };
 
     // Join and filter: only Engineering employees.
-    auto result = taql_execute(
-        "SELECT e.EMP_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID "
-        "WHERE d.DEPT_NAME = 'Engineering'",
-        tables);
+    auto result = taql_execute("SELECT e.EMP_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID "
+                               "WHERE d.DEPT_NAME = 'Engineering'",
+                               tables);
 
-    assert(result.values.size() == 2);  // Alice and Carol
+    assert(result.values.size() == 2); // Alice and Carol
     auto n0 = std::get<std::string>(result.values[0]);
     auto n1 = std::get<std::string>(result.values[1]);
-    (void)n0; (void)n1;
+    (void)n0;
+    (void)n1;
     assert(n0 == "Alice");
     assert(n1 == "Carol");
 
@@ -179,11 +179,10 @@ void test_multi_from_with_where() {
 
     // Implicit join via WHERE clause.
     auto result = taql_execute(
-        "SELECT e.EMP_NAME, d.DEPT_NAME FROM e, d WHERE e.DEPT_ID = d.DEPT_ID",
-        tables);
+        "SELECT e.EMP_NAME, d.DEPT_NAME FROM e, d WHERE e.DEPT_ID = d.DEPT_ID", tables);
 
     // Same result as explicit JOIN: 4 matching combos.
-    assert(result.values.size() == 8);  // 4 rows * 2 cols
+    assert(result.values.size() == 8); // 4 rows * 2 cols
 
     cleanup(dept_dir);
     cleanup(emp_dir);
@@ -202,9 +201,8 @@ void test_join_with_limit() {
         {"d", &dept},
     };
 
-    auto result = taql_execute(
-        "SELECT e.EMP_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID LIMIT 2",
-        tables);
+    auto result =
+        taql_execute("SELECT e.EMP_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID LIMIT 2", tables);
 
     assert(result.values.size() == 2);
 
@@ -226,10 +224,9 @@ void test_join_no_match() {
     };
 
     // No employee has DEPT_ID=99.
-    auto result = taql_execute(
-        "SELECT e.EMP_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID "
-        "WHERE d.DEPT_ID = 99",
-        tables);
+    auto result = taql_execute("SELECT e.EMP_NAME FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID "
+                               "WHERE d.DEPT_ID = 99",
+                               tables);
 
     assert(result.values.empty());
 
@@ -250,9 +247,7 @@ void test_multi_table_wildcard() {
         {"d", &dept},
     };
 
-    auto result = taql_execute(
-        "SELECT * FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID LIMIT 1",
-        tables);
+    auto result = taql_execute("SELECT * FROM e JOIN d ON e.DEPT_ID = d.DEPT_ID LIMIT 1", tables);
 
     // emp has 3 cols, dept has 2 cols = 5 values per row, 1 row.
     assert(result.values.size() == 5);

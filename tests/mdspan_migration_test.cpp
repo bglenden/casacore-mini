@@ -29,7 +29,8 @@ static void test_strided_copy_unit() {
     // 3x4 array in Fortran order, extract 2x2 subarray starting at (1,1)
     IPosition shape{3, 4};
     std::vector<double> data(12);
-    for (int i = 0; i < 12; ++i) data[static_cast<std::size_t>(i)] = static_cast<double>(i);
+    for (int i = 0; i < 12; ++i)
+        data[static_cast<std::size_t>(i)] = static_cast<double>(i);
 
     // Fortran order: data[col*3 + row]
     // (1,1) -> index 4, (2,1) -> 5, (1,2) -> 7, (2,2) -> 8
@@ -54,7 +55,8 @@ static void test_strided_copy_step() {
     // 6x6 array, extract every other element: start=(0,0), step=(2,2), len=(3,3)
     IPosition shape{6, 6};
     std::vector<float> data(36);
-    for (int i = 0; i < 36; ++i) data[static_cast<std::size_t>(i)] = static_cast<float>(i);
+    for (int i = 0; i < 36; ++i)
+        data[static_cast<std::size_t>(i)] = static_cast<float>(i);
 
     IPosition src_strides = fortran_strides(shape);
     IPosition start{0, 0};
@@ -165,7 +167,8 @@ static void test_3d_strided_copy() {
     // 3x3x3 array
     IPosition shape{3, 3, 3};
     std::vector<int> data(27);
-    for (int i = 0; i < 27; ++i) data[static_cast<std::size_t>(i)] = i;
+    for (int i = 0; i < 27; ++i)
+        data[static_cast<std::size_t>(i)] = i;
 
     IPosition src_strides = fortran_strides(shape);
     IPosition start{1, 1, 1};
@@ -220,8 +223,8 @@ static void test_make_lattice_span() {
 // ============================================================================
 static void test_mdspan_compat_basic() {
     std::vector<int> data = {1, 2, 3, 4, 5, 6, 7, 8};
-    mdspan_compat::mdspan<int, mdspan_compat::dextents<std::size_t, 3>,
-                          mdspan_compat::layout_left> span(data.data(), 2, 2, 2);
+    mdspan_compat::mdspan<int, mdspan_compat::dextents<std::size_t, 3>, mdspan_compat::layout_left>
+        span(data.data(), 2, 2, 2);
 
     check(span.rank() == 3, "mdspan rank = 3");
     check(span.extent(0) == 2, "mdspan extent(0) = 2");

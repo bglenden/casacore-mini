@@ -233,7 +233,8 @@ void test_insert_then_delete() {
 
     // Original rows still intact.
     for (int i = 0; i < 5; ++i) {
-        auto id = std::get<std::int32_t>(table.read_scalar_cell("ID", static_cast<std::uint64_t>(i)));
+        auto id =
+            std::get<std::int32_t>(table.read_scalar_cell("ID", static_cast<std::uint64_t>(i)));
         (void)id;
         assert(id == i + 1);
     }

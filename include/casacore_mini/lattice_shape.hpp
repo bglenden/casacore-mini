@@ -192,12 +192,12 @@ void validate_slicer(const Slicer& slicer, const IPosition& shape);
 /// This replaces manual IPosition-based index iteration with direct stride
 /// computation, matching how mdspan layout_left maps indices to offsets.
 template <typename T>
-void strided_fortran_copy(const T* src, const IPosition& src_strides,
-                          const IPosition& src_start, const IPosition& src_step,
-                          T* dst, const IPosition& slice_shape) {
+void strided_fortran_copy(const T* src, const IPosition& src_strides, const IPosition& src_start,
+                          const IPosition& src_step, T* dst, const IPosition& slice_shape) {
     const auto ndim = slice_shape.ndim();
     const auto n = static_cast<std::size_t>(slice_shape.product());
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     // Current position in slice coordinates (all zeros initially).
     std::vector<std::int64_t> pos(ndim, 0);
@@ -215,7 +215,8 @@ void strided_fortran_copy(const T* src, const IPosition& src_strides,
         for (std::size_t d = 0; d < ndim; ++d) {
             ++pos[d];
             src_offset += src_step[d] * src_strides[d];
-            if (pos[d] < slice_shape[d]) break;
+            if (pos[d] < slice_shape[d])
+                break;
             // Wrap: subtract the full extent advanced on this axis.
             src_offset -= pos[d] * src_step[d] * src_strides[d];
             pos[d] = 0;
@@ -231,7 +232,8 @@ void strided_fortran_scatter(const T* src, T* dst, const IPosition& dst_strides,
                              const IPosition& slice_shape) {
     const auto ndim = slice_shape.ndim();
     const auto n = static_cast<std::size_t>(slice_shape.product());
-    if (n == 0) return;
+    if (n == 0)
+        return;
 
     std::vector<std::int64_t> pos(ndim, 0);
 
@@ -246,7 +248,8 @@ void strided_fortran_scatter(const T* src, T* dst, const IPosition& dst_strides,
         for (std::size_t d = 0; d < ndim; ++d) {
             ++pos[d];
             dst_offset += dst_step[d] * dst_strides[d];
-            if (pos[d] < slice_shape[d]) break;
+            if (pos[d] < slice_shape[d])
+                break;
             dst_offset -= pos[d] * dst_step[d] * dst_strides[d];
             pos[d] = 0;
         }
@@ -260,8 +263,8 @@ void strided_fortran_scatter(const T* src, T* dst, const IPosition& dst_strides,
 /// @param shape Shape vector whose ndim must equal N.
 /// @throws std::invalid_argument if shape.ndim() != N.
 template <typename T, std::size_t N>
-[[nodiscard]] ConstLatticeSpan<T, N> make_const_lattice_span(
-    const T* data, const IPosition& shape) {
+[[nodiscard]] ConstLatticeSpan<T, N> make_const_lattice_span(const T* data,
+                                                             const IPosition& shape) {
     if (shape.ndim() != N) {
         throw std::invalid_argument("make_const_lattice_span: shape rank != N");
     }
@@ -272,8 +275,7 @@ template <typename T, std::size_t N>
 
 /// Create a `LatticeSpan` (mutable mdspan view) over a flat data array.
 template <typename T, std::size_t N>
-[[nodiscard]] LatticeSpan<T, N> make_lattice_span(
-    T* data, const IPosition& shape) {
+[[nodiscard]] LatticeSpan<T, N> make_lattice_span(T* data, const IPosition& shape) {
     if (shape.ndim() != N) {
         throw std::invalid_argument("make_lattice_span: shape rank != N");
     }

@@ -31,7 +31,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 // ============================================================================
@@ -156,7 +157,11 @@ static void test_parse_data_type_name() {
 
     // Unknown type throws
     bool threw = false;
-    try { (void)parse_data_type_name("UNKNOWN"); } catch (const std::runtime_error&) { threw = true; }
+    try {
+        (void)parse_data_type_name("UNKNOWN");
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
     check(threw, "unknown type throws");
 
     std::cout << "  parse_data_type_name... PASS\n";
@@ -180,20 +185,35 @@ static void test_data_type_to_string() {
 }
 
 int main() {
-    try { test_table_info(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_table_info();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_private_keywords(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_private_keywords();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_has_column(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_has_column();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_parse_data_type_name(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_parse_data_type_name();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
-    try { test_data_type_to_string(); } catch (const std::exception& e) {
-        ++g_fail; std::cerr << "EXCEPTION: " << e.what() << "\n";
+    try {
+        test_data_type_to_string();
+    } catch (const std::exception& e) {
+        ++g_fail;
+        std::cerr << "EXCEPTION: " << e.what() << "\n";
     }
 
     std::cout << "table_info_test: " << g_pass << " passed, " << g_fail << " failed\n";

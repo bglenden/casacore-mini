@@ -53,15 +53,15 @@ class RefTable {
 
     /// Read a double array cell through the row mapping.
     [[nodiscard]] std::vector<double> read_array_double_cell(std::string_view col_name,
-                                                              std::uint64_t row) const;
+                                                             std::uint64_t row) const;
 
     /// Read a float array cell through the row mapping.
     [[nodiscard]] std::vector<float> read_array_float_cell(std::string_view col_name,
-                                                            std::uint64_t row) const;
+                                                           std::uint64_t row) const;
 
     /// Read an int array cell through the row mapping.
     [[nodiscard]] std::vector<std::int32_t> read_array_int_cell(std::string_view col_name,
-                                                                 std::uint64_t row) const;
+                                                                std::uint64_t row) const;
 
     /// Get the mapped base-table row indices.
     [[nodiscard]] const std::vector<std::uint64_t>& row_indices() const;

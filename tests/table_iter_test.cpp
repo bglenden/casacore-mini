@@ -1,8 +1,8 @@
 /// @file table_iter_test.cpp
 /// @brief P12-W11 tests for TableIterator (group-by iteration).
 
-#include "casacore_mini/table_iterator.hpp"
 #include "casacore_mini/table.hpp"
+#include "casacore_mini/table_iterator.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -34,7 +34,8 @@ static fs::path make_temp_dir(const std::string& suffix) {
 }
 
 static void cleanup(const fs::path& p) {
-    if (fs::exists(p)) fs::remove_all(p);
+    if (fs::exists(p))
+        fs::remove_all(p);
 }
 
 /// Create a table with FIELD_ID and SCAN columns, 8 rows:
@@ -53,7 +54,7 @@ static Table make_test_table(const fs::path& path) {
     };
     auto table = Table::create(path, cols, 8);
     std::int32_t fields[] = {0, 1, 0, 0, 1, 1, 0, 1};
-    std::int32_t scans[]  = {1, 1, 2, 1, 2, 1, 2, 2};
+    std::int32_t scans[] = {1, 1, 2, 1, 2, 1, 2, 2};
     for (int i = 0; i < 8; ++i) {
         auto r = static_cast<std::uint64_t>(i);
         table.write_scalar_cell("FIELD_ID", r, CellValue(fields[i]));
@@ -159,13 +160,15 @@ static void test_reset() {
     TableIterator iter(table, {"FIELD_ID"});
 
     int count1 = 0;
-    while (iter.next()) ++count1;
+    while (iter.next())
+        ++count1;
 
     iter.reset();
     check(!iter.at_end(), "after reset, not at end");
 
     int count2 = 0;
-    while (iter.next()) ++count2;
+    while (iter.next())
+        ++count2;
     check(count1 == count2, "same group count after reset");
 
     cleanup(path);

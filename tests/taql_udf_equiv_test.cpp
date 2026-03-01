@@ -39,8 +39,7 @@ static bool approx(double a, double b, double tol = 1e-6) {
 static void test_datetime_year() {
     // MJD 51544.0 = 2000-01-01 (J2000 epoch)
     auto r = taql_calc("CALC YEAR(51544.0)");
-    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 2000,
-          "YEAR(51544.0) = 2000");
+    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 2000, "YEAR(51544.0) = 2000");
 }
 
 static void test_datetime_month() {
@@ -51,8 +50,7 @@ static void test_datetime_month() {
 
 static void test_datetime_day() {
     auto r = taql_calc("CALC DAY(51544.0)");
-    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 1,
-          "DAY(51544.0) = 1");
+    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 1, "DAY(51544.0) = 1");
 }
 
 static void test_datetime_cmonth() {
@@ -70,8 +68,7 @@ static void test_datetime_weekday() {
 
 static void test_datetime_cdow() {
     auto r = taql_calc("CALC CDOW(51544.0)");
-    check(!r.values.empty() && std::get<std::string>(r.values[0]) == "Sat",
-          "CDOW(51544.0) = Sat");
+    check(!r.values.empty() && std::get<std::string>(r.values[0]) == "Sat", "CDOW(51544.0) = Sat");
 }
 
 static void test_datetime_week() {
@@ -147,12 +144,10 @@ static void test_angdist() {
 
 static void test_ndim_nelem() {
     auto r = taql_calc("CALC NDIM(42.0)");
-    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 0,
-          "NDIM of scalar = 0");
+    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 0, "NDIM of scalar = 0");
 
     r = taql_calc("CALC NELEM(42.0)");
-    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 1,
-          "NELEM of scalar = 1");
+    check(!r.values.empty() && std::get<std::int64_t>(r.values[0]) == 1, "NELEM of scalar = 1");
 }
 
 static void test_array_create() {
@@ -160,7 +155,8 @@ static void test_array_create() {
     check(!r.values.empty(), "ARRAY returns value");
     auto* vec = std::get_if<std::vector<double>>(&r.values[0]);
     check(vec != nullptr && vec->size() == 5, "ARRAY(1.0, 5) has 5 elements");
-    if (vec) check((*vec)[0] == 1.0 && (*vec)[4] == 1.0, "ARRAY filled with 1.0");
+    if (vec)
+        check((*vec)[0] == 1.0 && (*vec)[4] == 1.0, "ARRAY filled with 1.0");
 }
 
 static void test_arrsum() {
@@ -223,8 +219,7 @@ static void test_complex_funcs() {
 
 static void test_complex_norm() {
     auto r = taql_calc("CALC NORM(COMPLEX(3.0, 4.0))");
-    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 25.0),
-          "NORM(3+4i) = 25");
+    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 25.0), "NORM(3+4i) = 25");
 }
 
 static void test_complex_arg() {
@@ -243,12 +238,10 @@ static void test_complex_conj() {
 
 static void test_complex_real_imag() {
     auto r = taql_calc("CALC REAL(COMPLEX(3.0, 4.0))");
-    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 3.0),
-          "REAL(3+4i) = 3");
+    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 3.0), "REAL(3+4i) = 3");
 
     r = taql_calc("CALC IMAG(COMPLEX(3.0, 4.0))");
-    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 4.0),
-          "IMAG(3+4i) = 4");
+    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 4.0), "IMAG(3+4i) = 4");
 }
 
 // ---------------------------------------------------------------------------
@@ -273,8 +266,7 @@ static void test_unit_arcsec() {
 
 static void test_unit_km() {
     auto r = taql_calc("CALC 1.0km");
-    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 1000.0),
-          "1km = 1000m");
+    check(!r.values.empty() && approx(std::get<double>(r.values[0]), 1000.0), "1km = 1000m");
 }
 
 // ---------------------------------------------------------------------------
@@ -284,8 +276,7 @@ static void test_unit_km() {
 static void test_incone_func() {
     // Point at (0,0), cone center at (0,0) with radius 0.1: should be inside
     auto r = taql_calc("CALC INCONE(0.0, 0.0, 0.0, 0.0, 0.1)");
-    check(!r.values.empty() && std::get<bool>(r.values[0]) == true,
-          "INCONE at center is true");
+    check(!r.values.empty() && std::get<bool>(r.values[0]) == true, "INCONE at center is true");
 
     // Point at (1.0, 0), cone center at (0,0) with radius 0.1: should be outside
     r = taql_calc("CALC INCONE(1.0, 0.0, 0.0, 0.0, 0.1)");
@@ -324,9 +315,8 @@ static void test_meas_dir_galactic() {
     // Sgr A* is at J2000: (RA=266.4168deg, Dec=-29.0078deg)
     double ra_rad = 266.4168 * 3.14159265358979 / 180.0;
     double dec_rad = -29.0078 * 3.14159265358979 / 180.0;
-    auto r = taql_calc("CALC MEAS_DIR_GALACTIC(" +
-                        std::to_string(ra_rad) + ", " +
-                        std::to_string(dec_rad) + ")");
+    auto r = taql_calc("CALC MEAS_DIR_GALACTIC(" + std::to_string(ra_rad) + ", " +
+                       std::to_string(dec_rad) + ")");
     check(!r.values.empty(), "MEAS_DIR_GALACTIC returns value");
     auto* vec = std::get_if<std::vector<double>>(&r.values[0]);
     check(vec != nullptr && vec->size() == 2, "MEAS_DIR_GAL returns 2-element vector");
@@ -345,8 +335,7 @@ static void test_meas_epoch_tai() {
     // TAI should be slightly larger than UTC (by leap seconds / 86400)
     check(tai_mjd > 51544.0, "TAI > UTC");
     double diff_seconds = (tai_mjd - 51544.0) * 86400.0;
-    check(diff_seconds > 20 && diff_seconds < 50,
-          "TAI-UTC offset is reasonable (20-50 seconds)");
+    check(diff_seconds > 20 && diff_seconds < 50, "TAI-UTC offset is reasonable (20-50 seconds)");
 }
 
 // ---------------------------------------------------------------------------
@@ -432,7 +421,6 @@ int main() {
     run(test_pattern_func, "test_pattern_func");
     run(test_regex_func, "test_regex_func");
 
-    std::cout << "taql_udf_equiv_test: " << g_pass << " passed, "
-              << g_fail << " failed\n";
+    std::cout << "taql_udf_equiv_test: " << g_pass << " passed, " << g_fail << " failed\n";
     return g_fail == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
