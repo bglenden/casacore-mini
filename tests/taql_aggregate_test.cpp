@@ -172,7 +172,7 @@ void test_groupby_gsum() {
 
     // Find the sums per category.
     // Groups should be A(30), B(70), C(110) in some order.
-    double sums[3];
+    double sums[3] = {};
     for (std::size_t i = 0; i < 3; ++i) {
         sums[i] = std::get<double>(result.values[i * 2 + 1]);
     }
