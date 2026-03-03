@@ -21,19 +21,19 @@ namespace casacore_mini {
 /// is called. This matches the SsmWriter/TiledStManWriter model which requires
 /// a known row count at setup time.
 
-/// 
+///
 /// Batch writer that accumulates MeasurementSet rows in memory and writes
 /// them to disk in a single flush.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS container that receives the data
 ///   - MsSubtables — column schemas used when creating subtable rows
-/// 
 ///
-/// 
+///
+///
 /// `MsWriter` implements the standard casacore-mini write pattern:
 /// accumulate all rows in memory, then write the complete dataset with one
 /// `flush()` call.  This approach allows the underlying storage
@@ -62,7 +62,7 @@ namespace casacore_mini {
 ///   - `MsObservationRow` — one OBSERVATION subtable row
 ///   - `MsStateRow`       — one STATE subtable row
 ///
-/// 
+///
 ///
 /// @par Example
 /// Build a minimal two-antenna, single-SPW MeasurementSet from scratch:
@@ -100,14 +100,14 @@ namespace casacore_mini {
 ///                   .weight={1.0f, 1.0f}});
 ///   writer.flush();
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Separating the accumulation phase from the write phase lets the storage
 /// manager preallocate contiguous blocks of the correct size rather than
 /// growing the file incrementally one row at a time.  This produces compact,
 /// well-aligned table files that read back efficiently.
-/// 
+///
 
 /// A single main-table row's scalar + array data.
 struct MsMainRow {

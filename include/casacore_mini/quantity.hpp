@@ -15,7 +15,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// A Quantity pairs a `double` numeric value with a Unit, enabling
 /// dimension-aware arithmetic and lossless unit conversion.  The design
 /// mirrors casacore-original's `Quantum<double>` (also called
@@ -29,7 +29,7 @@ namespace casacore_mini {
 /// construction time, so constructing a Quantity with an unknown or
 /// dimensionally inconsistent unit is not an error until a conversion or
 /// comparison is attempted.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -49,7 +49,7 @@ namespace casacore_mini {
 ///   // Scalar scaling
 ///   Quantity double_freq = freq * 2.0;         // 3.0 GHz
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Radio-astronomy data pipelines mix many physical quantities — frequencies,
@@ -57,11 +57,11 @@ namespace casacore_mini {
 /// Wrapping a numeric value together with its unit prevents the common error
 /// of silently applying a computation in the wrong unit and makes interface
 /// contracts self-documenting.
-/// 
+///
 
 /// A physical quantity: a double value paired with a Unit.
 ///
-/// 
+///
 /// Supports conversion between any dimensionally compatible units, arithmetic
 /// between quantities, and scalar multiplication/division.  Backward-compatible
 /// with the original `Quantity{double, string}` aggregate -- `value` is a
@@ -75,7 +75,7 @@ namespace casacore_mini {
 /// Comparison operators convert the right-hand operand to the left-hand
 /// unit before comparing numeric values.  Comparing dimensionally
 /// incompatible quantities throws `std::invalid_argument`.
-/// 
+///
 class Quantity {
   public:
     /// The numeric value in the stored unit.  Public for backward compatibility.
@@ -107,11 +107,11 @@ class Quantity {
 
     /// Convert to a different unit (must be dimensionally conformant).
     ///
-    /// 
+    ///
     /// Scales `value` by the ratio of the stored unit's SI factor
     /// to the target unit's SI factor, then wraps the result in a new
     /// Quantity with the target unit.  Dimension vectors must match exactly.
-    /// 
+    ///
     ///
     /// @throws std::invalid_argument on dimension mismatch or unknown unit.
     [[nodiscard]] Quantity convert(const Unit& target) const;
@@ -162,11 +162,11 @@ class Quantity {
 
 /// Convert a quantity to a different unit (free-function form for backward compatibility).
 ///
-/// 
+///
 /// Equivalent to `q.convert(target_unit)`.  Provided for
 /// compatibility with call sites that use the free-function spelling from
 /// casacore-original's Quantum utilities.
-/// 
+///
 ///
 /// @throws std::invalid_argument if the conversion is not supported.
 [[nodiscard]] Quantity convert_quantity(const Quantity& q, std::string_view target_unit);

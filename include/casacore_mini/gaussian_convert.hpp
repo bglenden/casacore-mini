@@ -14,7 +14,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// Gaussian source fitting in radio astronomy produces shape parameters
 /// (major axis FWHM, minor axis FWHM, position angle) in world coordinates
 /// (radians on the sky) or in pixel coordinates (pixels, degrees measured
@@ -30,10 +30,11 @@ namespace casacore_mini {
 /// (major, minor, position_angle), preserving units consistent with the
 /// input domain:
 /// <dl>
-///   <dt>World domain</dt>  <dd>major_rad, minor_rad in radians; pa_rad in radians (N through E).</dd>
-///   <dt>Pixel domain</dt>  <dd>major_pix, minor_pix in pixels; pa_pix in radians (pixel +x axis).</dd>
+///   <dt>World domain</dt>  <dd>major_rad, minor_rad in radians; pa_rad in radians (N through
+///   E).</dd> <dt>Pixel domain</dt>  <dd>major_pix, minor_pix in pixels; pa_pix in radians (pixel
+///   +x axis).</dd>
 /// </dl>
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -54,7 +55,7 @@ namespace casacore_mini {
 ///
 ///   // Round-trip should recover the original values to floating-point precision
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// The Gaussian shape conversion is algebraically straightforward for
@@ -62,16 +63,16 @@ namespace casacore_mini {
 /// angle rotation when pixel axes are not aligned with world axes.
 /// Encapsulating it in a dedicated header avoids duplicating the Jacobian
 /// logic across image analysis tools.
-/// 
+///
 
 /// Convert a Gaussian source shape from world to pixel coordinates.
 ///
-/// 
+///
 /// Uses the local Jacobian of `coord`'s pixel-to-world transform
 /// evaluated at `pixel` to transform the ellipse parameters.
 /// The position angle is measured North through East in world space and is
 /// rotated into the pixel frame accounting for the local sky orientation.
-/// 
+///
 ///
 /// @param major_rad  Major axis FWHM in radians.
 /// @param minor_rad  Minor axis FWHM in radians.
@@ -85,11 +86,11 @@ gaussian_world_to_pixel(double major_rad, double minor_rad, double pa_rad,
 
 /// Convert a Gaussian source shape from pixel to world coordinates.
 ///
-/// 
+///
 /// Inverse of `gaussian_world_to_pixel`.  Uses the world-to-pixel
 /// Jacobian to map pixel-domain ellipse parameters back to the world frame.
 /// The position angle in the returned tuple is measured North through East.
-/// 
+///
 ///
 /// @param major_pix  Major axis FWHM in pixels.
 /// @param minor_pix  Minor axis FWHM in pixels.

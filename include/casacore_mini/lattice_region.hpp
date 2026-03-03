@@ -24,13 +24,13 @@ namespace casacore_mini {
 
 // ── LcRegion (abstract base) ─────────────────────────────────────────
 
-/// 
+///
 /// Abstract base class for lattice-coordinate (pixel-domain) regions.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// An `LcRegion` describes a region expressed in pixel coordinates within a
 /// lattice of known shape.  Every `LcRegion` has:
 ///
@@ -56,7 +56,7 @@ namespace casacore_mini {
 /// - `LcPagedMask` — persistent mask (stub).
 /// - `LcUnion`, `LcIntersection`, `LcDifference`, `LcComplement`, `LcExtension`
 ///   — set-algebra compound regions.
-/// 
+///
 ///
 /// @par Motivation
 /// Separating the pixel-domain representation (`LcRegion`) from the world-
@@ -64,7 +64,7 @@ namespace casacore_mini {
 /// entirely with integer pixel ranges and boolean masks once the coordinate
 /// transformation has been applied, without re-evaluating the WCS for each
 /// pixel.
-/// 
+///
 class LcRegion {
   public:
     virtual ~LcRegion() = default;
@@ -77,36 +77,51 @@ class LcRegion {
     [[nodiscard]] virtual Record to_record() const = 0;
 
     /// Dimensionality.
-    [[nodiscard]] std::size_t ndim() const { return lattice_shape_.ndim(); }
+    [[nodiscard]] std::size_t ndim() const {
+        return lattice_shape_.ndim();
+    }
     /// Shape of the lattice this region lives in.
-    [[nodiscard]] const IPosition& lattice_shape() const { return lattice_shape_; }
+    [[nodiscard]] const IPosition& lattice_shape() const {
+        return lattice_shape_;
+    }
     /// Bounding box within the lattice.
-    [[nodiscard]] const Slicer& bounding_box() const { return bounding_box_; }
+    [[nodiscard]] const Slicer& bounding_box() const {
+        return bounding_box_;
+    }
     /// Shape of the bounding box.
-    [[nodiscard]] IPosition shape() const { return bounding_box_.length(); }
+    [[nodiscard]] IPosition shape() const {
+        return bounding_box_.length();
+    }
 
     /// Whether this region has a non-trivial mask within its bounding box.
     /// If false, all pixels in the bounding box are included.
-    [[nodiscard]] virtual bool has_mask() const { return false; }
+    [[nodiscard]] virtual bool has_mask() const {
+        return false;
+    }
     /// Boolean mask over the bounding box (true = included).
     /// Default: all-true mask matching bounding box shape.
     [[nodiscard]] virtual LatticeArray<bool> get_mask() const;
 
     /// Optional comment/description.
-    [[nodiscard]] const std::string& comment() const { return comment_; }
-    void set_comment(std::string c) { comment_ = std::move(c); }
+    [[nodiscard]] const std::string& comment() const {
+        return comment_;
+    }
+    void set_comment(std::string c) {
+        comment_ = std::move(c);
+    }
 
     /// Restore an LcRegion from a serialized Record (type dispatch).
-    [[nodiscard]] static std::unique_ptr<LcRegion>
-    from_record(const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static std::unique_ptr<LcRegion> from_record(const Record& rec,
+                                                               const IPosition& lattice_shape);
 
   protected:
     LcRegion() : lattice_shape_(), bounding_box_(IPosition{0}, IPosition{0}) {}
     LcRegion(IPosition lattice_shape, Slicer bounding_box)
-        : lattice_shape_(std::move(lattice_shape)),
-          bounding_box_(std::move(bounding_box)) {}
+        : lattice_shape_(std::move(lattice_shape)), bounding_box_(std::move(bounding_box)) {}
 
-    void set_bounding_box(Slicer bb) { bounding_box_ = std::move(bb); }
+    void set_bounding_box(Slicer bb) {
+        bounding_box_ = std::move(bb);
+    }
 
   private:
     IPosition lattice_shape_;
@@ -116,20 +131,20 @@ class LcRegion {
 
 // ── LcBox ────────────────────────────────────────────────────────────
 
-/// 
+///
 /// Rectangular region in pixel coordinates.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LcBox` is the simplest `LcRegion`: an axis-aligned rectangle defined by
 /// `blc` (bottom-left corner) and `trc` (top-right corner) in 0-based pixel
 /// coordinates.  Because the region is a full rectangle, `has_mask()` returns
 /// `false` and `get_mask()` produces an all-true mask.
 ///
 /// Constructors accept either explicit corner pairs or a `Slicer`.
-/// 
+///
 class LcBox : public LcRegion {
   public:
     /// Construct from explicit corners.
@@ -137,16 +152,22 @@ class LcBox : public LcRegion {
     /// Construct from a Slicer.
     LcBox(Slicer slicer, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcBox"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcBox";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] static std::unique_ptr<LcBox>
-    from_record(const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static std::unique_ptr<LcBox> from_record(const Record& rec,
+                                                            const IPosition& lattice_shape);
 
     /// Bottom-left corner.
-    [[nodiscard]] const IPosition& blc() const { return blc_; }
+    [[nodiscard]] const IPosition& blc() const {
+        return blc_;
+    }
     /// Top-right corner.
-    [[nodiscard]] const IPosition& trc() const { return trc_; }
+    [[nodiscard]] const IPosition& trc() const {
+        return trc_;
+    }
 
   private:
     IPosition blc_;
@@ -155,31 +176,37 @@ class LcBox : public LcRegion {
 
 // ── LcPixelSet ───────────────────────────────────────────────────────
 
-/// 
+///
 /// Region defined by an explicit boolean mask over a bounding box.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LcPixelSet` allows any arbitrary shape to be expressed as a boolean mask
 /// over a rectangular sub-region of the lattice.  The `blc` of the sub-region
 /// is specified at construction; the mask dimensions define the bounding-box
 /// size implicitly.
-/// 
+///
 class LcPixelSet : public LcRegion {
   public:
     /// Construct from a mask and its origin in the lattice.
     LcPixelSet(LatticeArray<bool> mask, IPosition blc, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcPixelSet"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcPixelSet";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
-    [[nodiscard]] LatticeArray<bool> get_mask() const override { return mask_; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
+    [[nodiscard]] LatticeArray<bool> get_mask() const override {
+        return mask_;
+    }
 
-    [[nodiscard]] static std::unique_ptr<LcPixelSet>
-    from_record(const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static std::unique_ptr<LcPixelSet> from_record(const Record& rec,
+                                                                 const IPosition& lattice_shape);
 
   private:
     LatticeArray<bool> mask_;
@@ -191,20 +218,27 @@ class LcPixelSet : public LcRegion {
 class LcEllipsoid : public LcRegion {
   public:
     /// Construct from center, semi-axes, and lattice shape.
-    LcEllipsoid(std::vector<double> center, std::vector<double> semi_axes,
-                IPosition lattice_shape);
+    LcEllipsoid(std::vector<double> center, std::vector<double> semi_axes, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcEllipsoid"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcEllipsoid";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
-    [[nodiscard]] static std::unique_ptr<LcEllipsoid>
-    from_record(const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static std::unique_ptr<LcEllipsoid> from_record(const Record& rec,
+                                                                  const IPosition& lattice_shape);
 
-    [[nodiscard]] const std::vector<double>& center() const { return center_; }
-    [[nodiscard]] const std::vector<double>& semi_axes() const { return semi_axes_; }
+    [[nodiscard]] const std::vector<double>& center() const {
+        return center_;
+    }
+    [[nodiscard]] const std::vector<double>& semi_axes() const {
+        return semi_axes_;
+    }
 
   private:
     void compute_bounding_box();
@@ -219,20 +253,27 @@ class LcEllipsoid : public LcRegion {
 class LcPolygon : public LcRegion {
   public:
     /// Construct from vertex x/y arrays and 2D lattice shape.
-    LcPolygon(std::vector<double> x, std::vector<double> y,
-              IPosition lattice_shape);
+    LcPolygon(std::vector<double> x, std::vector<double> y, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcPolygon"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcPolygon";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
-    [[nodiscard]] static std::unique_ptr<LcPolygon>
-    from_record(const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static std::unique_ptr<LcPolygon> from_record(const Record& rec,
+                                                                const IPosition& lattice_shape);
 
-    [[nodiscard]] const std::vector<double>& x() const { return x_; }
-    [[nodiscard]] const std::vector<double>& y() const { return y_; }
+    [[nodiscard]] const std::vector<double>& x() const {
+        return x_;
+    }
+    [[nodiscard]] const std::vector<double>& y() const {
+        return y_;
+    }
 
   private:
     void compute_bounding_box_and_mask();
@@ -250,11 +291,17 @@ class LcMask : public LcRegion {
     /// Construct from a full-lattice mask.
     LcMask(LatticeArray<bool> mask, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcMask"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcMask";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
-    [[nodiscard]] LatticeArray<bool> get_mask() const override { return mask_; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
+    [[nodiscard]] LatticeArray<bool> get_mask() const override {
+        return mask_;
+    }
 
   private:
     LatticeArray<bool> mask_;
@@ -267,10 +314,14 @@ class LcPagedMask : public LcRegion {
   public:
     LcPagedMask(IPosition lattice_shape, IPosition mask_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcPagedMask"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcPagedMask";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
   private:
@@ -282,16 +333,21 @@ class LcPagedMask : public LcRegion {
 /// Union of multiple LC regions.
 class LcUnion : public LcRegion {
   public:
-    LcUnion(std::vector<std::unique_ptr<LcRegion>> regions,
-            IPosition lattice_shape);
+    LcUnion(std::vector<std::unique_ptr<LcRegion>> regions, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcUnion"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcUnion";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
-    [[nodiscard]] std::size_t n_regions() const { return regions_.size(); }
+    [[nodiscard]] std::size_t n_regions() const {
+        return regions_.size();
+    }
     [[nodiscard]] const LcRegion& region(std::size_t i) const {
         return *regions_.at(i);
     }
@@ -303,16 +359,21 @@ class LcUnion : public LcRegion {
 /// Intersection of multiple LC regions.
 class LcIntersection : public LcRegion {
   public:
-    LcIntersection(std::vector<std::unique_ptr<LcRegion>> regions,
-                   IPosition lattice_shape);
+    LcIntersection(std::vector<std::unique_ptr<LcRegion>> regions, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcIntersection"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcIntersection";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
-    [[nodiscard]] std::size_t n_regions() const { return regions_.size(); }
+    [[nodiscard]] std::size_t n_regions() const {
+        return regions_.size();
+    }
     [[nodiscard]] const LcRegion& region(std::size_t i) const {
         return *regions_.at(i);
     }
@@ -324,14 +385,17 @@ class LcIntersection : public LcRegion {
 /// Difference of two LC regions (first minus second).
 class LcDifference : public LcRegion {
   public:
-    LcDifference(std::unique_ptr<LcRegion> region1,
-                 std::unique_ptr<LcRegion> region2,
+    LcDifference(std::unique_ptr<LcRegion> region1, std::unique_ptr<LcRegion> region2,
                  IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcDifference"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcDifference";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
   private:
@@ -344,10 +408,14 @@ class LcComplement : public LcRegion {
   public:
     LcComplement(std::unique_ptr<LcRegion> region, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcComplement"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcComplement";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] bool has_mask() const override { return true; }
+    [[nodiscard]] bool has_mask() const override {
+        return true;
+    }
     [[nodiscard]] LatticeArray<bool> get_mask() const override;
 
   private:
@@ -358,12 +426,12 @@ class LcComplement : public LcRegion {
 class LcExtension : public LcRegion {
   public:
     /// Extend `region` along axes specified by `extend_axes` with given lengths.
-    LcExtension(std::unique_ptr<LcRegion> region,
-                std::vector<std::size_t> extend_axes,
-                IPosition extend_lengths,
-                IPosition lattice_shape);
+    LcExtension(std::unique_ptr<LcRegion> region, std::vector<std::size_t> extend_axes,
+                IPosition extend_lengths, IPosition lattice_shape);
 
-    [[nodiscard]] std::string type() const override { return "LcExtension"; }
+    [[nodiscard]] std::string type() const override {
+        return "LcExtension";
+    }
     [[nodiscard]] std::unique_ptr<LcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
     [[nodiscard]] bool has_mask() const override;
@@ -377,13 +445,13 @@ class LcExtension : public LcRegion {
 
 // ── LatticeRegion ────────────────────────────────────────────────────
 
-/// 
+///
 /// Holder wrapping an LcRegion with optional stride/slicer support.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LatticeRegion` is a thin wrapper around a heap-allocated `LcRegion` that
 /// optionally associates a `Slicer` for strided sub-lattice access.  It is
 /// the type stored in image keywords for named pixel-domain regions.
@@ -391,23 +459,31 @@ class LcExtension : public LcRegion {
 /// `has_slicer()` is `true` when the region was constructed from a `Slicer`.
 /// Both the enclosed `LcRegion` and the `Slicer` are serializable to and from
 /// a `Record`.
-/// 
+///
 class LatticeRegion {
   public:
     LatticeRegion() = default;
     explicit LatticeRegion(std::unique_ptr<LcRegion> region);
     LatticeRegion(std::unique_ptr<LcRegion> region, Slicer slicer);
 
-    [[nodiscard]] bool has_region() const { return region_ != nullptr; }
-    [[nodiscard]] const LcRegion& region() const { return *region_; }
-    [[nodiscard]] const Slicer& slicer() const { return slicer_; }
-    [[nodiscard]] bool has_slicer() const { return has_slicer_; }
+    [[nodiscard]] bool has_region() const {
+        return region_ != nullptr;
+    }
+    [[nodiscard]] const LcRegion& region() const {
+        return *region_;
+    }
+    [[nodiscard]] const Slicer& slicer() const {
+        return slicer_;
+    }
+    [[nodiscard]] bool has_slicer() const {
+        return has_slicer_;
+    }
 
     /// Serialize to Record.
     [[nodiscard]] Record to_record() const;
     /// Restore from Record.
-    [[nodiscard]] static LatticeRegion from_record(
-        const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static LatticeRegion from_record(const Record& rec,
+                                                   const IPosition& lattice_shape);
 
   private:
     std::unique_ptr<LcRegion> region_;

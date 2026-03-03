@@ -15,19 +15,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Concatenate two MeasurementSets into one.
 
-/// 
+///
 /// Concatenate two MeasurementSets into a new output MeasurementSet,
 /// deduplicating shared subtable rows and remapping ID columns.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS containers being concatenated
 ///   - MsWriter — used internally to write the output MS
-/// 
 ///
-/// 
+///
+///
 /// `ms_concat()` produces a new MeasurementSet at
 /// `output_path` whose main table contains all rows from both
 /// `ms1` and `ms2`, in that order.
@@ -45,7 +45,7 @@ namespace casacore_mini {
 ///
 /// An exception is thrown if the two MSes have incompatible schemas (e.g.
 /// one has a DATA column and the other does not).
-/// 
+///
 ///
 /// @par Example
 /// Concatenate two observations of the same field into one MS:
@@ -62,7 +62,7 @@ namespace casacore_mini {
 ///   for (auto [old_id, new_id] : ant_remap)
 ///       std::cout << "ANT old=" << old_id << " -> new=" << new_id << "\n";
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Concatenation with automatic ID remapping is a prerequisite for building
@@ -70,7 +70,7 @@ namespace casacore_mini {
 /// different array configurations that share some antennas and fields but
 /// introduce others.  Encapsulating the remapping logic here prevents
 /// callers from having to manage the bookkeeping manually.
-/// 
+///
 
 /// Result of an MS concatenation.
 struct MsConcatResult {

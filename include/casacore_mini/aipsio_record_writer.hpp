@@ -13,7 +13,7 @@ namespace casacore_mini {
 
 /// Write a casacore-compatible `Record` into an `AipsIO` byte stream.
 ///
-/// 
+///
 /// Produces the binary format consumed by `read_aipsio_record`: a Record
 /// object header, RecordDesc, recordType flag, and encoded field values.
 /// The output is byte-for-byte compatible with the format written by
@@ -36,7 +36,7 @@ namespace casacore_mini {
 /// - `list_ptr` alternatives also throw (no casacore wire encoding).
 /// - Bool arrays decoded by `read_aipsio_record` become `int32_array` and
 ///   the writer emits them as `Array<Int>`, not `Array<Bool>`.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -46,7 +46,7 @@ namespace casacore_mini {
 ///   write_aipsio_record(writer, rec);
 ///   auto bytes = writer.take_bytes();
 /// @endcode
-/// 
+///
 ///
 /// @note `uint64_t` scalar values are not representable in casacore's DataType
 /// enum and will throw. `list_ptr` alternatives also throw as they have no

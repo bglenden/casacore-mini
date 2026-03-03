@@ -13,19 +13,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Quality coordinate: discrete integer mapping for data/error quality axis.
 
-/// 
+///
 /// Single-axis coordinate that maps integer pixel indices to data-quality
 /// codes (DATA, ERROR, etc.) for images carrying quality-plane information.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - Coordinate — abstract base class
 ///   - StokesCoordinate — analogous design for the polarization axis
-/// 
 ///
-/// 
+///
+///
 /// QualityCoordinate is structurally analogous to StokesCoordinate but
 /// serves a different semantic purpose: it labels image planes that carry
 /// different quality categories of the same data (e.g. calibrated data,
@@ -47,7 +47,7 @@ namespace casacore_mini {
 /// linear search for the requested code.
 ///
 /// The world axis name is "Quality" and the unit is an empty string.
-/// 
+///
 ///
 /// @par Example
 /// Create a two-plane quality axis carrying calibrated data and its noise:
@@ -66,7 +66,7 @@ namespace casacore_mini {
 ///   // Inverse: which pixel is the ERROR plane?
 ///   auto pixel = qual.to_pixel({1.0}); // pixel[0] == 1.0
 /// @endcode
-/// 
+///
 class QualityCoordinate : public Coordinate {
   public:
     /// Construct from a list of quality codes.

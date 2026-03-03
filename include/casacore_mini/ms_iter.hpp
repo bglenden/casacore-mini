@@ -13,18 +13,18 @@ namespace casacore_mini {
 /// @file
 /// @brief MsIter: iterate over MS rows grouped by (ARRAY_ID, FIELD_ID, DATA_DESC_ID).
 
-/// 
+///
 /// Iteration utilities for grouping MeasurementSet rows by key fields or
 /// by time intervals.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS container whose main table is scanned
-/// 
 ///
-/// 
+///
+///
 /// This header provides two complementary strategies for iterating over the
 /// rows of a MeasurementSet main table:
 ///
@@ -44,7 +44,7 @@ namespace casacore_mini {
 ///
 /// Both functions return their results in a single pass and do not modify
 /// the MeasurementSet.
-/// 
+///
 ///
 /// @par Example
 /// Group main-table rows by (ARRAY_ID, FIELD_ID, DATA_DESC_ID) and process
@@ -59,7 +59,7 @@ namespace casacore_mini {
 ///                 << " rows=" << chunk.rows.size() << "\n";
 ///   }
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Group rows into 10-second time bins:
@@ -72,7 +72,7 @@ namespace casacore_mini {
 ///                 << " rows=" << bin.rows.size() << "\n";
 ///   }
 /// @endcode
-/// 
+///
 
 /// A chunk of contiguous rows sharing the same grouping key.
 struct MsIterChunk {

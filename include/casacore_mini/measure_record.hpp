@@ -13,7 +13,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// Provides lossless round-trip serialization of Measure values to and from
 /// casacore-original's MeasureHolder Record layout, enabling storage as
 /// table keywords, column keywords, and CoordinateSystem sub-records.
@@ -40,7 +40,7 @@ namespace casacore_mini {
 ///   <dt>uvw</dt>            <dd>3 components (u, v, w), unit "m".</dd>
 ///   <dt>earth_magnetic</dt> <dd>3 components (x, y, z), unit "T".</dd>
 /// </dl>
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -62,7 +62,7 @@ namespace casacore_mini {
 ///   Record obs_rec = table.key_record("EPOCH");
 ///   Measure obs_ep = measure_from_record(obs_rec);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// casacore-original stores measures as MeasureHolder Records with a
@@ -70,16 +70,16 @@ namespace casacore_mini {
 /// SOURCE, FIELD, etc.).  Implementing the same layout allows casacore-mini
 /// tables to be read by upstream casacore tools and vice versa without a
 /// conversion step.
-/// 
+///
 
 /// Convert a Measure to a Record matching casacore's MeasureHolder format.
 ///
-/// 
+///
 /// Serializes all fields of the Measure including the optional offset.
 /// The returned Record is a self-contained representation that can be
 /// stored as a table keyword or CoordinateSystem sub-record and later
 /// reconstructed with `measure_from_record`.
-/// 
+///
 ///
 /// @param m  The measure to serialize.
 /// @return   A Record in MeasureHolder format.
@@ -95,12 +95,12 @@ namespace casacore_mini {
 
 /// Parse a Record in MeasureHolder format back to a Measure.
 ///
-/// 
+///
 /// Reads all fields written by `measure_to_record` and
 /// reconstructs the Measure value, including any nested offset.
 /// Field names are matched case-insensitively for the "type" and "refer"
 /// keys to accommodate minor formatting differences in older data files.
-/// 
+///
 ///
 /// @param rec  The Record to parse.
 /// @return     The reconstructed Measure.

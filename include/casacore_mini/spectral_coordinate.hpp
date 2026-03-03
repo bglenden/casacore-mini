@@ -14,10 +14,10 @@ namespace casacore_mini {
 /// @file
 /// @brief Spectral coordinate: linear frequency channel mapping.
 
-/// 
+///
 /// Single-axis coordinate mapping pixel channel indices to physical
 /// frequencies via a linear transform.
-/// 
+///
 ///
 ///
 ///
@@ -25,9 +25,9 @@ namespace casacore_mini {
 ///   - Coordinate — abstract base class
 ///   - FrequencyRef — enumeration of supported frequency reference frames
 ///         (LSRK, LSRD, BARY, TOPO, etc.)
-/// 
 ///
-/// 
+///
+///
 /// SpectralCoordinate represents a single spectral (frequency) axis.  The
 /// pixel-to-world mapping is purely linear:
 ///
@@ -48,7 +48,7 @@ namespace casacore_mini {
 /// velocities relative to a spectral line.
 ///
 /// The world axis name is "Frequency" and the unit is "Hz".
-/// 
+///
 ///
 /// @par Example
 /// Construct a 1024-channel LSRK spectral axis centred on the HI 21-cm line:
@@ -72,7 +72,7 @@ namespace casacore_mini {
 ///   // Inverse: which channel corresponds to 1.421 GHz?
 ///   auto pixel = spec.to_pixel({1.421e9});
 /// @endcode
-/// 
+///
 class SpectralCoordinate : public Coordinate {
   public:
     /// Construct a spectral coordinate.

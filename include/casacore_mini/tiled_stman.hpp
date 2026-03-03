@@ -23,13 +23,13 @@ class Table; // forward declaration for friend access
 /// Supports TiledColumnStMan, TiledCellStMan, TiledShapeStMan, and
 /// TiledDataStMan for fixed-shape array columns with a single hypercube.
 
-/// 
+///
 /// Read-only TSM reader for a single table directory.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// The Tiled Storage Manager stores multidimensional array data in tile-based
 /// hypercubes.  Each hypercube is described by a `.f0` AipsIO header file
 /// that specifies the tile shape, cube shape, and column layout.  The actual
@@ -48,7 +48,7 @@ class Table; // forward declaration for friend access
 /// Usage:
 /// 1. Call `open()` with the table directory, SM index, and parsed table.dat.
 /// 2. Call the typed `read_*_cell()` methods by column name and row.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -56,14 +56,14 @@ class Table; // forward declaration for friend access
 ///   reader.open("my_image.image", 0, table_dat);
 ///   auto pixels = reader.read_float_cell("map", 0);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// The TSM is the dominant storage manager for CASA image data and for
 /// visibility data columns (DATA, FLAG, WEIGHT_SPECTRUM) in large measurement
 /// sets.  Its tile layout enables efficient I/O for both sequential and random
 /// multi-dimensional access patterns.
-/// 
+///
 class TiledStManReader {
   public:
     /// Open a TSM data file pair (.f0 header + .f0_TSM0 data) for reading.
@@ -173,13 +173,13 @@ class TiledStManReader {
     std::vector<std::vector<std::uint8_t>> tsm_file_data_;
 };
 
-/// 
+///
 /// Write-only TSM writer for producing a complete TSM table directory.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `TiledStManWriter` writes the `.f0` AipsIO header and the `_TSM0` data
 /// file for a single hypercube.  It supports `TiledColumnStMan` and
 /// `TiledCellStMan` layouts for fixed-shape array columns.
@@ -194,7 +194,7 @@ class TiledStManReader {
 /// 2. Call `write_*_cell()` for each cell.
 /// 3. Call `make_blob()` to produce the TSM blob for `table.dat`.
 /// 4. Call `write_files()` to write the `.f0` and `_TSM0` files.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -205,7 +205,7 @@ class TiledStManReader {
 ///   }
 ///   writer.write_files("my_image.image", 0);
 /// @endcode
-/// 
+///
 class TiledStManWriter {
   public:
     /// Set up the writer with column descriptors and row count.
@@ -227,13 +227,11 @@ class TiledStManWriter {
                            std::uint64_t row);
 
     /// Write all array elements for a cell (Complex = pairs of float).
-    void write_complex_cell(std::size_t col_index,
-                            const std::vector<std::complex<float>>& values,
+    void write_complex_cell(std::size_t col_index, const std::vector<std::complex<float>>& values,
                             std::uint64_t row);
 
     /// Write all array elements for a cell (Bool = 1 byte each).
-    void write_bool_cell(std::size_t col_index, const std::vector<bool>& values,
-                         std::uint64_t row);
+    void write_bool_cell(std::size_t col_index, const std::vector<bool>& values, std::uint64_t row);
 
     /// Write all array elements for a cell (Int).
     void write_int_cell(std::size_t col_index, const std::vector<std::int32_t>& values,

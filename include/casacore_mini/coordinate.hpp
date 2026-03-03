@@ -16,13 +16,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Abstract coordinate base class and CoordinateType enum.
 
-/// 
+///
 /// Discriminator enumeration identifying the concrete type of a Coordinate.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Every concrete coordinate subclass carries one of these values, returned
 /// by `Coordinate::type()`.  The value is used by the factory
 /// function `Coordinate::restore()` to dispatch to the correct
@@ -30,7 +30,7 @@ namespace casacore_mini {
 ///
 /// The numeric values are stable across versions so that serialized Records
 /// remain compatible.
-/// 
+///
 enum class CoordinateType : std::uint8_t {
     linear,
     direction,
@@ -46,19 +46,19 @@ enum class CoordinateType : std::uint8_t {
 /// @throws std::invalid_argument if unrecognized.
 [[nodiscard]] CoordinateType string_to_coordinate_type(std::string_view s);
 
-/// 
+///
 /// Abstract base class defining the pixel/world transform contract for all
 /// coordinate types.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - Record — the serialization container used by save()/restore()
 ///   - CoordinateType — discriminator returned by type()
-/// 
 ///
-/// 
+///
+///
 /// Coordinate is the common interface shared by all concrete coordinate
 /// classes: DirectionCoordinate, SpectralCoordinate, StokesCoordinate,
 /// LinearCoordinate, TabularCoordinate, and QualityCoordinate.
@@ -80,7 +80,7 @@ enum class CoordinateType : std::uint8_t {
 /// CoordinateSystem takes ownership via unique_ptr.  Protected copy/move
 /// special members are provided so that clone() implementations in derived
 /// classes can delegate to the compiler-generated copy constructor.
-/// 
+///
 ///
 /// @par Example
 /// Typical usage through a derived class:
@@ -104,7 +104,7 @@ enum class CoordinateType : std::uint8_t {
 ///   Record rec = spec.save();
 ///   auto restored = Coordinate::restore(rec);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// A common abstract interface allows CoordinateSystem to store heterogeneous
@@ -112,7 +112,7 @@ enum class CoordinateType : std::uint8_t {
 /// transforms uniformly without knowing the concrete type at the call site.
 /// The type() discriminator is reserved for the factory and for code that
 /// genuinely needs to downcast.
-/// 
+///
 class Coordinate {
   public:
     virtual ~Coordinate() = default;

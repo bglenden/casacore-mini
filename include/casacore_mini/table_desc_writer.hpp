@@ -16,7 +16,7 @@ namespace casacore_mini {
 
 /// Serialize a complete table.dat file from a `TableDatFull` structure.
 ///
-/// 
+///
 /// Produces the complete binary content of a casacore `table.dat` file,
 /// including:
 /// - The `Table` object header (version 2 format).
@@ -32,7 +32,7 @@ namespace casacore_mini {
 /// callers that compose multiple sections in a single buffer.
 /// `serialize_table_dat_full` wraps this in a standalone byte vector for
 /// convenience.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -45,7 +45,7 @@ namespace casacore_mini {
 ///   std::ofstream("my_table/table.dat", std::ios::binary).write(
 ///       reinterpret_cast<const char*>(bytes.data()), bytes.size());
 /// @endcode
-/// 
+///
 ///
 /// @throws std::runtime_error if any field exceeds wire format limits.
 [[nodiscard]] std::vector<std::uint8_t> serialize_table_dat_full(const TableDatFull& table);

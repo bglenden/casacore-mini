@@ -15,7 +15,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// Provides the full set of WCS (World Coordinate System) map projections
 /// as defined in the FITS WCS Papers I-IV and implemented by the WCSLIB
 /// library.  Each projection is identified by its canonical 3-letter FITS
@@ -33,7 +33,7 @@ namespace casacore_mini {
 ///
 /// Helper free functions convert between the enum and its FITS code string
 /// and report the expected parameter count for each projection.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -52,11 +52,11 @@ namespace casacore_mini {
 ///   assert(projection_parameter_count(ProjectionType::tan) == 0);
 ///   assert(projection_parameter_count(ProjectionType::sin) == 2);
 /// @endcode
-/// 
+///
 
 /// WCS map projection types identified by their FITS 3-letter codes.
 ///
-/// 
+///
 /// All 28 zenithal, cylindrical, pseudo-cylindrical, conic, and
 /// HEALPix projections defined in the FITS WCS standard are represented.
 /// The enumerator names are the lowercase 3-letter codes.  Use
@@ -71,7 +71,7 @@ namespace casacore_mini {
 ///   <dt>ait</dt>    <dd>Hammer-Aitoff all-sky projection.</dd>
 ///   <dt>car</dt>    <dd>Plate Carree (equirectangular).</dd>
 /// </dl>
-/// 
+///
 enum class ProjectionType : std::uint8_t {
     azp, ///< Zenithal/azimuthal perspective
     szp, ///< Slant zenithal perspective
@@ -113,7 +113,7 @@ enum class ProjectionType : std::uint8_t {
 
 /// Return the expected parameter count for a projection type.
 ///
-/// 
+///
 /// Most projections have 0 parameters and are fully defined by the WCS
 /// CRVAL/CRPIX/CD keywords.  Projections with non-zero counts:
 /// <dl>
@@ -128,12 +128,12 @@ enum class ProjectionType : std::uint8_t {
 ///   <dt>hpx</dt> <dd>2</dd>
 ///   <dt>zpn</dt> <dd>up to 20</dd>
 /// </dl>
-/// 
+///
 [[nodiscard]] std::size_t projection_parameter_count(ProjectionType p);
 
 /// A WCS projection with type and optional numeric parameters.
 ///
-/// 
+///
 /// Projection pairs a ProjectionType with its parameter vector.  The
 /// parameter vector may be empty for projections that require none.  When
 /// non-empty its length should match the value returned by
@@ -141,7 +141,7 @@ enum class ProjectionType : std::uint8_t {
 /// construction time; validation is deferred to the WCS library call site.
 ///
 /// Projection objects compare equal when both type and all parameters match.
-/// 
+///
 struct Projection {
     ProjectionType type = ProjectionType::sin;
     std::vector<double> parameters;

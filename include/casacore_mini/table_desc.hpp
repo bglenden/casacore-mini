@@ -18,13 +18,13 @@ namespace casacore_mini {
 /// @brief Types for full table.dat body: TableDesc, column descriptors,
 /// storage-manager metadata.
 
-/// 
+///
 /// casacore DataType enum values used in column descriptors.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// DataType maps directly to the integer codes stored in casacore AipsIO
 /// column descriptors inside `table.dat`.  Each enumerator
 /// corresponds to one of the fundamental casacore numeric or string types.
@@ -48,7 +48,7 @@ namespace casacore_mini {
 ///
 /// Use `parse_data_type_name()` to map TaQL/TableDesc name strings
 /// to this enum, and `data_type_to_string()` for the reverse.
-/// 
+///
 // NOLINTNEXTLINE(performance-enum-size)
 enum class DataType : std::int32_t {
     tp_bool = 0,
@@ -67,13 +67,13 @@ enum class DataType : std::int32_t {
     tp_int64 = 29,
 };
 
-/// 
+///
 /// Column descriptor kind distinguishing scalar from array columns.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// ColumnKind classifies a column as either a scalar column (one value per
 /// row) or an array column (a multidimensional array per row).  The value
 /// is recorded in the AipsIO column descriptor header inside
@@ -85,19 +85,19 @@ enum class DataType : std::int32_t {
 /// `ndim > 0` the shape is fixed across all rows; when
 /// `ndim == -1` the shape is variable and stored per-cell in
 /// indirect storage.
-/// 
+///
 enum class ColumnKind : std::uint8_t {
     scalar = 0,
     array = 1,
 };
 
-/// 
+///
 /// Parsed column descriptor from a table.dat TableDesc section.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// ColumnDesc holds every field that casacore serializes into an AipsIO
 /// column descriptor block within `table.dat`.  It is produced
 /// by `parse_table_dat_full()` and consumed by the storage
@@ -120,7 +120,7 @@ enum class ColumnKind : std::uint8_t {
 ///
 /// The `options` bitmask encodes column flags such as
 /// Undefined/Direct/FixedShape as defined in the upstream casacore source.
-/// 
+///
 struct ColumnDesc {
     /// Column kind (scalar or array).
     ColumnKind kind = ColumnKind::scalar;
@@ -152,14 +152,14 @@ struct ColumnDesc {
     [[nodiscard]] bool operator==(const ColumnDesc& other) const = default;
 };
 
-/// 
+///
 /// Storage manager descriptor entry parsed from the post-TableDesc section
 /// of table.dat.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// After the TableDesc block in `table.dat`, casacore writes one
 /// storage manager (SM) descriptor per SM instance in the table.  Each
 /// descriptor names the SM class (`type_name`), assigns it a
@@ -174,7 +174,7 @@ struct ColumnDesc {
 ///
 /// A `sequence_number` of 0 is assigned to the first SM; the
 /// number increases by one for each additional SM in the file.
-/// 
+///
 struct StorageManagerSetup {
     /// Storage manager type name (e.g. `StManAipsIO`).
     std::string type_name{};
@@ -187,14 +187,14 @@ struct StorageManagerSetup {
     [[nodiscard]] bool operator==(const StorageManagerSetup& other) const = default;
 };
 
-/// 
+///
 /// Per-column storage manager assignment parsed from the post-TableDesc
 /// section of table.dat.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// After the storage manager descriptors, `table.dat` contains
 /// one `ColumnManagerSetup` per column, recording which SM
 /// instance owns that column's data (identified by
@@ -208,7 +208,7 @@ struct StorageManagerSetup {
 /// `has_shape` is true only for fixed-shape array columns
 /// (`ColumnDesc::ndim > 0`).  Variable-shape columns store their
 /// per-cell shape in indirect storage headers rather than here.
-/// 
+///
 struct ColumnManagerSetup {
     /// Column name.
     std::string column_name{};
@@ -222,13 +222,13 @@ struct ColumnManagerSetup {
     [[nodiscard]] bool operator==(const ColumnManagerSetup& other) const = default;
 };
 
-/// 
+///
 /// Full parsed TableDesc from a table.dat body.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// TableDesc is the schema-level view of a casacore table: it records the
 /// table name and comment, table-level keywords, private keywords (used for
 /// hypercolumn definitions), and the ordered list of column descriptors.
@@ -242,7 +242,7 @@ struct ColumnManagerSetup {
 /// `Table::columns()` and `Table::keywords()`.  Direct
 /// construction is only needed when writing new tables via
 /// `Table::create()`.
-/// 
+///
 struct TableDesc {
     /// TableDesc AipsIO version.
     std::uint32_t version = 0;
@@ -260,9 +260,9 @@ struct TableDesc {
     [[nodiscard]] bool operator==(const TableDesc& other) const = default;
 };
 
-/// 
+///
 /// Complete parsed representation of a casacore table.dat binary file.
-/// 
+///
 ///
 ///
 ///
@@ -270,9 +270,9 @@ struct TableDesc {
 ///   - `TableDesc`           — schema: columns and keywords
 ///   - `StorageManagerSetup` — one entry per SM instance
 ///   - `ColumnManagerSetup`  — one entry per column
-/// 
 ///
-/// 
+///
+///
 /// Every casacore table directory contains a `table.dat` binary
 /// file that encodes the complete table schema and storage manager metadata
 /// using the AipsIO serialization format.  `TableDatFull` is the
@@ -308,8 +308,8 @@ struct TableDesc {
 /// parallel to each other in the sense that each
 /// `ColumnManagerSetup::sequence_number` identifies an entry in
 /// `storage_managers`.  They are NOT necessarily the same length.
-/// 
-/// 
+///
+///
 struct TableDatFull {
     /// Table object version.
     std::uint32_t table_version = 0;
@@ -342,7 +342,7 @@ struct TableDatFull {
 ///
 /// @par Throws
 ///   - std::runtime_error if file cannot be opened or payload is malformed.
-/// 
+///
 [[nodiscard]] TableDatFull read_table_dat_full(std::string_view table_dat_path);
 
 } // namespace casacore_mini

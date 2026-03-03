@@ -16,13 +16,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Table iterator — groups rows by key column values.
 
-/// 
+///
 /// Groups table rows by one or more key column values and iterates over the groups.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `TableIterator` sorts the table by one or more key columns and iterates
 /// over contiguous groups of rows that share identical key values.  Each call
 /// to `next()` advances to the next group and makes a `RefTable` view of those
@@ -36,7 +36,7 @@ namespace casacore_mini {
 ///
 /// Groups are emitted in sorted-key order, which matches casacore's
 /// `TableIterator` default behavior with `Order::Ascending`.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -48,13 +48,13 @@ namespace casacore_mini {
 ///       std::cout << "group nrow=" << group.nrow() << "\n";
 ///   }
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Many visibility processing algorithms iterate over baselines, fields, or
 /// scans independently.  `TableIterator` provides this grouping without
 /// requiring the caller to manage row sorting and boundary detection manually.
-/// 
+///
 class TableIterator {
   public:
     /// Construct an iterator that groups by the given columns.

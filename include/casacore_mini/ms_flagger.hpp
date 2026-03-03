@@ -13,17 +13,17 @@ namespace casacore_mini {
 /// @file
 /// @brief Flag manipulation for MeasurementSet rows.
 
-/// 
+///
 /// Row-level flag manipulation and statistics for a MeasurementSet.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS container whose FLAG_ROW column is modified
-/// 
 ///
-/// 
+///
+///
 /// This header provides three operations on the FLAG_ROW column of the
 /// MeasurementSet main table:
 ///
@@ -44,7 +44,7 @@ namespace casacore_mini {
 /// Note: because the SSM data file is rewritten on each call, applications
 /// that need to apply many individual flag operations should batch the row
 /// indices and call these functions once rather than once per row.
-/// 
+///
 ///
 /// @par Example
 /// Query flagging statistics and then flag a specific subset of rows:
@@ -59,7 +59,7 @@ namespace casacore_mini {
 ///   // Flag rows 0, 5, and 10 (e.g. shadowed baselines identified earlier)
 ///   ms_flag_rows(ms, {0, 5, 10});
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Unflag all previously flagged rows:
@@ -73,7 +73,7 @@ namespace casacore_mini {
 ///       all_rows.push_back(r);
 ///   ms_unflag_rows(ms, all_rows);
 /// @endcode
-/// 
+///
 
 /// Flag statistics for a MeasurementSet.
 struct MsFlagStats {

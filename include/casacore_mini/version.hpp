@@ -12,7 +12,7 @@ namespace casacore_mini {
 /// @file
 /// @brief Build and source version/provenance accessors.
 
-/// 
+///
 /// This header exposes version strings captured at CMake configure time.  All
 /// functions return `string_view` values pointing to static storage; callers
 /// must not store the pointer beyond the lifetime of the library.
@@ -27,13 +27,13 @@ namespace casacore_mini {
 /// - `git_describe()` — raw `git describe --tags --dirty` output.
 /// - `git_revision()` — short git commit hash.
 /// - `version()` — alias for `build_version()`.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
 ///   std::cout << "casacore-mini " << casacore_mini::version() << "\n";
 /// @endcode
-/// 
+///
 
 /// Canonical source version from `project(... VERSION X.Y.Z)`.
 [[nodiscard]] std::string_view project_version() noexcept;

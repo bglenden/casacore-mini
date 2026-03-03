@@ -22,18 +22,18 @@ namespace casacore_mini {
 /// Wraps a table directory tree (main table + subtable directories) and
 /// provides lifecycle management, subtable access, and schema introspection.
 
-/// 
+///
 /// High-level interface to a CASA MeasurementSet (MS) table directory.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - Table — the underlying table access layer
 ///   - MSEnums — column and subtable name constants
-/// 
 ///
-/// 
+///
+///
 /// A MeasurementSet is the standard data format for radio interferometry
 /// visibility data.  It is a casacore table directory whose main table
 /// stores one visibility sample per row, and whose 12 required subtable
@@ -64,7 +64,7 @@ namespace casacore_mini {
 /// Subtables are opened lazily: the first call to `subtable(name)`
 /// opens the directory from disk and caches it. Subsequent calls return the
 /// cached Table.
-/// 
+///
 ///
 /// @par Example
 /// Create a new MeasurementSet and populate its ANTENNA subtable:
@@ -78,7 +78,7 @@ namespace casacore_mini {
 ///   ant.write_scalar_cell("NAME", 1, CellValue(std::string("ANT2")));
 ///   ms.flush();
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Open an existing MS and query its row count:
@@ -89,7 +89,7 @@ namespace casacore_mini {
 ///   for (auto& name : ms.subtable_names())
 ///       std::cout << "  " << name << "\n";
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// The MeasurementSet class provides a clean lifecycle wrapper around
@@ -97,7 +97,7 @@ namespace casacore_mini {
 /// on construction and lazily opened on first access.  Ownership of the
 /// root path and all open Table objects lives here so that callers never
 /// need to manage subdirectory paths directly.
-/// 
+///
 class MeasurementSet {
   public:
     /// Create a new empty MeasurementSet at the given path.

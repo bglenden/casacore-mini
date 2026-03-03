@@ -16,18 +16,18 @@ namespace casacore_mini {
 /// @file
 /// @brief Table directory reader: orchestrates table.dat + data files.
 
-/// 
+///
 /// Metadata about a storage manager data file within a table directory.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Each storage manager that participates in a table is represented on disk
 /// by one or more numbered data files (e.g. `table.f0`, `table.f1`).
 /// `StorageManagerFile` describes a single such file as discovered during
 /// `read_table_directory`.
-/// 
+///
 struct StorageManagerFile {
     /// File name (e.g. "table.f0").
     std::string filename;
@@ -39,13 +39,13 @@ struct StorageManagerFile {
     std::uint32_t sequence_number = 0;
 };
 
-/// 
+///
 /// Represents a table directory on disk.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// A casacore table directory is a filesystem directory whose name ends in
 /// `.ms` or `.table` by convention but has no enforced suffix.  The directory
 /// contains:
@@ -61,7 +61,7 @@ struct StorageManagerFile {
 /// and enumerating the `table.f*` files.  `write_table_directory` creates the
 /// directory from a `TableDatFull` structure and optionally copies SM data
 /// files from a source directory.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -71,7 +71,7 @@ struct StorageManagerFile {
 ///       std::cout << f.filename << " (" << f.sm_type << ")\n";
 ///   }
 /// @endcode
-/// 
+///
 struct TableDirectory {
     /// Path to the table directory.
     std::filesystem::path directory;

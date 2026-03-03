@@ -12,7 +12,7 @@ namespace casacore_mini {
 /// @brief Bidirectional conversion between text `KeywordRecord` and binary
 /// `Record` models.
 
-/// 
+///
 /// This header provides four free functions that convert between the two
 /// keyword-record representations used in casacore-mini:
 ///
@@ -46,7 +46,7 @@ namespace casacore_mini {
 /// | Typed N-D array     | flat `KeywordArray`| Shape information lost   |
 /// | `RecordList`        | flat `KeywordArray`| Heterogeneous flattened  |
 /// | Nested `Record`     | `KeywordRecord`    |                          |
-/// 
+///
 
 /// Convert a text-model `KeywordValue` to a binary-model `RecordValue`.
 ///

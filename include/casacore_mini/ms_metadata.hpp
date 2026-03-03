@@ -19,17 +19,17 @@ namespace casacore_mini {
 /// such as antenna names, field names, spectral window frequencies, scan
 /// numbers, etc. Results are computed on first access and cached.
 
-/// 
+///
 /// Lazy-cached metadata queries for a MeasurementSet.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS container whose subtables are queried
-/// 
 ///
-/// 
+///
+///
 /// `MsMetaData` is a read-only façade over a `MeasurementSet`
 /// that collects and caches commonly queried metadata.  Each logical group of
 /// metadata (antennas, fields, spectral windows, observations, and main-table
@@ -56,7 +56,7 @@ namespace casacore_mini {
 /// observation_ids) requires a full sequential scan of the main table.  For
 /// large MSes this scan happens once and the results are stored in sorted
 /// `std::set` containers.
-/// 
+///
 ///
 /// @par Example
 /// Print a summary of antenna and field counts for an open MS:
@@ -73,7 +73,7 @@ namespace casacore_mini {
 ///   for (const auto& name : meta.field_names())
 ///       std::cout << "  " << name << "\n";
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Enumerate unique scan numbers present in the main table:
@@ -85,7 +85,7 @@ namespace casacore_mini {
 ///   for (std::int32_t s : meta.scan_numbers())
 ///       std::cout << "scan " << s << "\n";
 /// @endcode
-/// 
+///
 class MsMetaData {
   public:
     explicit MsMetaData(MeasurementSet& ms);

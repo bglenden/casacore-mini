@@ -13,7 +13,7 @@ namespace casacore_mini {
 
 /// Build a CoordinateSystem from FITS-style header keywords stored in a Record.
 ///
-/// 
+///
 /// Expects WCS keywords stored as `Record` fields:
 /// `CTYPE<N>`, `CRVAL<N>`, `CRPIX<N>`, `CDELT<N>`, `NAXIS<N>`, and
 /// optionally `PC<i>_<j>` or `CD<i>_<j>` cross-terms.
@@ -28,7 +28,7 @@ namespace casacore_mini {
 /// `coordinate_system_to_fits_header` is the inverse: it serializes a
 /// `CoordinateSystem` back to a `Record` of WCS FITS keywords suitable for
 /// writing to a FITS header or an image keyword table.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -41,7 +41,7 @@ namespace casacore_mini {
 ///   // ... add remaining axes ...
 ///   auto cs = coordinate_system_from_fits_header(hdr);
 /// @endcode
-/// 
+///
 ///
 /// @throws std::invalid_argument on unrecoverable keyword inconsistencies.
 [[nodiscard]] CoordinateSystem coordinate_system_from_fits_header(const Record& fits_keywords);

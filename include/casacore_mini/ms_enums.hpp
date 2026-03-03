@@ -16,19 +16,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Main-table column/keyword enums and metadata for MeasurementSet.
 
-/// 
+///
 /// Strongly-typed enumerations and metadata descriptors for MeasurementSet
 /// main-table columns and keyword references.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the high-level MS container
 ///   - TableDesc — column descriptor types (DataType, ColumnKind)
-/// 
 ///
-/// 
+///
+///
 /// This header defines three tightly related things:
 ///
 /// 1. `MsMainColumn` — a typed enum over all 21 required and 8
@@ -48,7 +48,7 @@ namespace casacore_mini {
 /// The companion free functions provide the mapping layer between enum
 /// values, string names, and `MsColumnInfo` structs that the rest
 /// of the codebase uses to build column descriptors and validate data.
-/// 
+///
 ///
 /// @par Example
 /// Look up metadata for a column by enum value:
@@ -57,7 +57,7 @@ namespace casacore_mini {
 ///   const auto& info = ms_main_column_info(MsMainColumn::time);
 ///   // info.name == "TIME", info.data_type == DataType::tp_double, etc.
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Resolve a column name string to its enum and check whether it is required:
@@ -69,7 +69,7 @@ namespace casacore_mini {
 ///       bool req = info.required; // false for optional columns
 ///   }
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Iterate over all required subtable names:
@@ -78,7 +78,7 @@ namespace casacore_mini {
 ///       std::cout << name << "\n";
 ///   // prints ANTENNA, DATA_DESCRIPTION, FEED, FIELD, ...
 /// @endcode
-/// 
+///
 
 /// Column enums for the MS main table.
 /// Required columns (MS2 standard) come first; optional columns follow.

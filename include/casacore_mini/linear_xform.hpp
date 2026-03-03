@@ -11,13 +11,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Linear WCS transform: world = crval + cdelt * pc * (pixel - crpix).
 
-/// 
+///
 /// A linear WCS transformation stage mapping pixel to world coordinates.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LinearXform` implements the standard WCS affine mapping between pixel and
 /// world coordinates as defined by Calabretta & Greisen (2002, A&A 395, 1077):
 ///
@@ -32,7 +32,7 @@ namespace casacore_mini {
 /// The inverse transform (`world_to_pixel`) solves the linear system by
 /// computing the matrix inverse of `diag(cdelt) * pc`.  This fails if the
 /// composite matrix is singular.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -43,14 +43,14 @@ namespace casacore_mini {
 ///   // pc defaults to identity
 ///   auto world = xf.pixel_to_world({300.0, 200.0});
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Many coordinate types (Linear, Direction, Spectral) share the same affine
 /// pixel-to-world mapping layer.  Factoring it into a standalone struct
 /// avoids duplicating the matrix-inversion logic in each coordinate class
 /// and simplifies round-trip testing.
-/// 
+///
 struct LinearXform {
     /// Reference pixel coordinates (0-based).
     std::vector<double> crpix;

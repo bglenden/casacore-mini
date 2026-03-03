@@ -16,7 +16,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// ObsInfo bundles the small set of observation-level metadata that
 /// casacore-original stores as keywords on a CoordinateSystem.  The same
 /// fields are written into the top-level keywords of a MeasurementSet's
@@ -27,7 +27,7 @@ namespace casacore_mini {
 /// `observer`, which default to empty strings.  The
 /// serialization round-trip via `obs_info_to_record` and
 /// `obs_info_from_record` is lossless for all present fields.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -46,11 +46,11 @@ namespace casacore_mini {
 ///   obs_info_to_record(info, cs_rec);
 ///   table.put_key_record("coords", cs_rec);
 /// @endcode
-/// 
+///
 
 /// Observation metadata typically stored in CoordinateSystem keywords.
 ///
-/// 
+///
 /// <dl>
 ///   <dt>telescope</dt>
 ///   <dd>Telescope name string (e.g. "ALMA", "VLA", "MeerKAT").</dd>
@@ -67,7 +67,7 @@ namespace casacore_mini {
 ///   <dd>Nominal pointing direction in radians as (longitude, latitude)
 ///       in the direction reference frame of the CoordinateSystem.</dd>
 /// </dl>
-/// 
+///
 struct ObsInfo {
     std::string telescope;
     std::string observer;
@@ -81,7 +81,7 @@ struct ObsInfo {
 
 /// Serialize ObsInfo fields into a Record in casacore CoordinateSystem format.
 ///
-/// 
+///
 /// Writes the following keys into `rec`:
 /// <dl>
 ///   <dt>"telescopeName"</dt>  <dd>string</dd>
@@ -92,7 +92,7 @@ struct ObsInfo {
 ///                                 and "initial" bool</dd>
 /// </dl>
 /// Fields with no value (empty string or absent optional) are not written.
-/// 
+///
 ///
 /// @param info  The ObsInfo to serialize.
 /// @param rec   The Record to write into; existing keys are overwritten.
@@ -100,12 +100,12 @@ void obs_info_to_record(const ObsInfo& info, Record& rec);
 
 /// Reconstruct ObsInfo from a Record in casacore CoordinateSystem format.
 ///
-/// 
+///
 /// Reads the keys written by `obs_info_to_record`.  Missing keys
 /// result in default-initialised fields (empty strings, absent optionals).
 /// Unknown key names are silently ignored so that records containing
 /// additional metadata remain parseable.
-/// 
+///
 ///
 /// @param rec  The Record to read from.
 /// @return Populated ObsInfo; optionals are absent when the key was missing.

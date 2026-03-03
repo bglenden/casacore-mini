@@ -10,7 +10,7 @@ namespace casacore_mini {
 /// @file
 /// @brief Compile-time platform assumptions used by `casacore-mini`.
 
-/// 
+///
 /// This header documents and enforces the host-platform constraints that
 /// casacore-mini currently requires.
 ///
@@ -24,7 +24,7 @@ namespace casacore_mini {
 /// those conversions.
 ///
 /// All other headers that depend on host byte order include this header first.
-/// 
+///
 
 /// True when host byte order is little-endian.
 inline constexpr bool kHostLittleEndian = std::endian::native == std::endian::little;

@@ -18,7 +18,7 @@ namespace casacore_mini {
 
 /// Write a `Record` using the project-local deterministic binary encoding.
 ///
-/// 
+///
 /// This format is internal scaffolding for current phases and is **not**
 /// casacore `AipsIO` wire-compatible.  It is used where a stable, round-
 /// trippable binary encoding is needed independently of the casacore wire
@@ -39,7 +39,7 @@ namespace casacore_mini {
 /// The four free functions `write_record_binary`, `read_record_binary`,
 /// `serialize_record_binary`, and `deserialize_record_binary` cover both
 /// stream-based and byte-span based access patterns.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -48,7 +48,7 @@ namespace casacore_mini {
 ///   auto bytes = serialize_record_binary(rec);
 ///   Record copy = deserialize_record_binary(bytes);
 /// @endcode
-/// 
+///
 ///
 /// @throws std::runtime_error on stream write errors, unsupported/invalid value
 /// state, shape/count mismatches, or depth-limit violations.

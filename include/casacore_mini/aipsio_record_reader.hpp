@@ -13,7 +13,7 @@ namespace casacore_mini {
 
 /// Read a casacore-encoded `Record` from an `AipsIO` byte stream.
 ///
-/// 
+///
 /// Decodes the binary format produced by casacore `RecordRep::putRecord`,
 /// including the RecordDesc, field values, nested sub-records, and arrays.
 /// The reader is positioned just after the terminating end-marker when the
@@ -32,7 +32,7 @@ namespace casacore_mini {
 /// - `read_aipsio_embedded_record` — nested record without magic prefix.
 /// - `read_aipsio_record_body` — raw body (no wrapping Record header at all),
 ///   used when a `TableRecord` header already wraps the contents.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -40,7 +40,7 @@ namespace casacore_mini {
 ///   AipsIoReader reader(raw);
 ///   Record rec = read_aipsio_record(reader);
 /// @endcode
-/// 
+///
 ///
 /// @note `Char` and `uChar` scalars and arrays are losslessly promoted to
 /// `int16_t` and `uint16_t` respectively since `RecordValue` has no 8-bit type.

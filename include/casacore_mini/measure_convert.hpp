@@ -14,7 +14,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// Provides `convert_measure`, a single entry point for converting
 /// a Measure from one reference frame to another.  Frame-dependent
 /// conversions require additional context supplied through a MeasureFrame.
@@ -50,7 +50,7 @@ namespace casacore_mini {
 ///
 /// Unsupported frame combinations and conversions requiring missing frame
 /// context both throw `std::invalid_argument`.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -75,18 +75,18 @@ namespace casacore_mini {
 ///   frame.position = vla_position;  // ITRF position of VLA
 ///   Measure azel = convert_measure(j2000, DirectionRef::azel, frame);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Centralizing all frame-conversion logic in a single function simplifies
 /// the caller API and avoids the complexity of casacore-original's
 /// MeasConvert template machinery while covering the conversions actually
 /// needed by casacore-mini's coordinate system and imaging modules.
-/// 
+///
 
 /// Context data for measure conversions that require external information.
 ///
-/// 
+///
 /// Some conversions cannot be performed from the measure value alone:
 /// <dl>
 ///   <dt>epoch</dt>
@@ -104,7 +104,7 @@ namespace casacore_mini {
 /// </dl>
 /// All fields are optional; a missing field causes the conversion to throw
 /// `std::invalid_argument` if the conversion actually requires it.
-/// 
+///
 struct MeasureFrame {
     std::optional<Measure> epoch;     ///< Time context (e.g., for precession).
     std::optional<Measure> position;  ///< Location context (e.g., for topocentric).
@@ -114,7 +114,7 @@ struct MeasureFrame {
 
 /// Convert a Measure to a different reference frame.
 ///
-/// 
+///
 /// Accepts a Measure of any supported type and a target MeasureRefType
 /// variant.  The active alternative of `target` must match the
 /// measure type of `m`; a mismatch throws
@@ -138,7 +138,7 @@ struct MeasureFrame {
 ///
 /// Unsupported frame combinations throw `std::invalid_argument`.
 /// Conversions requiring missing frame data throw `std::invalid_argument`.
-/// 
+///
 ///
 /// @param m      The input measure.
 /// @param target The target reference frame (must match the measure type).

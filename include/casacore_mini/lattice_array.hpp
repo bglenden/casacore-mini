@@ -24,14 +24,14 @@ namespace casacore_mini {
 
 // ── LatticeArray<T> ────────────────────────────────────────────────────
 
-/// 
+///
 /// Reference-counted, copy-on-write multidimensional array with Fortran-order
 /// (column-major) storage and mdspan views.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// LatticeArray<T> is the primary owning multidimensional array type in
 /// casacore-mini.  It wraps a flat `std::vector<T>` together with
 /// an `IPosition` shape descriptor and exposes:
@@ -63,7 +63,7 @@ namespace casacore_mini {
 /// copy/scatter paths therefore fall back to element-wise iteration when
 /// `T == bool`.  All other scalar types use the fast pointer-based
 /// kernel.
-/// 
+///
 ///
 /// @par Example
 /// Creating and writing an in-memory array:
@@ -89,7 +89,7 @@ namespace casacore_mini {
 ///   auto span = cube.const_view<3>();
 ///   float v = span(10, 20, 5);   // same as cube.at({10,20,5})
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Copy-on-write sharing:
@@ -104,7 +104,7 @@ namespace casacore_mini {
 ///   b.put(IPosition{0, 0}, 99.0f);
 ///   assert(a.at(IPosition{0, 0}) == 1.0f); // a is unaffected
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Radio-astronomy images are large (often > 10^8 elements) and are
@@ -112,13 +112,13 @@ namespace casacore_mini {
 /// with copy-on-write amortises the cost of such passing to nearly zero when
 /// the data is not modified, while still presenting simple value semantics to
 /// callers.
-/// 
+///
 ///
 /// @par Prerequisites
 ///   - IPosition — shape and index type
 ///   - Slicer    — sub-region descriptor
 ///   - strided_fortran_copy / strided_fortran_scatter — inner copy kernels
-/// 
+///
 template <typename T> class LatticeArray {
   public:
     /// Construct an empty (rank-0, zero-element) array.

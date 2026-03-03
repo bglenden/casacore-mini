@@ -16,13 +16,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Write-only encoder for canonical big-endian casacore `AipsIO` payloads.
 
-/// 
+///
 /// Encode primitive values into a canonical big-endian `AipsIO` byte buffer.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `AipsIoWriter` is the write-path counterpart to `AipsIoReader`.  It
 /// appends big-endian encoded primitives to an internal `std::vector<uint8_t>`
 /// buffer that grows on demand.  When serialization is complete the caller
@@ -42,7 +42,7 @@ namespace casacore_mini {
 /// All multi-byte scalars are encoded in big-endian byte order.  Strings use
 /// casacore's TypeIO framing: a 32-bit `uInt` length prefix followed by the
 /// raw bytes of the string (no null terminator).
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -55,13 +55,13 @@ namespace casacore_mini {
 ///   w.patch_u32(len_pos + 4, body);         // back-patch length field
 ///   auto bytes = w.take_bytes();
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// casacore's `AipsIO` uses a push-style API where the object-length field must
 /// be filled in after the body is serialized.  `patch_u32` makes this pattern
 /// safe without requiring two-pass serialization or temporary buffers.
-/// 
+///
 class AipsIoWriter {
   public:
     /// Create a writer that appends to a byte buffer.

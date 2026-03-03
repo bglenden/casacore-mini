@@ -14,18 +14,18 @@ namespace casacore_mini {
 ///
 /// Produces a human-readable summary similar to casacore's `msoverview` tool.
 
-/// 
+///
 /// Generate a human-readable text summary of a MeasurementSet.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS container to be summarised
 ///   - MsMetaData — cached metadata queries used internally
-/// 
 ///
-/// 
+///
+///
 /// `ms_summary()` produces a multi-line string that describes the
 /// key properties of a MeasurementSet, analogous to the output of
 /// casacore's `msoverview` tool or CASA's `listobs` task.
@@ -43,7 +43,7 @@ namespace casacore_mini {
 ///
 /// The function reads from the MeasurementSet's subtables using the public
 /// table accessor API; it does not use storage manager internals directly.
-/// 
+///
 ///
 /// @par Example
 /// Print a summary of an open MS to stdout:
@@ -52,7 +52,7 @@ namespace casacore_mini {
 ///   auto ms = MeasurementSet::open("my.ms");
 ///   std::cout << ms_summary(ms);
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Capture the summary string and search it for a keyword:
@@ -62,7 +62,7 @@ namespace casacore_mini {
 ///   std::string summary = ms_summary(ms);
 ///   bool has_vla = summary.find("VLA") != std::string::npos;
 /// @endcode
-/// 
+///
 
 /// Generate a text summary of a MeasurementSet.
 ///

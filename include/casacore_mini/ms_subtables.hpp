@@ -14,19 +14,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Subtable column enums and schema factories for all 17 MS subtable types.
 
-/// 
+///
 /// Column enumerations and schema factory functions for all 17 MeasurementSet
 /// subtable types (12 required + 5 optional).
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - TableDesc — ColumnDesc type produced by the factory functions
 ///   - MeasurementSet — the MS container that owns the subtable directories
-/// 
 ///
-/// 
+///
+///
 /// This header provides two levels of API for working with MS subtables:
 ///
 /// 1. Per-subtable column enumerations.
@@ -66,7 +66,7 @@ namespace casacore_mini {
 ///
 /// Column name strings for each enum value are accessible through the
 /// corresponding `ms_*_column_name()` helper.
-/// 
+///
 ///
 /// @par Example
 /// Create the ANTENNA subtable schema and write it to an MS directory:
@@ -76,7 +76,7 @@ namespace casacore_mini {
 ///   auto dat  = make_subtable_dat(cols);
 ///   // dat is now ready to be written under "my.ms/ANTENNA/"
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Resolve a subtable name at runtime and obtain its column schema:
@@ -85,7 +85,7 @@ namespace casacore_mini {
 ///   auto cols = make_subtable_desc_by_name("SPECTRAL_WINDOW");
 ///   // cols.empty() == false for any recognised subtable name
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Look up the wire name of a column enum value:
@@ -94,7 +94,7 @@ namespace casacore_mini {
 ///   std::string_view n = ms_antenna_column_name(MsAntennaColumn::dish_diameter);
 ///   // n == "DISH_DIAMETER"
 /// @endcode
-/// 
+///
 
 // ---------------------------------------------------------------------------
 // Per-subtable column enums

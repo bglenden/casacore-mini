@@ -22,10 +22,10 @@ namespace casacore_mini {
 /// routing all I/O through the Table abstraction. Storage manager types
 /// never appear here.
 
-/// 
+///
 /// Type-safe column accessor classes for the MeasurementSet main table
 /// and its standard subtables.
-/// 
+///
 ///
 ///
 ///
@@ -33,9 +33,9 @@ namespace casacore_mini {
 ///   - MeasurementSet — the MS container whose subtables are accessed
 ///   - Table — low-level cell read/write primitives
 ///   - Measure — measure type used by time and UVW readers
-/// 
 ///
-/// 
+///
+///
 /// Each class in this header wraps one table (the main table or a named
 /// subtable) and exposes per-column reader methods whose return types match
 /// the MS2 specification.  All I/O is delegated to the `Table`
@@ -55,7 +55,7 @@ namespace casacore_mini {
 /// Measure-aware accessors (`time_measure`, `uvw_measure`)
 /// lazily load the column's measure descriptor from the keyword set on first
 /// call and cache it for subsequent reads.
-/// 
+///
 ///
 /// @par Example
 /// Read antenna names and UVW coordinates from an open MS:
@@ -73,7 +73,7 @@ namespace casacore_mini {
 ///       auto t   = main.time_measure(r);  // Measure in UTC seconds
 ///   }
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Read spectral window reference frequencies:
@@ -84,7 +84,7 @@ namespace casacore_mini {
 ///   for (std::uint64_t r = 0; r < spw.row_count(); ++r)
 ///       std::cout << "SPW " << r << " ref_freq=" << spw.ref_frequency(r) << " Hz\n";
 /// @endcode
-/// 
+///
 
 /// Typed column accessors for the MS main table.
 ///

@@ -16,13 +16,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Table measure descriptor: MEASINFO keyword codec and QuantumUnits.
 
-/// 
+///
 /// Descriptor for a measure-bearing table column, extracted from MEASINFO keywords.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// casacore attaches a `MEASINFO` sub-record and an optional `QuantumUnits`
 /// entry to the keyword set of any column that holds a physical measure.
 /// `TableMeasDesc` mirrors these keyword fields in a structured form that is
@@ -41,7 +41,7 @@ namespace casacore_mini {
 ///
 /// The codec functions `read_table_measure_desc` and `write_table_measure_desc`
 /// translate between this struct and a binary `Record` column keyword set.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -51,7 +51,7 @@ namespace casacore_mini {
 ///       std::cout << "units: " << desc.units[0] << "\n";  // "s"
 ///   }
 /// @endcode
-/// 
+///
 struct TableMeasDesc {
     /// Column name that holds the measure data values.
     std::string column_name;
@@ -100,13 +100,13 @@ struct TableMeasDesc {
 /// Creates/replaces the "MEASINFO" sub-record and "QuantumUnits" entries.
 void write_table_measure_desc(const TableMeasDesc& desc, Record& column_keywords);
 
-/// 
+///
 /// Descriptor for quantum units on a column (without full measure semantics).
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Some columns carry physical units but are not full measures.  For example,
 /// a `WEIGHT` column may have units of `"Jy^{-2}"` without being a Measure.
 /// `TableQuantumDesc` captures the `QuantumUnits` keyword entry for such
@@ -114,7 +114,7 @@ void write_table_measure_desc(const TableMeasDesc& desc, Record& column_keywords
 ///
 /// When `var_units_column` is non-empty, the units vary per row and are read
 /// from the named companion column rather than from the fixed `units` vector.
-/// 
+///
 struct TableQuantumDesc {
     /// Column name.
     std::string column_name;

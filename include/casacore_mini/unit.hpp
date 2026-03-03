@@ -17,7 +17,7 @@ namespace casacore_mini {
 ///
 ///
 ///
-/// 
+///
 /// The unit system provides three cooperating types:
 ///
 ///   - `UnitVal`: a scale factor and an 9-element SI dimension vector.
@@ -38,7 +38,7 @@ namespace casacore_mini {
 /// (multiplication) and `/` (division).  Integer exponents are
 /// written as a trailing digit string, `^N`, or `**N`.
 /// Parenthesised groups such as `km/(s.Mpc)` are supported.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -63,19 +63,19 @@ namespace casacore_mini {
 ///   // User-defined unit
 ///   UnitMap::define("beam", UnitVal(1.0));     // dimensionless
 /// @endcode
-/// 
+///
 
 // ---------------------------------------------------------------------------
 // UnitVal -- SI dimension vector + scale factor
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Dimensional decomposition and SI scale factor for a physical unit.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// UnitVal stores a multiplicative scale factor (relative to SI base units)
 /// and an 9-element signed exponent vector over the SI base dimensions.
 /// The indices follow casacore-original's convention:
@@ -98,7 +98,7 @@ namespace casacore_mini {
 /// Conformance (dimensional equivalence) is tested with
 /// `conforms()`, which compares exponent vectors while ignoring
 /// the scale factor.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -109,7 +109,7 @@ namespace casacore_mini {
 ///   assert(velocity.conforms(km_s));
 ///   double conv = km_s.factor() / velocity.factor();  // 1000.0
 /// @endcode
-/// 
+///
 class UnitVal {
   public:
     static constexpr int kNDim = 9;
@@ -178,13 +178,13 @@ class UnitVal {
 // Unit -- lightweight wrapper: unit string + cached UnitVal
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Parsed unit string with cached dimensional decomposition.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Unit is a lightweight value type that pairs a unit name string with the
 /// UnitVal computed by parsing it.  Parsing is done once at construction.
 /// Construction never throws; if the string cannot be resolved,
@@ -205,7 +205,7 @@ class UnitVal {
 ///   <dt>Groups</dt>
 ///   <dd>Parenthesised sub-expressions, e.g. `km/(s.Mpc)`.</dd>
 /// </dl>
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -222,7 +222,7 @@ class UnitVal {
 ///   // Conformance
 ///   assert(Unit("km/s").conforms(Unit("m/s")));
 /// @endcode
-/// 
+///
 class Unit {
   public:
     /// Empty (dimensionless).
@@ -263,13 +263,13 @@ class Unit {
 // UnitMap -- static registry of predefined units + prefixes
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Static registry of predefined astronomical, SI, and customary units.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// UnitMap maintains two tables:
 /// <dl>
 ///   <dt>Predefined units</dt>
@@ -288,7 +288,7 @@ class Unit {
 /// The `find()` and `find_prefix()` methods are called
 /// internally by `parse_unit()` during Unit construction; direct
 /// calls are rarely needed.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -303,7 +303,7 @@ class Unit {
 ///   // Clean up after tests
 ///   UnitMap::clear_user();
 /// @endcode
-/// 
+///
 class UnitMap {
   public:
     /// Look up a simple (non-compound) unit name.
@@ -322,21 +322,21 @@ class UnitMap {
 
 /// Parse a compound unit string into a UnitVal.
 ///
-/// 
+///
 /// Implements the full compound unit grammar: SI-prefixed atoms, multiply/
 /// divide separators, exponents, and parenthesised groups.  Returns the
 /// combined UnitVal on success.
-/// 
+///
 ///
 /// @throws std::invalid_argument if the string contains unknown units.
 [[nodiscard]] UnitVal parse_unit(std::string_view str);
 
 /// Try to parse a compound unit string; return nullopt on failure instead of throwing.
 ///
-/// 
+///
 /// Non-throwing variant of `parse_unit`.  Useful when testing
 /// whether a string is a valid unit without branching on exceptions.
-/// 
+///
 [[nodiscard]] std::optional<UnitVal> try_parse_unit(std::string_view str);
 
 } // namespace casacore_mini

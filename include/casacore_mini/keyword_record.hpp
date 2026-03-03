@@ -21,13 +21,13 @@ namespace casacore_mini {
 class KeywordRecord;
 struct KeywordArray;
 
-/// 
+///
 /// Typed keyword value used by nested keyword records.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `KeywordValue` is a discriminated union over the types that can appear
 /// in a casacore keyword record as parsed from `showtableinfo` text:
 /// `bool`, `int64_t`, `double`, `string`, an array of values
@@ -40,7 +40,7 @@ struct KeywordArray;
 ///
 /// Equality comparison (`operator==`) recurses into array elements and nested
 /// record entries, comparing pointed-to values rather than pointer identity.
-/// 
+///
 class KeywordValue {
   public:
     /// Shared pointer type for array values.
@@ -81,17 +81,17 @@ class KeywordValue {
     storage_type storage_;
 };
 
-/// 
+///
 /// Ordered list of keyword values.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `KeywordArray` is a simple ordered sequence of `KeywordValue` elements.
 /// It appears in the text-model representation when a casacore keyword stores
 /// a one-dimensional array, such as `QuantumUnits` or `projection_parameters`.
-/// 
+///
 struct KeywordArray {
     /// Values in stored order.
     std::vector<KeywordValue> elements;
@@ -99,13 +99,13 @@ struct KeywordArray {
     [[nodiscard]] bool operator==(const KeywordArray& other) const;
 };
 
-/// 
+///
 /// Ordered keyword record with deterministic insertion ordering.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `KeywordRecord` maintains a list of `(key, value)` entries in insertion
 /// order.  It does not use a hash map, so the entry ordering matches the
 /// original `showtableinfo` output and round-trips predictably through the
@@ -114,7 +114,7 @@ struct KeywordArray {
 /// `set()` inserts a new key or replaces an existing one while preserving its
 /// position.  `find()` returns a const pointer to the value or `nullptr` if
 /// the key is absent.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -123,7 +123,7 @@ struct KeywordArray {
 ///   rec.set("refer", KeywordValue(std::string("UTC")));
 ///   const auto* v = rec.find("type");  // non-null
 /// @endcode
-/// 
+///
 class KeywordRecord {
   public:
     /// Stored key/value entry type.
@@ -146,13 +146,13 @@ class KeywordRecord {
     std::vector<entry> entries_;
 };
 
-/// 
+///
 /// Parsed keyword structures from a `showtableinfo` document.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `ShowtableinfoKeywords` aggregates the table-level keyword record and the
 /// per-column keyword records extracted by `parse_showtableinfo_keywords`.
 ///
@@ -161,7 +161,7 @@ class KeywordRecord {
 ///   in first-seen order from the document.
 ///
 /// Use `find_column()` to locate the keyword record for a specific column name.
-/// 
+///
 struct ShowtableinfoKeywords {
     /// Top-level `Table Keywords` record.
     KeywordRecord table_keywords;
@@ -175,7 +175,7 @@ struct ShowtableinfoKeywords {
 
 /// Parse table/column keyword records from `showtableinfo` textual output.
 ///
-/// 
+///
 /// Parsed section coverage:
 /// - `Table Keywords` nested records
 /// - `Column <name>` keyword records
@@ -183,7 +183,7 @@ struct ShowtableinfoKeywords {
 /// - one-line bracket arrays declared as `<Type> array with shape [...]`
 ///
 /// Missing `Keywords of main table` yields an empty result.
-/// 
+///
 ///
 /// @throws std::runtime_error on malformed keyword record structure.
 [[nodiscard]] ShowtableinfoKeywords

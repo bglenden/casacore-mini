@@ -13,7 +13,7 @@ namespace casacore_mini {
 /// Speed of light in m/s.
 constexpr double kSpeedOfLight = 299792458.0;
 
-/// 
+///
 /// Free functions in this header convert between Doppler values expressed in
 /// different conventions (radio, optical/Z, relativistic beta/gamma) and
 /// physical velocities (m/s) or frequency ratios.
@@ -30,7 +30,7 @@ constexpr double kSpeedOfLight = 299792458.0;
 ///
 /// `convert_doppler(value, from, to)` is the general converter between any two
 /// conventions, routing through radio Doppler as an intermediate representation.
-/// 
+///
 
 /// Convert radio Doppler value to velocity (m/s).
 /// radio_val = 1 - f/f0, so v = c * radio_val.
@@ -84,26 +84,26 @@ constexpr double kSpeedOfLight = 299792458.0;
 /// @throws std::invalid_argument for unsupported/invalid values.
 [[nodiscard]] double convert_doppler(double value, DopplerRef from, DopplerRef to);
 
-/// 
+///
 /// Stateful Doppler convention conversion helper.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `VelocityMachine` caches a source-convention and target-convention pair
 /// and provides a single `convert()` entry point.  This mirrors the role of
 /// casacore's `MDoppler::Convert` helper objects.
 ///
 /// Both `from_ref()` and `to_ref()` are available for inspection.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
 ///   VelocityMachine vm(DopplerRef::radio, DopplerRef::z);
 ///   double z_val = vm.convert(0.01);  // convert radio doppler 0.01 to z
 /// @endcode
-/// 
+///
 class VelocityMachine {
   public:
     VelocityMachine(DopplerRef from_ref, DopplerRef to_ref) noexcept

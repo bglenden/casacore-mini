@@ -19,19 +19,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Read-only access to StandardStMan (SSM) data files.
 
-/// 
+///
 /// Row-to-bucket index for one column group within an SSM file.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// The SSM keeps one or more row-to-bucket indices embedded in index buckets
 /// within the `.f0` file.  Each `SsmIndex` covers a column group (set of
 /// columns stored together at the same bucket offset).  The `last_row` and
 /// `bucket_number` arrays are parallel: `last_row[i]` is the highest row
 /// stored in bucket `bucket_number[i]`.
-/// 
+///
 struct SsmIndex {
     std::uint32_t rows_per_bucket = 0;
     std::int32_t nr_columns = 0;
@@ -41,19 +41,19 @@ struct SsmIndex {
     std::vector<std::uint32_t> bucket_number;
 };
 
-/// 
+///
 /// Parsed SSM file header from the first 512 bytes of a `.f0` file.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// The SSM file begins with a 512-byte header containing layout parameters
 /// that describe the bucket pool, the free-list chain, and the location and
 /// size of the index data.  `ssm_big_endian` reflects the actual byte order
 /// used by bucket and indirect data; for files older than version 3 it is
 /// taken from the `table.dat` endian flag passed into the parser.
-/// 
+///
 struct SsmFileHeader {
     std::uint32_t bucket_size = 0;
     std::uint32_t nr_buckets = 0;
@@ -71,19 +71,19 @@ struct SsmFileHeader {
     bool ssm_big_endian = false;
 };
 
-/// 
+///
 /// Parsed SSM data blob extracted from `table.dat`.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// The `table.dat` file contains an AipsIO blob for each storage manager that
 /// describes how columns map onto the SSM bucket layout.  `SsmTableDatBlob`
 /// captures the two arrays that are essential for cell reads:
 /// - `column_offset[i]` — byte offset of column `i` within each bucket row.
 /// - `col_index_map[i]` — which `SsmIndex` entry governs column `i`.
-/// 
+///
 struct SsmTableDatBlob {
     std::string data_man_name;
     /// Per-column byte offset within a bucket.
@@ -96,13 +96,13 @@ struct SsmTableDatBlob {
 using CellValue = std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, float, double,
                                std::complex<float>, std::complex<double>, std::string>;
 
-/// 
+///
 /// Read-only SSM reader for a single table directory.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `SsmReader` decodes cell values from the StandardStMan binary layout used
 /// by casacore.  The SSM partitions table rows into fixed-size buckets that
 /// are packed end-to-end in the `.f0` data file (after the 512-byte header).
@@ -118,7 +118,7 @@ using CellValue = std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, 
 /// 2. Call `read_cell()` to read scalar values, or the typed `read_array_*`
 ///    variants for array columns.
 /// 3. Call `read_indirect_*` for variable-shape columns.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -127,14 +127,14 @@ using CellValue = std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, 
 ///   CellValue v = reader.read_cell("ANTENNA1", 0);
 ///   auto uvw = reader.read_indirect_double("UVW", 0);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// StandardStMan is the most common storage manager in real-world casacore
 /// tables.  Reading it requires understanding the bucket pool layout, the
 /// per-column offset table, and the indirect array companion file — all details
 /// that are encapsulated here to keep the higher-level `Table` API clean.
-/// 
+///
 class SsmReader {
   public:
     /// Open an SSM data file for reading.
@@ -276,13 +276,13 @@ class SsmReader {
     void ensure_indirect_loaded() const;
 };
 
-/// 
+///
 /// Write-only SSM writer for producing a complete SSM `table.f0` file.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `SsmWriter` is the write-path counterpart to `SsmReader`.  It allocates a
 /// flat bucket pool in memory and fills in cell values row by row.  When all
 /// cells have been written, `flush()` serializes the complete `.f0` file
@@ -300,7 +300,7 @@ class SsmReader {
 /// 3. Call `flush()` and `make_blob()` to get the binary output.
 /// 4. Call `write_file()` (and optionally `write_indirect_file()`) to write
 ///    the `.f0` (and `.f0i`) files to disk.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -312,7 +312,7 @@ class SsmReader {
 ///   writer.write_file("my_table", 0);
 ///   auto blob = writer.make_blob();
 /// @endcode
-/// 
+///
 class SsmWriter {
   public:
     /// Set up the writer with column descriptors and row count.

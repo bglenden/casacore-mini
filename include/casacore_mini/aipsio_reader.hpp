@@ -19,13 +19,13 @@ namespace casacore_mini {
 /// Magic value written by casacore `AipsIO` object framing.
 inline constexpr std::uint32_t kAipsIoMagic = 0xBEBEBEBEU;
 
-/// 
+///
 /// Decoded `AipsIO` object header fields.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Holds the three fields that prefix every casacore `AipsIO` object body:
 /// the body length in bytes, the object type token (for example `Table`
 /// or `RecordDesc`), and the object version number used for forward-
@@ -36,7 +36,7 @@ inline constexpr std::uint32_t kAipsIoMagic = 0xBEBEBEBEU;
 /// `AipsIoReader::read_object_header` or
 /// `AipsIoReader::read_nested_object_header`, the caller is positioned at the
 /// first byte of the object body.
-/// 
+///
 struct AipsIoObjectHeader {
     /// Object body length as stored in the stream.
     std::uint32_t object_length = 0;
@@ -48,13 +48,13 @@ struct AipsIoObjectHeader {
     [[nodiscard]] bool operator==(const AipsIoObjectHeader& other) const = default;
 };
 
-/// 
+///
 /// Read primitive values from a canonical big-endian `AipsIO` byte span.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `AipsIoReader` wraps an immutable byte span and exposes a forward-only
 /// cursor that decodes the big-endian, network-byte-order representation used
 /// by casacore's `AipsIO` serialization layer.
@@ -71,7 +71,7 @@ struct AipsIoObjectHeader {
 /// The reader does not support seeking backward or rewinding.  Position queries
 /// (`position()`, `remaining()`, `empty()`) allow callers to validate framing
 /// without modifying the cursor.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -80,14 +80,14 @@ struct AipsIoObjectHeader {
 ///   auto hdr = reader.read_object_header();       // consumes magic + header
 ///   auto row_count = reader.read_u64();           // next field in object body
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// casacore writes all persistent state through `AipsIO`, a custom big-endian
 /// serialization format that pre-dates modern C++ serialization libraries.
 /// This reader provides a zero-copy, exception-safe decoder that stays within
 /// the immutable span without copying bytes into temporary buffers.
-/// 
+///
 class AipsIoReader {
   public:
     /// Create a reader over immutable bytes.

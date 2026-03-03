@@ -24,13 +24,13 @@ namespace casacore_mini {
 
 // ── IPosition ──────────────────────────────────────────────────────────
 
-/// 
+///
 /// Multidimensional shape and index vector, compatible with casacore IPosition.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// IPosition stores a small vector of signed 64-bit integers representing
 /// either axis extents (a shape) or axis indices (a coordinate).  It is the
 /// primary currency for specifying shapes, positions, strides, and slice
@@ -50,7 +50,7 @@ namespace casacore_mini {
 /// The class mirrors casacore's `IPosition` but drops rarely-used
 /// relational operators and AIPS++ string-formatting conventions in favour of
 /// a simple `to_string()` diagnostic helper.
-/// 
+///
 ///
 /// @par Example
 /// Constructing shapes and performing index arithmetic:
@@ -71,14 +71,14 @@ namespace casacore_mini {
 ///   IPosition zeros(4, 0);   // four-dimensional zero index
 ///   IPosition ones (3, 1);   // unit strides placeholder
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// A uniform, rank-agnostic integer-vector type is necessary to express
 /// shapes, indices, and strides without specialising every algorithm to a
 /// fixed number of dimensions.  Signed 64-bit storage avoids silent overflow
 /// when computing large array extents (e.g. a 65536^3 cube).
-/// 
+///
 class IPosition {
   public:
     /// Construct empty (rank-0) position.
@@ -157,14 +157,14 @@ class IPosition {
 
 // ── Slicer ─────────────────────────────────────────────────────────────
 
-/// 
+///
 /// Describes a multidimensional slice: start position, length, and stride
 /// per axis.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// A Slicer specifies a regular sub-region of a lattice or array by giving,
 /// for each axis, three quantities:
 ///
@@ -186,7 +186,7 @@ class IPosition {
 /// Equivalent to casacore's `Slicer` class but restricted to the
 /// (start, length, stride) parameterisation; the (start, end, stride)
 /// variant is not provided.
-/// 
+///
 ///
 /// @par Example
 /// Selecting a strided sub-region:
@@ -211,13 +211,13 @@ class IPosition {
 ///   // Validate against the lattice shape.
 ///   validate_slicer(sl_strided, shape);
 /// @endcode
-/// 
+///
 ///
 /// @warning
 /// The `length` field gives the number of *output* elements, not
 /// the index of the last element.  Confusing length with end-index is a
 /// common source of off-by-one errors.
-/// 
+///
 class Slicer {
   public:
     /// Construct a full-extent slicer for the given shape.
@@ -255,11 +255,11 @@ class Slicer {
 /// We use a fixed maximum rank of 8 (matching casacore practice).
 inline constexpr std::size_t kMaxLatticeRank = 8;
 
-/// 
-/// Dynamic-extent mdspan with Fortran (column-major) layout.
-/// 
 ///
-/// 
+/// Dynamic-extent mdspan with Fortran (column-major) layout.
+///
+///
+///
 /// This is the primary non-owning view type for lattice data.  Data pointers
 /// are non-owning; lifetime and ownership live in `LatticeArray<T>`.
 /// The `layout_left` policy ensures the first axis varies fastest,
@@ -268,7 +268,7 @@ inline constexpr std::size_t kMaxLatticeRank = 8;
 /// The compile-time rank `Rank` must be known at the call site; use
 /// `make_const_lattice_span<T, N>()` to construct a view from a flat
 /// pointer and an IPosition shape.
-/// 
+///
 template <typename T, std::size_t Rank>
 using LatticeSpan = mdspan_compat::mdspan<T, mdspan_compat::dextents<std::size_t, Rank>,
                                           mdspan_compat::layout_left>;
@@ -306,12 +306,12 @@ void validate_index(const IPosition& index, const IPosition& shape);
 /// @throws std::out_of_range on invalid slice.
 void validate_slicer(const Slicer& slicer, const IPosition& shape);
 
-/// 
+///
 /// Copy elements between strided Fortran-order arrays using mdspan-style
 /// stride arithmetic.
-/// 
 ///
-/// 
+///
+///
 /// Copies `count` elements (the product of `slice_shape`) from `src` to
 /// `dst`, where `src` is a flat Fortran-order array with strides
 /// `src_strides` and elements are read at offsets
@@ -322,12 +322,12 @@ void validate_slicer(const Slicer& slicer, const IPosition& shape);
 /// This replaces manual IPosition-based index iteration with direct stride
 /// computation, matching how mdspan `layout_left` maps indices to
 /// offsets.  It is the inner kernel of `LatticeArray::get_slice()`.
-/// 
+///
 ///
 /// @warning
 /// This function does not check bounds.  Call `validate_slicer()`
 /// before invoking to ensure the selected region lies within `src`.
-/// 
+///
 template <typename T>
 void strided_fortran_copy(const T* src, const IPosition& src_strides, const IPosition& src_start,
                           const IPosition& src_step, T* dst, const IPosition& slice_shape) {
@@ -361,22 +361,22 @@ void strided_fortran_copy(const T* src, const IPosition& src_strides, const IPos
     }
 }
 
-/// 
+///
 /// Scatter elements from a dense Fortran-order source into a strided
 /// destination array.
-/// 
 ///
-/// 
+///
+///
 /// Inverse of `strided_fortran_copy`: reads elements sequentially
 /// from the dense `src` buffer and writes them into `dst` at positions
 /// determined by `dst_start`, `dst_step`, and `dst_strides`.  This is the
 /// inner kernel of `LatticeArray::put_slice()`.
-/// 
+///
 ///
 /// @warning
 /// This function does not check bounds.  Call `validate_slicer()`
 /// before invoking to ensure the target region lies within `dst`.
-/// 
+///
 template <typename T>
 void strided_fortran_scatter(const T* src, T* dst, const IPosition& dst_strides,
                              const IPosition& dst_start, const IPosition& dst_step,

@@ -6,9 +6,9 @@
 #include "casacore_mini/lattice_array.hpp"
 #include "casacore_mini/lattice_shape.hpp"
 
+#include <complex>
 #include <cstddef>
 #include <cstdint>
-#include <complex>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -23,7 +23,7 @@ namespace casacore_mini {
 /// @file
 /// @brief Lattice Expression Language (LEL) evaluator engine.
 
-/// 
+///
 /// This header implements the Lattice Expression Language (LEL) evaluator,
 /// a typed expression-tree engine that evaluates element-wise operations over
 /// `LatticeArray` values.  It mirrors the role of casacore's `LatticeExpr`
@@ -53,7 +53,7 @@ namespace casacore_mini {
 /// Builder helpers (`lel_scalar`, `lel_array`, `lel_add`, etc.) make it
 /// convenient to construct expression trees programmatically without dealing
 /// directly with `std::make_shared`.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -69,42 +69,41 @@ namespace casacore_mini {
 ///   syms.define("img", lel_array(my_array));
 ///   auto node = lel_parse("sqrt(img * img + 1.0)", syms);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// casacore's LEL is a complex C++ template library spanning dozens of files.
 /// This reimplementation provides the subset of LEL needed for CASA image
 /// arithmetic within a single header, using C++20 features (concepts,
 /// if-constexpr, std::variant) to reduce boilerplate.
-/// 
+///
 
 // ── Value types ──────────────────────────────────────────────────────
 
 /// The scalar types supported in LEL expressions.
 enum class LelType : std::uint8_t {
-    float32,      ///< float
-    float64,      ///< double
-    complex64,    ///< std::complex<float>
-    complex128,   ///< std::complex<double>
-    boolean,      ///< bool
+    float32,    ///< float
+    float64,    ///< double
+    complex64,  ///< std::complex<float>
+    complex128, ///< std::complex<double>
+    boolean,    ///< bool
 };
 
 /// Result of evaluating an expression chunk: array + optional mask.
-template <typename T>
-struct LelResult {
+template <typename T> struct LelResult {
     LatticeArray<T> values;
     std::optional<LatticeArray<bool>> mask; ///< nullopt = all unmasked.
 };
 
 // ── LelNode (abstract base) ──────────────────────────────────────────
 
-/// 
+///
 /// Abstract base class for LEL expression tree nodes.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Each `LelNode<T>` produces a `LelResult<T>` when `eval()` is called.
 /// The node knows its result shape (or `std::nullopt` if it is a scalar)
 /// and whether it is scalar (`is_scalar()`).
@@ -112,9 +111,8 @@ struct LelResult {
 /// Leaf nodes hold constant values or references to existing lattice data.
 /// Interior nodes combine child nodes using operators, functions, or
 /// reductions.
-/// 
-template <typename T>
-class LelNode {
+///
+template <typename T> class LelNode {
   public:
     virtual ~LelNode() = default;
 
@@ -122,7 +120,9 @@ class LelNode {
     [[nodiscard]] virtual std::optional<IPosition> shape() const = 0;
 
     /// Whether this node is a scalar (shapeless).
-    [[nodiscard]] bool is_scalar() const { return !shape().has_value(); }
+    [[nodiscard]] bool is_scalar() const {
+        return !shape().has_value();
+    }
 
     /// Evaluate the expression and return the result.
     [[nodiscard]] virtual LelResult<T> eval() const = 0;
@@ -131,8 +131,7 @@ class LelNode {
 // ── LelScalar ────────────────────────────────────────────────────────
 
 /// Scalar constant expression node.
-template <typename T>
-class LelScalar : public LelNode<T> {
+template <typename T> class LelScalar : public LelNode<T> {
   public:
     explicit LelScalar(T value) : value_(value) {}
 
@@ -145,7 +144,9 @@ class LelScalar : public LelNode<T> {
         return {std::move(arr), std::nullopt};
     }
 
-    [[nodiscard]] T value() const { return value_; }
+    [[nodiscard]] T value() const {
+        return value_;
+    }
 
   private:
     T value_;
@@ -154,11 +155,9 @@ class LelScalar : public LelNode<T> {
 // ── LelArrayRef ──────────────────────────────────────────────────────
 
 /// Reference to an existing LatticeArray (leaf node).
-template <typename T>
-class LelArrayRef : public LelNode<T> {
+template <typename T> class LelArrayRef : public LelNode<T> {
   public:
-    LelArrayRef(LatticeArray<T> data,
-                std::optional<LatticeArray<bool>> mask = std::nullopt)
+    LelArrayRef(LatticeArray<T> data, std::optional<LatticeArray<bool>> mask = std::nullopt)
         : data_(std::move(data)), mask_(std::move(mask)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
@@ -178,9 +177,18 @@ class LelArrayRef : public LelNode<T> {
 
 /// Binary operator enumeration.
 enum class LelBinaryOp : std::uint8_t {
-    add, sub, mul, div_op,
-    eq, ne, gt, ge, lt, le,
-    logical_and, logical_or,
+    add,
+    sub,
+    mul,
+    div_op,
+    eq,
+    ne,
+    gt,
+    ge,
+    lt,
+    le,
+    logical_and,
+    logical_or,
 };
 
 /// Return the string representation of a binary op.
@@ -190,7 +198,8 @@ enum class LelBinaryOp : std::uint8_t {
 
 /// Unary operator enumeration.
 enum class LelUnaryOp : std::uint8_t {
-    negate, identity,
+    negate,
+    identity,
     logical_not,
 };
 
@@ -199,21 +208,48 @@ enum class LelUnaryOp : std::uint8_t {
 /// Built-in function enumeration.
 enum class LelFunc : std::uint8_t {
     // Math (1-arg)
-    sin_f, cos_f, tan_f,
-    asin_f, acos_f, atan_f,
-    exp_f, log_f, log10_f, sqrt_f,
-    abs_f, sign_f, round_f, ceil_f, floor_f,
+    sin_f,
+    cos_f,
+    tan_f,
+    asin_f,
+    acos_f,
+    atan_f,
+    exp_f,
+    log_f,
+    log10_f,
+    sqrt_f,
+    abs_f,
+    sign_f,
+    round_f,
+    ceil_f,
+    floor_f,
     // Math (2-arg)
-    atan2_f, pow_f, fmod_f, min2_f, max2_f,
+    atan2_f,
+    pow_f,
+    fmod_f,
+    min2_f,
+    max2_f,
     // Complex
-    real_f, imag_f, conj_f, arg_f,
+    real_f,
+    imag_f,
+    conj_f,
+    arg_f,
     form_complex_f,
     // Reductions (0-d result)
-    min_r, max_r, sum_r, mean_r, median_r,
-    variance_r, stddev_r,
-    ntrue_r, nfalse_r, any_r, all_r,
+    min_r,
+    max_r,
+    sum_r,
+    mean_r,
+    median_r,
+    variance_r,
+    stddev_r,
+    ntrue_r,
+    nfalse_r,
+    any_r,
+    all_r,
     // Mask operations
-    value_f, mask_f,
+    value_f,
+    mask_f,
     // Conditional
     iif_f,
 };
@@ -222,12 +258,9 @@ enum class LelFunc : std::uint8_t {
 
 /// Binary operation on two expression trees of the same type.
 /// Handles scalar-lattice broadcasting.
-template <typename T>
-class LelBinary : public LelNode<T> {
+template <typename T> class LelBinary : public LelNode<T> {
   public:
-    LelBinary(LelBinaryOp op,
-              std::shared_ptr<LelNode<T>> left,
-              std::shared_ptr<LelNode<T>> right)
+    LelBinary(LelBinaryOp op, std::shared_ptr<LelNode<T>> left, std::shared_ptr<LelNode<T>> right)
         : op_(op), left_(std::move(left)), right_(std::move(right)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override;
@@ -240,12 +273,9 @@ class LelBinary : public LelNode<T> {
 };
 
 /// Binary comparison node: two T operands → bool result.
-template <typename T>
-class LelCompare : public LelNode<bool> {
+template <typename T> class LelCompare : public LelNode<bool> {
   public:
-    LelCompare(LelBinaryOp op,
-               std::shared_ptr<LelNode<T>> left,
-               std::shared_ptr<LelNode<T>> right)
+    LelCompare(LelBinaryOp op, std::shared_ptr<LelNode<T>> left, std::shared_ptr<LelNode<T>> right)
         : op_(op), left_(std::move(left)), right_(std::move(right)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override;
@@ -260,8 +290,7 @@ class LelCompare : public LelNode<bool> {
 // ── Unary expression node ────────────────────────────────────────────
 
 /// Unary operation on an expression tree.
-template <typename T>
-class LelUnary : public LelNode<T> {
+template <typename T> class LelUnary : public LelNode<T> {
   public:
     LelUnary(LelUnaryOp op, std::shared_ptr<LelNode<T>> operand)
         : op_(op), operand_(std::move(operand)) {}
@@ -279,8 +308,7 @@ class LelUnary : public LelNode<T> {
 // ── Function expression node ─────────────────────────────────────────
 
 /// 1-argument math function applied element-wise.
-template <typename T>
-class LelFunc1 : public LelNode<T> {
+template <typename T> class LelFunc1 : public LelNode<T> {
   public:
     using func_type = std::function<T(T)>;
 
@@ -299,16 +327,13 @@ class LelFunc1 : public LelNode<T> {
 };
 
 /// 2-argument math function applied element-wise.
-template <typename T>
-class LelFunc2 : public LelNode<T> {
+template <typename T> class LelFunc2 : public LelNode<T> {
   public:
     using func_type = std::function<T(T, T)>;
 
-    LelFunc2(LelFunc id, func_type fn,
-             std::shared_ptr<LelNode<T>> arg1,
+    LelFunc2(LelFunc id, func_type fn, std::shared_ptr<LelNode<T>> arg1,
              std::shared_ptr<LelNode<T>> arg2)
-        : id_(id), fn_(std::move(fn)),
-          arg1_(std::move(arg1)), arg2_(std::move(arg2)) {}
+        : id_(id), fn_(std::move(fn)), arg1_(std::move(arg1)), arg2_(std::move(arg2)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override;
     [[nodiscard]] LelResult<T> eval() const override;
@@ -323,11 +348,10 @@ class LelFunc2 : public LelNode<T> {
 // ── Reduction node ───────────────────────────────────────────────────
 
 /// Reduction that collapses a lattice expression to a scalar.
-template <typename T>
-class LelReduce : public LelNode<T> {
+template <typename T> class LelReduce : public LelNode<T> {
   public:
-    using reduce_type = std::function<T(const LatticeArray<T>&,
-                                        const std::optional<LatticeArray<bool>>&)>;
+    using reduce_type =
+        std::function<T(const LatticeArray<T>&, const std::optional<LatticeArray<bool>>&)>;
 
     LelReduce(LelFunc id, reduce_type fn, std::shared_ptr<LelNode<T>> arg)
         : id_(id), fn_(std::move(fn)), arg_(std::move(arg)) {}
@@ -344,11 +368,10 @@ class LelReduce : public LelNode<T> {
 };
 
 /// Bool reduction (ntrue, nfalse, any, all) → float/double scalar result.
-template <typename R>
-class LelBoolReduce : public LelNode<R> {
+template <typename R> class LelBoolReduce : public LelNode<R> {
   public:
-    using reduce_type = std::function<R(const LatticeArray<bool>&,
-                                        const std::optional<LatticeArray<bool>>&)>;
+    using reduce_type =
+        std::function<R(const LatticeArray<bool>&, const std::optional<LatticeArray<bool>>&)>;
 
     LelBoolReduce(LelFunc id, reduce_type fn, std::shared_ptr<LelNode<bool>> arg)
         : id_(id), fn_(std::move(fn)), arg_(std::move(arg)) {}
@@ -367,15 +390,12 @@ class LelBoolReduce : public LelNode<R> {
 // ── Conditional (iif) ────────────────────────────────────────────────
 
 /// iif(condition, true_val, false_val)
-template <typename T>
-class LelIif : public LelNode<T> {
+template <typename T> class LelIif : public LelNode<T> {
   public:
-    LelIif(std::shared_ptr<LelNode<bool>> cond,
-           std::shared_ptr<LelNode<T>> true_val,
+    LelIif(std::shared_ptr<LelNode<bool>> cond, std::shared_ptr<LelNode<T>> true_val,
            std::shared_ptr<LelNode<T>> false_val)
-        : cond_(std::move(cond)),
-          true_val_(std::move(true_val)),
-          false_val_(std::move(false_val)) {}
+        : cond_(std::move(cond)), true_val_(std::move(true_val)), false_val_(std::move(false_val)) {
+    }
 
     [[nodiscard]] std::optional<IPosition> shape() const override;
     [[nodiscard]] LelResult<T> eval() const override;
@@ -388,13 +408,13 @@ class LelIif : public LelNode<T> {
 
 // ── LatticeExprNode (type-erased wrapper) ────────────────────────────
 
-/// 
+///
 /// Type-erased expression node holding one of the typed LelNode<T> trees.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LatticeExprNode` stores a `std::variant` over the five supported typed
 /// node pointer types (`float`, `double`, `complex<float>`, `complex<double>`,
 /// `bool`).  It exposes the `result_type()` discriminant and a typed accessor
@@ -403,7 +423,7 @@ class LelIif : public LelNode<T> {
 ///
 /// `LatticeExprNode` is the return type of `lel_parse()` and the value type
 /// stored in `LelSymbolTable`.
-/// 
+///
 class LatticeExprNode {
   public:
     LatticeExprNode() = default;
@@ -412,10 +432,11 @@ class LatticeExprNode {
     explicit LatticeExprNode(std::shared_ptr<LelNode<T>> node)
         : type_(type_of<T>()), node_(std::move(node)) {}
 
-    [[nodiscard]] LelType result_type() const { return type_; }
+    [[nodiscard]] LelType result_type() const {
+        return type_;
+    }
 
-    template <typename T>
-    [[nodiscard]] std::shared_ptr<LelNode<T>> as() const {
+    template <typename T> [[nodiscard]] std::shared_ptr<LelNode<T>> as() const {
         return std::get<std::shared_ptr<LelNode<T>>>(node_);
     }
 
@@ -424,48 +445,48 @@ class LatticeExprNode {
     }
 
   private:
-    template <typename T>
-    static constexpr LelType type_of() {
-        if constexpr (std::is_same_v<T, float>) return LelType::float32;
-        else if constexpr (std::is_same_v<T, double>) return LelType::float64;
-        else if constexpr (std::is_same_v<T, std::complex<float>>) return LelType::complex64;
-        else if constexpr (std::is_same_v<T, std::complex<double>>) return LelType::complex128;
-        else if constexpr (std::is_same_v<T, bool>) return LelType::boolean;
-        else static_assert(sizeof(T) == 0, "unsupported LEL type");
+    template <typename T> static constexpr LelType type_of() {
+        if constexpr (std::is_same_v<T, float>)
+            return LelType::float32;
+        else if constexpr (std::is_same_v<T, double>)
+            return LelType::float64;
+        else if constexpr (std::is_same_v<T, std::complex<float>>)
+            return LelType::complex64;
+        else if constexpr (std::is_same_v<T, std::complex<double>>)
+            return LelType::complex128;
+        else if constexpr (std::is_same_v<T, bool>)
+            return LelType::boolean;
+        else
+            static_assert(sizeof(T) == 0, "unsupported LEL type");
     }
 
     LelType type_ = LelType::float32;
-    std::variant<
-        std::shared_ptr<LelNode<float>>,
-        std::shared_ptr<LelNode<double>>,
-        std::shared_ptr<LelNode<std::complex<float>>>,
-        std::shared_ptr<LelNode<std::complex<double>>>,
-        std::shared_ptr<LelNode<bool>>
-    > node_{std::shared_ptr<LelNode<float>>(nullptr)};
+    std::variant<std::shared_ptr<LelNode<float>>, std::shared_ptr<LelNode<double>>,
+                 std::shared_ptr<LelNode<std::complex<float>>>,
+                 std::shared_ptr<LelNode<std::complex<double>>>, std::shared_ptr<LelNode<bool>>>
+        node_{std::shared_ptr<LelNode<float>>(nullptr)};
 };
 
 // ── LatticeExpr<T> ──────────────────────────────────────────────────
 
-/// 
+///
 /// Typed lattice expression that can be evaluated.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LatticeExpr<T>` wraps a `shared_ptr<LelNode<T>>` root and provides
 /// `shape()` and `eval()` as the primary user-facing interface.  It is
 /// analogous to casacore's `LatticeExpr<T>`.
 ///
 /// Call `eval()` to obtain a `LelResult<T>` containing the computed values
 /// and optional mask.
-/// 
-template <typename T>
-class LatticeExpr {
+///
+template <typename T> class LatticeExpr {
   public:
     LatticeExpr() = default;
-    explicit LatticeExpr(std::shared_ptr<LelNode<T>> root)
-        : root_(std::move(root)) {}
+    explicit LatticeExpr(std::shared_ptr<LelNode<T>> root) : root_(std::move(root)) {}
 
     /// The shape of the expression result, or nullopt if scalar.
     [[nodiscard]] std::optional<IPosition> shape() const {
@@ -474,12 +495,15 @@ class LatticeExpr {
 
     /// Evaluate the full expression tree.
     [[nodiscard]] LelResult<T> eval() const {
-        if (!root_) throw std::runtime_error("LatticeExpr: null root");
+        if (!root_)
+            throw std::runtime_error("LatticeExpr: null root");
         return root_->eval();
     }
 
     /// Access the root node.
-    [[nodiscard]] const std::shared_ptr<LelNode<T>>& root() const { return root_; }
+    [[nodiscard]] const std::shared_ptr<LelNode<T>>& root() const {
+        return root_;
+    }
 
   private:
     std::shared_ptr<LelNode<T>> root_;
@@ -488,57 +512,52 @@ class LatticeExpr {
 // ── Builder helpers ──────────────────────────────────────────────────
 
 /// Create a scalar constant expression.
-template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>> lel_scalar(T value) {
+template <typename T> [[nodiscard]] std::shared_ptr<LelNode<T>> lel_scalar(T value) {
     return std::make_shared<LelScalar<T>>(value);
 }
 
 /// Create a lattice reference expression.
 template <typename T>
 [[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_array(LatticeArray<T> data,
-          std::optional<LatticeArray<bool>> mask = std::nullopt) {
+lel_array(LatticeArray<T> data, std::optional<LatticeArray<bool>> mask = std::nullopt) {
     return std::make_shared<LelArrayRef<T>>(std::move(data), std::move(mask));
 }
 
 /// Create arithmetic binary expressions.
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_add(std::shared_ptr<LelNode<T>> l, std::shared_ptr<LelNode<T>> r) {
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_add(std::shared_ptr<LelNode<T>> l,
+                                                  std::shared_ptr<LelNode<T>> r) {
     return std::make_shared<LelBinary<T>>(LelBinaryOp::add, std::move(l), std::move(r));
 }
 
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_sub(std::shared_ptr<LelNode<T>> l, std::shared_ptr<LelNode<T>> r) {
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_sub(std::shared_ptr<LelNode<T>> l,
+                                                  std::shared_ptr<LelNode<T>> r) {
     return std::make_shared<LelBinary<T>>(LelBinaryOp::sub, std::move(l), std::move(r));
 }
 
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_mul(std::shared_ptr<LelNode<T>> l, std::shared_ptr<LelNode<T>> r) {
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_mul(std::shared_ptr<LelNode<T>> l,
+                                                  std::shared_ptr<LelNode<T>> r) {
     return std::make_shared<LelBinary<T>>(LelBinaryOp::mul, std::move(l), std::move(r));
 }
 
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_div(std::shared_ptr<LelNode<T>> l, std::shared_ptr<LelNode<T>> r) {
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_div(std::shared_ptr<LelNode<T>> l,
+                                                  std::shared_ptr<LelNode<T>> r) {
     return std::make_shared<LelBinary<T>>(LelBinaryOp::div_op, std::move(l), std::move(r));
 }
 
 /// Create comparison expressions (result is bool).
 template <typename T>
 [[nodiscard]] std::shared_ptr<LelNode<bool>>
-lel_compare(LelBinaryOp op,
-            std::shared_ptr<LelNode<T>> l,
-            std::shared_ptr<LelNode<T>> r) {
+lel_compare(LelBinaryOp op, std::shared_ptr<LelNode<T>> l, std::shared_ptr<LelNode<T>> r) {
     return std::make_shared<LelCompare<T>>(op, std::move(l), std::move(r));
 }
 
 /// Create unary negate expression.
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_negate(std::shared_ptr<LelNode<T>> operand) {
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_negate(std::shared_ptr<LelNode<T>> operand) {
     return std::make_shared<LelUnary<T>>(LelUnaryOp::negate, std::move(operand));
 }
 
@@ -549,60 +568,50 @@ lel_not(std::shared_ptr<LelNode<bool>> operand) {
 }
 
 /// Create logical AND/OR expressions.
-[[nodiscard]] inline std::shared_ptr<LelNode<bool>>
-lel_and(std::shared_ptr<LelNode<bool>> l, std::shared_ptr<LelNode<bool>> r) {
-    return std::make_shared<LelBinary<bool>>(LelBinaryOp::logical_and,
-                                              std::move(l), std::move(r));
+[[nodiscard]] inline std::shared_ptr<LelNode<bool>> lel_and(std::shared_ptr<LelNode<bool>> l,
+                                                            std::shared_ptr<LelNode<bool>> r) {
+    return std::make_shared<LelBinary<bool>>(LelBinaryOp::logical_and, std::move(l), std::move(r));
 }
 
-[[nodiscard]] inline std::shared_ptr<LelNode<bool>>
-lel_or(std::shared_ptr<LelNode<bool>> l, std::shared_ptr<LelNode<bool>> r) {
-    return std::make_shared<LelBinary<bool>>(LelBinaryOp::logical_or,
-                                              std::move(l), std::move(r));
+[[nodiscard]] inline std::shared_ptr<LelNode<bool>> lel_or(std::shared_ptr<LelNode<bool>> l,
+                                                           std::shared_ptr<LelNode<bool>> r) {
+    return std::make_shared<LelBinary<bool>>(LelBinaryOp::logical_or, std::move(l), std::move(r));
 }
 
 /// Create iif conditional.
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_iif(std::shared_ptr<LelNode<bool>> cond,
-        std::shared_ptr<LelNode<T>> true_val,
-        std::shared_ptr<LelNode<T>> false_val) {
-    return std::make_shared<LelIif<T>>(std::move(cond),
-                                        std::move(true_val),
-                                        std::move(false_val));
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_iif(std::shared_ptr<LelNode<bool>> cond,
+                                                  std::shared_ptr<LelNode<T>> true_val,
+                                                  std::shared_ptr<LelNode<T>> false_val) {
+    return std::make_shared<LelIif<T>>(std::move(cond), std::move(true_val), std::move(false_val));
 }
 
 // ── Standard math function factories ─────────────────────────────────
 
 /// Create standard 1-arg math function nodes.
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_math1(LelFunc id, std::shared_ptr<LelNode<T>> arg);
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_math1(LelFunc id, std::shared_ptr<LelNode<T>> arg);
 
 /// Create standard 2-arg math function nodes.
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_math2(LelFunc id, std::shared_ptr<LelNode<T>> arg1,
-          std::shared_ptr<LelNode<T>> arg2);
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_math2(LelFunc id, std::shared_ptr<LelNode<T>> arg1,
+                                                    std::shared_ptr<LelNode<T>> arg2);
 
 /// Create reduction node.
 template <typename T>
-[[nodiscard]] std::shared_ptr<LelNode<T>>
-lel_reduce(LelFunc id, std::shared_ptr<LelNode<T>> arg);
+[[nodiscard]] std::shared_ptr<LelNode<T>> lel_reduce(LelFunc id, std::shared_ptr<LelNode<T>> arg);
 
 /// Create bool reduction node (ntrue, nfalse, any, all).
 template <typename R>
-[[nodiscard]] std::shared_ptr<LelNode<R>>
-lel_bool_reduce(LelFunc id, std::shared_ptr<LelNode<bool>> arg);
+[[nodiscard]] std::shared_ptr<LelNode<R>> lel_bool_reduce(LelFunc id,
+                                                          std::shared_ptr<LelNode<bool>> arg);
 
 // ── value() / mask() extractors ──────────────────────────────────────
 
 /// value(expr): strips the mask and returns just the values.
-template <typename T>
-class LelValueExtract : public LelNode<T> {
+template <typename T> class LelValueExtract : public LelNode<T> {
   public:
-    explicit LelValueExtract(std::shared_ptr<LelNode<T>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelValueExtract(std::shared_ptr<LelNode<T>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -617,11 +626,9 @@ class LelValueExtract : public LelNode<T> {
 };
 
 /// mask(expr): extracts the mask as a Bool lattice (true=unmasked).
-template <typename T>
-class LelMaskExtract : public LelNode<bool> {
+template <typename T> class LelMaskExtract : public LelNode<bool> {
   public:
-    explicit LelMaskExtract(std::shared_ptr<LelNode<T>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelMaskExtract(std::shared_ptr<LelNode<T>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -634,26 +641,22 @@ class LelMaskExtract : public LelNode<bool> {
 
 /// Create value() extractor.
 template <typename T>
-[[nodiscard]] inline std::shared_ptr<LelNode<T>>
-lel_value(std::shared_ptr<LelNode<T>> arg) {
+[[nodiscard]] inline std::shared_ptr<LelNode<T>> lel_value(std::shared_ptr<LelNode<T>> arg) {
     return std::make_shared<LelValueExtract<T>>(std::move(arg));
 }
 
 /// Create mask() extractor.
 template <typename T>
-[[nodiscard]] inline std::shared_ptr<LelNode<bool>>
-lel_mask(std::shared_ptr<LelNode<T>> arg) {
+[[nodiscard]] inline std::shared_ptr<LelNode<bool>> lel_mask(std::shared_ptr<LelNode<T>> arg) {
     return std::make_shared<LelMaskExtract<T>>(std::move(arg));
 }
 
 // ── Complex operations ───────────────────────────────────────────────
 
 /// Extract real part from complex lattice.
-template <typename R>
-class LelReal : public LelNode<R> {
+template <typename R> class LelReal : public LelNode<R> {
   public:
-    explicit LelReal(std::shared_ptr<LelNode<std::complex<R>>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelReal(std::shared_ptr<LelNode<std::complex<R>>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -665,11 +668,9 @@ class LelReal : public LelNode<R> {
 };
 
 /// Extract imaginary part from complex lattice.
-template <typename R>
-class LelImag : public LelNode<R> {
+template <typename R> class LelImag : public LelNode<R> {
   public:
-    explicit LelImag(std::shared_ptr<LelNode<std::complex<R>>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelImag(std::shared_ptr<LelNode<std::complex<R>>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -681,11 +682,9 @@ class LelImag : public LelNode<R> {
 };
 
 /// Conjugate of complex lattice.
-template <typename R>
-class LelConj : public LelNode<std::complex<R>> {
+template <typename R> class LelConj : public LelNode<std::complex<R>> {
   public:
-    explicit LelConj(std::shared_ptr<LelNode<std::complex<R>>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelConj(std::shared_ptr<LelNode<std::complex<R>>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -697,11 +696,9 @@ class LelConj : public LelNode<std::complex<R>> {
 };
 
 /// arg() (phase angle) of complex lattice.
-template <typename R>
-class LelArg : public LelNode<R> {
+template <typename R> class LelArg : public LelNode<R> {
   public:
-    explicit LelArg(std::shared_ptr<LelNode<std::complex<R>>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelArg(std::shared_ptr<LelNode<std::complex<R>>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -713,11 +710,9 @@ class LelArg : public LelNode<R> {
 };
 
 /// formComplex(re, im): construct complex from two real lattices.
-template <typename R>
-class LelFormComplex : public LelNode<std::complex<R>> {
+template <typename R> class LelFormComplex : public LelNode<std::complex<R>> {
   public:
-    LelFormComplex(std::shared_ptr<LelNode<R>> re,
-                   std::shared_ptr<LelNode<R>> im)
+    LelFormComplex(std::shared_ptr<LelNode<R>> re, std::shared_ptr<LelNode<R>> im)
         : re_(std::move(re)), im_(std::move(im)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override;
@@ -729,11 +724,9 @@ class LelFormComplex : public LelNode<std::complex<R>> {
 };
 
 /// Complex abs (magnitude).
-template <typename R>
-class LelComplexAbs : public LelNode<R> {
+template <typename R> class LelComplexAbs : public LelNode<R> {
   public:
-    explicit LelComplexAbs(std::shared_ptr<LelNode<std::complex<R>>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelComplexAbs(std::shared_ptr<LelNode<std::complex<R>>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -780,8 +773,7 @@ lel_complex_abs(std::shared_ptr<LelNode<std::complex<R>>> arg) {
 
 template <typename R>
 [[nodiscard]] inline std::shared_ptr<LelNode<std::complex<R>>>
-lel_form_complex(std::shared_ptr<LelNode<R>> re,
-                 std::shared_ptr<LelNode<R>> im) {
+lel_form_complex(std::shared_ptr<LelNode<R>> re, std::shared_ptr<LelNode<R>> im) {
     return std::make_shared<LelFormComplex<R>>(std::move(re), std::move(im));
 }
 
@@ -790,8 +782,7 @@ lel_form_complex(std::shared_ptr<LelNode<R>> re,
 /// Promote a float node to double.
 class LelPromoteFloat : public LelNode<double> {
   public:
-    explicit LelPromoteFloat(std::shared_ptr<LelNode<float>> arg)
-        : arg_(std::move(arg)) {}
+    explicit LelPromoteFloat(std::shared_ptr<LelNode<float>> arg) : arg_(std::move(arg)) {}
 
     [[nodiscard]] std::optional<IPosition> shape() const override {
         return arg_->shape();
@@ -809,40 +800,40 @@ lel_promote_float(std::shared_ptr<LelNode<float>> arg) {
 
 // ── LEL Parser ───────────────────────────────────────────────────────
 
-/// 
+///
 /// Error thrown when LEL expression parsing fails.
-/// 
+///
 ///
 ///
 class LelParseError : public std::runtime_error {
   public:
     LelParseError(const std::string& msg, std::size_t pos)
-        : std::runtime_error("LEL parse error at position " +
-                             std::to_string(pos) + ": " + msg),
+        : std::runtime_error("LEL parse error at position " + std::to_string(pos) + ": " + msg),
           position_(pos) {}
 
-    [[nodiscard]] std::size_t position() const { return position_; }
+    [[nodiscard]] std::size_t position() const {
+        return position_;
+    }
 
   private:
     std::size_t position_;
 };
 
-/// 
+///
 /// Named lattice variable reference table for the LEL parser.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `LelSymbolTable` maps lattice variable names to type-erased
 /// `LatticeExprNode` values.  Populate it before calling `lel_parse()` so
 /// that lattice identifiers in the expression string resolve to the correct
 /// typed expression nodes.
-/// 
+///
 class LelSymbolTable {
   public:
-    template <typename T>
-    void define(const std::string& name, std::shared_ptr<LelNode<T>> node) {
+    template <typename T> void define(const std::string& name, std::shared_ptr<LelNode<T>> node) {
         symbols_[name] = LatticeExprNode(std::move(node));
     }
 
@@ -853,8 +844,7 @@ class LelSymbolTable {
     [[nodiscard]] const LatticeExprNode& get(const std::string& name) const {
         auto it = symbols_.find(name);
         if (it == symbols_.end()) {
-            throw std::runtime_error(
-                "LEL: undefined lattice reference '" + name + "'");
+            throw std::runtime_error("LEL: undefined lattice reference '" + name + "'");
         }
         return it->second;
     }
@@ -865,7 +855,7 @@ class LelSymbolTable {
 
 /// Parse a LEL expression string into a type-erased expression node.
 ///
-/// 
+///
 /// Supported syntax:
 /// - Numeric literals: `1.5`, `-2.0`, `3e10`
 /// - Boolean literals: `T`, `F`
@@ -879,10 +869,9 @@ class LelSymbolTable {
 ///   `min(x)`, `median(x)`, etc.
 /// - Extractors: `value(expr)`, `mask(expr)`
 /// - Conditional: `iif(cond, true, false)`
-/// 
+///
 ///
 /// @throws LelParseError on malformed input.
-[[nodiscard]] LatticeExprNode
-lel_parse(const std::string& expr, const LelSymbolTable& symbols);
+[[nodiscard]] LatticeExprNode lel_parse(const std::string& expr, const LelSymbolTable& symbols);
 
 } // namespace casacore_mini

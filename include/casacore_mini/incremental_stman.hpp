@@ -17,13 +17,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Read/write access to IncrementalStMan (ISM) data files.
 
-/// 
+///
 /// Read-only ISM reader for a single table directory.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// The IncrementalStMan (ISM) stores values incrementally: a cell value is
 /// only written when it differs from the previous row.  For columns where many
 /// consecutive rows share the same value (e.g. `FIELD_ID` in a measurement
@@ -35,7 +35,7 @@ namespace casacore_mini {
 ///
 /// Open via `open()`, then call `read_cell()` to obtain typed `CellValue`
 /// variants for any managed column.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -43,14 +43,14 @@ namespace casacore_mini {
 ///   reader.open("my_vis.ms", 1, table_dat);
 ///   auto field_id = std::get<int32_t>(reader.read_cell("FIELD_ID", 42));
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// ISM is commonly used for slowly-changing columns such as `FIELD_ID`,
 /// `DATA_DESC_ID`, and `SCAN_NUMBER` in measurement sets.  Keeping a
 /// lightweight in-memory value chain avoids scanning the entire file for
 /// each row access.
-/// 
+///
 class IsmReader {
   public:
     /// Open an ISM data file for reading.
@@ -87,13 +87,13 @@ class IsmReader {
     std::vector<IsmColumnInfo> columns_;
 };
 
-/// 
+///
 /// Write-only ISM writer for producing a complete ISM `table.f0` file.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `IsmWriter` is the write-path counterpart to `IsmReader`.  It stores
 /// cell values in a row-indexed buffer during the write phase, then on
 /// `flush()` collapses consecutive identical values into a single run
@@ -105,7 +105,7 @@ class IsmReader {
 /// 3. Call `flush()` to produce the `.f0` binary.
 /// 4. Call `make_blob()` to produce the AipsIO blob for `table.dat`.
 /// 5. Call `write_file()` to write the `.f0` file to disk.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -116,7 +116,7 @@ class IsmReader {
 ///   }
 ///   writer.write_file("my_table", 1);
 /// @endcode
-/// 
+///
 class IsmWriter {
   public:
     /// Set up the writer with column descriptors and row count.

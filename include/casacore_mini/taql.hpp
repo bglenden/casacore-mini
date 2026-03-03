@@ -8,7 +8,7 @@
 ///
 ///
 ///
-/// 
+///
 /// Implements the full TaQL command and expression surface compatible with
 /// upstream casacore's tables/TaQL module.  Supported top-level commands are:
 ///
@@ -24,7 +24,7 @@
 /// comparison, logical, bitwise, pattern-match, range, and set operators,
 /// aggregate functions, array subscripting, unit suffixes, cone-search
 /// primitives, IIF, record literals, and nested subqueries.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -42,7 +42,7 @@
 ///   auto calc = taql_calc("CALC 2*pi()*1.5GHz");
 ///   double freq_rad_per_s = std::get<double>(calc.values[0]);
 /// @endcode
-/// 
+///
 
 #include <complex>
 #include <cstdint>
@@ -63,14 +63,14 @@ class Table;
 
 /// Typed value used in TaQL expression evaluation.
 ///
-/// 
+///
 /// TaqlValue is a variant covering all scalar and array types that TaQL
 /// expressions can produce.  The `std::monostate` alternative
 /// represents a SQL-style NULL.  Scalar alternatives are `bool`,
 /// `std::int64_t`, `double`, `std::complex<double>`,
 /// and `std::string`.  Each scalar type has a corresponding
 /// `std::vector` alternative for array-valued results.
-/// 
+///
 using TaqlValue = std::variant<std::monostate, // null
                                bool, std::int64_t, double, std::complex<double>, std::string,
                                std::vector<bool>, std::vector<std::int64_t>, std::vector<double>,
@@ -82,10 +82,10 @@ using TaqlValue = std::variant<std::monostate, // null
 
 /// TaQL command type.
 ///
-/// 
+///
 /// Discriminates the top-level TaQL statement stored in a TaqlAst.  The
 /// active fields of TaqlAst depend on which command variant is present.
-/// 
+///
 enum class TaqlCommand : std::uint8_t {
     select_cmd,
     update_cmd,
@@ -101,7 +101,7 @@ enum class TaqlCommand : std::uint8_t {
 
 /// Expression node type tag.
 ///
-/// 
+///
 /// Every node in a TaqlExprNode tree carries one of these tags to identify
 /// the kind of expression it represents.  The tag controls which fields of
 /// TaqlExprNode are meaningful:
@@ -121,7 +121,7 @@ enum class TaqlCommand : std::uint8_t {
 ///   <dt>unit_expr</dt>     <dd>TaqlExprNode::unit holds the suffix string.</dd>
 ///   <dt>subquery</dt>      <dd>children[0] wraps a nested TaqlAst.</dd>
 /// </dl>
-/// 
+///
 enum class ExprType : std::uint8_t {
     literal,        // constant value
     column_ref,     // column name reference
@@ -151,7 +151,7 @@ enum class ExprType : std::uint8_t {
 
 /// Operator tag for unary/binary operators.
 ///
-/// 
+///
 /// Used in TaqlExprNode::op to identify arithmetic, bitwise, comparison,
 /// logical, pattern-match, set, range, and special operators.  The tag is
 /// only meaningful when ExprType is one of `unary_op`,
@@ -159,7 +159,7 @@ enum class ExprType : std::uint8_t {
 /// `like_expr`, `regex_expr`, `in_expr`,
 /// `between_expr`, `around_expr`, or
 /// `exists_expr`.
-/// 
+///
 enum class TaqlOp : std::uint8_t {
     // Arithmetic
     plus,
@@ -214,12 +214,12 @@ enum class SortOrder : std::uint8_t { ascending, descending };
 
 /// Range inclusion (open/closed) for range expressions.
 ///
-/// 
+///
 /// Identifies which endpoints of a `start:end` range are included
 /// in the interval.  Maps directly to the bracket notation:
 ///   `closed` = [a,b], `left_open` = (a,b],
 ///   `right_open` = [a,b), `open` = (a,b).
-/// 
+///
 enum class RangeIncl : std::uint8_t { closed, left_open, right_open, open };
 
 // ---------------------------------------------------------------------------
@@ -228,7 +228,7 @@ enum class RangeIncl : std::uint8_t { closed, left_open, right_open, open };
 
 /// A single node in the TaQL expression tree.
 ///
-/// 
+///
 /// TaqlExprNode is the recursive building block of all TaQL expressions.
 /// Each node carries a type tag (ExprType), an operator tag (TaqlOp, for
 /// operator nodes), a value (TaqlValue, for literals), a name string (for
@@ -240,7 +240,7 @@ enum class RangeIncl : std::uint8_t { closed, left_open, right_open, open };
 /// `range_incl` fields are used by ORDER BY sort keys and range
 /// literals respectively.  The `distinct` flag applies to
 /// aggregate function calls.
-/// 
+///
 struct TaqlExprNode {
     ExprType type;
     TaqlOp op = TaqlOp::plus;           ///< operator for unary/binary/comparison
@@ -264,13 +264,13 @@ struct TaqlSortKey {
 
 /// Column specification for CREATE TABLE statements.
 ///
-/// 
+///
 /// Describes a single column to be created.  `data_type` is the
 /// TaQL type keyword (e.g. "double", "complex", "string").  `ndim`
 /// is the number of array dimensions (absent for scalars).  `shape`
 /// fixes the array shape when known at creation time.  `dm_type`
 /// and `dm_group` control the storage manager assignment.
-/// 
+///
 struct TaqlColumnDef {
     std::string name;
     std::string data_type;
@@ -284,13 +284,13 @@ struct TaqlColumnDef {
 
 /// Table creation options from the AS clause.
 ///
-/// 
+///
 /// Controls the storage backend and byte order when creating a new table
 /// via CREATE TABLE ... AS.  `type` selects the table format
 /// (PLAIN, MEMORY, SCRATCH).  `endian` picks byte order (BIG,
 /// LITTLE, LOCAL, AIPSRC).  `storage` selects the storage
 /// manager layout (SEPFILE, MULTIFILE, MULTIHDF5).
-/// 
+///
 struct TaqlTableOptions {
     std::string type;    // PLAIN, MEMORY, SCRATCH, etc.
     std::string endian;  // BIG, LITTLE, LOCAL, AIPSRC
@@ -300,13 +300,13 @@ struct TaqlTableOptions {
 
 /// Column assignment for UPDATE SET clauses.
 ///
-/// 
+///
 /// Represents one "col = expr" clause from an UPDATE statement.
 /// `indices` carries array slice expressions when the target
 /// is a sub-range of an array column (e.g. `DATA[0:3]`).
 /// `mask_column` names an optional boolean mask column that
 /// gates which elements are written.
-/// 
+///
 struct TaqlAssignment {
     std::string column;
     TaqlExprNode value;
@@ -316,13 +316,13 @@ struct TaqlAssignment {
 
 /// ALTER TABLE sub-command discriminator.
 ///
-/// 
+///
 /// Identifies the operation carried by a TaqlAlterStep.  Column operations
 /// (`add_column`, `copy_column`, `rename_column`,
 /// `drop_column`) and keyword operations (`set_keyword`,
 /// `copy_keyword`, `rename_keyword`, `drop_keyword`)
 /// are both represented, as is the `add_row` bulk row insertion.
-/// 
+///
 enum class AlterAction : std::uint8_t {
     add_column,
     copy_column,
@@ -337,7 +337,7 @@ enum class AlterAction : std::uint8_t {
 
 /// One step in an ALTER TABLE command.
 ///
-/// 
+///
 /// A single ALTER TABLE statement may carry multiple steps.  The
 /// `action` tag selects which of the payload fields are valid:
 /// <dl>
@@ -351,7 +351,7 @@ enum class AlterAction : std::uint8_t {
 ///   <dt>drop_keyword</dt>  <dd>`names` lists keywords to remove.</dd>
 ///   <dt>add_row</dt>       <dd>`row_count` is the count expression.</dd>
 /// </dl>
-/// 
+///
 struct TaqlAlterStep {
     AlterAction action;
     std::vector<TaqlColumnDef> columns;                         // for add_column
@@ -363,13 +363,13 @@ struct TaqlAlterStep {
 
 /// Table reference (name or subquery) used in FROM / JOIN clauses.
 ///
-/// 
+///
 /// A named table reference identifies a table by its path or registered
 /// name; `shorthand` holds the alias (e.g. `t1`) used
 /// to qualify column names in the query.  When the FROM source is a
 /// parenthesised subquery, `subquery_ast` holds the inner AST
 /// as a TaqlExprNode wrapper instead.
-/// 
+///
 struct TaqlTableRef {
     std::string name;                         // table path or name
     std::string shorthand;                    // alias (t0, t1, etc.)
@@ -378,12 +378,12 @@ struct TaqlTableRef {
 
 /// Projection column (expression AS alias) in a SELECT list.
 ///
-/// 
+///
 /// Represents one entry in the SELECT projection list.  `expr`
 /// is the value expression; `alias` is the output column name
 /// (may be empty if none was specified).  `data_type` is the
 /// optional output type cast keyword (e.g. "float", "complex").
-/// 
+///
 struct TaqlProjection {
     TaqlExprNode expr;
     std::string alias;
@@ -400,13 +400,13 @@ struct TaqlJoin {
 // Top-level AST
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Complete parsed TaQL command represented as an abstract syntax tree.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// TaqlAst holds the full result of parsing a TaQL query string.  The
 /// active fields depend on the command type stored in `command`:
 /// <dl>
@@ -431,7 +431,7 @@ struct TaqlJoin {
 /// Fields not relevant to the active command are left default-initialised
 /// and should not be accessed.  Use `taql_parse` to create a
 /// TaqlAst; direct construction is for testing only.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -447,13 +447,13 @@ struct TaqlJoin {
 ///   if (ast.where_expr.has_value())
 ///       process_predicate(*ast.where_expr);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// A single value type for all TaQL commands simplifies the evaluator
 /// interface and avoids a polymorphic hierarchy.  Command-specific
 /// processing is handled via the command tag rather than virtual dispatch.
-/// 
+///
 struct TaqlAst {
     TaqlCommand command = TaqlCommand::select_cmd;
 
@@ -513,11 +513,11 @@ struct TaqlAst {
 
 /// Source location for error reporting within a TaQL query string.
 ///
-/// 
+///
 /// Carries byte `offset`, one-based `line` number, and
 /// one-based `column` number pointing to the offending token so
 /// that callers can produce annotated diagnostic messages.
-/// 
+///
 struct TaqlSourceLoc {
     std::size_t offset = 0;
     std::size_t line = 1;
@@ -526,13 +526,13 @@ struct TaqlSourceLoc {
 
 /// Parse error with location context returned by the parser.
 ///
-/// 
+///
 /// A TaqlParseError captures the human-readable `message`, the
 /// `location` in the source string, the offending `token`
 /// text, and a `category` tag (e.g. "syntax", "unknown_function")
 /// for programmatic error handling.  Use `format_parse_error`
 /// to render it with a source excerpt.
-/// 
+///
 struct TaqlParseError {
     std::string message;
     TaqlSourceLoc location;
@@ -546,7 +546,7 @@ struct TaqlParseError {
 
 /// Parse a TaQL query string into an abstract syntax tree.
 ///
-/// 
+///
 /// Accepts the full TaQL grammar including SELECT, UPDATE, INSERT,
 /// DELETE, COUNT, CALC, CREATE TABLE, ALTER TABLE, DROP TABLE, and
 /// SHOW commands.  Expression nodes are stored in TaqlExprNode trees
@@ -556,7 +556,7 @@ struct TaqlParseError {
 /// modified, and the returned AST owns all allocated nodes.  Case is
 /// folded for TaQL keywords and function names; table and column names
 /// preserve their original case.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -564,7 +564,7 @@ struct TaqlParseError {
 ///   assert(ast.command == TaqlCommand::select_cmd);
 ///   assert(ast.projections.size() == 2);
 /// @endcode
-/// 
+///
 ///
 /// @param query  The TaQL query string.
 /// @return Parsed AST.
@@ -573,11 +573,11 @@ struct TaqlParseError {
 
 /// Format a TaQL parse error as a human-readable string.
 ///
-/// 
+///
 /// Produces a multi-line message containing the error description, a
 /// copy of the source line, and a caret pointing at the offending
 /// token.  Suitable for user-facing diagnostics or test output.
-/// 
+///
 ///
 /// @param error   The parse error value.
 /// @param source  The original query string (used to extract the source line).
@@ -590,13 +590,13 @@ struct TaqlParseError {
 
 /// Get TaQL help text for a topic.
 ///
-/// 
+///
 /// Returns a human-readable help string for the given TaQL topic.  When
 /// `topic` is empty or "overview", a summary of all available
 /// commands and functions is returned.  Recognised topic strings include
 /// command names ("SELECT", "CALC"), function categories ("MATH", "ASTRO"),
 /// and individual function names.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -604,7 +604,7 @@ struct TaqlParseError {
 ///   std::cout << taql_show("SIN");
 ///   std::cout << taql_show();   // general overview
 /// @endcode
-/// 
+///
 ///
 /// @param topic Help topic (empty for overview).
 /// @return Help text string.
@@ -616,7 +616,7 @@ struct TaqlParseError {
 
 /// Result of executing a TaQL command against one or more tables.
 ///
-/// 
+///
 /// TaqlResult bundles all output produced by the evaluator:
 /// <dl>
 ///   <dt>rows</dt>          <dd>Row indices selected or modified.</dd>
@@ -626,7 +626,7 @@ struct TaqlParseError {
 ///   <dt>output_table</dt>  <dd>Path to the result table for SELECT INTO or CREATE TABLE.</dd>
 ///   <dt>show_text</dt>     <dd>Help or description text for SHOW commands.</dd>
 /// </dl>
-/// 
+///
 struct TaqlResult {
     /// Selected/affected row indices.
     std::vector<std::uint64_t> rows;
@@ -644,13 +644,13 @@ struct TaqlResult {
 
 /// Execute a TaQL command against a table.
 ///
-/// 
+///
 /// Parses `query` and evaluates it against the supplied Table.
 /// The table is identified internally using the name embedded in the
 /// FROM clause, or the first table reference if no explicit name is given.
 /// All DML operations (UPDATE, INSERT, DELETE) are applied in place; the
 /// table is modified immediately without an additional commit step.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -660,7 +660,7 @@ struct TaqlResult {
 ///   for (auto row : res.rows)
 ///       process_row(tbl, row);
 /// @endcode
-/// 
+///
 ///
 /// @param query TaQL query string.
 /// @param table The table to operate on.
@@ -670,13 +670,13 @@ struct TaqlResult {
 
 /// Execute a TaQL command against multiple named tables.
 ///
-/// 
+///
 /// Overload for multi-table queries.  `tables` maps shorthand
 /// aliases (e.g. "t1", "cal") to Table pointers.  The first entry in
 /// iteration order is treated as the primary table when no explicit
 /// shorthand is specified in the FROM clause.  JOIN and sub-table
 /// references use the same map.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -685,7 +685,7 @@ struct TaqlResult {
 ///       "SELECT t1.DATA / t2.DATA FROM $ms t1, $cal t2",
 ///       {{"t1", &ms}, {"t2", &cal}});
 /// @endcode
-/// 
+///
 ///
 /// @param query TaQL query string.
 /// @param tables Map of shorthand/alias to Table reference. The first entry
@@ -697,19 +697,19 @@ struct TaqlResult {
 
 /// Execute a TaQL CALC expression with no table context.
 ///
-/// 
+///
 /// Evaluates a standalone CALC expression such as
 /// `CALC sin(45deg)` or `CALC 2*pi()*1.5GHz`.  No
 /// table is required; all inputs must be literal constants or built-in
 /// function calls.  The result appears in TaqlResult::values.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
 ///   auto r = taql_calc("CALC sin(45deg)");
 ///   double val = std::get<double>(r.values[0]);  // 0.7071...
 /// @endcode
-/// 
+///
 ///
 /// @param query TaQL CALC expression.
 /// @return Calculated values.

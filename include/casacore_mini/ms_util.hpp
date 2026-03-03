@@ -18,17 +18,17 @@ namespace casacore_mini {
 // StokesConverter
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Converts complex visibility data between Stokes/correlation bases.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — source of the correlation type metadata (POLARIZATION subtable)
-/// 
 ///
-/// 
+///
+///
 /// `StokesConverter` transforms a vector of complex visibilities
 /// from one set of correlation products to another.  Stokes codes follow the
 /// FITS/AIPS convention:
@@ -50,7 +50,7 @@ namespace casacore_mini {
 ///   - U = i*(LR - RL) / 2
 ///   - V = (RR - LL) / 2
 ///
-/// 
+///
 ///
 /// @par Example
 /// Convert RR, RL, LR, LL visibilities to Stokes I, Q, U, V:
@@ -61,7 +61,7 @@ namespace casacore_mini {
 ///   std::vector<std::complex<float>> in_vis = /* ... */;
 ///   auto out_vis = conv.convert(in_vis); // length 4
 /// @endcode
-/// 
+///
 class StokesConverter {
   public:
     /// Set up conversion from input to output Stokes types.
@@ -94,13 +94,13 @@ class StokesConverter {
 // MsDopplerUtil
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Stateless Doppler conversion utilities for MS frequency/velocity data.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `MsDopplerUtil` provides radio-convention Doppler conversions
 /// between observed frequency and line-of-sight velocity, given the rest
 /// frequency of a spectral line.
@@ -114,7 +114,7 @@ class StokesConverter {
 /// Rest frequencies are typically found in the SOURCE subtable
 /// (REST_FREQUENCY column).  These utilities are designed to work alongside
 /// the DOPPLER and FREQ_OFFSET optional subtables.
-/// 
+///
 ///
 /// @par Example
 /// Convert a 21 cm HI rest frequency line to velocity at a given observed
@@ -126,7 +126,7 @@ class StokesConverter {
 ///   double v = MsDopplerUtil::frequency_to_velocity(f_obs, rest);
 ///   // v ≈ +515 km/s (recession)
 /// @endcode
-/// 
+///
 
 /// Doppler tracking utility for MS data.
 ///
@@ -145,18 +145,18 @@ struct MsDopplerUtil {
 // MsHistoryHandler
 // ---------------------------------------------------------------------------
 
-/// 
+///
 /// Appends processing history entries to the HISTORY subtable of a
 /// MeasurementSet.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS whose HISTORY subtable is written
-/// 
 ///
-/// 
+///
+///
 /// `MsHistoryHandler` buffers one or more history log entries in
 /// memory and writes them to the HISTORY subtable when `flush()` is
 /// called.  Each entry carries a timestamp (MJD seconds), an observation ID,
@@ -167,7 +167,7 @@ struct MsDopplerUtil {
 ///
 /// Priority strings follow the casacore convention: "DEBUGGING", "INFO",
 /// "WARN", "SEVERE".
-/// 
+///
 ///
 /// @par Example
 /// Log two processing steps and flush to disk:
@@ -180,7 +180,7 @@ struct MsDopplerUtil {
 ///   hist.add_entry("Calibration applied", "INFO", "applycal");
 ///   hist.flush();
 /// @endcode
-/// 
+///
 
 /// Add entries to the HISTORY subtable of a MeasurementSet.
 class MsHistoryHandler {

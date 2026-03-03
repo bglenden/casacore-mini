@@ -15,13 +15,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Concatenated table — virtual concatenation of multiple tables.
 
-/// 
+///
 /// Presents multiple tables with the same schema as a single virtual table.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `ConcatTable` provides a row-union view over a list of `Table` objects
 /// that share the same column schema.  Row N in the concatenated view is
 /// mapped to a specific `(table_index, local_row)` pair via a cumulative
@@ -37,7 +37,7 @@ namespace casacore_mini {
 ///
 /// Use `decompose_row()` to translate a global row index into the component
 /// table index and local row for low-level access.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -47,13 +47,13 @@ namespace casacore_mini {
 ///   std::cout << "total rows: " << ct.nrow() << "\n";
 ///   auto val = ct.read_scalar_cell("ANTENNA1", ct.nrow() - 1);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Processing large measurement sets that have been split into per-chunk
 /// sub-tables benefits from a unified virtual table that routes row requests
 /// transparently to the correct chunk.
-/// 
+///
 class ConcatTable {
   public:
     /// Construct from a list of tables (must have same column schema).

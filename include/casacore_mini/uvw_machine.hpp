@@ -12,7 +12,7 @@ namespace casacore_mini {
 /// @file
 /// @brief UVW rotation, parallactic angle, and earth magnetic field utilities.
 
-/// 
+///
 /// This header provides free functions and stateful helper classes for three
 /// categories of radio-astronomy geometric computations:
 ///
@@ -27,7 +27,7 @@ namespace casacore_mini {
 /// `UvwMachine`, `ParAngleMachine`, and `EarthMagneticMachine` cache fixed
 /// parameters (phase-centre coordinates, observer latitude, epoch) to avoid
 /// recomputing them on every row.
-/// 
+///
 
 /// Compute 3x3 rotation matrix to transform UVW coordinates from one phase
 /// center (ra1, dec1) to another (ra2, dec2). All angles in radians.
@@ -54,18 +54,18 @@ namespace casacore_mini {
 [[noreturn]] void earth_magnetic_field(double lon_rad, double lat_rad, double height_m,
                                        double epoch_yr);
 
-/// 
+///
 /// Stateful UVW phase-centre conversion helper.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `UvwMachine` pre-computes the 3x3 rotation matrix for a fixed source-to-
 /// target phase-centre pair and applies it to successive UVW vectors via
 /// `convert()`.  This avoids recomputing six trigonometric functions per row
 /// when re-phasing a large measurement set.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -74,7 +74,7 @@ namespace casacore_mini {
 ///       auto rotated = machine.convert(uvw_at(row));
 ///   }
 /// @endcode
-/// 
+///
 class UvwMachine {
   public:
     UvwMachine(double from_ra_rad, double from_dec_rad, double to_ra_rad, double to_dec_rad);
@@ -88,16 +88,16 @@ class UvwMachine {
     std::array<std::array<double, 3>, 3> rotation_matrix_{};
 };
 
-/// 
+///
 /// Stateful parallactic-angle helper for a fixed observer latitude.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `ParAngleMachine` caches the observer geodetic latitude and wraps
 /// `parallactic_angle()` to avoid passing the latitude on every call.
-/// 
+///
 class ParAngleMachine {
   public:
     explicit ParAngleMachine(double latitude_rad) noexcept : latitude_rad_(latitude_rad) {}
@@ -108,17 +108,17 @@ class ParAngleMachine {
     double latitude_rad_ = 0.0;
 };
 
-/// 
+///
 /// Stateful earth magnetic field helper for a fixed epoch.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// Placeholder class mirroring casacore's `EarthMagneticMachine` interface.
 /// The `compute` method always throws `std::runtime_error` because the IGRF
 /// model is not implemented.
-/// 
+///
 class EarthMagneticMachine {
   public:
     explicit EarthMagneticMachine(double epoch_yr) noexcept : epoch_yr_(epoch_yr) {}

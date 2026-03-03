@@ -15,13 +15,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Columns index — fast key lookup on scalar columns.
 
-/// 
+///
 /// Builds an in-memory index on one or more scalar columns for fast row lookup.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `ColumnsIndex` pre-reads all values for the nominated key columns into a
 /// sorted `std::map` that maps composite key vectors to lists of matching row
 /// indices.  After construction the index supports O(log N) lookup by key.
@@ -38,7 +38,7 @@ namespace casacore_mini {
 /// Keys are represented as `std::vector<CellValue>` (one element per key
 /// column) and compared via a custom lexicographic `KeyCompare` functor that
 /// respects the variant ordering of `CellValue`.
-/// 
+///
 ///
 /// @par Example
 /// @code{.cpp}
@@ -50,13 +50,13 @@ namespace casacore_mini {
 ///   auto rows = idx.get_row_numbers(key);
 ///   // rows contains all row indices where SCAN_NUMBER == 3
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Repeated lookup of rows by key (e.g., finding all baselines for a given
 /// scan) would otherwise require a full table scan per query.  Pre-building
 /// the index pays the O(N) scan cost once and amortises it over many queries.
-/// 
+///
 class ColumnsIndex {
   public:
     /// Build an index on the given key columns.

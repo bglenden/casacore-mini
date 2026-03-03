@@ -14,19 +14,19 @@ namespace casacore_mini {
 /// @file
 /// @brief General N-dimensional linear coordinate.
 
-/// 
+///
 /// General N-dimensional linear coordinate using the LinearXform affine
 /// transform machinery.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - Coordinate — abstract base class
 ///   - LinearXform — encapsulates crval, crpix, cdelt, and the PC matrix
-/// 
 ///
-/// 
+///
+///
 /// LinearCoordinate implements the standard FITS linear coordinate model for
 /// an arbitrary number of axes N.  The pixel-to-world transform is:
 ///
@@ -47,7 +47,7 @@ namespace casacore_mini {
 /// the discrete-lookup treatment of StokesCoordinate.  Typical uses include
 /// velocity axes, baseline axes in uv-plane images, or any set of axes that
 /// are related to pixel coordinates by a constant affine transform.
-/// 
+///
 ///
 /// @par Example
 /// Construct a 1D velocity coordinate with 1 km/s channels:
@@ -76,7 +76,7 @@ namespace casacore_mini {
 ///
 ///   LinearCoordinate uv({"U", "V"}, {"lambda", "lambda"}, xform2);
 /// @endcode
-/// 
+///
 class LinearCoordinate : public Coordinate {
   public:
     /// Construct a linear coordinate.

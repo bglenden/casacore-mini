@@ -13,18 +13,18 @@ namespace casacore_mini {
 /// @file
 /// @brief Tabular coordinate: table-lookup with linear interpolation.
 
-/// 
+///
 /// Single-axis coordinate that maps between pixel and world values via an
 /// explicit lookup table with linear interpolation between entries.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - Coordinate — abstract base class
-/// 
 ///
-/// 
+///
+///
 /// TabularCoordinate is appropriate when the pixel-to-world mapping cannot
 /// be expressed as a simple linear or non-linear analytic formula.  Instead,
 /// a pair of parallel arrays — `pixel_values` and
@@ -47,7 +47,7 @@ namespace casacore_mini {
 /// Typical uses include irregularly sampled time axes, non-linear frequency
 /// solutions, or any 1D axis whose values are known only at observed
 /// sample positions.
-/// 
+///
 ///
 /// @par Example
 /// Map five unevenly-spaced time stamps to their MJD values:
@@ -70,7 +70,7 @@ namespace casacore_mini {
 ///   // Inverse: which pixel corresponds to MJD 58002.0?
 ///   auto pixel = time.to_pixel({58002.0}); // pixel[0] == 3.0
 /// @endcode
-/// 
+///
 class TabularCoordinate : public Coordinate {
   public:
     /// Construct from pixel and world value arrays.

@@ -16,10 +16,10 @@ namespace casacore_mini {
 /// @file
 /// @brief Direction coordinate using WCSLIB for celestial projections.
 
-/// 
+///
 /// Celestial direction coordinate (longitude/latitude pair) using WCSLIB for
 /// non-linear sky projections.
-/// 
+///
 ///
 ///
 ///
@@ -29,9 +29,9 @@ namespace casacore_mini {
 ///         (J2000, B1950, Galactic, etc.)
 ///   - Projection — WCS projection type (SIN, TAN, ZEA, etc.)
 ///   - WCSLIB — the underlying C library performing the non-linear math
-/// 
 ///
-/// 
+///
+///
 /// DirectionCoordinate maps a pair of pixel axes (typically image x and y)
 /// to a pair of angular world axes representing a celestial longitude and
 /// latitude.  Common examples are right ascension and declination in the
@@ -58,7 +58,7 @@ namespace casacore_mini {
 ///
 /// The world axis ordering is [longitude, latitude], and units are radians
 /// for both axes.
-/// 
+///
 ///
 /// @par Example
 /// Construct a J2000 RA/Dec coordinate with a SIN projection centred on the
@@ -88,14 +88,14 @@ namespace casacore_mini {
 ///   // Inverse transform
 ///   auto pixel = dir.to_pixel(world);
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Radio and optical images require accurate non-linear sky projections.
 /// Delegating the projection math to WCSLIB avoids re-implementing a complex,
 /// well-tested standard and keeps casacore-mini compatible with FITS files
 /// produced by other packages.
-/// 
+///
 class DirectionCoordinate : public Coordinate {
   public:
     /// Construct a direction coordinate.

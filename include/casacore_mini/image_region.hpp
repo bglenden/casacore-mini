@@ -25,13 +25,13 @@ namespace casacore_mini {
 
 // ── WcRegion (abstract base) ─────────────────────────────────────────
 
-/// 
+///
 /// Abstract base class for world-coordinate regions.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// A `WcRegion` describes a spatial, spectral, or combined region expressed
 /// in world (physical) coordinates.  To apply a `WcRegion` to actual image
 /// data it must be converted to an `LcRegion` via `to_lc_region()`, which
@@ -47,7 +47,7 @@ namespace casacore_mini {
 /// - `WcEllipsoid` — ellipsoidal world-coordinate region.
 /// - `WcPolygon` — 2D polygonal world-coordinate region.
 /// - `WcUnion`, `WcIntersection`, `WcDifference`, `WcComplement` — set algebra.
-/// 
+///
 class WcRegion {
   public:
     virtual ~WcRegion() = default;
@@ -63,16 +63,18 @@ class WcRegion {
 
     /// Convert to a pixel-domain LcRegion given a coordinate system and shape.
     [[nodiscard]] virtual std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const = 0;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const = 0;
 
     /// Optional comment.
-    [[nodiscard]] const std::string& comment() const { return comment_; }
-    void set_comment(std::string c) { comment_ = std::move(c); }
+    [[nodiscard]] const std::string& comment() const {
+        return comment_;
+    }
+    void set_comment(std::string c) {
+        comment_ = std::move(c);
+    }
 
     /// Restore a WcRegion from a serialized Record (type dispatch).
-    [[nodiscard]] static std::unique_ptr<WcRegion>
-    from_record(const Record& rec);
+    [[nodiscard]] static std::unique_ptr<WcRegion> from_record(const Record& rec);
 
   private:
     std::string comment_;
@@ -80,18 +82,18 @@ class WcRegion {
 
 // ── WcBox ────────────────────────────────────────────────────────────
 
-/// 
+///
 /// Rectangular region in world coordinates.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `WcBox` defines an N-dimensional axis-aligned box using world-coordinate
 /// corners `blc` (bottom-left) and `trc` (top-right).  The axis names and
 /// units are stored to allow unambiguous mapping to pixel axes when
 /// `to_lc_region()` is called.
-/// 
+///
 class WcBox : public WcRegion {
   public:
     /// Construct from world-coordinate corners.
@@ -99,24 +101,29 @@ class WcBox : public WcRegion {
     /// @param trc  Top-right corner in world coordinates.
     /// @param axis_names  Names of axes (e.g., "Right Ascension", "Frequency").
     /// @param axis_units  Units for each axis (e.g., "rad", "Hz").
-    WcBox(std::vector<double> blc, std::vector<double> trc,
-          std::vector<std::string> axis_names,
+    WcBox(std::vector<double> blc, std::vector<double> trc, std::vector<std::string> axis_names,
           std::vector<std::string> axis_units);
 
-    [[nodiscard]] std::string type() const override { return "WcBox"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcBox";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] std::size_t ndim() const override { return blc_.size(); }
+    [[nodiscard]] std::size_t ndim() const override {
+        return blc_.size();
+    }
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
-    [[nodiscard]] static std::unique_ptr<WcBox>
-    from_record(const Record& rec);
+    [[nodiscard]] static std::unique_ptr<WcBox> from_record(const Record& rec);
 
-    [[nodiscard]] const std::vector<double>& blc() const { return blc_; }
-    [[nodiscard]] const std::vector<double>& trc() const { return trc_; }
+    [[nodiscard]] const std::vector<double>& blc() const {
+        return blc_;
+    }
+    [[nodiscard]] const std::vector<double>& trc() const {
+        return trc_;
+    }
 
   private:
     std::vector<double> blc_;
@@ -127,36 +134,41 @@ class WcBox : public WcRegion {
 
 // ── WcEllipsoid ──────────────────────────────────────────────────────
 
-/// 
+///
 /// Ellipsoidal region in world coordinates.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `WcEllipsoid` is defined by a center point and a vector of semi-axis radii
 /// in world coordinates.  The number of axes matches `center.size()`.
-/// 
+///
 class WcEllipsoid : public WcRegion {
   public:
     WcEllipsoid(std::vector<double> center, std::vector<double> radii,
-                std::vector<std::string> axis_names,
-                std::vector<std::string> axis_units);
+                std::vector<std::string> axis_names, std::vector<std::string> axis_units);
 
-    [[nodiscard]] std::string type() const override { return "WcEllipsoid"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcEllipsoid";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] std::size_t ndim() const override { return center_.size(); }
+    [[nodiscard]] std::size_t ndim() const override {
+        return center_.size();
+    }
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
-    [[nodiscard]] static std::unique_ptr<WcEllipsoid>
-    from_record(const Record& rec);
+    [[nodiscard]] static std::unique_ptr<WcEllipsoid> from_record(const Record& rec);
 
-    [[nodiscard]] const std::vector<double>& center() const { return center_; }
-    [[nodiscard]] const std::vector<double>& radii() const { return radii_; }
+    [[nodiscard]] const std::vector<double>& center() const {
+        return center_;
+    }
+    [[nodiscard]] const std::vector<double>& radii() const {
+        return radii_;
+    }
 
   private:
     std::vector<double> center_;
@@ -167,37 +179,42 @@ class WcEllipsoid : public WcRegion {
 
 // ── WcPolygon ────────────────────────────────────────────────────────
 
-/// 
+///
 /// 2D polygonal region in world coordinates.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `WcPolygon` is a 2D region defined by arrays of world-coordinate vertex
 /// positions along two named axes.  The polygon is always two-dimensional
 /// (`ndim()` returns 2).
-/// 
+///
 class WcPolygon : public WcRegion {
   public:
-    WcPolygon(std::vector<double> x, std::vector<double> y,
-              std::string x_axis_name, std::string y_axis_name,
-              std::string x_axis_unit, std::string y_axis_unit);
+    WcPolygon(std::vector<double> x, std::vector<double> y, std::string x_axis_name,
+              std::string y_axis_name, std::string x_axis_unit, std::string y_axis_unit);
 
-    [[nodiscard]] std::string type() const override { return "WcPolygon"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcPolygon";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
-    [[nodiscard]] std::size_t ndim() const override { return 2; }
+    [[nodiscard]] std::size_t ndim() const override {
+        return 2;
+    }
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
-    [[nodiscard]] static std::unique_ptr<WcPolygon>
-    from_record(const Record& rec);
+    [[nodiscard]] static std::unique_ptr<WcPolygon> from_record(const Record& rec);
 
-    [[nodiscard]] const std::vector<double>& x() const { return x_; }
-    [[nodiscard]] const std::vector<double>& y() const { return y_; }
+    [[nodiscard]] const std::vector<double>& x() const {
+        return x_;
+    }
+    [[nodiscard]] const std::vector<double>& y() const {
+        return y_;
+    }
 
   private:
     std::vector<double> x_;
@@ -215,16 +232,19 @@ class WcUnion : public WcRegion {
   public:
     WcUnion(std::vector<std::unique_ptr<WcRegion>> regions);
 
-    [[nodiscard]] std::string type() const override { return "WcUnion"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcUnion";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
     [[nodiscard]] std::size_t ndim() const override;
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
-    [[nodiscard]] std::size_t n_regions() const { return regions_.size(); }
+    [[nodiscard]] std::size_t n_regions() const {
+        return regions_.size();
+    }
 
   private:
     std::vector<std::unique_ptr<WcRegion>> regions_;
@@ -237,16 +257,19 @@ class WcIntersection : public WcRegion {
   public:
     WcIntersection(std::vector<std::unique_ptr<WcRegion>> regions);
 
-    [[nodiscard]] std::string type() const override { return "WcIntersection"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcIntersection";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
     [[nodiscard]] std::size_t ndim() const override;
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
-    [[nodiscard]] std::size_t n_regions() const { return regions_.size(); }
+    [[nodiscard]] std::size_t n_regions() const {
+        return regions_.size();
+    }
 
   private:
     std::vector<std::unique_ptr<WcRegion>> regions_;
@@ -257,17 +280,17 @@ class WcIntersection : public WcRegion {
 /// Difference of two WC regions (first minus second).
 class WcDifference : public WcRegion {
   public:
-    WcDifference(std::unique_ptr<WcRegion> region1,
-                 std::unique_ptr<WcRegion> region2);
+    WcDifference(std::unique_ptr<WcRegion> region1, std::unique_ptr<WcRegion> region2);
 
-    [[nodiscard]] std::string type() const override { return "WcDifference"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcDifference";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
     [[nodiscard]] std::size_t ndim() const override;
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
   private:
     std::unique_ptr<WcRegion> region1_;
@@ -281,14 +304,15 @@ class WcComplement : public WcRegion {
   public:
     explicit WcComplement(std::unique_ptr<WcRegion> region);
 
-    [[nodiscard]] std::string type() const override { return "WcComplement"; }
+    [[nodiscard]] std::string type() const override {
+        return "WcComplement";
+    }
     [[nodiscard]] std::unique_ptr<WcRegion> clone() const override;
     [[nodiscard]] Record to_record() const override;
     [[nodiscard]] std::size_t ndim() const override;
 
     [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const override;
+    to_lc_region(const CoordinateSystem& cs, const IPosition& lattice_shape) const override;
 
   private:
     std::unique_ptr<WcRegion> region_;
@@ -298,18 +322,18 @@ class WcComplement : public WcRegion {
 
 /// Discriminator for which kind of region is stored.
 enum class RegionKind : std::uint8_t {
-    lc_region,  ///< Pixel-coordinate region.
-    wc_region,  ///< World-coordinate region.
-    slicer,     ///< Simple slicer (box without mask).
+    lc_region, ///< Pixel-coordinate region.
+    wc_region, ///< World-coordinate region.
+    slicer,    ///< Simple slicer (box without mask).
 };
 
-/// 
+///
 /// Unified container holding either an LcRegion, WcRegion, or Slicer.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `ImageRegion` is a type-safe discriminated union over the three region
 /// representations used by casacore images.  It is the type stored in image
 /// keywords for named regions via `RegionHandler`.
@@ -321,7 +345,7 @@ enum class RegionKind : std::uint8_t {
 /// - If a `Slicer`, creates an `LcBox`.
 ///
 /// Serialization round-trips through `to_record()` and `from_record()`.
-/// 
+///
 class ImageRegion {
   public:
     ImageRegion() = default;
@@ -329,28 +353,40 @@ class ImageRegion {
     explicit ImageRegion(std::unique_ptr<WcRegion> region);
     explicit ImageRegion(Slicer slicer);
 
-    [[nodiscard]] RegionKind kind() const { return kind_; }
+    [[nodiscard]] RegionKind kind() const {
+        return kind_;
+    }
 
-    [[nodiscard]] bool has_lc_region() const { return lc_region_ != nullptr; }
-    [[nodiscard]] bool has_wc_region() const { return wc_region_ != nullptr; }
-    [[nodiscard]] bool has_slicer() const { return kind_ == RegionKind::slicer; }
+    [[nodiscard]] bool has_lc_region() const {
+        return lc_region_ != nullptr;
+    }
+    [[nodiscard]] bool has_wc_region() const {
+        return wc_region_ != nullptr;
+    }
+    [[nodiscard]] bool has_slicer() const {
+        return kind_ == RegionKind::slicer;
+    }
 
-    [[nodiscard]] const LcRegion& as_lc_region() const { return *lc_region_; }
-    [[nodiscard]] const WcRegion& as_wc_region() const { return *wc_region_; }
-    [[nodiscard]] const Slicer& as_slicer() const { return slicer_; }
+    [[nodiscard]] const LcRegion& as_lc_region() const {
+        return *lc_region_;
+    }
+    [[nodiscard]] const WcRegion& as_wc_region() const {
+        return *wc_region_;
+    }
+    [[nodiscard]] const Slicer& as_slicer() const {
+        return slicer_;
+    }
 
     /// Convert to an LcRegion given a coordinate system and shape.
     /// If already an LcRegion, returns a clone. If a WcRegion, converts.
     /// If a Slicer, creates an LcBox.
-    [[nodiscard]] std::unique_ptr<LcRegion>
-    to_lc_region(const CoordinateSystem& cs,
-                 const IPosition& lattice_shape) const;
+    [[nodiscard]] std::unique_ptr<LcRegion> to_lc_region(const CoordinateSystem& cs,
+                                                         const IPosition& lattice_shape) const;
 
     /// Serialize to Record.
     [[nodiscard]] Record to_record() const;
     /// Restore from Record.
-    [[nodiscard]] static ImageRegion
-    from_record(const Record& rec, const IPosition& lattice_shape);
+    [[nodiscard]] static ImageRegion from_record(const Record& rec, const IPosition& lattice_shape);
 
   private:
     RegionKind kind_ = RegionKind::lc_region;
@@ -361,13 +397,13 @@ class ImageRegion {
 
 // ── RegionHandler ────────────────────────────────────────────────────
 
-/// 
+///
 /// Manages named regions stored as keywords in an image.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `RegionHandler` maintains a collection of `ImageRegion` objects keyed by
 /// name, and an optional default mask name.  It is embedded in image objects
 /// to provide the casacore `ImageRegion` keyword API.
@@ -375,7 +411,7 @@ class ImageRegion {
 /// Regions can be defined, retrieved, removed, and renamed.  The entire
 /// collection serializes to and from a `Record` for storage in image keyword
 /// tables.
-/// 
+///
 class RegionHandler {
   public:
     /// Define a named region in this handler's collection.
@@ -391,12 +427,18 @@ class RegionHandler {
     /// Get all region names.
     [[nodiscard]] std::vector<std::string> region_names() const;
     /// Number of regions.
-    [[nodiscard]] std::size_t n_regions() const { return regions_.size(); }
+    [[nodiscard]] std::size_t n_regions() const {
+        return regions_.size();
+    }
 
     /// Get the default mask name (empty if none).
-    [[nodiscard]] const std::string& default_mask() const { return default_mask_; }
+    [[nodiscard]] const std::string& default_mask() const {
+        return default_mask_;
+    }
     /// Set the default mask name.
-    void set_default_mask(std::string name) { default_mask_ = std::move(name); }
+    void set_default_mask(std::string name) {
+        default_mask_ = std::move(name);
+    }
 
     /// Serialize all regions to a Record.
     [[nodiscard]] Record to_record() const;
@@ -410,38 +452,36 @@ class RegionHandler {
 
 // ── RegionManager ────────────────────────────────────────────────────
 
-/// 
+///
 /// Factory/utility class for creating common region types.
-/// 
 ///
 ///
 ///
-/// 
+///
+///
 /// `RegionManager` provides static factory methods that construct the common
 /// world-coordinate region types.  All methods return heap-allocated unique
 /// pointers to the appropriate `WcRegion` subclass.
 ///
 /// This class has no state; all methods are static.
-/// 
+///
 class RegionManager {
   public:
     /// Create a WcBox from world-coordinate corners.
-    [[nodiscard]] static std::unique_ptr<WcBox>
-    wc_box(std::vector<double> blc, std::vector<double> trc,
-           std::vector<std::string> axis_names,
-           std::vector<std::string> axis_units);
+    [[nodiscard]] static std::unique_ptr<WcBox> wc_box(std::vector<double> blc,
+                                                       std::vector<double> trc,
+                                                       std::vector<std::string> axis_names,
+                                                       std::vector<std::string> axis_units);
 
     /// Create a WcEllipsoid.
     [[nodiscard]] static std::unique_ptr<WcEllipsoid>
     wc_ellipsoid(std::vector<double> center, std::vector<double> radii,
-                 std::vector<std::string> axis_names,
-                 std::vector<std::string> axis_units);
+                 std::vector<std::string> axis_names, std::vector<std::string> axis_units);
 
     /// Create a WcPolygon.
     [[nodiscard]] static std::unique_ptr<WcPolygon>
-    wc_polygon(std::vector<double> x, std::vector<double> y,
-               std::string x_axis_name, std::string y_axis_name,
-               std::string x_axis_unit, std::string y_axis_unit);
+    wc_polygon(std::vector<double> x, std::vector<double> y, std::string x_axis_name,
+               std::string y_axis_name, std::string x_axis_unit, std::string y_axis_unit);
 
     /// Combine regions into a union.
     [[nodiscard]] static std::unique_ptr<WcUnion>

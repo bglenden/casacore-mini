@@ -21,19 +21,19 @@ namespace casacore_mini {
 /// Each category filters the row set by a different criterion. The final result
 /// is the intersection of all active category selections.
 
-/// 
+///
 /// Row selection engine for MeasurementSet data using casacore-compatible
 /// expression strings.
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - MeasurementSet — the MS container evaluated against the selection
 ///   - MsMetaData — used internally for name-to-ID resolution
-/// 
 ///
-/// 
+///
+///
 /// `MsSelection` mirrors the public API of casacore's
 /// `MSSelection` class.  It accepts human-readable expression strings
 /// for up to 12 independent selection categories, evaluates them against a
@@ -68,7 +68,7 @@ namespace casacore_mini {
 /// `ThrowOnError` mode a malformed expression raises
 /// `std::runtime_error`; in `CollectErrors` mode errors are
 /// appended to `MsSelectionResult::errors` and evaluation continues.
-/// 
+///
 ///
 /// @par Example
 /// Select baselines between antennas 0–2 from scans 1 through 5:
@@ -83,7 +83,7 @@ namespace casacore_mini {
 ///
 ///   std::cout << result.rows.size() << " rows selected\n";
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Select a specific field by name and a frequency range:
@@ -99,7 +99,7 @@ namespace casacore_mini {
 ///   // Convert to a TaQL WHERE clause for use elsewhere
 ///   std::string where = sel.to_taql_where(ms);
 /// @endcode
-/// 
+///
 ///
 /// @par Example
 /// Use CollectErrors mode to accumulate non-fatal parsing warnings:
@@ -115,14 +115,14 @@ namespace casacore_mini {
 ///   for (const auto& err : result.errors)
 ///       std::cerr << "warn: " << err << "\n";
 /// @endcode
-/// 
+///
 ///
 /// @par Motivation
 /// Providing an MSSelection-compatible API lets existing casacore workflows
 /// be ported to casacore-mini with minimal expression-string changes.  The
 /// parsed result struct exposes the resolved ID lists so that downstream code
 /// does not need to re-parse the expression strings.
-/// 
+///
 
 /// Parse mode: controls when expression validation occurs.
 enum class ParseMode {

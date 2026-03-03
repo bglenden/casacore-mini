@@ -13,19 +13,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Stokes coordinate: discrete pixel-to-Stokes-parameter mapping.
 
-/// 
+///
 /// Single-axis coordinate that maps integer pixel indices to FITS Stokes
 /// parameter codes (I, Q, U, V, RR, LL, etc.).
-/// 
+///
 ///
 ///
 ///
 /// @par Prerequisites
 ///   - Coordinate — abstract base class
 ///   - FITS WCS Paper I (Greisen & Calabretta) — Stokes axis convention
-/// 
 ///
-/// 
+///
+///
 /// StokesCoordinate represents a polarization axis whose world values are
 /// not physical angles or frequencies but discrete enumeration codes
 /// defined by the FITS standard:
@@ -48,7 +48,7 @@ namespace casacore_mini {
 ///
 /// The world axis name is "Stokes" and the unit is an empty string,
 /// consistent with the FITS convention for the Stokes axis.
-/// 
+///
 ///
 /// @par Example
 /// Create a full-Stokes (I, Q, U, V) polarization axis:
@@ -69,7 +69,7 @@ namespace casacore_mini {
 /// @code{.cpp}
 ///   StokesCoordinate circ({5, 8}); // RR=5, LL=8
 /// @endcode
-/// 
+///
 class StokesCoordinate : public Coordinate {
   public:
     /// Construct from a list of Stokes parameter codes.

@@ -31,7 +31,7 @@ using ScalarCellWriter =
 
 /// Read a scalar measure from a table row.
 ///
-/// 
+///
 /// Uses the `TableMeasDesc` descriptor to determine the measure type,
 /// reference frame, and physical units, then reads the raw numeric data
 /// through the `read_scalar` callback.
@@ -40,7 +40,7 @@ using ScalarCellWriter =
 /// `desc.default_ref`.  For variable-reference columns, the reference code is
 /// read from the column named by `desc.var_ref_column` and mapped to a
 /// `MeasureRefType` via `desc.tab_ref_codes`/`desc.tab_ref_types`.
-/// 
+///
 ///
 /// @param desc  The measure descriptor for this column.
 /// @param read_scalar  Callback to read scalar cell values.
@@ -52,12 +52,12 @@ using ScalarCellWriter =
 
 /// Read an array of measures from a table row.
 ///
-/// 
+///
 /// For array measure columns (e.g. UVW with shape [3, nbaseline]), reads the
 /// full flat double array and splits it into individual `Measure` objects.
 /// Each measure's value components correspond to one slice along the leading
 /// axis.
-/// 
+///
 ///
 /// @param desc  The measure descriptor for this column.
 /// @param read_array  Callback to read array cell values as flat doubles.
@@ -71,11 +71,11 @@ using ScalarCellWriter =
 
 /// Write a scalar measure into a table row.
 ///
-/// 
+///
 /// Writes the numeric value components via the `write_scalar` callback.
 /// Does NOT write the `MEASINFO` keywords; use `write_table_measure_desc`
 /// on the column keyword record for that.
-/// 
+///
 ///
 /// @param desc  The measure descriptor for this column.
 /// @param write_scalar  Callback to write scalar cell values.
@@ -87,10 +87,10 @@ void write_scalar_measure(const TableMeasDesc& desc, const ScalarCellWriter& wri
 
 /// Write an array of measures into a table row.
 ///
-/// 
+///
 /// Packs multiple measures into a flat double array and writes via callback.
 /// The packing layout is the inverse of `read_array_measures`.
-/// 
+///
 ///
 /// @param desc  The measure descriptor for this column.
 /// @param write_fn  Callback: receives column name, row, and flat double vector.
