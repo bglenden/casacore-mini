@@ -13,6 +13,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Write casacore `table.dat` file headers.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 /// Write a `table.dat` header into an `AipsIO` writer.
 ///
@@ -54,4 +57,5 @@ void write_table_dat_header(AipsIoWriter& writer, const TableDatMetadata& metada
 [[nodiscard]] std::vector<std::uint8_t>
 serialize_table_dat_header(const TableDatMetadata& metadata);
 
+/// @}
 } // namespace casacore_mini

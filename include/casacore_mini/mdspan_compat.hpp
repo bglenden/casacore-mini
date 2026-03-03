@@ -6,6 +6,10 @@
 #include <array>
 #include <cstddef>
 
+/// @file
+/// @brief std::mdspan portability shim for pre-C++23 standard libraries.
+/// @ingroup platform
+
 // CI currently builds with Clang 18 + libstdc++ on Ubuntu 24.04, where the
 // standard <mdspan> header is not available yet. Fall back to
 // <experimental/mdspan> or a small local shim while keeping a single

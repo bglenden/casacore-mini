@@ -10,6 +10,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief FITS keyword <-> CoordinateSystem conversion.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 /// Build a CoordinateSystem from FITS-style header keywords stored in a Record.
 ///
@@ -51,4 +54,5 @@ namespace casacore_mini {
 /// Writes CTYPE, CRVAL, CRPIX, CDELT, PC, and related keywords for each axis.
 [[nodiscard]] Record coordinate_system_to_fits_header(const CoordinateSystem& cs);
 
+/// @}
 } // namespace casacore_mini

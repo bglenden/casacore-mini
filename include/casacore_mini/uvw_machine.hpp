@@ -11,6 +11,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief UVW rotation, parallactic angle, and earth magnetic field utilities.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// This header provides free functions and stateful helper classes for three
@@ -129,4 +132,5 @@ class EarthMagneticMachine {
     double epoch_yr_ = 0.0;
 };
 
+/// @}
 } // namespace casacore_mini

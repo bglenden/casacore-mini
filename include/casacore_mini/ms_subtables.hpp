@@ -13,6 +13,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Subtable column enums and schema factories for all 17 MS subtable types.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Column enumerations and schema factory functions for all 17 MeasurementSet
@@ -346,4 +349,5 @@ enum class MsWeatherColumn : std::int32_t {
 [[nodiscard]] std::string_view ms_syscal_column_name(MsSysCalColumn col);
 [[nodiscard]] std::string_view ms_weather_column_name(MsWeatherColumn col);
 
+/// @}
 } // namespace casacore_mini

@@ -14,6 +14,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Read top-level metadata from casacore `table.dat` files.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Summary metadata parsed from a casacore `table.dat` file header.
@@ -68,4 +71,5 @@ struct TableDatMetadata {
 /// @throws std::runtime_error if file cannot be opened or payload is malformed.
 [[nodiscard]] TableDatMetadata read_table_dat_metadata(std::string_view table_dat_path);
 
+/// @}
 } // namespace casacore_mini

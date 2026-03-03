@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Table directory reader: orchestrates table.dat + data files.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Metadata about a storage manager data file within a table directory.
@@ -108,4 +111,5 @@ void write_table_directory(std::string_view dir_path, const TableDatFull& table_
 [[nodiscard]] std::string compare_table_directories(const TableDirectory& lhs,
                                                     const TableDirectory& rhs);
 
+/// @}
 } // namespace casacore_mini

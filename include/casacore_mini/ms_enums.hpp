@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Main-table column/keyword enums and metadata for MeasurementSet.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Strongly-typed enumerations and metadata descriptors for MeasurementSet
@@ -179,4 +182,5 @@ struct MsColumnInfo {
 /// Names of all 17 subtables (required + optional).
 [[nodiscard]] std::vector<std::string> ms_all_subtable_names();
 
+/// @}
 } // namespace casacore_mini

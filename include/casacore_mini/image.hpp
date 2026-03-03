@@ -28,6 +28,9 @@ namespace casacore_mini {
 /// An image is a lattice with associated coordinate system, units, and
 /// metadata. Images are persisted as casacore tables with a "map" column
 /// for pixel data and table keywords for coordinate/metadata.
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 // ── Forward declarations ───────────────────────────────────────────────
 
@@ -1453,4 +1456,5 @@ template <typename T> void image_regrid(const ImageInterface<T>& src, ImageInter
     dst.put(result);
 }
 
+/// @}
 } // namespace casacore_mini

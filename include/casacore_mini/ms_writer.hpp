@@ -20,6 +20,9 @@ namespace casacore_mini {
 /// MsWriter collects rows in memory and writes them all at once when flush()
 /// is called. This matches the SsmWriter/TiledStManWriter model which requires
 /// a known row count at setup time.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Batch writer that accumulates MeasurementSet rows in memory and writes
@@ -275,4 +278,5 @@ class MsWriter {
     std::vector<MsStateRow> state_rows_;
 };
 
+/// @}
 } // namespace casacore_mini

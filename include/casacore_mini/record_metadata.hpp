@@ -14,6 +14,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Extract measure/coordinate metadata from binary-decoded `Record` objects.
+/// @ingroup records
+/// @addtogroup records
+/// @{
 
 /// Extract measure/coordinate metadata from binary-decoded Records.
 ///
@@ -51,4 +54,5 @@ namespace casacore_mini {
 extract_record_metadata(const Record& table_keywords,
                         const std::vector<std::pair<std::string, Record>>& column_keywords);
 
+/// @}
 } // namespace casacore_mini

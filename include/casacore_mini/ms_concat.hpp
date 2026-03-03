@@ -14,6 +14,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Concatenate two MeasurementSets into one.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Concatenate two MeasurementSets into a new output MeasurementSet,
@@ -95,4 +98,5 @@ struct MsConcatResult {
 [[nodiscard]] MsConcatResult ms_concat(MeasurementSet& ms1, MeasurementSet& ms2,
                                        const std::filesystem::path& output_path);
 
+/// @}
 } // namespace casacore_mini

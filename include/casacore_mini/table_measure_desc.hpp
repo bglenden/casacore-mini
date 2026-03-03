@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Table measure descriptor: MEASINFO keyword codec and QuantumUnits.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Descriptor for a measure-bearing table column, extracted from MEASINFO keywords.
@@ -135,4 +138,5 @@ read_table_quantum_desc(const std::string& column_name, const Record& column_key
 /// Write a TableQuantumDesc into column keywords.
 void write_table_quantum_desc(const TableQuantumDesc& desc, Record& column_keywords);
 
+/// @}
 } // namespace casacore_mini

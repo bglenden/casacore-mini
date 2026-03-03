@@ -20,6 +20,9 @@ namespace casacore_mini {
 /// MsSelection supports 12 selection categories that can be combined (AND logic).
 /// Each category filters the row set by a different criterion. The final result
 /// is the intersection of all active category selections.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Row selection engine for MeasurementSet data using casacore-compatible
@@ -369,4 +372,5 @@ class MsSelection {
     ErrorMode error_mode_ = ErrorMode::ThrowOnError;
 };
 
+/// @}
 } // namespace casacore_mini

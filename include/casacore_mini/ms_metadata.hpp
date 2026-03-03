@@ -18,6 +18,9 @@ namespace casacore_mini {
 /// MsMetaData provides efficient access to commonly queried MS properties
 /// such as antenna names, field names, spectral window frequencies, scan
 /// numbers, etc. Results are computed on first access and cached.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Lazy-cached metadata queries for a MeasurementSet.
@@ -149,4 +152,5 @@ class MsMetaData {
     mutable std::set<std::int32_t> observation_ids_;
 };
 
+/// @}
 } // namespace casacore_mini

@@ -16,6 +16,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Column adapters that produce Measure objects from table rows.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 /// Callback type for reading a scalar cell value by column name and row.
 using ScalarCellReader = std::function<CellValue(const std::string& col_name, std::uint64_t row)>;
@@ -101,4 +104,5 @@ void write_array_measures(const TableMeasDesc& desc,
                                                    const std::vector<double>& values)>& write_fn,
                           std::uint64_t row, const std::vector<Measure>& measures);
 
+/// @}
 } // namespace casacore_mini

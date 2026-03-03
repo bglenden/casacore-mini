@@ -83,6 +83,9 @@ namespace casacore_mini {
 /// MeasConvert template machinery while covering the conversions actually
 /// needed by casacore-mini's coordinate system and imaging modules.
 ///
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 /// Context data for measure conversions that require external information.
 ///
@@ -147,4 +150,5 @@ struct MeasureFrame {
 [[nodiscard]] Measure convert_measure(const Measure& m, const MeasureRefType& target,
                                       const MeasureFrame& frame = {});
 
+/// @}
 } // namespace casacore_mini

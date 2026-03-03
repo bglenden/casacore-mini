@@ -58,6 +58,9 @@ namespace casacore_mini {
 /// of silently applying a computation in the wrong unit and makes interface
 /// contracts self-documenting.
 ///
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 /// A physical quantity: a double value paired with a Unit.
 ///
@@ -171,4 +174,5 @@ class Quantity {
 /// @throws std::invalid_argument if the conversion is not supported.
 [[nodiscard]] Quantity convert_quantity(const Quantity& q, std::string_view target_unit);
 
+/// @}
 } // namespace casacore_mini

@@ -12,6 +12,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Quality coordinate: discrete integer mapping for data/error quality axis.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Single-axis coordinate that maps integer pixel indices to data-quality
@@ -104,4 +107,5 @@ class QualityCoordinate : public Coordinate {
     std::vector<std::int32_t> quality_;
 };
 
+/// @}
 } // namespace casacore_mini

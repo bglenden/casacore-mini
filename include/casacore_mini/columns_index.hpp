@@ -14,6 +14,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Columns index — fast key lookup on scalar columns.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Builds an in-memory index on one or more scalar columns for fast row lookup.
@@ -95,4 +98,5 @@ class ColumnsIndex {
     [[nodiscard]] IndexKey make_key_from_row(std::uint64_t row) const;
 };
 
+/// @}
 } // namespace casacore_mini

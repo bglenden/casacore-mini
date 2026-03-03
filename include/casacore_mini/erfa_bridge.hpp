@@ -9,6 +9,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Thin C++ wrappers around ERFA astronomical functions.
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 ///
 /// This header provides a thin, exception-safe C++ wrapper layer over the
@@ -114,4 +117,5 @@ void j2000_to_ecliptic(double ra, double dec, double& elon, double& elat);
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void ecliptic_to_j2000(double elon, double elat, double& ra, double& dec);
 
+/// @}
 } // namespace casacore_mini

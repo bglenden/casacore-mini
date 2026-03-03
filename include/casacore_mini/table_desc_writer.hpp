@@ -13,6 +13,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Serialize full table.dat body (TableDesc + post-TD sections).
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 /// Serialize a complete table.dat file from a `TableDatFull` structure.
 ///
@@ -55,4 +58,5 @@ namespace casacore_mini {
 /// @throws std::runtime_error if any field exceeds wire format limits.
 void write_table_dat_full(AipsIoWriter& writer, const TableDatFull& table);
 
+/// @}
 } // namespace casacore_mini

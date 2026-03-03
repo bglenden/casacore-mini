@@ -13,6 +13,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief MS utility functions: StokesConverter, MsDopplerUtil, MsHistoryHandler.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 // ---------------------------------------------------------------------------
 // StokesConverter
@@ -214,4 +217,5 @@ class MsHistoryHandler {
     std::vector<HistoryEntry> entries_;
 };
 
+/// @}
 } // namespace casacore_mini

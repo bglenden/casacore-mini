@@ -17,6 +17,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief CoordinateSystem: composition of multiple Coordinate objects with axis mapping.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Composition of multiple Coordinate objects with pixel/world axis mapping.
@@ -137,4 +140,5 @@ class CoordinateSystem {
     ObsInfo obs_info_;
 };
 
+/// @}
 } // namespace casacore_mini

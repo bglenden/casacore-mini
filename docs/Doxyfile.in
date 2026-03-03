@@ -18,8 +18,9 @@ GENERATE_MAN           = NO
 GENERATE_RTF           = NO
 
 INPUT                  = "@CMAKE_SOURCE_DIR@/include" \
+                         "@CMAKE_SOURCE_DIR@/docs/modules.dox" \
                          "@CMAKE_SOURCE_DIR@/README.md"
-FILE_PATTERNS          = *.h *.hpp *.hh
+FILE_PATTERNS          = *.h *.hpp *.hh *.dox
 RECURSIVE              = YES
 
 USE_MDFILE_AS_MAINPAGE = "@CMAKE_SOURCE_DIR@/README.md"

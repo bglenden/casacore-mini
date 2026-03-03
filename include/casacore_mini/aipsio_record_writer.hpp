@@ -10,6 +10,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Encode casacore `Record` objects into canonical `AipsIO` byte streams.
+/// @ingroup io
+/// @addtogroup io
+/// @{
 
 /// Write a casacore-compatible `Record` into an `AipsIO` byte stream.
 ///
@@ -85,4 +88,5 @@ void write_aipsio_record_body(AipsIoWriter& writer, const Record& record);
 /// @throws std::runtime_error on unsupported value types or nesting depth exceeded.
 void write_aipsio_table_record_body(AipsIoWriter& writer, const Record& record);
 
+/// @}
 } // namespace casacore_mini

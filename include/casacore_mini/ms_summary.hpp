@@ -13,6 +13,9 @@ namespace casacore_mini {
 /// @brief Text summary generation for a MeasurementSet.
 ///
 /// Produces a human-readable summary similar to casacore's `msoverview` tool.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Generate a human-readable text summary of a MeasurementSet.
@@ -73,4 +76,5 @@ namespace casacore_mini {
 /// @return  Multi-line summary string.
 [[nodiscard]] std::string ms_summary(MeasurementSet& ms);
 
+/// @}
 } // namespace casacore_mini

@@ -22,6 +22,9 @@ namespace casacore_mini {
 /// A WcRegion describes a region in world coordinates. It is converted to an
 /// LcRegion (pixel coordinates) via `to_lc_region()` given a CoordinateSystem
 /// and lattice shape.
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 // ── WcRegion (abstract base) ─────────────────────────────────────────
 
@@ -500,4 +503,5 @@ class RegionManager {
     make_complement(std::unique_ptr<WcRegion> region);
 };
 
+/// @}
 } // namespace casacore_mini

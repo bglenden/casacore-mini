@@ -22,6 +22,9 @@ class Table; // forward declaration for friend access
 ///
 /// Supports TiledColumnStMan, TiledCellStMan, TiledShapeStMan, and
 /// TiledDataStMan for fixed-shape array columns with a single hypercube.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Read-only TSM reader for a single table directory.
@@ -285,4 +288,5 @@ class TiledStManWriter {
     std::vector<WriterColumnInfo> columns_;
 };
 
+/// @}
 } // namespace casacore_mini

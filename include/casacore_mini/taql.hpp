@@ -43,6 +43,7 @@
 ///   double freq_rad_per_s = std::get<double>(calc.values[0]);
 /// @endcode
 ///
+/// @ingroup tables
 
 #include <complex>
 #include <cstdint>
@@ -54,6 +55,8 @@
 #include <vector>
 
 namespace casacore_mini {
+/// @addtogroup tables
+/// @{
 
 class Table;
 
@@ -715,4 +718,5 @@ struct TaqlResult {
 /// @return Calculated values.
 [[nodiscard]] TaqlResult taql_calc(std::string_view query);
 
+/// @}
 } // namespace casacore_mini

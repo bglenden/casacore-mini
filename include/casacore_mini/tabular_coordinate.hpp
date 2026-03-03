@@ -12,6 +12,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Tabular coordinate: table-lookup with linear interpolation.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Single-axis coordinate that maps between pixel and world values via an
@@ -112,4 +115,5 @@ class TabularCoordinate : public Coordinate {
     std::string unit_;
 };
 
+/// @}
 } // namespace casacore_mini

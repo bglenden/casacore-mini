@@ -9,6 +9,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Interconversion of frequency, velocity, and Doppler measures.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 /// Speed of light in m/s.
 constexpr double kSpeedOfLight = 299792458.0;
@@ -122,4 +125,5 @@ class VelocityMachine {
     DopplerRef to_ref_;
 };
 
+/// @}
 } // namespace casacore_mini

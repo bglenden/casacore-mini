@@ -1,0 +1,207 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+/**
+ * @defgroup io AipsIO serialization
+ *
+ * @brief Low-level AipsIO binary read/write primitives.
+ *
+ * AipsIO is the binary serialization format used by all persistent casacore
+ * data structures.  Every table, column, keyword record, and coordinate
+ * system is ultimately stored as a sequence of typed AipsIO objects.
+ *
+ * This module provides the raw readers and writers for that format:
+ *
+ * - AipsioReader / AipsioWriter — byte-level object stream I/O
+ * - AipsioRecordReader / AipsioRecordWriter — TableRecord (nested
+ *   Record) serialization built on top of the byte-level layer
+ *
+ * Higher-level code should not use these classes directly; they are
+ * consumed by the table, image, and measurement-set layers.
+ */
+
+/**
+ * @defgroup records Records and keywords
+ *
+ * @brief Hierarchical in-memory containers for typed key/value metadata.
+ *
+ * casacore stores per-table and per-column metadata as nested
+ * @c TableRecord objects.  This module provides the in-memory
+ * representation and the conversion layer that maps AipsIO bytes to and
+ * from the typed @c Record container.
+ *
+ * Key classes:
+ *
+ * - Record — typed key/value map (the in-memory representation)
+ * - RecordMetadata — schema describing a Record's fields
+ * - keyword_record — raw AipsIO-level TableRecord read/write
+ * - keyword_record_convert — conversion between AipsIO keyword records
+ *   and the typed Record representation
+ * - record_io — Record serialization helpers
+ */
+
+/**
+ * @defgroup tables Tables
+ *
+ * @brief Table-based persistence: schema, storage managers, and query.
+ *
+ * The table subsystem is the primary persistence mechanism for casacore
+ * data.  A casacore table is a directory on disk containing a @c table.dat
+ * schema file and one storage-manager data file per storage-manager group.
+ *
+ * This module covers the full stack from schema parsing to high-level
+ * access:
+ *
+ * **Schema layer**
+ * - TableDesc / ColumnDesc — parsed table schema (from @c table.dat)
+ * - TableDatFull — complete parsed @c table.dat representation
+ * - TableBinarySchema — low-level binary schema helpers
+ *
+ * **High-level table API**
+ * - Table — central read/write API; typed column access and mutation
+ * - TableColumn — per-column read/write access
+ * - RefTable — virtual table backed by a row selection of another table
+ * - ConcatTable — virtual table that concatenates multiple tables
+ * - TableIterator — iterate over a table partitioned by column value
+ * - ColumnsIndex — fast index lookups over one or more columns
+ *
+ * **Storage managers**
+ * - StandardStMan (SSM) — row-based bucket storage
+ * - IncrementalStMan (ISM) — run-length–encoded storage for slowly
+ *   changing columns
+ * - TiledStMan — hypercube tile storage for multidimensional arrays
+ *
+ * **Query**
+ * - TaQL — Table Query Language parser and evaluator
+ *
+ * **Measures integration**
+ * - TableMeasDesc / TableMeasColumn — annotate and access columns that
+ *   carry physical measures (time, frequency, direction, …)
+ */
+
+/**
+ * @defgroup measures Measures and quantities
+ *
+ * @brief Physical quantities with units and reference frames.
+ *
+ * A "measure" in casacore is a physical quantity that carries both a
+ * numeric value and a reference frame (e.g., a frequency in the LSRK
+ * frame, or a UTC epoch).  This module provides:
+ *
+ * - Unit / Quantity — SI unit parsing and arithmetic
+ * - MDirection / MEpoch / MFrequency / MPosition / MRadialVelocity /
+ *   MBaseline / Muvw / MDoppler / MEarthMagnetic — the standard
+ *   casacore measure types and their reference frame enumerations
+ * - MeasureRecord — serialization of measures to/from Record
+ * - MeasureConvert — reference-frame conversion engine
+ * - ErfaBridge — thin C++ wrapper around the ERFA astronomical library
+ *   that provides the underlying frame transforms
+ */
+
+/**
+ * @defgroup coordinates World coordinate systems
+ *
+ * @brief Pixel↔world coordinate transforms for images and cubes.
+ *
+ * A coordinate system maps N pixel axes to N world axes using a
+ * combination of affine transforms, non-linear sky projections, and
+ * look-up tables.  This module follows the FITS WCS standard
+ * (Papers I–VII).
+ *
+ * **Core**
+ * - Coordinate — abstract base for all coordinate types
+ * - CoordinateSystem — ordered collection of Coordinate objects;
+ *   serializes to/from Record for persistence in image headers
+ *
+ * **Concrete coordinate types**
+ * - DirectionCoordinate — two-axis celestial projection (SIN, TAN,
+ *   ARC, ZEA, …) via WCSLIB; handles J2000/B1950/GALACTIC/…
+ * - SpectralCoordinate — frequency/velocity axis with measure frame
+ * - StokesCoordinate — discrete Stokes parameter axis (I, Q, U, V, …)
+ * - LinearCoordinate — generic N-axis affine transform
+ * - TabularCoordinate — look-up–table mapping for irregular grids
+ * - QualityCoordinate — quality-flag axis
+ *
+ * **Support**
+ * - LinearXform — affine transform machinery (crval, crpix, cdelt, PC)
+ * - Projection — FITS sky-projection type enumeration and parameters
+ * - ObsInfo — observer/telescope metadata attached to image headers
+ * - FitsCoordinateUtil — encode/decode FITS header keywords
+ * - CoordinateUtil — convenience helpers (default CS construction, …)
+ * - GaussianConvert — convert Gaussian beam parameters between pixel
+ *   and world units
+ * - UVWMachine — UVW baseline coordinate rotation
+ * - VelocityMachine — frequency↔velocity conversion
+ */
+
+/**
+ * @defgroup images Images and lattices
+ *
+ * @brief N-dimensional array storage with coordinate systems and regions.
+ *
+ * An Image is a persistent, N-dimensional floating-point (or complex)
+ * array stored in a casacore table, annotated with a CoordinateSystem
+ * and optional per-pixel mask.  A Lattice is the abstract interface
+ * underlying Image; in-memory and expression lattices are also provided.
+ *
+ * **Lattice layer** (abstract N-dimensional arrays)
+ * - Lattice — abstract base; concrete subclasses include disk-backed
+ *   and in-memory arrays
+ * - LatticeArray — in-memory lattice backed by @c std::vector
+ * - LatticeShape — shape and indexing utilities
+ * - LatticeExpr — lazy expression tree (arithmetic, function
+ *   application) over lattice operands; evaluated on demand
+ * - LatticeRegion — N-dimensional sub-array specification
+ *
+ * **Image layer** (coordinate-aware disk arrays)
+ * - Image — the primary high-level API: read/write CASA images,
+ *   access pixels via mdspan, apply region masks
+ * - ImageRegion — region specification in world or pixel coordinates
+ */
+
+/**
+ * @defgroup ms MeasurementSet
+ *
+ * @brief Radio-astronomy visibility data in the MeasurementSet 2 format.
+ *
+ * A MeasurementSet (MS) is a casacore table directory that holds
+ * sampled interferometric visibility data together with 12 required
+ * subtables (ANTENNA, FIELD, SPECTRAL_WINDOW, …) and up to 5 optional
+ * subtables.  This module covers the full lifecycle of an MS:
+ *
+ * **Schema and construction**
+ * - MsSubtables / MsAntennaColumn / … — column enumerations and
+ *   schema factory functions for all 17 subtable types
+ * - MsWriter — write a new MS from scratch
+ *
+ * **Read access**
+ * - MeasurementSet — open an existing MS; access main-table columns
+ *   and subtable handles
+ * - MsColumns — typed column accessor bundle for the main table
+ * - MsEnums — Stokes, baseline, feed, and other MS enumeration types
+ *
+ * **Operations**
+ * - MsIter — partition and iterate over an MS by field/SPW/scan/…
+ * - MsSelection — TaQL-based row selection with MS-aware shortcuts
+ *   (baseline selection, time ranges, UV-distance cuts, …)
+ * - MsConcat — concatenate multiple MSes along the time axis
+ * - MsFlagger — flag manipulation utilities
+ *
+ * **Metadata and diagnostics**
+ * - MsMetadata — derive observation metadata (source names, antenna
+ *   positions, frequency coverage, …) without loading visibility data
+ * - MsSummary — human-readable MS summary (mirrors @c listobs output)
+ * - MsUtil — miscellaneous MS utility functions
+ */
+
+/**
+ * @defgroup platform Platform and build utilities
+ *
+ * @brief Compile-time platform guards, version strings, and compatibility shims.
+ *
+ * - platform.hpp — endianness assertion and compiler-specific macros
+ * - version.hpp — semantic version and git provenance strings captured
+ *   at CMake configure time
+ * - mdspan_compat.hpp — @c std::mdspan portability shim for compilers
+ *   that predate C++23 library support
+ */

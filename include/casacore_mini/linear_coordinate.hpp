@@ -13,6 +13,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief General N-dimensional linear coordinate.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// General N-dimensional linear coordinate using the LinearXform affine
@@ -126,4 +129,5 @@ class LinearCoordinate : public Coordinate {
     LinearXform xform_;
 };
 
+/// @}
 } // namespace casacore_mini

@@ -11,6 +11,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Read measure/coordinate metadata from binary table artifacts.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 /// Read measure/coordinate metadata from a table directory's binary files.
 ///
@@ -45,4 +48,5 @@ namespace casacore_mini {
 /// @throws std::runtime_error if a `.bin` file is present but malformed.
 [[nodiscard]] MeasureCoordinateMetadata read_table_binary_metadata(std::string_view fixture_dir);
 
+/// @}
 } // namespace casacore_mini

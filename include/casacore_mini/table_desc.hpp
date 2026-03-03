@@ -17,6 +17,9 @@ namespace casacore_mini {
 /// @file
 /// @brief Types for full table.dat body: TableDesc, column descriptors,
 /// storage-manager metadata.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// casacore DataType enum values used in column descriptors.
@@ -345,4 +348,5 @@ struct TableDatFull {
 ///
 [[nodiscard]] TableDatFull read_table_dat_full(std::string_view table_dat_path);
 
+/// @}
 } // namespace casacore_mini

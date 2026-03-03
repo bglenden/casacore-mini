@@ -17,6 +17,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Typed nested keyword-record representation and `showtableinfo` parser.
+/// @ingroup records
+/// @addtogroup records
+/// @{
 
 class KeywordRecord;
 struct KeywordArray;
@@ -189,4 +192,5 @@ struct ShowtableinfoKeywords {
 [[nodiscard]] ShowtableinfoKeywords
 parse_showtableinfo_keywords(std::string_view showtableinfo_text);
 
+/// @}
 } // namespace casacore_mini

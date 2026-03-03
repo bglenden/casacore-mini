@@ -10,6 +10,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Linear WCS transform: world = crval + cdelt * pc * (pixel - crpix).
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// A linear WCS transformation stage mapping pixel to world coordinates.
@@ -80,4 +83,5 @@ struct LinearXform {
     [[nodiscard]] std::vector<double> world_to_pixel(const std::vector<double>& world) const;
 };
 
+/// @}
 } // namespace casacore_mini

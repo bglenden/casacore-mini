@@ -11,6 +11,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Build and source version/provenance accessors.
+/// @ingroup platform
+/// @addtogroup platform
+/// @{
 
 ///
 /// This header exposes version strings captured at CMake configure time.  All
@@ -50,4 +53,5 @@ namespace casacore_mini {
 /// Alias for `build_version()`.
 [[nodiscard]] std::string_view version() noexcept;
 
+/// @}
 } // namespace casacore_mini

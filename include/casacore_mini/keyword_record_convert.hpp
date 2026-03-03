@@ -11,6 +11,9 @@ namespace casacore_mini {
 /// @file
 /// @brief Bidirectional conversion between text `KeywordRecord` and binary
 /// `Record` models.
+/// @ingroup records
+/// @addtogroup records
+/// @{
 
 ///
 /// This header provides four free functions that convert between the two
@@ -66,4 +69,5 @@ namespace casacore_mini {
 /// Convert a binary-model `Record` to a text-model `KeywordRecord`.
 [[nodiscard]] KeywordRecord record_to_keyword_record(const Record& rec);
 
+/// @}
 } // namespace casacore_mini

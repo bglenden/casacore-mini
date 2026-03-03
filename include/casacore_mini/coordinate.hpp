@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Abstract coordinate base class and CoordinateType enum.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Discriminator enumeration identifying the concrete type of a Coordinate.
@@ -172,4 +175,5 @@ class Coordinate {
     Coordinate& operator=(Coordinate&&) = default;
 };
 
+/// @}
 } // namespace casacore_mini

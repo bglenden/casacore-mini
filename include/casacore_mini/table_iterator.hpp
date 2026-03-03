@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Table iterator — groups rows by key column values.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Groups table rows by one or more key column values and iterates over the groups.
@@ -87,4 +90,5 @@ class TableIterator {
     bool keys_equal(std::uint64_t row_a, std::uint64_t row_b) const;
 };
 
+/// @}
 } // namespace casacore_mini

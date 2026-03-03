@@ -64,6 +64,9 @@ namespace casacore_mini {
 /// Encapsulating it in a dedicated header avoids duplicating the Jacobian
 /// logic across image analysis tools.
 ///
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 /// Convert a Gaussian source shape from world to pixel coordinates.
 ///
@@ -102,4 +105,5 @@ gaussian_world_to_pixel(double major_rad, double minor_rad, double pa_rad,
 gaussian_pixel_to_world(double major_pix, double minor_pix, double pa_pix,
                         const DirectionCoordinate& coord, const std::vector<double>& pixel);
 
+/// @}
 } // namespace casacore_mini

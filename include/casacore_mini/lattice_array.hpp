@@ -21,6 +21,9 @@ namespace casacore_mini {
 /// `LatticeArray<T>` owns a flat `std::vector<T>` in Fortran (column-major)
 /// order and provides `std::mdspan` views over it. Copies share the
 /// underlying storage (copy-on-write semantics via `std::shared_ptr`).
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 // ── LatticeArray<T> ────────────────────────────────────────────────────
 
@@ -341,4 +344,5 @@ template <typename T> class LatticeArray {
     std::shared_ptr<std::vector<T>> storage_;
 };
 
+/// @}
 } // namespace casacore_mini

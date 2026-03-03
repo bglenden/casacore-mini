@@ -21,6 +21,9 @@ namespace casacore_mini {
 /// These classes provide type-safe read access to MeasurementSet columns,
 /// routing all I/O through the Table abstraction. Storage manager types
 /// never appear here.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Type-safe column accessor classes for the MeasurementSet main table
@@ -263,4 +266,5 @@ class MsObservationColumns {
     Table& table_;
 };
 
+/// @}
 } // namespace casacore_mini

@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Deterministic binary serialization for `Record`.
+/// @ingroup records
+/// @addtogroup records
+/// @{
 
 /// Write a `Record` using the project-local deterministic binary encoding.
 ///
@@ -74,4 +77,5 @@ void write_record_binary(const Record& value, std::ostream& output);
 /// is decoded.
 [[nodiscard]] Record deserialize_record_binary(std::span<const std::uint8_t> bytes);
 
+/// @}
 } // namespace casacore_mini

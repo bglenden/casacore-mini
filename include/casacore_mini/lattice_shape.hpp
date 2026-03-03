@@ -21,6 +21,9 @@ namespace casacore_mini {
 ///
 /// The view type for lattice data is `std::mdspan` with `layout_left`
 /// (column-major / Fortran order), matching casacore's Array convention.
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 // ── IPosition ──────────────────────────────────────────────────────────
 
@@ -435,4 +438,5 @@ template <typename T, std::size_t N>
     }(std::make_index_sequence<N>{});
 }
 
+/// @}
 } // namespace casacore_mini

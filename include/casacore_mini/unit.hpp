@@ -64,6 +64,9 @@ namespace casacore_mini {
 ///   UnitMap::define("beam", UnitVal(1.0));     // dimensionless
 /// @endcode
 ///
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 // ---------------------------------------------------------------------------
 // UnitVal -- SI dimension vector + scale factor
@@ -339,4 +342,5 @@ class UnitMap {
 ///
 [[nodiscard]] std::optional<UnitVal> try_parse_unit(std::string_view str);
 
+/// @}
 } // namespace casacore_mini

@@ -53,6 +53,9 @@ namespace casacore_mini {
 ///   assert(projection_parameter_count(ProjectionType::sin) == 2);
 /// @endcode
 ///
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 /// WCS map projection types identified by their FITS 3-letter codes.
 ///
@@ -149,4 +152,5 @@ struct Projection {
     [[nodiscard]] bool operator==(const Projection& other) const = default;
 };
 
+/// @}
 } // namespace casacore_mini

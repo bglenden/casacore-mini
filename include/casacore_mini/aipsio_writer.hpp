@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Write-only encoder for canonical big-endian casacore `AipsIO` payloads.
+/// @ingroup io
+/// @addtogroup io
+/// @{
 
 ///
 /// Encode primitive values into a canonical big-endian `AipsIO` byte buffer.
@@ -137,4 +140,5 @@ class AipsIoWriter {
     std::vector<std::uint8_t> buffer_;
 };
 
+/// @}
 } // namespace casacore_mini

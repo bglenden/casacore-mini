@@ -12,6 +12,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Flag manipulation for MeasurementSet rows.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Row-level flag manipulation and statistics for a MeasurementSet.
@@ -101,4 +104,5 @@ void ms_flag_rows(MeasurementSet& ms, const std::vector<std::uint64_t>& rows);
 /// @param rows  Row indices to unflag (set FLAG_ROW=false).
 void ms_unflag_rows(MeasurementSet& ms, const std::vector<std::uint64_t>& rows);
 
+/// @}
 } // namespace casacore_mini

@@ -12,6 +12,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Stokes coordinate: discrete pixel-to-Stokes-parameter mapping.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Single-axis coordinate that maps integer pixel indices to FITS Stokes
@@ -111,4 +114,5 @@ class StokesCoordinate : public Coordinate {
     std::vector<std::int32_t> stokes_;
 };
 
+/// @}
 } // namespace casacore_mini

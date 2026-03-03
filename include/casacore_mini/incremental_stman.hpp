@@ -16,6 +16,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Read/write access to IncrementalStMan (ISM) data files.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Read-only ISM reader for a single table directory.
@@ -150,4 +153,5 @@ class IsmWriter {
     std::vector<WriterColumnInfo> columns_;
 };
 
+/// @}
 } // namespace casacore_mini

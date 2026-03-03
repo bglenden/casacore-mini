@@ -13,6 +13,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Spectral coordinate: linear frequency channel mapping.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Single-axis coordinate mapping pixel channel indices to physical
@@ -123,4 +126,5 @@ class SpectralCoordinate : public Coordinate {
     double rest_freq_hz_;
 };
 
+/// @}
 } // namespace casacore_mini

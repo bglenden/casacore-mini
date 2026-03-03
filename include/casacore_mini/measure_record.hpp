@@ -71,6 +71,9 @@ namespace casacore_mini {
 /// tables to be read by upstream casacore tools and vice versa without a
 /// conversion step.
 ///
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 /// Convert a Measure to a Record matching casacore's MeasureHolder format.
 ///
@@ -109,4 +112,5 @@ namespace casacore_mini {
 ///         wrong value count, or corrupt nested offset.
 [[nodiscard]] Measure measure_from_record(const Record& rec);
 
+/// @}
 } // namespace casacore_mini

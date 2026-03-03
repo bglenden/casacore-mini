@@ -68,6 +68,9 @@ namespace casacore_mini {
 ///   std::cout << "Dec rad: " << dv.lat_rad << '\n';
 /// @endcode
 ///
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 // ---------------------------------------------------------------------------
 // Measure type discriminator
@@ -543,4 +546,5 @@ struct Measure {
 ///
 [[nodiscard]] MeasureRefType default_ref_for_type(MeasureType t);
 
+/// @}
 } // namespace casacore_mini

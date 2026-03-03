@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Transitional extraction of measure/coordinate metadata from `showtableinfo` text.
+/// @ingroup measures
+/// @addtogroup measures
+/// @{
 
 ///
 /// Measure-related metadata for one table column.
@@ -159,4 +162,5 @@ struct MeasureCoordinateMetadata {
 [[nodiscard]] MeasureCoordinateMetadata
 parse_showtableinfo_measure_coordinate_metadata(std::string_view showtableinfo_text);
 
+/// @}
 } // namespace casacore_mini

@@ -22,6 +22,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Lattice Expression Language (LEL) evaluator engine.
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 ///
 /// This header implements the Lattice Expression Language (LEL) evaluator,
@@ -874,4 +877,5 @@ class LelSymbolTable {
 /// @throws LelParseError on malformed input.
 [[nodiscard]] LatticeExprNode lel_parse(const std::string& expr, const LelSymbolTable& symbols);
 
+/// @}
 } // namespace casacore_mini

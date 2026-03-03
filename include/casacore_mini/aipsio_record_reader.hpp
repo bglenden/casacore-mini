@@ -10,6 +10,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Decode casacore `Record` objects from canonical `AipsIO` byte streams.
+/// @ingroup io
+/// @addtogroup io
+/// @{
 
 /// Read a casacore-encoded `Record` from an `AipsIO` byte stream.
 ///
@@ -66,4 +69,5 @@ namespace casacore_mini {
 /// @throws std::runtime_error on malformed input.
 [[nodiscard]] Record read_aipsio_record_body(AipsIoReader& reader);
 
+/// @}
 } // namespace casacore_mini

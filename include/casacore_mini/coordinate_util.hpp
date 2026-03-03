@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Factory functions and finders for coordinate types within a CoordinateSystem.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Utility functions for locating the index of specific coordinate sub-types
@@ -35,4 +38,5 @@ namespace casacore_mini {
 /// Find the index of the first StokesCoordinate in the system.
 [[nodiscard]] std::optional<std::size_t> find_stokes_coordinate(const CoordinateSystem& cs);
 
+/// @}
 } // namespace casacore_mini

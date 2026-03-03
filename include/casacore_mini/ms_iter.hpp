@@ -12,6 +12,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief MsIter: iterate over MS rows grouped by (ARRAY_ID, FIELD_ID, DATA_DESC_ID).
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// Iteration utilities for grouping MeasurementSet rows by key fields or
@@ -107,4 +110,5 @@ struct MsTimeChunk {
 
 [[nodiscard]] std::vector<MsTimeChunk> ms_time_chunks(MeasurementSet& ms, double interval_s);
 
+/// @}
 } // namespace casacore_mini

@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Read-only decoder for canonical big-endian casacore `AipsIO` payloads.
+/// @ingroup io
+/// @addtogroup io
+/// @{
 
 /// Magic value written by casacore `AipsIO` object framing.
 inline constexpr std::uint32_t kAipsIoMagic = 0xBEBEBEBEU;
@@ -175,4 +178,5 @@ class AipsIoReader {
     std::size_t offset_ = 0;
 };
 
+/// @}
 } // namespace casacore_mini

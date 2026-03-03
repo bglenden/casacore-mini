@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Direction coordinate using WCSLIB for celestial projections.
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 ///
 /// Celestial direction coordinate (longitude/latitude pair) using WCSLIB for
@@ -174,4 +177,5 @@ class DirectionCoordinate : public Coordinate {
     void init_wcs();
 };
 
+/// @}
 } // namespace casacore_mini

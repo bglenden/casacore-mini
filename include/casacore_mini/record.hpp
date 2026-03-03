@@ -18,6 +18,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Public in-memory record model used by persistence-facing APIs.
+/// @ingroup records
+/// @addtogroup records
+/// @{
 
 class Record;
 struct RecordList;
@@ -386,4 +389,5 @@ class Record {
     std::vector<entry> entries_;
 };
 
+/// @}
 } // namespace casacore_mini

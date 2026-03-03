@@ -24,6 +24,9 @@ namespace casacore_mini {
 ///
 /// All lattice data is stored in Fortran (column-major) order and accessed
 /// through `LatticeArray<T>` which provides `std::mdspan` views.
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 // ── Forward declarations ───────────────────────────────────────────────
 
@@ -1299,4 +1302,5 @@ template <typename T> void RebinLattice<T>::put_at(const T& /*value*/, const IPo
     throw std::runtime_error("RebinLattice is read-only");
 }
 
+/// @}
 } // namespace casacore_mini

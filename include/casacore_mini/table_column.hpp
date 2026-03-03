@@ -20,6 +20,9 @@ namespace casacore_mini {
 ///
 /// These provide column-oriented typed access, hiding SM details.
 /// casacore-original equivalent: ScalarColumn<Int>, ArrayColumn<Float>.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Typed accessor for a scalar column in a `Table`.
@@ -187,4 +190,5 @@ inline void ArrayColumn<std::uint8_t>::put(std::uint64_t row,
     table_->write_array_raw_cell(name_, row, values);
 }
 
+/// @}
 } // namespace casacore_mini

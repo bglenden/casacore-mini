@@ -21,6 +21,9 @@ namespace casacore_mini {
 ///
 /// Wraps a table directory tree (main table + subtable directories) and
 /// provides lifecycle management, subtable access, and schema introspection.
+/// @ingroup ms
+/// @addtogroup ms
+/// @{
 
 ///
 /// High-level interface to a CASA MeasurementSet (MS) table directory.
@@ -190,4 +193,5 @@ void write_table_info(const std::filesystem::path& dir, std::string_view type_st
 /// @return  The type string, or empty if file is missing.
 [[nodiscard]] std::string read_table_info_type(const std::filesystem::path& dir);
 
+/// @}
 } // namespace casacore_mini

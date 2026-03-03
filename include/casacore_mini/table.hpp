@@ -107,6 +107,9 @@ struct TableInfo {
 /// Provides the fundamental user-facing API: tables, columns, rows, keywords.
 /// Users never interact directly with storage managers -- the Table class
 /// manages SM reader/writer lifecycle internally.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 class Table;
 
@@ -552,4 +555,5 @@ class Table {
     friend class MsWriter;
 };
 
+/// @}
 } // namespace casacore_mini

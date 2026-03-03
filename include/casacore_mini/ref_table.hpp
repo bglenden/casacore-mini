@@ -14,6 +14,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Reference table (view) — an ephemeral subset of rows/columns.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// An ephemeral, in-memory view over a subset of rows from a base `Table`.
@@ -113,4 +116,5 @@ class RefTable {
     std::vector<std::uint64_t> rows_;
 };
 
+/// @}
 } // namespace casacore_mini

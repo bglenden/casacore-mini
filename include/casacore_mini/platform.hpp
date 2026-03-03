@@ -9,6 +9,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Compile-time platform assumptions used by `casacore-mini`.
+/// @ingroup platform
+/// @addtogroup platform
+/// @{
 
 ///
 /// This header documents and enforces the host-platform constraints that
@@ -33,4 +36,5 @@ static_assert(kHostLittleEndian,
               "casacore-mini currently supports only little-endian host systems; "
               "big-endian host support requires dedicated development.");
 
+/// @}
 } // namespace casacore_mini

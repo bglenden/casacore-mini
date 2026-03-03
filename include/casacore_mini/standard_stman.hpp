@@ -18,6 +18,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Read-only access to StandardStMan (SSM) data files.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Row-to-bucket index for one column group within an SSM file.
@@ -452,4 +455,5 @@ class SsmWriter {
 [[nodiscard]] std::vector<SsmIndex> parse_ssm_indices(std::span<const std::uint8_t> index_data,
                                                       std::uint32_t nr_indices, bool big_endian);
 
+/// @}
 } // namespace casacore_mini

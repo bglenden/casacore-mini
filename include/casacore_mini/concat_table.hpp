@@ -14,6 +14,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Concatenated table — virtual concatenation of multiple tables.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 ///
 /// Presents multiple tables with the same schema as a single virtual table.
@@ -94,4 +97,5 @@ class ConcatTable {
     std::uint64_t total_rows_ = 0;
 };
 
+/// @}
 } // namespace casacore_mini

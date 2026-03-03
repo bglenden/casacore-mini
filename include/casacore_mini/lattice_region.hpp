@@ -21,6 +21,9 @@ namespace casacore_mini {
 /// An LcRegion describes a region in pixel coordinates. It has a bounding box
 /// (Slicer) within a lattice shape, and optionally a boolean mask within
 /// that bounding box. Compound regions combine sub-regions via set algebra.
+/// @ingroup images
+/// @addtogroup images
+/// @{
 
 // ── LcRegion (abstract base) ─────────────────────────────────────────
 
@@ -491,4 +494,5 @@ class LatticeRegion {
     bool has_slicer_ = false;
 };
 
+/// @}
 } // namespace casacore_mini

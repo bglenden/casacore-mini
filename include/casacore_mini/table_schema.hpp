@@ -15,6 +15,9 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Transitional parser for schema metadata from `showtableinfo` text.
+/// @ingroup tables
+/// @addtogroup tables
+/// @{
 
 /// Storage manager binding metadata for a table or column.
 struct StorageManagerInfo {
@@ -73,4 +76,5 @@ struct TableSchema {
 /// @throws std::runtime_error if required schema sections are missing or malformed.
 [[nodiscard]] TableSchema parse_showtableinfo_schema(std::string_view showtableinfo_text);
 
+/// @}
 } // namespace casacore_mini

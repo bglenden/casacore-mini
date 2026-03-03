@@ -47,6 +47,9 @@ namespace casacore_mini {
 ///   table.put_key_record("coords", cs_rec);
 /// @endcode
 ///
+/// @ingroup coordinates
+/// @addtogroup coordinates
+/// @{
 
 /// Observation metadata typically stored in CoordinateSystem keywords.
 ///
@@ -111,4 +114,5 @@ void obs_info_to_record(const ObsInfo& info, Record& rec);
 /// @return Populated ObsInfo; optionals are absent when the key was missing.
 [[nodiscard]] ObsInfo obs_info_from_record(const Record& rec);
 
+/// @}
 } // namespace casacore_mini
