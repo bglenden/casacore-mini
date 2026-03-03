@@ -2,6 +2,8 @@
 
 `casacore-mini` is a modernization-focused reimplementation of key `casacore` capabilities in modern C++, with minimal bespoke infrastructure.
 
+**API documentation:** https://bglenden.github.io/casacore-mini/
+
 ## Purpose
 
 This repository aims to:
@@ -153,10 +155,6 @@ pacman -S erfa
   still treated as big-endian in read paths.
 
 ## API Documentation
-
-The API reference is published to GitHub Pages on every push to `main`:
-
-**https://bglenden.github.io/casacore-mini/**
 
 To build locally:
 
