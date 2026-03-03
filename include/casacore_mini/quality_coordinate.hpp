@@ -13,32 +13,32 @@ namespace casacore_mini {
 /// @file
 /// @brief Quality coordinate: discrete integer mapping for data/error quality axis.
 
-/// <summary>
+/// 
 /// Single-axis coordinate that maps integer pixel indices to data-quality
 /// codes (DATA, ERROR, etc.) for images carrying quality-plane information.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Coordinate — abstract base class
-///   <li> StokesCoordinate — analogous design for the polarization axis
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - Coordinate — abstract base class
+///   - StokesCoordinate — analogous design for the polarization axis
+/// 
+///
+/// 
 /// QualityCoordinate is structurally analogous to StokesCoordinate but
 /// serves a different semantic purpose: it labels image planes that carry
 /// different quality categories of the same data (e.g. calibrated data,
 /// noise estimates, weights, flags).
 ///
 /// Each pixel index along the quality axis maps to an integer quality code
-/// stored in the <src>quality_values</src> list supplied at construction.
+/// stored in the `quality_values` list supplied at construction.
 /// Conventional codes are:
 ///
-/// <srcblock>
+/// @code{.cpp}
 ///   DATA  = 0   (calibrated data values)
 ///   ERROR = 1   (associated noise / uncertainty estimates)
-/// </srcblock>
+/// @endcode
 ///
 /// Additional codes may be used by application-specific conventions.
 ///
@@ -47,11 +47,11 @@ namespace casacore_mini {
 /// linear search for the requested code.
 ///
 /// The world axis name is "Quality" and the unit is an empty string.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Create a two-plane quality axis carrying calibrated data and its noise:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   // Codes: DATA=0, ERROR=1
@@ -65,8 +65,8 @@ namespace casacore_mini {
 ///
 ///   // Inverse: which pixel is the ERROR plane?
 ///   auto pixel = qual.to_pixel({1.0}); // pixel[0] == 1.0
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class QualityCoordinate : public Coordinate {
   public:
     /// Construct from a list of quality codes.

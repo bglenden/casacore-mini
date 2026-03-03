@@ -15,13 +15,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Read top-level metadata from casacore `table.dat` files.
 
-/// <summary>
+/// 
 /// Summary metadata parsed from a casacore `table.dat` file header.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// A casacore table directory always contains a `table.dat` file whose first
 /// `AipsIO` object is typed `"Table"`.  The `TableDatMetadata` struct captures
 /// the four fields that appear immediately after the object header:
@@ -37,7 +37,7 @@ namespace casacore_mini {
 /// This structure is populated by `parse_table_dat_metadata` and
 /// `read_table_dat_metadata`, and consumed by the storage-manager readers
 /// to select the correct byte-swap path.
-/// </synopsis>
+/// 
 struct TableDatMetadata {
     /// `Table` object version from the root `AipsIO` object header.
     std::uint32_t table_version = 0;

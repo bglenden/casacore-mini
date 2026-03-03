@@ -16,13 +16,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Table measure descriptor: MEASINFO keyword codec and QuantumUnits.
 
-/// <summary>
+/// 
 /// Descriptor for a measure-bearing table column, extracted from MEASINFO keywords.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// casacore attaches a `MEASINFO` sub-record and an optional `QuantumUnits`
 /// entry to the keyword set of any column that holds a physical measure.
 /// `TableMeasDesc` mirrors these keyword fields in a structured form that is
@@ -41,17 +41,17 @@ namespace casacore_mini {
 ///
 /// The codec functions `read_table_measure_desc` and `write_table_measure_desc`
 /// translate between this struct and a binary `Record` column keyword set.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   auto desc_opt = read_table_measure_desc("TIME", column_keywords);
 ///   if (desc_opt) {
 ///       const auto& desc = *desc_opt;
 ///       std::cout << "units: " << desc.units[0] << "\n";  // "s"
 ///   }
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct TableMeasDesc {
     /// Column name that holds the measure data values.
     std::string column_name;
@@ -100,13 +100,13 @@ struct TableMeasDesc {
 /// Creates/replaces the "MEASINFO" sub-record and "QuantumUnits" entries.
 void write_table_measure_desc(const TableMeasDesc& desc, Record& column_keywords);
 
-/// <summary>
+/// 
 /// Descriptor for quantum units on a column (without full measure semantics).
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// Some columns carry physical units but are not full measures.  For example,
 /// a `WEIGHT` column may have units of `"Jy^{-2}"` without being a Measure.
 /// `TableQuantumDesc` captures the `QuantumUnits` keyword entry for such
@@ -114,7 +114,7 @@ void write_table_measure_desc(const TableMeasDesc& desc, Record& column_keywords
 ///
 /// When `var_units_column` is non-empty, the units vary per row and are read
 /// from the named companion column rather than from the fixed `units` vector.
-/// </synopsis>
+/// 
 struct TableQuantumDesc {
     /// Column name.
     std::string column_name;

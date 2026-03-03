@@ -23,7 +23,7 @@ namespace casacore_mini {
 /// @file
 /// @brief Lattice Expression Language (LEL) evaluator engine.
 
-/// <synopsis>
+/// 
 /// This header implements the Lattice Expression Language (LEL) evaluator,
 /// a typed expression-tree engine that evaluates element-wise operations over
 /// `LatticeArray` values.  It mirrors the role of casacore's `LatticeExpr`
@@ -53,10 +53,10 @@ namespace casacore_mini {
 /// Builder helpers (`lel_scalar`, `lel_array`, `lel_add`, etc.) make it
 /// convenient to construct expression trees programmatically without dealing
 /// directly with `std::make_shared`.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Programmatic: compute rms of a float lattice
 ///   auto arr = lel_array(my_lattice_array);
 ///   auto sq  = lel_mul(arr, arr);
@@ -68,15 +68,15 @@ namespace casacore_mini {
 ///   LelSymbolTable syms;
 ///   syms.define("img", lel_array(my_array));
 ///   auto node = lel_parse("sqrt(img * img + 1.0)", syms);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// casacore's LEL is a complex C++ template library spanning dozens of files.
 /// This reimplementation provides the subset of LEL needed for CASA image
 /// arithmetic within a single header, using C++20 features (concepts,
 /// if-constexpr, std::variant) to reduce boilerplate.
-/// </motivation>
+/// 
 
 // ── Value types ──────────────────────────────────────────────────────
 
@@ -98,13 +98,13 @@ struct LelResult {
 
 // ── LelNode (abstract base) ──────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Abstract base class for LEL expression tree nodes.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// Each `LelNode<T>` produces a `LelResult<T>` when `eval()` is called.
 /// The node knows its result shape (or `std::nullopt` if it is a scalar)
 /// and whether it is scalar (`is_scalar()`).
@@ -112,7 +112,7 @@ struct LelResult {
 /// Leaf nodes hold constant values or references to existing lattice data.
 /// Interior nodes combine child nodes using operators, functions, or
 /// reductions.
-/// </synopsis>
+/// 
 template <typename T>
 class LelNode {
   public:
@@ -388,13 +388,13 @@ class LelIif : public LelNode<T> {
 
 // ── LatticeExprNode (type-erased wrapper) ────────────────────────────
 
-/// <summary>
+/// 
 /// Type-erased expression node holding one of the typed LelNode<T> trees.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LatticeExprNode` stores a `std::variant` over the five supported typed
 /// node pointer types (`float`, `double`, `complex<float>`, `complex<double>`,
 /// `bool`).  It exposes the `result_type()` discriminant and a typed accessor
@@ -403,7 +403,7 @@ class LelIif : public LelNode<T> {
 ///
 /// `LatticeExprNode` is the return type of `lel_parse()` and the value type
 /// stored in `LelSymbolTable`.
-/// </synopsis>
+/// 
 class LatticeExprNode {
   public:
     LatticeExprNode() = default;
@@ -446,20 +446,20 @@ class LatticeExprNode {
 
 // ── LatticeExpr<T> ──────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Typed lattice expression that can be evaluated.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LatticeExpr<T>` wraps a `shared_ptr<LelNode<T>>` root and provides
 /// `shape()` and `eval()` as the primary user-facing interface.  It is
 /// analogous to casacore's `LatticeExpr<T>`.
 ///
 /// Call `eval()` to obtain a `LelResult<T>` containing the computed values
 /// and optional mask.
-/// </synopsis>
+/// 
 template <typename T>
 class LatticeExpr {
   public:
@@ -809,11 +809,11 @@ lel_promote_float(std::shared_ptr<LelNode<float>> arg) {
 
 // ── LEL Parser ───────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Error thrown when LEL expression parsing fails.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
+///
 class LelParseError : public std::runtime_error {
   public:
     LelParseError(const std::string& msg, std::size_t pos)
@@ -827,18 +827,18 @@ class LelParseError : public std::runtime_error {
     std::size_t position_;
 };
 
-/// <summary>
+/// 
 /// Named lattice variable reference table for the LEL parser.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LelSymbolTable` maps lattice variable names to type-erased
 /// `LatticeExprNode` values.  Populate it before calling `lel_parse()` so
 /// that lattice identifiers in the expression string resolve to the correct
 /// typed expression nodes.
-/// </synopsis>
+/// 
 class LelSymbolTable {
   public:
     template <typename T>
@@ -865,21 +865,21 @@ class LelSymbolTable {
 
 /// Parse a LEL expression string into a type-erased expression node.
 ///
-/// <synopsis>
+/// 
 /// Supported syntax:
-/// - Numeric literals: <src>1.5</src>, <src>-2.0</src>, <src>3e10</src>
-/// - Boolean literals: <src>T</src>, <src>F</src>
+/// - Numeric literals: `1.5`, `-2.0`, `3e10`
+/// - Boolean literals: `T`, `F`
 /// - Lattice references: identifier names looked up in the symbol table
-/// - Arithmetic: <src>+</src>, <src>-</src>, <src>*</src>, <src>/</src>
-/// - Comparison: <src>==</src>, <src>!=</src>, <src>></src>, <src>>=</src>,
-///   <src><</src>, <src><=</src>
-/// - Logical: <src>&&</src>, <src>||</src>, <src>!</src>
-/// - Parentheses: <src>(expr)</src>
-/// - Functions: <src>sin(x)</src>, <src>sqrt(x)</src>, <src>pow(x,y)</src>,
-///   <src>min(x)</src>, <src>median(x)</src>, etc.
-/// - Extractors: <src>value(expr)</src>, <src>mask(expr)</src>
-/// - Conditional: <src>iif(cond, true, false)</src>
-/// </synopsis>
+/// - Arithmetic: `+`, `-`, `*`, `/`
+/// - Comparison: `==`, `!=`, `>`, `>=`,
+///   `<`, `<=`
+/// - Logical: `&&`, `||`, `!`
+/// - Parentheses: `(expr)`
+/// - Functions: `sin(x)`, `sqrt(x)`, `pow(x,y)`,
+///   `min(x)`, `median(x)`, etc.
+/// - Extractors: `value(expr)`, `mask(expr)`
+/// - Conditional: `iif(cond, true, false)`
+/// 
 ///
 /// @throws LelParseError on malformed input.
 [[nodiscard]] LatticeExprNode

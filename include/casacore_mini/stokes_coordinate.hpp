@@ -13,32 +13,32 @@ namespace casacore_mini {
 /// @file
 /// @brief Stokes coordinate: discrete pixel-to-Stokes-parameter mapping.
 
-/// <summary>
+/// 
 /// Single-axis coordinate that maps integer pixel indices to FITS Stokes
 /// parameter codes (I, Q, U, V, RR, LL, etc.).
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Coordinate — abstract base class
-///   <li> FITS WCS Paper I (Greisen & Calabretta) — Stokes axis convention
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - Coordinate — abstract base class
+///   - FITS WCS Paper I (Greisen & Calabretta) — Stokes axis convention
+/// 
+///
+/// 
 /// StokesCoordinate represents a polarization axis whose world values are
 /// not physical angles or frequencies but discrete enumeration codes
 /// defined by the FITS standard:
 ///
-/// <srcblock>
+/// @code{.cpp}
 ///   I=1  Q=2  U=3  V=4
 ///   RR=5 RL=6 LR=7 LL=8
 ///   XX=9 XY=10 YX=11 YY=12
 ///   ...
-/// </srcblock>
+/// @endcode
 ///
 /// Each pixel index maps to exactly one Stokes code stored in the
-/// <src>stokes_values</src> list supplied at construction.  The world
+/// `stokes_values` list supplied at construction.  The world
 /// representation returned by to_world() is the Stokes code cast to
 /// double.
 ///
@@ -48,11 +48,11 @@ namespace casacore_mini {
 ///
 /// The world axis name is "Stokes" and the unit is an empty string,
 /// consistent with the FITS convention for the Stokes axis.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Create a full-Stokes (I, Q, U, V) polarization axis:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   // FITS Stokes codes: I=1, Q=2, U=3, V=4
@@ -63,13 +63,13 @@ namespace casacore_mini {
 ///
 ///   // Find the pixel index of Stokes V (code 4)
 ///   auto pixel = stokes.to_pixel({4.0}); // pixel[0] == 3.0
-/// </srcblock>
+/// @endcode
 ///
 /// Create a circular-feed correlation axis (RR, LL only):
-/// <srcblock>
+/// @code{.cpp}
 ///   StokesCoordinate circ({5, 8}); // RR=5, LL=8
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class StokesCoordinate : public Coordinate {
   public:
     /// Construct from a list of Stokes parameter codes.

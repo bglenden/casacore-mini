@@ -19,18 +19,18 @@ namespace casacore_mini {
 /// such as antenna names, field names, spectral window frequencies, scan
 /// numbers, etc. Results are computed on first access and cached.
 
-/// <summary>
+/// 
 /// Lazy-cached metadata queries for a MeasurementSet.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container whose subtables are queried
-/// </prerequisite>
 ///
-/// <synopsis>
-/// <src>MsMetaData</src> is a read-only façade over a <src>MeasurementSet</src>
+/// @par Prerequisites
+///   - MeasurementSet — the MS container whose subtables are queried
+/// 
+///
+/// 
+/// `MsMetaData` is a read-only façade over a `MeasurementSet`
 /// that collects and caches commonly queried metadata.  Each logical group of
 /// metadata (antennas, fields, spectral windows, observations, and main-table
 /// aggregates) is loaded from the underlying subtable exactly once, on the
@@ -42,25 +42,25 @@ namespace casacore_mini {
 /// storage layer.
 ///
 /// The five cache groups are:
-/// <ul>
-///   <li> Antenna cache — names, station pads, dish diameters from ANTENNA
-///   <li> Field cache   — field names from FIELD
-///   <li> SPW cache     — names, reference frequencies, channel counts from
+///
+///   - Antenna cache — names, station pads, dish diameters from ANTENNA
+///   - Field cache   — field names from FIELD
+///   - SPW cache     — names, reference frequencies, channel counts from
 ///                        SPECTRAL_WINDOW
-///   <li> Observation cache — telescope names, observer names from OBSERVATION
-///   <li> Main-table cache  — unique scan numbers, array IDs, observation IDs
+///   - Observation cache — telescope names, observer names from OBSERVATION
+///   - Main-table cache  — unique scan numbers, array IDs, observation IDs
 ///                            scanned from the full main table
-/// </ul>
+///
 ///
 /// Note that the main-table aggregate cache (scan_numbers, array_ids,
 /// observation_ids) requires a full sequential scan of the main table.  For
 /// large MSes this scan happens once and the results are stored in sorted
-/// <src>std::set</src> containers.
-/// </synopsis>
+/// `std::set` containers.
+/// 
 ///
-/// <example>
+/// @par Example
 /// Print a summary of antenna and field counts for an open MS:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///   MsMetaData meta(ms);
@@ -72,20 +72,20 @@ namespace casacore_mini {
 ///   std::cout << "Fields: " << meta.n_fields() << "\n";
 ///   for (const auto& name : meta.field_names())
 ///       std::cout << "  " << name << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Enumerate unique scan numbers present in the main table:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///   MsMetaData meta(ms);
 ///
 ///   for (std::int32_t s : meta.scan_numbers())
 ///       std::cout << "scan " << s << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class MsMetaData {
   public:
     explicit MsMetaData(MeasurementSet& ms);

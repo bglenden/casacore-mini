@@ -22,44 +22,44 @@ namespace casacore_mini {
 /// routing all I/O through the Table abstraction. Storage manager types
 /// never appear here.
 
-/// <summary>
+/// 
 /// Type-safe column accessor classes for the MeasurementSet main table
 /// and its standard subtables.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container whose subtables are accessed
-///   <li> Table — low-level cell read/write primitives
-///   <li> Measure — measure type used by time and UVW readers
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - MeasurementSet — the MS container whose subtables are accessed
+///   - Table — low-level cell read/write primitives
+///   - Measure — measure type used by time and UVW readers
+/// 
+///
+/// 
 /// Each class in this header wraps one table (the main table or a named
 /// subtable) and exposes per-column reader methods whose return types match
-/// the MS2 specification.  All I/O is delegated to the <src>Table</src>
+/// the MS2 specification.  All I/O is delegated to the `Table`
 /// abstraction; no storage-manager internals are visible here.
 ///
 /// The available column wrappers are:
-/// <ul>
-///   <li> <src>MsMainColumns</src>     — main table (TIME, ANTENNA1/2, UVW, …)
-///   <li> <src>MsAntennaColumns</src>  — ANTENNA subtable
-///   <li> <src>MsSpWindowColumns</src> — SPECTRAL_WINDOW subtable
-///   <li> <src>MsFieldColumns</src>    — FIELD subtable
-///   <li> <src>MsDataDescColumns</src> — DATA_DESCRIPTION subtable
-///   <li> <src>MsPolarizationColumns</src> — POLARIZATION subtable
-///   <li> <src>MsObservationColumns</src>  — OBSERVATION subtable
-/// </ul>
 ///
-/// Measure-aware accessors (<src>time_measure</src>, <src>uvw_measure</src>)
+///   - `MsMainColumns`     — main table (TIME, ANTENNA1/2, UVW, …)
+///   - `MsAntennaColumns`  — ANTENNA subtable
+///   - `MsSpWindowColumns` — SPECTRAL_WINDOW subtable
+///   - `MsFieldColumns`    — FIELD subtable
+///   - `MsDataDescColumns` — DATA_DESCRIPTION subtable
+///   - `MsPolarizationColumns` — POLARIZATION subtable
+///   - `MsObservationColumns`  — OBSERVATION subtable
+///
+///
+/// Measure-aware accessors (`time_measure`, `uvw_measure`)
 /// lazily load the column's measure descriptor from the keyword set on first
 /// call and cache it for subsequent reads.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Read antenna names and UVW coordinates from an open MS:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -72,19 +72,19 @@ namespace casacore_mini {
 ///       auto uvw = main.uvw(r);           // std::vector<double> [u,v,w]
 ///       auto t   = main.time_measure(r);  // Measure in UTC seconds
 ///   }
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Read spectral window reference frequencies:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///   MsSpWindowColumns spw(ms);
 ///   for (std::uint64_t r = 0; r < spw.row_count(); ++r)
 ///       std::cout << "SPW " << r << " ref_freq=" << spw.ref_frequency(r) << " Hz\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 /// Typed column accessors for the MS main table.
 ///

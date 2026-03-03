@@ -21,13 +21,13 @@ namespace casacore_mini {
 /// These provide column-oriented typed access, hiding SM details.
 /// casacore-original equivalent: ScalarColumn<Int>, ArrayColumn<Float>.
 
-/// <summary>
+/// 
 /// Typed accessor for a scalar column in a `Table`.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `ScalarColumn<T>` provides a convenient, type-safe interface for reading
 /// and writing individual scalar cell values in a named column.  It validates
 /// at construction time that the named column exists in the table, then
@@ -36,18 +36,18 @@ namespace casacore_mini {
 ///
 /// The template parameter `T` must match the column's declared data type.
 /// A type mismatch at `get` time raises `std::runtime_error`.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   Table t = Table::open("my_vis.ms");
 ///   ScalarColumn<int32_t> field_id(t, "FIELD_ID");
 ///   for (uint64_t row = 0; row < t.nrow(); ++row) {
 ///       std::cout << row << " -> " << field_id.get(row) << "\n";
 ///   }
 ///   field_id.put(0, 42);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T> class ScalarColumn {
   public:
     ScalarColumn(Table& table, std::string_view name) : table_(&table), name_(name) {
@@ -81,13 +81,13 @@ template <typename T> class ScalarColumn {
     std::string name_;
 };
 
-/// <summary>
+/// 
 /// Typed accessor for an array column in a `Table`.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `ArrayColumn<T>` provides type-safe read and write access to fixed-shape or
 /// variable-shape array cells in a named column.  It validates column existence
 /// at construction and delegates each `get` and `put` call to the appropriate
@@ -100,16 +100,16 @@ template <typename T> class ScalarColumn {
 /// `shape()` returns the column's declared fixed shape from the column
 /// descriptor; for variable-shape columns this value may not reflect the
 /// actual shape of a specific row.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   Table t = Table::open("my_vis.ms");
 ///   ArrayColumn<double> uvw(t, "UVW");
 ///   std::vector<double> vals = uvw.get(0);   // [u, v, w] for row 0
 ///   uvw.put(0, {1.0, 2.0, 3.0});
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T> class ArrayColumn {
   public:
     ArrayColumn(Table& table, std::string_view name) : table_(&table), name_(name) {

@@ -13,43 +13,43 @@ namespace casacore_mini {
 /// @file
 /// @brief MsIter: iterate over MS rows grouped by (ARRAY_ID, FIELD_ID, DATA_DESC_ID).
 
-/// <summary>
+/// 
 /// Iteration utilities for grouping MeasurementSet rows by key fields or
 /// by time intervals.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container whose main table is scanned
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - MeasurementSet — the MS container whose main table is scanned
+/// 
+///
+/// 
 /// This header provides two complementary strategies for iterating over the
 /// rows of a MeasurementSet main table:
 ///
-/// 1. Key-field grouping via <src>ms_iter_chunks</src>.
+/// 1. Key-field grouping via `ms_iter_chunks`.
 ///    The main table is scanned once.  Rows that share the same
 ///    (ARRAY_ID, FIELD_ID, DATA_DESC_ID) triple are collected into an
-///    <src>MsIterChunk</src>.  The resulting vector of chunks is sorted by
+///    `MsIterChunk`.  The resulting vector of chunks is sorted by
 ///    (array_id, field_id, data_desc_id, first_row), which matches the
 ///    canonical casacore MSIter ordering.
 ///
-/// 2. Time-bin grouping via <src>ms_time_chunks</src>.
+/// 2. Time-bin grouping via `ms_time_chunks`.
 ///    The main table is scanned once.  Each row's TIME value is quantised
-///    into a bin of width <src>interval_s</src> seconds.  Rows falling in the
-///    same bin are collected into an <src>MsTimeChunk</src> whose
-///    <src>time_center</src> is the midpoint of the bin.  Within each chunk,
+///    into a bin of width `interval_s` seconds.  Rows falling in the
+///    same bin are collected into an `MsTimeChunk` whose
+///    `time_center` is the midpoint of the bin.  Within each chunk,
 ///    rows appear in their original row-index order.
 ///
 /// Both functions return their results in a single pass and do not modify
 /// the MeasurementSet.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Group main-table rows by (ARRAY_ID, FIELD_ID, DATA_DESC_ID) and process
 /// each group:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -58,12 +58,12 @@ namespace casacore_mini {
 ///                 << " ddid=" << chunk.data_desc_id
 ///                 << " rows=" << chunk.rows.size() << "\n";
 ///   }
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Group rows into 10-second time bins:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -71,8 +71,8 @@ namespace casacore_mini {
 ///       std::cout << "t=" << bin.time_center
 ///                 << " rows=" << bin.rows.size() << "\n";
 ///   }
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 /// A chunk of contiguous rows sharing the same grouping key.
 struct MsIterChunk {

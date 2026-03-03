@@ -14,25 +14,25 @@ namespace casacore_mini {
 /// @file
 /// @brief General N-dimensional linear coordinate.
 
-/// <summary>
+/// 
 /// General N-dimensional linear coordinate using the LinearXform affine
 /// transform machinery.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Coordinate — abstract base class
-///   <li> LinearXform — encapsulates crval, crpix, cdelt, and the PC matrix
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - Coordinate — abstract base class
+///   - LinearXform — encapsulates crval, crpix, cdelt, and the PC matrix
+/// 
+///
+/// 
 /// LinearCoordinate implements the standard FITS linear coordinate model for
 /// an arbitrary number of axes N.  The pixel-to-world transform is:
 ///
-/// <srcblock>
+/// @code{.cpp}
 ///   world[i] = crval[i] + cdelt[i] * sum_j( PC[i][j] * (pixel[j] - crpix[j]) )
-/// </srcblock>
+/// @endcode
 ///
 /// where crval is the reference world value vector, crpix is the reference
 /// pixel vector, cdelt is the increment vector, and PC is the N×N rotation
@@ -47,11 +47,11 @@ namespace casacore_mini {
 /// the discrete-lookup treatment of StokesCoordinate.  Typical uses include
 /// velocity axes, baseline axes in uv-plane images, or any set of axes that
 /// are related to pixel coordinates by a constant affine transform.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Construct a 1D velocity coordinate with 1 km/s channels:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   LinearXform xform;
@@ -59,16 +59,15 @@ namespace casacore_mini {
 ///   xform.crpix = {255.0};      // reference pixel (0-based)
 ///   xform.cdelt = {1000.0};     // 1 km/s in m/s
 ///   xform.pc    = {1.0};        // 1x1 identity
-
 ///
 ///   LinearCoordinate vel({"Velocity"}, {"m/s"}, xform);
 ///
 ///   // Channel 256 -> 1000 m/s
 ///   auto world = vel.to_world({256.0}); // world[0] == 1000.0
-/// </srcblock>
+/// @endcode
 ///
 /// Construct a 2D uv-plane coordinate:
-/// <srcblock>
+/// @code{.cpp}
 ///   LinearXform xform2;
 ///   xform2.crval = {0.0, 0.0};
 ///   xform2.crpix = {128.0, 128.0};
@@ -76,8 +75,8 @@ namespace casacore_mini {
 ///   xform2.pc    = {1.0, 0.0, 0.0, 1.0}; // 2x2 identity
 ///
 ///   LinearCoordinate uv({"U", "V"}, {"lambda", "lambda"}, xform2);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class LinearCoordinate : public Coordinate {
   public:
     /// Construct a linear coordinate.

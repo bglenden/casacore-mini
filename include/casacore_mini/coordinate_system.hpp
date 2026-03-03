@@ -18,19 +18,19 @@ namespace casacore_mini {
 /// @file
 /// @brief CoordinateSystem: composition of multiple Coordinate objects with axis mapping.
 
-/// <summary>
+/// 
 /// Composition of multiple Coordinate objects with pixel/world axis mapping.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Coordinate — abstract coordinate base class
-///   <li> DirectionCoordinate, SpectralCoordinate, StokesCoordinate, etc.
-///   <li> ObsInfo — telescope and date of observation
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - Coordinate — abstract coordinate base class
+///   - DirectionCoordinate, SpectralCoordinate, StokesCoordinate, etc.
+///   - ObsInfo — telescope and date of observation
+/// 
+///
+/// 
 /// CoordinateSystem describes the complete mapping between pixel axes
 /// (integer lattice coordinates) and world axes (physical coordinates
 /// such as right ascension, declination, frequency, and Stokes parameter).
@@ -47,11 +47,11 @@ namespace casacore_mini {
 /// CoordinateSystem can be serialized to and restored from a Record
 /// using the save() / restore() methods, which produce a Record
 /// compatible with casacore's CoordinateSystem::save() format.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Build a 2D sky + spectral coordinate system:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   CoordinateSystem cs;
 ///
@@ -66,8 +66,8 @@ namespace casacore_mini {
 ///   // Convert pixel {x,y,chan} to world {ra, dec, freq}
 ///   std::vector<double> pixel = {128.0, 128.0, 0.0};
 ///   auto world = cs.to_world(pixel);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class CoordinateSystem {
   public:
     CoordinateSystem() = default;

@@ -24,13 +24,13 @@ namespace casacore_mini {
 
 // ── LcRegion (abstract base) ─────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Abstract base class for lattice-coordinate (pixel-domain) regions.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// An `LcRegion` describes a region expressed in pixel coordinates within a
 /// lattice of known shape.  Every `LcRegion` has:
 ///
@@ -56,15 +56,15 @@ namespace casacore_mini {
 /// - `LcPagedMask` — persistent mask (stub).
 /// - `LcUnion`, `LcIntersection`, `LcDifference`, `LcComplement`, `LcExtension`
 ///   — set-algebra compound regions.
-/// </synopsis>
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Separating the pixel-domain representation (`LcRegion`) from the world-
 /// coordinate representation (`WcRegion`) allows image algorithms to work
 /// entirely with integer pixel ranges and boolean masks once the coordinate
 /// transformation has been applied, without re-evaluating the WCS for each
 /// pixel.
-/// </motivation>
+/// 
 class LcRegion {
   public:
     virtual ~LcRegion() = default;
@@ -116,20 +116,20 @@ class LcRegion {
 
 // ── LcBox ────────────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Rectangular region in pixel coordinates.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LcBox` is the simplest `LcRegion`: an axis-aligned rectangle defined by
 /// `blc` (bottom-left corner) and `trc` (top-right corner) in 0-based pixel
 /// coordinates.  Because the region is a full rectangle, `has_mask()` returns
 /// `false` and `get_mask()` produces an all-true mask.
 ///
 /// Constructors accept either explicit corner pairs or a `Slicer`.
-/// </synopsis>
+/// 
 class LcBox : public LcRegion {
   public:
     /// Construct from explicit corners.
@@ -155,18 +155,18 @@ class LcBox : public LcRegion {
 
 // ── LcPixelSet ───────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Region defined by an explicit boolean mask over a bounding box.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LcPixelSet` allows any arbitrary shape to be expressed as a boolean mask
 /// over a rectangular sub-region of the lattice.  The `blc` of the sub-region
 /// is specified at construction; the mask dimensions define the bounding-box
 /// size implicitly.
-/// </synopsis>
+/// 
 class LcPixelSet : public LcRegion {
   public:
     /// Construct from a mask and its origin in the lattice.
@@ -377,13 +377,13 @@ class LcExtension : public LcRegion {
 
 // ── LatticeRegion ────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Holder wrapping an LcRegion with optional stride/slicer support.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LatticeRegion` is a thin wrapper around a heap-allocated `LcRegion` that
 /// optionally associates a `Slicer` for strided sub-lattice access.  It is
 /// the type stored in image keywords for named pixel-domain regions.
@@ -391,7 +391,7 @@ class LcExtension : public LcRegion {
 /// `has_slicer()` is `true` when the region was constructed from a `Slicer`.
 /// Both the enclosed `LcRegion` and the `Slicer` are serializable to and from
 /// a `Record`.
-/// </synopsis>
+/// 
 class LatticeRegion {
   public:
     LatticeRegion() = default;

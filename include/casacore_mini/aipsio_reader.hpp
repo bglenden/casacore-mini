@@ -19,24 +19,24 @@ namespace casacore_mini {
 /// Magic value written by casacore `AipsIO` object framing.
 inline constexpr std::uint32_t kAipsIoMagic = 0xBEBEBEBEU;
 
-/// <summary>
+/// 
 /// Decoded `AipsIO` object header fields.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// Holds the three fields that prefix every casacore `AipsIO` object body:
-/// the body length in bytes, the object type token (for example <src>Table</src>
-/// or <src>RecordDesc</src>), and the object version number used for forward-
+/// the body length in bytes, the object type token (for example `Table`
+/// or `RecordDesc`), and the object version number used for forward-
 /// compatible deserialization.
 ///
 /// Root-level objects are preceded by the four-byte magic
-/// <src>0xBEBEBEBE</src>; nested objects omit it.  After reading a header with
+/// `0xBEBEBEBE`; nested objects omit it.  After reading a header with
 /// `AipsIoReader::read_object_header` or
 /// `AipsIoReader::read_nested_object_header`, the caller is positioned at the
 /// first byte of the object body.
-/// </synopsis>
+/// 
 struct AipsIoObjectHeader {
     /// Object body length as stored in the stream.
     std::uint32_t object_length = 0;
@@ -48,13 +48,13 @@ struct AipsIoObjectHeader {
     [[nodiscard]] bool operator==(const AipsIoObjectHeader& other) const = default;
 };
 
-/// <summary>
+/// 
 /// Read primitive values from a canonical big-endian `AipsIO` byte span.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// `AipsIoReader` wraps an immutable byte span and exposes a forward-only
 /// cursor that decodes the big-endian, network-byte-order representation used
 /// by casacore's `AipsIO` serialization layer.
@@ -71,23 +71,23 @@ struct AipsIoObjectHeader {
 /// The reader does not support seeking backward or rewinding.  Position queries
 /// (`position()`, `remaining()`, `empty()`) allow callers to validate framing
 /// without modifying the cursor.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   std::vector<uint8_t> raw = read_file("table.dat");
 ///   AipsIoReader reader(raw);
 ///   auto hdr = reader.read_object_header();       // consumes magic + header
 ///   auto row_count = reader.read_u64();           // next field in object body
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// casacore writes all persistent state through `AipsIO`, a custom big-endian
 /// serialization format that pre-dates modern C++ serialization libraries.
 /// This reader provides a zero-copy, exception-safe decoder that stays within
 /// the immutable span without copying bytes into temporary buffers.
-/// </motivation>
+/// 
 class AipsIoReader {
   public:
     /// Create a reader over immutable bytes.

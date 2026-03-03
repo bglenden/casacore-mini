@@ -16,7 +16,7 @@ namespace casacore_mini {
 
 /// Write a `table.dat` header into an `AipsIO` writer.
 ///
-/// <synopsis>
+/// 
 /// Serializes the `Table` object header (always at version 2 regardless of
 /// the `table_version` field in `metadata`) followed by:
 /// - row count as a 32-bit `uInt` (version 2 wire format)
@@ -29,17 +29,17 @@ namespace casacore_mini {
 /// `serialize_table_dat_header` is a convenience wrapper that internally
 /// constructs an `AipsIoWriter`, calls `write_table_dat_header`, and returns
 /// the accumulated bytes as a standalone vector.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   TableDatMetadata meta;
 ///   meta.row_count = 1000;
 ///   meta.big_endian = false;
 ///   meta.table_type = "PlainTable";
 ///   auto bytes = serialize_table_dat_header(meta);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
 /// @param writer   AipsIO writer to append the header bytes to.
 /// @param metadata Metadata to encode (table_version is ignored; always writes v2).

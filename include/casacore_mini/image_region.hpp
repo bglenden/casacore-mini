@@ -25,13 +25,13 @@ namespace casacore_mini {
 
 // ── WcRegion (abstract base) ─────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Abstract base class for world-coordinate regions.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// A `WcRegion` describes a spatial, spectral, or combined region expressed
 /// in world (physical) coordinates.  To apply a `WcRegion` to actual image
 /// data it must be converted to an `LcRegion` via `to_lc_region()`, which
@@ -47,7 +47,7 @@ namespace casacore_mini {
 /// - `WcEllipsoid` — ellipsoidal world-coordinate region.
 /// - `WcPolygon` — 2D polygonal world-coordinate region.
 /// - `WcUnion`, `WcIntersection`, `WcDifference`, `WcComplement` — set algebra.
-/// </synopsis>
+/// 
 class WcRegion {
   public:
     virtual ~WcRegion() = default;
@@ -80,18 +80,18 @@ class WcRegion {
 
 // ── WcBox ────────────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Rectangular region in world coordinates.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `WcBox` defines an N-dimensional axis-aligned box using world-coordinate
 /// corners `blc` (bottom-left) and `trc` (top-right).  The axis names and
 /// units are stored to allow unambiguous mapping to pixel axes when
 /// `to_lc_region()` is called.
-/// </synopsis>
+/// 
 class WcBox : public WcRegion {
   public:
     /// Construct from world-coordinate corners.
@@ -127,16 +127,16 @@ class WcBox : public WcRegion {
 
 // ── WcEllipsoid ──────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Ellipsoidal region in world coordinates.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `WcEllipsoid` is defined by a center point and a vector of semi-axis radii
 /// in world coordinates.  The number of axes matches `center.size()`.
-/// </synopsis>
+/// 
 class WcEllipsoid : public WcRegion {
   public:
     WcEllipsoid(std::vector<double> center, std::vector<double> radii,
@@ -167,17 +167,17 @@ class WcEllipsoid : public WcRegion {
 
 // ── WcPolygon ────────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// 2D polygonal region in world coordinates.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `WcPolygon` is a 2D region defined by arrays of world-coordinate vertex
 /// positions along two named axes.  The polygon is always two-dimensional
 /// (`ndim()` returns 2).
-/// </synopsis>
+/// 
 class WcPolygon : public WcRegion {
   public:
     WcPolygon(std::vector<double> x, std::vector<double> y,
@@ -303,13 +303,13 @@ enum class RegionKind : std::uint8_t {
     slicer,     ///< Simple slicer (box without mask).
 };
 
-/// <summary>
+/// 
 /// Unified container holding either an LcRegion, WcRegion, or Slicer.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `ImageRegion` is a type-safe discriminated union over the three region
 /// representations used by casacore images.  It is the type stored in image
 /// keywords for named regions via `RegionHandler`.
@@ -321,7 +321,7 @@ enum class RegionKind : std::uint8_t {
 /// - If a `Slicer`, creates an `LcBox`.
 ///
 /// Serialization round-trips through `to_record()` and `from_record()`.
-/// </synopsis>
+/// 
 class ImageRegion {
   public:
     ImageRegion() = default;
@@ -361,13 +361,13 @@ class ImageRegion {
 
 // ── RegionHandler ────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Manages named regions stored as keywords in an image.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `RegionHandler` maintains a collection of `ImageRegion` objects keyed by
 /// name, and an optional default mask name.  It is embedded in image objects
 /// to provide the casacore `ImageRegion` keyword API.
@@ -375,7 +375,7 @@ class ImageRegion {
 /// Regions can be defined, retrieved, removed, and renamed.  The entire
 /// collection serializes to and from a `Record` for storage in image keyword
 /// tables.
-/// </synopsis>
+/// 
 class RegionHandler {
   public:
     /// Define a named region in this handler's collection.
@@ -410,19 +410,19 @@ class RegionHandler {
 
 // ── RegionManager ────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Factory/utility class for creating common region types.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `RegionManager` provides static factory methods that construct the common
 /// world-coordinate region types.  All methods return heap-allocated unique
 /// pointers to the appropriate `WcRegion` subclass.
 ///
 /// This class has no state; all methods are static.
-/// </synopsis>
+/// 
 class RegionManager {
   public:
     /// Create a WcBox from world-coordinate corners.

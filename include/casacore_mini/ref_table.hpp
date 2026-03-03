@@ -15,13 +15,13 @@ namespace casacore_mini {
 /// @file
 /// @brief Reference table (view) — an ephemeral subset of rows/columns.
 
-/// <summary>
+/// 
 /// An ephemeral, in-memory view over a subset of rows from a base `Table`.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// A `RefTable` wraps an existing `Table` and presents a filtered view of a
 /// subset of its rows identified by a `std::vector<uint64_t>` index mapping.
 /// It does not persist to disk and holds no data of its own; all cell reads
@@ -38,10 +38,10 @@ namespace casacore_mini {
 ///
 /// `RefTable` is the return type of `TableIterator::current()` and of
 /// TaQL query results.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   Table ms = Table::open("my_vis.ms");
 ///   // Select rows where ANTENNA1 == 0
 ///   std::vector<uint64_t> rows;
@@ -52,8 +52,8 @@ namespace casacore_mini {
 ///   RefTable view(ms, std::move(rows));
 ///   std::cout << "selected " << view.nrow() << " rows\n";
 ///   auto val = view.read_scalar_cell("ANTENNA2", 0);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class RefTable {
   public:
     /// Construct a view with selected rows.

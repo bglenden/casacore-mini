@@ -21,58 +21,58 @@ namespace casacore_mini {
 /// Each category filters the row set by a different criterion. The final result
 /// is the intersection of all active category selections.
 
-/// <summary>
+/// 
 /// Row selection engine for MeasurementSet data using casacore-compatible
 /// expression strings.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container evaluated against the selection
-///   <li> MsMetaData — used internally for name-to-ID resolution
-/// </prerequisite>
 ///
-/// <synopsis>
-/// <src>MsSelection</src> mirrors the public API of casacore's
-/// <src>MSSelection</src> class.  It accepts human-readable expression strings
+/// @par Prerequisites
+///   - MeasurementSet — the MS container evaluated against the selection
+///   - MsMetaData — used internally for name-to-ID resolution
+/// 
+///
+/// 
+/// `MsSelection` mirrors the public API of casacore's
+/// `MSSelection` class.  It accepts human-readable expression strings
 /// for up to 12 independent selection categories, evaluates them against a
-/// <src>MeasurementSet</src>, and returns a populated
-/// <src>MsSelectionResult</src> containing the matching row indices and the
+/// `MeasurementSet`, and returns a populated
+/// `MsSelectionResult` containing the matching row indices and the
 /// resolved IDs for each category.
 ///
 /// The 12 categories and their expression syntaxes are:
-/// <ul>
-///   <li> antenna  — "0,1,2", "0~3", "0&1" (baseline), "!5" (negate)
-///   <li> field    — "0,1", "3C273", "3C*" (glob), ">0", "<2"
-///   <li> spw      — "0", "0:0~63" (channels), "1.4GHz" (freq), "*"
-///   <li> scan     — "1,3,5", "1~5", "!3"
-///   <li> time     — ">59000.0" (MJD seconds), "2020/01/01~2020/01/02"
-///   <li> uvdist   — ">100", ">0.5km", "<50m"
-///   <li> corr     — "XX,YY", "RR,LL", "I,Q,U,V", "0,3"
-///   <li> state    — "0,1", "*REFERENCE*"
-///   <li> observation — "0,1", "0~3"
-///   <li> array    — "0", "0,1"
-///   <li> feed     — "0", "0&1" (feed pair)
-///   <li> taql     — raw TaQL WHERE clause fragment
-/// </ul>
+///
+///   - antenna  — "0,1,2", "0~3", "0&1" (baseline), "!5" (negate)
+///   - field    — "0,1", "3C273", "3C*" (glob), ">0", "<2"
+///   - spw      — "0", "0:0~63" (channels), "1.4GHz" (freq), "*"
+///   - scan     — "1,3,5", "1~5", "!3"
+///   - time     — ">59000.0" (MJD seconds), "2020/01/01~2020/01/02"
+///   - uvdist   — ">100", ">0.5km", "<50m"
+///   - corr     — "XX,YY", "RR,LL", "I,Q,U,V", "0,3"
+///   - state    — "0,1", "*REFERENCE*"
+///   - observation — "0,1", "0~3"
+///   - array    — "0", "0,1"
+///   - feed     — "0", "0&1" (feed pair)
+///   - taql     — raw TaQL WHERE clause fragment
+///
 ///
 /// All active categories are combined with AND logic: only rows that pass
-/// every set category are included in <src>MsSelectionResult::rows</src>.
+/// every set category are included in `MsSelectionResult::rows`.
 ///
-/// The <src>to_taql_where()</src> method returns an equivalent TaQL WHERE
-/// clause string that can be used with <src>taql_execute()</src> for deferred
+/// The `to_taql_where()` method returns an equivalent TaQL WHERE
+/// clause string that can be used with `taql_execute()` for deferred
 /// or server-side evaluation.
 ///
-/// Error handling is controlled by <src>ErrorMode</src>: in
-/// <src>ThrowOnError</src> mode a malformed expression raises
-/// <src>std::runtime_error</src>; in <src>CollectErrors</src> mode errors are
-/// appended to <src>MsSelectionResult::errors</src> and evaluation continues.
-/// </synopsis>
+/// Error handling is controlled by `ErrorMode`: in
+/// `ThrowOnError` mode a malformed expression raises
+/// `std::runtime_error`; in `CollectErrors` mode errors are
+/// appended to `MsSelectionResult::errors` and evaluation continues.
+/// 
 ///
-/// <example>
+/// @par Example
 /// Select baselines between antennas 0–2 from scans 1 through 5:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -82,12 +82,12 @@ namespace casacore_mini {
 ///   auto result = sel.evaluate(ms);
 ///
 ///   std::cout << result.rows.size() << " rows selected\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Select a specific field by name and a frequency range:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -98,12 +98,12 @@ namespace casacore_mini {
 ///
 ///   // Convert to a TaQL WHERE clause for use elsewhere
 ///   std::string where = sel.to_taql_where(ms);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Use CollectErrors mode to accumulate non-fatal parsing warnings:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -114,15 +114,15 @@ namespace casacore_mini {
 ///
 ///   for (const auto& err : result.errors)
 ///       std::cerr << "warn: " << err << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Providing an MSSelection-compatible API lets existing casacore workflows
 /// be ported to casacore-mini with minimal expression-string changes.  The
 /// parsed result struct exposes the resolved ID lists so that downstream code
 /// does not need to re-parse the expression strings.
-/// </motivation>
+/// 
 
 /// Parse mode: controls when expression validation occurs.
 enum class ParseMode {

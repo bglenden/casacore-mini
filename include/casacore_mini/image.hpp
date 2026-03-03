@@ -40,37 +40,37 @@ template <typename T> class ImageConcat;
 
 // ── ImageInfo ──────────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Image-level metadata: restoring beam, object name, and image type.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// ImageInfo bundles the small set of scalar metadata that every
 /// astronomical image carries beyond its pixel array:
-/// <ul>
-///   <li> A restoring beam described by major axis, minor axis, and position
+///
+///   - A restoring beam described by major axis, minor axis, and position
 ///        angle (all in radians).  A beam is considered absent when either
-///        <src>beam_major_rad</src> or <src>beam_minor_rad</src> is zero.
-///   <li> An optional object name string (e.g., "NGC 1234").
-///   <li> An image type string (e.g., "Intensity", "Beam", "SpectralIndex").
-/// </ul>
+///        `beam_major_rad` or `beam_minor_rad` is zero.
+///   - An optional object name string (e.g., "NGC 1234").
+///   - An image type string (e.g., "Intensity", "Beam", "SpectralIndex").
 ///
-/// The struct is serialised to and from a <src>Record</src> so it can be
-/// stored as a table keyword inside a <src>PagedImage</src> on disk.  The
-/// keyword name used by <src>PagedImage</src> is <src>"imageinfo"</src>.
 ///
-/// <note role="caution">
+/// The struct is serialised to and from a `Record` so it can be
+/// stored as a table keyword inside a `PagedImage` on disk.  The
+/// keyword name used by `PagedImage` is `"imageinfo"`.
+///
+/// @warning
 /// All beam angles are stored in radians.  When reading beam parameters
 /// from FITS or AIPS-IO sources, remember to convert from degrees or
-/// arcseconds before constructing an <src>ImageInfo</src>.
-/// </note>
-/// </synopsis>
+/// arcseconds before constructing an `ImageInfo`.
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Attach a restoring beam to an in-memory image:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   ImageInfo info;
 ///   info.beam_major_rad = 1.5e-5;   // ~3 arcsec in radians
@@ -82,8 +82,8 @@ template <typename T> class ImageConcat;
 ///   TempImage<float> img(IPosition({256, 256}), cs);
 ///   img.set_image_info(info);
 ///   assert(img.image_info().has_beam());
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct ImageInfo {
     /// Restoring beam major axis (radians). 0 = no beam.
     double beam_major_rad = 0.0;
@@ -111,55 +111,55 @@ struct ImageInfo {
 
 // ── ImageInterface<T> ─────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Abstract base class for all astronomical image types.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MaskedLattice<T> — pixel data + boolean mask interface
-///   <li> CoordinateSystem — world-coordinate description of each pixel axis
-///   <li> ImageInfo — restoring beam and object metadata
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - MaskedLattice<T> — pixel data + boolean mask interface
+///   - CoordinateSystem — world-coordinate description of each pixel axis
+///   - ImageInfo — restoring beam and object metadata
+/// 
+///
+/// 
 /// ImageInterface<T> extends MaskedLattice<T> with the additional
 /// metadata required for astronomical images:
-/// <ul>
-///   <li> A CoordinateSystem describing each pixel axis in world coordinates
-///   <li> A brightness unit string (e.g. "Jy/beam", "K")
-///   <li> An ImageInfo record holding the restoring beam, object name, and type
-///   <li> A miscellaneous keyword Record for user-defined metadata
-/// </ul>
+///
+///   - A CoordinateSystem describing each pixel axis in world coordinates
+///   - A brightness unit string (e.g. "Jy/beam", "K")
+///   - An ImageInfo record holding the restoring beam, object name, and type
+///   - A miscellaneous keyword Record for user-defined metadata
+///
 ///
 /// The hierarchy mirrors casacore's ImageInterface design.  Concrete
 /// subclasses include PagedImage (disk), TempImage (memory),
 /// SubImage (windowed view), ImageExpr (expression result),
 /// and ImageConcat (axis-concatenated view).
 ///
-/// Mask convention: a pixel mask value of <src>true</src> means the
-/// pixel is valid; <src>false</src> means it is flagged.
-/// </synopsis>
+/// Mask convention: a pixel mask value of `true` means the
+/// pixel is valid; `false` means it is flagged.
+/// 
 ///
-/// <example>
+/// @par Example
 /// Open a FITS-derived CASA image and read its coordinate system:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   PagedImage<float> img("my_image.image");
 ///   std::cout << "Shape: " << img.shape().to_string() << "\n";
 ///   std::cout << "Units: " << img.units() << "\n";
 ///   auto stats = image_utilities::statistics(img);
 ///   std::cout << "Peak: " << stats.max_val << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// A common abstract interface allows algorithms (statistics, regridding,
 /// sub-imaging, expression evaluation) to operate on any image type without
 /// knowing whether pixels live on disk, in memory, or are computed on the
 /// fly from a lattice expression.
-/// </motivation>
+/// 
 template <typename T>
 class ImageInterface : public MaskedLattice<T> {
   public:
@@ -191,49 +191,49 @@ class ImageInterface : public MaskedLattice<T> {
 
 // ── PagedImage<T> ─────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Disk-backed image stored as a casacore table directory.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> ImageInterface<T> — abstract image base class
-///   <li> CoordinateSystem — axis description serialized as a table keyword
-///   <li> Table — casacore on-disk table (read/write access)
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - ImageInterface<T> — abstract image base class
+///   - CoordinateSystem — axis description serialized as a table keyword
+///   - Table — casacore on-disk table (read/write access)
+/// 
+///
+/// 
 /// PagedImage stores pixel data on disk as a casacore table directory.
 /// The table layout is:
-/// <ul>
-///   <li> One array column "map" backed by TiledShapeStMan
-///   <li> Table keyword "coords"    → CoordinateSystem Record
-///   <li> Table keyword "imageinfo" → ImageInfo Record
-///   <li> Table keyword "miscinfo"  → miscellaneous Record
-///   <li> Table keyword "units"     → brightness unit string
-/// </ul>
+///
+///   - One array column "map" backed by TiledShapeStMan
+///   - Table keyword "coords"    → CoordinateSystem Record
+///   - Table keyword "imageinfo" → ImageInfo Record
+///   - Table keyword "miscinfo"  → miscellaneous Record
+///   - Table keyword "units"     → brightness unit string
+///
 /// This layout is binary-compatible with CASA images produced by
 /// casacore's PagedImage class.
 ///
 /// Pixel masks are stored in a mask subtable whose name is passed to
-/// <src>make_mask()</src>.  The default mask is the one last registered
-/// via <src>make_mask(..., set_default=true)</src>.
+/// `make_mask()`.  The default mask is the one last registered
+/// via `make_mask(..., set_default=true)`.
 ///
 /// Metadata is loaded into memory on construction and flushed back to
-/// the table either on <src>flush()</src> or on destruction.  Pixel data
+/// the table either on `flush()` or on destruction.  Pixel data
 /// is read and written directly through the table column without buffering.
 ///
-/// <note role="caution">
-/// Opening the same table path from two <src>PagedImage</src> instances
+/// @warning
+/// Opening the same table path from two `PagedImage` instances
 /// simultaneously (one writable) results in undefined behaviour.  Use
 /// read-only opens when concurrent access is required.
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Create a new image on disk and write some pixels:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   CoordinateSystem cs = CoordinateSystem::make_simple_ra_dec(256, 256);
 ///   PagedImage<float> img(IPosition({256, 256}), cs, "my_image.image");
@@ -243,21 +243,21 @@ class ImageInterface : public MaskedLattice<T> {
 ///   pixels.put(IPosition({128, 128}), 1.0f);   // point source at centre
 ///   img.put(pixels);
 ///   img.flush();
-/// </srcblock>
+/// @endcode
 ///
 /// Re-open an existing image read-only:
-/// <srcblock>
+/// @code{.cpp}
 ///   PagedImage<float> img("my_image.image");   // writable=false by default
 ///   auto stats = image_utilities::statistics(img);
 ///   std::cout << "Peak: " << stats.max_val << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Provides a CASA-compatible on-disk image format so that images
 /// produced by casacore-mini can be read by CASA and vice versa without
 /// any conversion step.
-/// </motivation>
+/// 
 template <typename T>
 class PagedImage : public ImageInterface<T> {
   public:
@@ -316,39 +316,39 @@ class PagedImage : public ImageInterface<T> {
 
 // ── TempImage<T> ──────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Temporary in-memory image with no disk persistence.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> ImageInterface<T> — abstract image base class
-///   <li> LatticeArray<T> — in-memory pixel storage
-/// </prerequisite>
 ///
-/// <synopsis>
-/// TempImage holds all pixel data in a <src>LatticeArray<T></src> residing
-/// entirely in RAM.  It satisfies the full <src>ImageInterface<T></src>
+/// @par Prerequisites
+///   - ImageInterface<T> — abstract image base class
+///   - LatticeArray<T> — in-memory pixel storage
+/// 
+///
+/// 
+/// TempImage holds all pixel data in a `LatticeArray<T>` residing
+/// entirely in RAM.  It satisfies the full `ImageInterface<T>`
 /// contract — coordinate system, units, ImageInfo, and misc keywords — but
 /// never touches the filesystem.
 ///
-/// Because storage is in-memory, <src>is_persistent()</src> returns
-/// <src>false</src> and <src>is_paged()</src> returns <src>false</src>.
+/// Because storage is in-memory, `is_persistent()` returns
+/// `false` and `is_paged()` returns `false`.
 /// The image is always writable.
 ///
-/// An optional boolean pixel mask can be attached via <src>attach_mask()</src>.
-/// Until a mask is attached, <src>has_pixel_mask()</src> returns
-/// <src>false</src> and all pixels are treated as valid.
+/// An optional boolean pixel mask can be attached via `attach_mask()`.
+/// Until a mask is attached, `has_pixel_mask()` returns
+/// `false` and all pixels are treated as valid.
 ///
 /// TempImage is useful as a scratch buffer for algorithmic intermediate
 /// results (e.g., regridding output, convolution output) before writing
-/// to a <src>PagedImage</src>.
-/// </synopsis>
+/// to a `PagedImage`.
+/// 
 ///
-/// <example>
+/// @par Example
 /// Build a temporary image, fill it, and copy it to disk:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   CoordinateSystem cs = CoordinateSystem::make_simple_ra_dec(64, 64);
 ///   TempImage<float> tmp(IPosition({64, 64}), cs);
@@ -360,8 +360,8 @@ class PagedImage : public ImageInterface<T> {
 ///   PagedImage<float> disk(IPosition({64, 64}), cs, "output.image");
 ///   image_utilities::copy_image(tmp, disk);
 ///   disk.flush();
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T>
 class TempImage : public ImageInterface<T> {
   public:
@@ -402,8 +402,8 @@ class TempImage : public ImageInterface<T> {
     /// Attach a pixel mask.
     ///
     /// The mask array must have the same shape as the image.  Once attached,
-    /// <src>has_pixel_mask()</src> returns <src>true</src>.  Calling
-    /// <src>attach_mask()</src> a second time replaces the previous mask.
+    /// `has_pixel_mask()` returns `true`.  Calling
+    /// `attach_mask()` a second time replaces the previous mask.
     void attach_mask(LatticeArray<bool> mask);
 
   private:
@@ -418,19 +418,19 @@ class TempImage : public ImageInterface<T> {
 
 // ── SubImage<T> ───────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// A windowed, non-copying view into a sub-region of another image.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> ImageInterface<T> — abstract image base class
-///   <li> Slicer — describes the sub-region (start, length, stride per axis)
-///   <li> CoordinateSystem — adjusted to reflect reference-pixel shift
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - ImageInterface<T> — abstract image base class
+///   - Slicer — describes the sub-region (start, length, stride per axis)
+///   - CoordinateSystem — adjusted to reflect reference-pixel shift
+/// 
+///
+/// 
 /// SubImage presents a rectangular region of a parent image as if it were
 /// an independent image.  No pixel data is copied on construction; all
 /// read and write operations are forwarded to the parent through coordinate
@@ -442,20 +442,20 @@ class TempImage : public ImageInterface<T> {
 /// are delegated to the parent at every access — there is no independent copy.
 ///
 /// Writability mirrors the parent: a SubImage constructed from a mutable
-/// <src>ImageInterface<T>&</src> is writable; one constructed from a
-/// <src>const ImageInterface<T>&</src> is read-only.  Attempting any write
-/// operation on a read-only SubImage throws <src>std::runtime_error</src>.
+/// `ImageInterface<T>&` is writable; one constructed from a
+/// `const ImageInterface<T>&` is read-only.  Attempting any write
+/// operation on a read-only SubImage throws `std::runtime_error`.
 ///
-/// <note role="caution">
+/// @warning
 /// The parent image must outlive all SubImage instances that reference it.
 /// SubImage stores a raw pointer to the parent and performs no lifetime
 /// management.
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Extract the central quarter of a 256x256 image and compute statistics:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   PagedImage<float> img("my_image.image");
 ///
@@ -466,8 +466,8 @@ class TempImage : public ImageInterface<T> {
 ///
 ///   auto stats = image_utilities::statistics(sub);
 ///   std::cout << "Sub-region peak: " << stats.max_val << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T>
 class SubImage : public ImageInterface<T> {
   public:
@@ -527,38 +527,38 @@ class SubImage : public ImageInterface<T> {
 
 // ── ImageBeamSet ──────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Per-channel (and optionally per-Stokes) restoring beam table.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> ImageInfo — single restoring beam for non-spectral images
-/// </prerequisite>
 ///
-/// <synopsis>
-/// ImageBeamSet generalises the single restoring beam in <src>ImageInfo</src>
+/// @par Prerequisites
+///   - ImageInfo — single restoring beam for non-spectral images
+/// 
+///
+/// 
+/// ImageBeamSet generalises the single restoring beam in `ImageInfo`
 /// to a two-dimensional grid indexed by [channel][Stokes].  This is needed
 /// for spectral cubes produced by multi-scale or multi-frequency synthesis
 /// deconvolution where the synthesised beam shape varies with frequency.
 ///
-/// The storage is a <src>std::vector<std::vector<Beam>></src> where the outer
+/// The storage is a `std::vector<std::vector<Beam>>` where the outer
 /// index is channel and the inner index is Stokes.  A single-beam set is
-/// represented as a 1x1 grid and can be tested with <src>is_single()</src>.
+/// represented as a 1x1 grid and can be tested with `is_single()`.
 ///
-/// Serialisation to and from a <src>Record</src> is provided for storage as
-/// a table keyword inside a <src>PagedImage</src>.
+/// Serialisation to and from a `Record` is provided for storage as
+/// a table keyword inside a `PagedImage`.
 ///
-/// <note role="caution">
+/// @warning
 /// All beam parameters (major, minor, position angle) are stored in radians
-/// to match <src>ImageInfo</src> conventions.
-/// </note>
-/// </synopsis>
+/// to match `ImageInfo` conventions.
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Build a per-channel beam set for a 128-channel cube:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   ImageBeamSet beams(128, 1);
 ///   for (std::size_t ch = 0; ch < 128; ++ch) {
@@ -566,8 +566,8 @@ class SubImage : public ImageInterface<T> {
 ///       beams.set(ch, 0, {1.5e-5 * scale, 1.0e-5 * scale, 0.0});
 ///   }
 ///   bool single = beams.is_single();  // false
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct ImageBeamSet {
     /// A single beam triple (radians).
     struct Beam {
@@ -607,38 +607,38 @@ struct ImageBeamSet {
 
 // ── MaskSpecifier ─────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Selects which named pixel mask to apply when opening a PagedImage.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
-/// In casacore, a <src>PagedImage</src> can store multiple named boolean
+///
+/// 
+/// In casacore, a `PagedImage` can store multiple named boolean
 /// masks as subtables.  MaskSpecifier encapsulates the choice of which mask
-/// to activate.  An empty name (<src>""</src>) selects the image's current
-/// default mask, which is determined by the <src>"logtable"</src> keyword
+/// to activate.  An empty name (`""`) selects the image's current
+/// default mask, which is determined by the `"logtable"` keyword
 /// inside the table.
 ///
 /// Passing a MaskSpecifier to image-opening functions allows callers to
 /// override the default mask without modifying the on-disk image.
 ///
-/// <note role="caution">
+/// @warning
 /// If the named mask does not exist in the image, the open will fail with
 /// a descriptive error rather than silently falling back to the default.
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Open an image using a specific mask named "pbmask":
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   MaskSpecifier ms("pbmask");
 ///   // Pass ms to the image-opening routine (implementation-dependent).
 ///   assert(!ms.use_default());
 ///   assert(ms.name == "pbmask");
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct MaskSpecifier {
     /// Mask name ("" = default mask).
     std::string name;
@@ -652,49 +652,49 @@ struct MaskSpecifier {
 
 // ── ImageExpr<T> ──────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// A read-only image formed by evaluating a lattice expression.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> ImageInterface<T> — abstract image base class
-///   <li> LatticeArray<T> — in-memory storage for evaluated pixel data
-///   <li> CoordinateSystem — inherited from the reference image
-/// </prerequisite>
 ///
-/// <synopsis>
-/// ImageExpr wraps a pre-evaluated <src>LatticeArray<T></src> — the result
+/// @par Prerequisites
+///   - ImageInterface<T> — abstract image base class
+///   - LatticeArray<T> — in-memory storage for evaluated pixel data
+///   - CoordinateSystem — inherited from the reference image
+/// 
+///
+/// 
+/// ImageExpr wraps a pre-evaluated `LatticeArray<T>` — the result
 /// of computing a lattice arithmetic expression — as a fully-fledged
-/// <src>ImageInterface<T></src>.  The coordinate system, units, and
+/// `ImageInterface<T>`.  The coordinate system, units, and
 /// ImageInfo are supplied at construction time (typically copied from a
 /// reference image used in the expression).
 ///
 /// Because the pixel data represents a computed result rather than editable
-/// storage, all write operations (<src>put()</src>, <src>put_slice()</src>,
-/// <src>put_at()</src>) throw <src>std::runtime_error</src>.
-/// <src>is_writable()</src> always returns <src>false</src>.
+/// storage, all write operations (`put()`, `put_slice()`,
+/// `put_at()`) throw `std::runtime_error`.
+/// `is_writable()` always returns `false`.
 ///
-/// The optional <src>expr_text</src> string stores the human-readable
-/// expression (e.g., <src>"2.0 * img1 - img2"</src>) for informational
-/// purposes and is returned by <src>name()</src> as
-/// <src>"ImageExpr(expr_text)"</src>.
+/// The optional `expr_text` string stores the human-readable
+/// expression (e.g., `"2.0 * img1 - img2"`) for informational
+/// purposes and is returned by `name()` as
+/// `"ImageExpr(expr_text)"`.
 ///
-/// All pixels are treated as valid — <src>has_pixel_mask()</src> returns
-/// <src>false</src> and <src>get_mask()</src> returns an all-<src>true</src>
+/// All pixels are treated as valid — `has_pixel_mask()` returns
+/// `false` and `get_mask()` returns an all-`true`
 /// array.
 ///
-/// <note role="caution">
+/// @warning
 /// The expression is evaluated eagerly at construction.  For very large
 /// images, consider chunking the evaluation to avoid peak memory usage equal
 /// to twice the image size (input + result).
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Subtract a background image and inspect the result:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   PagedImage<float> signal("signal.image");
 ///   PagedImage<float> bg("background.image");
@@ -711,8 +711,8 @@ struct MaskSpecifier {
 ///                         "signal - background");
 ///   auto stats = image_utilities::statistics(diff);
 ///   std::cout << "Diff peak: " << stats.max_val << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T>
 class ImageExpr : public ImageInterface<T> {
   public:
@@ -763,22 +763,22 @@ class ImageExpr : public ImageInterface<T> {
 
 // ── ImageConcat<T> ────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Read-only concatenation of multiple images along a single axis.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> ImageInterface<T> — abstract image base class
-///   <li> LatticeConcat<T> — underlying pixel concatenation mechanism
-///   <li> CoordinateSystem — inherited from the first component image
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - ImageInterface<T> — abstract image base class
+///   - LatticeConcat<T> — underlying pixel concatenation mechanism
+///   - CoordinateSystem — inherited from the first component image
+/// 
+///
+/// 
 /// ImageConcat presents a set of images joined end-to-end along one pixel
-/// axis as a single <src>ImageInterface<T></src>.  The underlying pixel data
-/// is collected into a <src>LatticeConcat<T></src> eagerly at construction
+/// axis as a single `ImageInterface<T>`.  The underlying pixel data
+/// is collected into a `LatticeConcat<T>` eagerly at construction
 /// by reading from each component image.
 ///
 /// The coordinate system, units, and ImageInfo are copied from the first
@@ -788,24 +788,24 @@ class ImageExpr : public ImageInterface<T> {
 ///
 /// Because the concatenated array is a snapshot taken at construction time,
 /// subsequent modifications to the component images are not reflected.
-/// All write operations throw <src>std::runtime_error</src>;
-/// <src>is_writable()</src> always returns <src>false</src>.
+/// All write operations throw `std::runtime_error`;
+/// `is_writable()` always returns `false`.
 ///
-/// Masks are not propagated from component images — <src>has_pixel_mask()</src>
-/// returns <src>false</src> and all pixels are treated as valid.  If mask
+/// Masks are not propagated from component images — `has_pixel_mask()`
+/// returns `false` and all pixels are treated as valid.  If mask
 /// propagation is required, collect and concatenate masks manually after
 /// construction.
 ///
-/// <note role="caution">
+/// @warning
 /// Component image pointers must remain valid for the lifetime of the
 /// ImageConcat object.  ImageConcat does not take ownership of the
 /// component images.
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Concatenate three spectral-window images along the frequency axis (axis 2):
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   PagedImage<float> spw0("spw0.image");
 ///   PagedImage<float> spw1("spw1.image");
@@ -820,8 +820,8 @@ class ImageExpr : public ImageInterface<T> {
 ///
 ///   auto stats = image_utilities::statistics(cube);
 ///   std::cout << "Cube peak: " << stats.max_val << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T>
 class ImageConcat : public ImageInterface<T> {
   public:
@@ -876,38 +876,38 @@ class ImageConcat : public ImageInterface<T> {
 
 // ── ImageSummary ──────────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Utility that prints a human-readable summary of an image's properties.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// ImageSummary is a stateless utility struct with a single static method
-/// <src>print()</src>.  It reports the image name, shape, brightness units,
+/// `print()`.  It reports the image name, shape, brightness units,
 /// write status, and — when present — restoring beam parameters and object
 /// name.
 ///
-/// Output is written to any <src>std::ostream</src> (defaulting to
-/// <src>std::cout</src>), making it easy to redirect to a log file or
+/// Output is written to any `std::ostream` (defaulting to
+/// `std::cout`), making it easy to redirect to a log file or
 /// string stream.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Print a summary of a disk image to standard output:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   PagedImage<float> img("my_image.image");
 ///   ImageSummary::print(img);
-/// </srcblock>
+/// @endcode
 ///
 /// Capture the summary as a string:
-/// <srcblock>
+/// @code{.cpp}
 ///   std::ostringstream oss;
 ///   ImageSummary::print(img, oss);
 ///   std::string summary = oss.str();
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct ImageSummary {
     /// Print a summary of the image to the given stream.
     template <typename T>
@@ -917,31 +917,31 @@ struct ImageSummary {
 
 // ── Utility functions ─────────────────────────────────────────────────
 
-/// <summary>
+/// 
 /// Collection of free functions for common image operations.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
-/// The <src>image_utilities</src> namespace gathers convenience functions
-/// that operate on any <src>ImageInterface<T></src>:
-/// <ul>
-///   <li> <src>statistics()</src> — computes min, max, mean, and RMS over
+///
+/// 
+/// The `image_utilities` namespace gathers convenience functions
+/// that operate on any `ImageInterface<T>`:
+///
+///   - `statistics()` — computes min, max, mean, and RMS over
 ///        all pixels (unmasked or masked alike; mask is not currently
 ///        applied during statistics accumulation).
-///   <li> <src>copy_image()</src> — copies pixel data and all metadata
+///   - `copy_image()` — copies pixel data and all metadata
 ///        (coordinates, units, ImageInfo, misc keywords) from a source
 ///        image to a destination image of the same shape.
-///   <li> <src>scale_image()</src> — applies a linear transformation
-///        <src>dst = src * scale + offset</src> pixel-by-pixel, writing
+///   - `scale_image()` — applies a linear transformation
+///        `dst = src * scale + offset` pixel-by-pixel, writing
 ///        the result into a pre-allocated destination image.
-/// </ul>
+///
 ///
 /// All functions are template functions operating on the image pixel type
-/// <src>T</src>.  The caller is responsible for ensuring that source and
+/// `T`.  The caller is responsible for ensuring that source and
 /// destination shapes are compatible.
-/// </synopsis>
+/// 
 namespace image_utilities {
 
 /// Compute basic statistics (min, max, mean, rms) of an image.
@@ -957,7 +957,7 @@ struct ImageStats {
 /// Compute statistics over the entire image.
 ///
 /// All pixels are included regardless of mask status.  Returns a
-/// zero-initialized <src>ImageStats</src> when the image is empty.
+/// zero-initialized `ImageStats` when the image is empty.
 template <typename T>
 ImageStats<T> statistics(const ImageInterface<T>& img);
 
@@ -972,54 +972,54 @@ void copy_image(const ImageInterface<T>& src, ImageInterface<T>& dst);
 /// Convert pixel values by a scale factor and offset: dst = src * scale + offset.
 ///
 /// The destination image must already exist and have the same shape as the
-/// source.  The computation is performed in <src>double</src> precision and
-/// the result is cast back to <src>T</src>.
+/// source.  The computation is performed in `double` precision and
+/// the result is cast back to `T`.
 template <typename T>
 void scale_image(const ImageInterface<T>& src, ImageInterface<T>& dst,
                  double scale, double offset = 0.0);
 
 } // namespace image_utilities
 
-/// <summary>
+/// 
 /// Simple nearest-neighbor image reprojection onto a new coordinate grid.
-/// </summary>
+/// 
 ///
-/// <synopsis>
-/// <src>image_regrid()</src> reprojects the source image <src>src</src>
-/// onto the coordinate grid defined by the destination image <src>dst</src>
+/// 
+/// `image_regrid()` reprojects the source image `src`
+/// onto the coordinate grid defined by the destination image `dst`
 /// using nearest-neighbor interpolation.
 ///
 /// The algorithm iterates over every output pixel position, converts it to
-/// world coordinates via <src>dst</src>'s coordinate system, then maps the
-/// world coordinate back to a pixel position in <src>src</src>'s coordinate
+/// world coordinates via `dst`'s coordinate system, then maps the
+/// world coordinate back to a pixel position in `src`'s coordinate
 /// system.  The source pixel at the rounded (nearest-neighbor) position is
 /// copied to the output.  Output pixels whose corresponding source position
 /// falls outside the source image bounds are left at their default-initialized
 /// value (zero for arithmetic types).
 ///
-/// This is a simplified analogue of casacore's <src>ImageRegrid</src> class.
+/// This is a simplified analogue of casacore's `ImageRegrid` class.
 /// It handles axis permutations and grid changes that can be expressed through
-/// the coordinate systems of <src>src</src> and <src>dst</src>, but does not
+/// the coordinate systems of `src` and `dst`, but does not
 /// perform:
-/// <ul>
-///   <li> Higher-order interpolation (bilinear, bicubic, Lanczos).
-///   <li> Spectral or polarization axis regridding beyond coordinate mapping.
-///   <li> Flux conservation (division by Jacobian of the coordinate transform).
-/// </ul>
+///
+///   - Higher-order interpolation (bilinear, bicubic, Lanczos).
+///   - Spectral or polarization axis regridding beyond coordinate mapping.
+///   - Flux conservation (division by Jacobian of the coordinate transform).
+///
 ///
 /// The destination image must be pre-allocated with the desired output shape
 /// and coordinate system before calling this function.
 ///
-/// <note role="caution">
+/// @warning
 /// Nearest-neighbor interpolation introduces aliasing artefacts when
 /// up-sampling by large factors.  For publication-quality imaging, use
 /// a higher-order interpolation scheme.
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
+/// @par Example
 /// Regrid a 64x64 image onto a 128x128 grid:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   PagedImage<float> src("low_res.image");
 ///
@@ -1031,8 +1031,8 @@ void scale_image(const ImageInterface<T>& src, ImageInterface<T>& dst,
 ///   PagedImage<float> out(IPosition({128, 128}), hi_cs, "hi_res.image");
 ///   image_utilities::copy_image(dst, out);
 ///   out.flush();
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename T>
 void image_regrid(const ImageInterface<T>& src, ImageInterface<T>& dst);
 

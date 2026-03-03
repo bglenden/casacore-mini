@@ -15,41 +15,41 @@ namespace casacore_mini {
 /// @file
 /// @brief Concatenate two MeasurementSets into one.
 
-/// <summary>
+/// 
 /// Concatenate two MeasurementSets into a new output MeasurementSet,
 /// deduplicating shared subtable rows and remapping ID columns.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS containers being concatenated
-///   <li> MsWriter — used internally to write the output MS
-/// </prerequisite>
 ///
-/// <synopsis>
-/// <src>ms_concat()</src> produces a new MeasurementSet at
-/// <src>output_path</src> whose main table contains all rows from both
-/// <src>ms1</src> and <src>ms2</src>, in that order.
+/// @par Prerequisites
+///   - MeasurementSet — the MS containers being concatenated
+///   - MsWriter — used internally to write the output MS
+/// 
 ///
-/// Subtable rows from <src>ms2</src> are appended to the corresponding
-/// subtables from <src>ms1</src>.  Where subtable rows from both MSes share
+/// 
+/// `ms_concat()` produces a new MeasurementSet at
+/// `output_path` whose main table contains all rows from both
+/// `ms1` and `ms2`, in that order.
+///
+/// Subtable rows from `ms2` are appended to the corresponding
+/// subtables from `ms1`.  Where subtable rows from both MSes share
 /// the same identifying name (antenna NAME in ANTENNA; field NAME in FIELD;
-/// etc.) they are deduplicated: the <src>ms2</src> row is not appended, and
-/// the matching <src>ms1</src> row index is used instead.
+/// etc.) they are deduplicated: the `ms2` row is not appended, and
+/// the matching `ms1` row index is used instead.
 ///
-/// All ID columns in the <src>ms2</src> main-table rows (ANTENNA1, ANTENNA2,
+/// All ID columns in the `ms2` main-table rows (ANTENNA1, ANTENNA2,
 /// FIELD_ID, DATA_DESC_ID, OBSERVATION_ID, etc.) are remapped to the new
 /// indices in the merged subtables.  The full old→new mapping is returned in
-/// <src>MsConcatResult::id_remaps</src>, keyed by subtable name.
+/// `MsConcatResult::id_remaps`, keyed by subtable name.
 ///
 /// An exception is thrown if the two MSes have incompatible schemas (e.g.
 /// one has a DATA column and the other does not).
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Concatenate two observations of the same field into one MS:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms1 = MeasurementSet::open("obs1.ms");
 ///   auto ms2 = MeasurementSet::open("obs2.ms");
@@ -61,16 +61,16 @@ namespace casacore_mini {
 ///   const auto& ant_remap = result.id_remaps.at("ANTENNA");
 ///   for (auto [old_id, new_id] : ant_remap)
 ///       std::cout << "ANT old=" << old_id << " -> new=" << new_id << "\n";
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Concatenation with automatic ID remapping is a prerequisite for building
 /// large MSes from many shorter observations, and for combining data from
 /// different array configurations that share some antennas and fields but
 /// introduce others.  Encapsulating the remapping logic here prevents
 /// callers from having to manage the bookkeeping manually.
-/// </motivation>
+/// 
 
 /// Result of an MS concatenation.
 struct MsConcatResult {

@@ -14,87 +14,87 @@ namespace casacore_mini {
 /// @file
 /// @brief Subtable column enums and schema factories for all 17 MS subtable types.
 
-/// <summary>
+/// 
 /// Column enumerations and schema factory functions for all 17 MeasurementSet
 /// subtable types (12 required + 5 optional).
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> TableDesc — ColumnDesc type produced by the factory functions
-///   <li> MeasurementSet — the MS container that owns the subtable directories
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - TableDesc — ColumnDesc type produced by the factory functions
+///   - MeasurementSet — the MS container that owns the subtable directories
+/// 
+///
+/// 
 /// This header provides two levels of API for working with MS subtables:
 ///
 /// 1. Per-subtable column enumerations.
-///    A typed <src>enum class</src> is defined for each of the 17 subtable
+///    A typed `enum class` is defined for each of the 17 subtable
 ///    types.  The enumerators correspond to the required columns of that
 ///    subtable as specified by the MS2 standard.  These enums serve as safe
 ///    indices into the column name lookup functions below.
 ///
 /// 2. Schema factory functions.
-///    A <src>make_*_desc()</src> function is provided for every subtable.
-///    Each function returns a <src>std::vector<ColumnDesc></src> that
+///    A `make_*_desc()` function is provided for every subtable.
+///    Each function returns a `std::vector<ColumnDesc>` that
 ///    describes the required columns for that subtable, ready to be passed to
-///    <src>make_subtable_dat()</src> and written to disk.
+///    `make_subtable_dat()` and written to disk.
 ///
 /// The 12 required subtable schemas are:
-/// <ul>
-///   <li> ANTENNA — 8 columns (NAME, STATION, TYPE, MOUNT, POSITION, OFFSET,
+///
+///   - ANTENNA — 8 columns (NAME, STATION, TYPE, MOUNT, POSITION, OFFSET,
 ///                  DISH_DIAMETER, FLAG_ROW)
-///   <li> DATA_DESCRIPTION — 3 columns
-///   <li> FEED — 12 columns
-///   <li> FIELD — 9 columns (including direction polynomial arrays)
-///   <li> FLAG_CMD — 8 columns
-///   <li> HISTORY — 9 columns
-///   <li> OBSERVATION — 9 columns
-///   <li> POINTING — 9 columns
-///   <li> POLARIZATION — 4 columns (NUM_CORR, CORR_TYPE, CORR_PRODUCT,
+///   - DATA_DESCRIPTION — 3 columns
+///   - FEED — 12 columns
+///   - FIELD — 9 columns (including direction polynomial arrays)
+///   - FLAG_CMD — 8 columns
+///   - HISTORY — 9 columns
+///   - OBSERVATION — 9 columns
+///   - POINTING — 9 columns
+///   - POLARIZATION — 4 columns (NUM_CORR, CORR_TYPE, CORR_PRODUCT,
 ///                        FLAG_ROW)
-///   <li> PROCESSOR — 5 columns
-///   <li> SPECTRAL_WINDOW — 14 columns (NUM_CHAN, CHAN_FREQ, CHAN_WIDTH, …)
-///   <li> STATE — 7 columns
-/// </ul>
+///   - PROCESSOR — 5 columns
+///   - SPECTRAL_WINDOW — 14 columns (NUM_CHAN, CHAN_FREQ, CHAN_WIDTH, …)
+///   - STATE — 7 columns
+///
 ///
 /// The 5 optional subtable schemas are:
-/// <ul>
-///   <li> DOPPLER, FREQ_OFFSET, SOURCE, SYSCAL, WEATHER
-/// </ul>
+///
+///   - DOPPLER, FREQ_OFFSET, SOURCE, SYSCAL, WEATHER
+///
 ///
 /// Column name strings for each enum value are accessible through the
-/// corresponding <src>ms_*_column_name()</src> helper.
-/// </synopsis>
+/// corresponding `ms_*_column_name()` helper.
+/// 
 ///
-/// <example>
+/// @par Example
 /// Create the ANTENNA subtable schema and write it to an MS directory:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto cols = make_antenna_desc();
 ///   auto dat  = make_subtable_dat(cols);
 ///   // dat is now ready to be written under "my.ms/ANTENNA/"
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Resolve a subtable name at runtime and obtain its column schema:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto cols = make_subtable_desc_by_name("SPECTRAL_WINDOW");
 ///   // cols.empty() == false for any recognised subtable name
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Look up the wire name of a column enum value:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   std::string_view n = ms_antenna_column_name(MsAntennaColumn::dish_diameter);
 ///   // n == "DISH_DIAMETER"
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 // ---------------------------------------------------------------------------
 // Per-subtable column enums

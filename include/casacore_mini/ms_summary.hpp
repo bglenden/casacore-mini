@@ -14,55 +14,55 @@ namespace casacore_mini {
 ///
 /// Produces a human-readable summary similar to casacore's `msoverview` tool.
 
-/// <summary>
+/// 
 /// Generate a human-readable text summary of a MeasurementSet.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container to be summarised
-///   <li> MsMetaData — cached metadata queries used internally
-/// </prerequisite>
 ///
-/// <synopsis>
-/// <src>ms_summary()</src> produces a multi-line string that describes the
+/// @par Prerequisites
+///   - MeasurementSet — the MS container to be summarised
+///   - MsMetaData — cached metadata queries used internally
+/// 
+///
+/// 
+/// `ms_summary()` produces a multi-line string that describes the
 /// key properties of a MeasurementSet, analogous to the output of
-/// casacore's <src>msoverview</src> tool or CASA's <src>listobs</src> task.
+/// casacore's `msoverview` tool or CASA's `listobs` task.
 ///
 /// The summary includes:
-/// <ul>
-///   <li> Total main-table row count
-///   <li> Antenna list (name, station, dish diameter)
-///   <li> Field list (name, source ID)
-///   <li> Spectral window list (name, reference frequency, number of channels)
-///   <li> Unique scan numbers present in the main table
-///   <li> Observation metadata (telescope name, observer, project)
-///   <li> Per-subtable row counts for all subtables present on disk
-/// </ul>
+///
+///   - Total main-table row count
+///   - Antenna list (name, station, dish diameter)
+///   - Field list (name, source ID)
+///   - Spectral window list (name, reference frequency, number of channels)
+///   - Unique scan numbers present in the main table
+///   - Observation metadata (telescope name, observer, project)
+///   - Per-subtable row counts for all subtables present on disk
+///
 ///
 /// The function reads from the MeasurementSet's subtables using the public
 /// table accessor API; it does not use storage manager internals directly.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Print a summary of an open MS to stdout:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///   std::cout << ms_summary(ms);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Capture the summary string and search it for a keyword:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///   std::string summary = ms_summary(ms);
 ///   bool has_vla = summary.find("VLA") != std::string::npos;
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 /// Generate a text summary of a MeasurementSet.
 ///

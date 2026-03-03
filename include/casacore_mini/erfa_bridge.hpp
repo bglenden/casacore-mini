@@ -10,7 +10,7 @@ namespace casacore_mini {
 /// @file
 /// @brief Thin C++ wrappers around ERFA astronomical functions.
 
-/// <synopsis>
+/// 
 /// This header provides a thin, exception-safe C++ wrapper layer over the
 /// ERFA (Essential Routines for Fundamental Astronomy) C library.  Each
 /// function maps closely to its ERFA counterpart, converting error codes to
@@ -29,7 +29,7 @@ namespace casacore_mini {
 ///   are treated as success.
 /// - Return values <= -1 (unacceptable date, internal error) throw
 ///   `std::runtime_error`.
-/// </synopsis>
+/// 
 
 /// UTC to TAI. Input/output as 2-part JD (typically JD = 2400000.5 + MJD).
 /// @throws std::runtime_error if ERFA returns an error status.

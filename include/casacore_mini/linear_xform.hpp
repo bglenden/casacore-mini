@@ -11,17 +11,17 @@ namespace casacore_mini {
 /// @file
 /// @brief Linear WCS transform: world = crval + cdelt * pc * (pixel - crpix).
 
-/// <summary>
+/// 
 /// A linear WCS transformation stage mapping pixel to world coordinates.
-/// </summary>
+/// 
 ///
-/// <use visibility=export/>
 ///
-/// <synopsis>
+///
+/// 
 /// `LinearXform` implements the standard WCS affine mapping between pixel and
 /// world coordinates as defined by Calabretta & Greisen (2002, A&A 395, 1077):
 ///
-/// <src>world[i] = crval[i] + sum_j( cdelt[i] * pc[i*n+j] * (pixel[j] - crpix[j]) )</src>
+/// `world[i] = crval[i] + sum_j( cdelt[i] * pc[i*n+j] * (pixel[j] - crpix[j]) )`
 ///
 /// All arrays are indexed in the same order as the FITS WCS keywords they
 /// correspond to.  `crpix` is 0-based (not 1-based as in FITS).
@@ -32,25 +32,25 @@ namespace casacore_mini {
 /// The inverse transform (`world_to_pixel`) solves the linear system by
 /// computing the matrix inverse of `diag(cdelt) * pc`.  This fails if the
 /// composite matrix is singular.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   LinearXform xf;
 ///   xf.crpix = {255.5, 255.5};   // 0-based reference pixel
 ///   xf.cdelt = {-4.84813e-6, 4.84813e-6};  // radians/pixel
 ///   xf.crval = {1.4, 0.0};       // reference world coords (radians)
 ///   // pc defaults to identity
 ///   auto world = xf.pixel_to_world({300.0, 200.0});
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Many coordinate types (Linear, Direction, Spectral) share the same affine
 /// pixel-to-world mapping layer.  Factoring it into a standalone struct
 /// avoids duplicating the matrix-inversion logic in each coordinate class
 /// and simplifies round-trip testing.
-/// </motivation>
+/// 
 struct LinearXform {
     /// Reference pixel coordinates (0-based).
     std::vector<double> crpix;

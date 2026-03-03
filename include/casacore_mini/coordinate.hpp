@@ -16,21 +16,21 @@ namespace casacore_mini {
 /// @file
 /// @brief Abstract coordinate base class and CoordinateType enum.
 
-/// <summary>
+/// 
 /// Discriminator enumeration identifying the concrete type of a Coordinate.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// Every concrete coordinate subclass carries one of these values, returned
-/// by <src>Coordinate::type()</src>.  The value is used by the factory
-/// function <src>Coordinate::restore()</src> to dispatch to the correct
+/// by `Coordinate::type()`.  The value is used by the factory
+/// function `Coordinate::restore()` to dispatch to the correct
 /// derived-class constructor when deserializing from a Record.
 ///
 /// The numeric values are stable across versions so that serialized Records
 /// remain compatible.
-/// </synopsis>
+/// 
 enum class CoordinateType : std::uint8_t {
     linear,
     direction,
@@ -46,19 +46,19 @@ enum class CoordinateType : std::uint8_t {
 /// @throws std::invalid_argument if unrecognized.
 [[nodiscard]] CoordinateType string_to_coordinate_type(std::string_view s);
 
-/// <summary>
+/// 
 /// Abstract base class defining the pixel/world transform contract for all
 /// coordinate types.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Record — the serialization container used by save()/restore()
-///   <li> CoordinateType — discriminator returned by type()
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - Record — the serialization container used by save()/restore()
+///   - CoordinateType — discriminator returned by type()
+/// 
+///
+/// 
 /// Coordinate is the common interface shared by all concrete coordinate
 /// classes: DirectionCoordinate, SpectralCoordinate, StokesCoordinate,
 /// LinearCoordinate, TabularCoordinate, and QualityCoordinate.
@@ -72,7 +72,7 @@ enum class CoordinateType : std::uint8_t {
 /// case, but all current concrete subclasses use square (N:N) mappings.
 ///
 /// Concrete coordinates are normally held through
-/// <src>std::unique_ptr<Coordinate></src> inside a CoordinateSystem.  They
+/// `std::unique_ptr<Coordinate>` inside a CoordinateSystem.  They
 /// support deep-copy via clone() and round-trip serialization via save() and
 /// restore().
 ///
@@ -80,11 +80,11 @@ enum class CoordinateType : std::uint8_t {
 /// CoordinateSystem takes ownership via unique_ptr.  Protected copy/move
 /// special members are provided so that clone() implementations in derived
 /// classes can delegate to the compiler-generated copy constructor.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Typical usage through a derived class:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   // Construct a concrete coordinate
@@ -103,16 +103,16 @@ enum class CoordinateType : std::uint8_t {
 ///   // Serialize / deserialize
 ///   Record rec = spec.save();
 ///   auto restored = Coordinate::restore(rec);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// A common abstract interface allows CoordinateSystem to store heterogeneous
 /// coordinate objects in a single container and to apply pixel/world
 /// transforms uniformly without knowing the concrete type at the call site.
 /// The type() discriminator is reserved for the factory and for code that
 /// genuinely needs to downcast.
-/// </motivation>
+/// 
 class Coordinate {
   public:
     virtual ~Coordinate() = default;

@@ -14,23 +14,23 @@ namespace casacore_mini {
 /// @file
 /// @brief Observatory/observation metadata (telescope, observer, obsdate).
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// ObsInfo bundles the small set of observation-level metadata that
 /// casacore-original stores as keywords on a CoordinateSystem.  The same
 /// fields are written into the top-level keywords of a MeasurementSet's
 /// OBSERVATION subtable by the standard filler tools, making them
 /// consistently available for pipeline processing.
 ///
-/// All fields are optional except <src>telescope</src> and
-/// <src>observer</src>, which default to empty strings.  The
-/// serialization round-trip via <src>obs_info_to_record</src> and
-/// <src>obs_info_from_record</src> is lossless for all present fields.
-/// </synopsis>
+/// All fields are optional except `telescope` and
+/// `observer`, which default to empty strings.  The
+/// serialization round-trip via `obs_info_to_record` and
+/// `obs_info_from_record` is lossless for all present fields.
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Populate from a CoordinateSystem keyword record
 ///   Record cs_rec = table.key_record("coords");
 ///   ObsInfo info = obs_info_from_record(cs_rec);
@@ -45,12 +45,12 @@ namespace casacore_mini {
 ///   info.observer = "Doe, J.";
 ///   obs_info_to_record(info, cs_rec);
 ///   table.put_key_record("coords", cs_rec);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 /// Observation metadata typically stored in CoordinateSystem keywords.
 ///
-/// <synopsis>
+/// 
 /// <dl>
 ///   <dt>telescope</dt>
 ///   <dd>Telescope name string (e.g. "ALMA", "VLA", "MeerKAT").</dd>
@@ -67,7 +67,7 @@ namespace casacore_mini {
 ///   <dd>Nominal pointing direction in radians as (longitude, latitude)
 ///       in the direction reference frame of the CoordinateSystem.</dd>
 /// </dl>
-/// </synopsis>
+/// 
 struct ObsInfo {
     std::string telescope;
     std::string observer;
@@ -81,8 +81,8 @@ struct ObsInfo {
 
 /// Serialize ObsInfo fields into a Record in casacore CoordinateSystem format.
 ///
-/// <synopsis>
-/// Writes the following keys into <src>rec</src>:
+/// 
+/// Writes the following keys into `rec`:
 /// <dl>
 ///   <dt>"telescopeName"</dt>  <dd>string</dd>
 ///   <dt>"userUnit"</dt>       <dd>string (observer field)</dd>
@@ -92,7 +92,7 @@ struct ObsInfo {
 ///                                 and "initial" bool</dd>
 /// </dl>
 /// Fields with no value (empty string or absent optional) are not written.
-/// </synopsis>
+/// 
 ///
 /// @param info  The ObsInfo to serialize.
 /// @param rec   The Record to write into; existing keys are overwritten.
@@ -100,12 +100,12 @@ void obs_info_to_record(const ObsInfo& info, Record& rec);
 
 /// Reconstruct ObsInfo from a Record in casacore CoordinateSystem format.
 ///
-/// <synopsis>
-/// Reads the keys written by <src>obs_info_to_record</src>.  Missing keys
+/// 
+/// Reads the keys written by `obs_info_to_record`.  Missing keys
 /// result in default-initialised fields (empty strings, absent optionals).
 /// Unknown key names are silently ignored so that records containing
 /// additional metadata remain parseable.
-/// </synopsis>
+/// 
 ///
 /// @param rec  The Record to read from.
 /// @return Populated ObsInfo; optionals are absent when the key was missing.

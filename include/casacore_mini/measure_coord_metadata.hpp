@@ -16,20 +16,20 @@ namespace casacore_mini {
 /// @file
 /// @brief Transitional extraction of measure/coordinate metadata from `showtableinfo` text.
 
-/// <summary>
+/// 
 /// Measure-related metadata for one table column.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// Captures the measure and unit annotations attached to a single column as
 /// parsed from `showtableinfo` output.  The parser populates as many fields
 /// as are present in the text; absent fields remain as `std::nullopt` or an
 /// empty vector.
 ///
 /// This struct is the per-column unit of `MeasureCoordinateMetadata`.
-/// </synopsis>
+/// 
 struct MeasureColumnMetadata {
     /// Column name in table schema.
     std::string column_name;
@@ -43,13 +43,13 @@ struct MeasureColumnMetadata {
     [[nodiscard]] bool operator==(const MeasureColumnMetadata& other) const = default;
 };
 
-/// <summary>
+/// 
 /// Extracted coordinates-related table keyword metadata.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// Captures the fields from the `coords` top-level keyword sub-record in an
 /// image table, which describes the WCS coordinate system stored alongside the
 /// image data.  All fields are optional and default to empty/absent; the parser
@@ -59,7 +59,7 @@ struct MeasureColumnMetadata {
 /// directional axis pair.  Map parameters (`worldmap0`, `pixelmap0`, etc.)
 /// describe the axis permutation and replacement scheme used by
 /// `CoordinateSystem`.
-/// </synopsis>
+/// 
 struct CoordinateKeywordMetadata {
     /// True when a top-level `coords` keyword record is present.
     bool has_coords = false;
@@ -103,18 +103,18 @@ struct CoordinateKeywordMetadata {
     [[nodiscard]] bool operator==(const CoordinateKeywordMetadata& other) const = default;
 };
 
-/// <summary>
+/// 
 /// Aggregated measure/coordinate metadata extracted from one `showtableinfo` document.
-/// </summary>
+/// 
 ///
-/// <use visibility=local/>
 ///
-/// <synopsis>
+///
+/// 
 /// This is the top-level result type of both `parse_showtableinfo_measure_coordinate_metadata`
 /// (text path) and `extract_record_metadata` (binary path).  It collects all
 /// column-level measure annotations and the table-level WCS coordinate metadata
 /// in a single value that is easy to compare, serialize, and pass around.
-/// </synopsis>
+/// 
 struct MeasureCoordinateMetadata {
     /// Column-level measure metadata entries in first-seen order.
     std::vector<MeasureColumnMetadata> measure_columns;
@@ -126,7 +126,7 @@ struct MeasureCoordinateMetadata {
 
 /// Parse measure/coordinate metadata from `showtableinfo` textual output.
 ///
-/// <synopsis>
+/// 
 /// Scope of this transitional parser:
 /// - Column keyword forms:
 ///   - `UNIT: String "..."` (legacy singular unit)
@@ -155,7 +155,7 @@ struct MeasureCoordinateMetadata {
 ///   - `coords.pixelreplace0`
 ///
 /// Missing sections or keyword parse failures produce an empty metadata result.
-/// </synopsis>
+/// 
 [[nodiscard]] MeasureCoordinateMetadata
 parse_showtableinfo_measure_coordinate_metadata(std::string_view showtableinfo_text);
 

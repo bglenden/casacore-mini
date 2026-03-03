@@ -21,22 +21,22 @@ namespace casacore_mini {
 /// is called. This matches the SsmWriter/TiledStManWriter model which requires
 /// a known row count at setup time.
 
-/// <summary>
+/// 
 /// Batch writer that accumulates MeasurementSet rows in memory and writes
 /// them to disk in a single flush.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container that receives the data
-///   <li> MsSubtables — column schemas used when creating subtable rows
-/// </prerequisite>
 ///
-/// <synopsis>
-/// <src>MsWriter</src> implements the standard casacore-mini write pattern:
+/// @par Prerequisites
+///   - MeasurementSet — the MS container that receives the data
+///   - MsSubtables — column schemas used when creating subtable rows
+/// 
+///
+/// 
+/// `MsWriter` implements the standard casacore-mini write pattern:
 /// accumulate all rows in memory, then write the complete dataset with one
-/// <src>flush()</src> call.  This approach allows the underlying storage
+/// `flush()` call.  This approach allows the underlying storage
 /// manager to know the final row count at allocation time, which is required
 /// by the SSM (Standard Storage Manager) and tiled storage managers.
 ///
@@ -44,29 +44,29 @@ namespace casacore_mini {
 /// for each of the commonly populated subtables: ANTENNA, SPECTRAL_WINDOW,
 /// FIELD, DATA_DESCRIPTION, POLARIZATION, OBSERVATION, and STATE.
 ///
-/// Before writing, <src>flush()</src> automatically calls
-/// <src>validate_foreign_keys()</src>, which checks that every ID column in
+/// Before writing, `flush()` automatically calls
+/// `validate_foreign_keys()`, which checks that every ID column in
 /// the pending main-table rows (ANTENNA1, ANTENNA2, FIELD_ID, DATA_DESC_ID,
 /// OBSERVATION_ID, PROCESSOR_ID, STATE_ID) refers to a valid row index in
-/// the corresponding subtable buffer.  A <src>std::runtime_error</src> is
+/// the corresponding subtable buffer.  A `std::runtime_error` is
 /// thrown listing all invalid references if any are found.
 ///
 /// POD row structs are provided for each supported table:
-/// <ul>
-///   <li> <src>MsMainRow</src>        — one main-table visibility sample
-///   <li> <src>MsAntennaRow</src>     — one ANTENNA subtable row
-///   <li> <src>MsSpWindowRow</src>    — one SPECTRAL_WINDOW subtable row
-///   <li> <src>MsFieldRow</src>       — one FIELD subtable row
-///   <li> <src>MsDataDescRow</src>    — one DATA_DESCRIPTION subtable row
-///   <li> <src>MsPolarizationRow</src> — one POLARIZATION subtable row
-///   <li> <src>MsObservationRow</src> — one OBSERVATION subtable row
-///   <li> <src>MsStateRow</src>       — one STATE subtable row
-/// </ul>
-/// </synopsis>
 ///
-/// <example>
+///   - `MsMainRow`        — one main-table visibility sample
+///   - `MsAntennaRow`     — one ANTENNA subtable row
+///   - `MsSpWindowRow`    — one SPECTRAL_WINDOW subtable row
+///   - `MsFieldRow`       — one FIELD subtable row
+///   - `MsDataDescRow`    — one DATA_DESCRIPTION subtable row
+///   - `MsPolarizationRow` — one POLARIZATION subtable row
+///   - `MsObservationRow` — one OBSERVATION subtable row
+///   - `MsStateRow`       — one STATE subtable row
+///
+/// 
+///
+/// @par Example
 /// Build a minimal two-antenna, single-SPW MeasurementSet from scratch:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::create("my.ms");
 ///   MsWriter writer(ms);
@@ -99,15 +99,15 @@ namespace casacore_mini {
 ///                   .sigma={1.0f, 1.0f},
 ///                   .weight={1.0f, 1.0f}});
 ///   writer.flush();
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Separating the accumulation phase from the write phase lets the storage
 /// manager preallocate contiguous blocks of the correct size rather than
 /// growing the file incrementally one row at a time.  This produces compact,
 /// well-aligned table files that read back efficiently.
-/// </motivation>
+/// 
 
 /// A single main-table row's scalar + array data.
 struct MsMainRow {

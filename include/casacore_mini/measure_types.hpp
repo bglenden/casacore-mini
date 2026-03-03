@@ -15,9 +15,9 @@ namespace casacore_mini {
 /// @file
 /// @brief Core measure type system: enums, value structs, and the Measure aggregate.
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// A "measure" in the casacore sense is a physical quantity with an
 /// associated reference frame.  This header defines the complete type
 /// taxonomy for all 9 measure types supported by casacore-mini:
@@ -35,21 +35,21 @@ namespace casacore_mini {
 /// </dl>
 ///
 /// Each measure type contributes three things:
-///   1. A reference frame enum (e.g. <src>EpochRef</src>).
-///   2. A value struct (e.g. <src>EpochValue</src>).
+///   1. A reference frame enum (e.g. `EpochRef`).
+///   2. A value struct (e.g. `EpochValue`).
 ///   3. String conversion functions for the Reference keyword.
 ///
-/// These are combined into the <src>Measure</src> aggregate via
-/// <src>MeasureRefType</src> (variant of all ref enums) and
-/// <src>MeasureValue</src> (variant of all value structs).
+/// These are combined into the `Measure` aggregate via
+/// `MeasureRefType` (variant of all ref enums) and
+/// `MeasureValue` (variant of all value structs).
 ///
-/// Use <src>measure_types.hpp</src> for type definitions,
-/// <src>measure_record.hpp</src> for serialization, and
-/// <src>measure_convert.hpp</src> for frame conversions.
-/// </synopsis>
+/// Use `measure_types.hpp` for type definitions,
+/// `measure_record.hpp` for serialization, and
+/// `measure_convert.hpp` for frame conversions.
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Construct an epoch measure at MJD 59000.0 in UTC
 ///   Measure ep;
 ///   ep.type = MeasureType::epoch;
@@ -66,8 +66,8 @@ namespace casacore_mini {
 ///   auto& dv = std::get<DirectionValue>(dir.value);
 ///   std::cout << "RA  rad: " << dv.lon_rad << '\n';
 ///   std::cout << "Dec rad: " << dv.lat_rad << '\n';
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 // ---------------------------------------------------------------------------
 // Measure type discriminator
@@ -75,13 +75,13 @@ namespace casacore_mini {
 
 /// Discriminator for the 9 supported measure types.
 ///
-/// <synopsis>
-/// Used as the <src>type</src> field in Measure to identify which reference
+/// 
+/// Used as the `type` field in Measure to identify which reference
 /// frame enum and value struct alternatives are active in the
-/// <src>MeasureRefType</src> and <src>MeasureValue</src> variants.
+/// `MeasureRefType` and `MeasureValue` variants.
 /// String representations match casacore-original's Record type field
 /// (lowercase, e.g. "epoch", "direction").
-/// </synopsis>
+/// 
 enum class MeasureType : std::uint8_t {
     epoch,
     direction,
@@ -106,7 +106,7 @@ enum class MeasureType : std::uint8_t {
 
 /// MEpoch reference frames (time standards).
 ///
-/// <synopsis>
+/// 
 /// Covers all time systems used in radio astronomy:
 /// <dl>
 ///   <dt>utc</dt>  <dd>Coordinated Universal Time (atomic-based, with leap seconds).</dd>
@@ -122,7 +122,7 @@ enum class MeasureType : std::uint8_t {
 ///   <dt>lmst</dt> <dd>Local Mean Sidereal Time.</dd>
 ///   <dt>ut2</dt>  <dd>Universal Time 2 (smoothed UT1 for seasonal variation).</dd>
 /// </dl>
-/// </synopsis>
+/// 
 enum class EpochRef : std::uint8_t {
     last,
     lmst,
@@ -142,7 +142,7 @@ enum class EpochRef : std::uint8_t {
 
 /// MDirection reference frames (celestial and topocentric coordinate systems).
 ///
-/// <synopsis>
+/// 
 /// Covers standard astronomical frames including:
 /// <dl>
 ///   <dt>j2000</dt>    <dd>Mean equatorial, epoch J2000.0 (FK5).</dd>
@@ -157,7 +157,7 @@ enum class EpochRef : std::uint8_t {
 /// </dl>
 /// Apparent and mean variants (app, jmean, jtrue, bmean, btrue) account for
 /// nutation, aberration, and refraction corrections.
-/// </synopsis>
+/// 
 enum class DirectionRef : std::uint8_t {
     j2000,
     jmean,
@@ -187,19 +187,19 @@ enum class DirectionRef : std::uint8_t {
 
 /// MPosition reference frames for telescope/antenna positions.
 ///
-/// <synopsis>
+/// 
 /// <dl>
 ///   <dt>itrf</dt>  <dd>IERS Terrestrial Reference Frame (geocentric Cartesian XYZ).</dd>
 ///   <dt>wgs84</dt> <dd>WGS84 geodetic ellipsoid (latitude, longitude, height).</dd>
 /// </dl>
-/// </synopsis>
+/// 
 enum class PositionRef : std::uint8_t { itrf, wgs84 };
 [[nodiscard]] std::string_view position_ref_to_string(PositionRef r);
 [[nodiscard]] PositionRef string_to_position_ref(std::string_view s);
 
 /// MFrequency reference frames (spectral windows).
 ///
-/// <synopsis>
+/// 
 /// <dl>
 ///   <dt>rest</dt>    <dd>Rest frequency of the spectral line (no motion).</dd>
 ///   <dt>lsrk</dt>   <dd>Kinematic Local Standard of Rest (~20 km/s towards Vega).</dd>
@@ -211,7 +211,7 @@ enum class PositionRef : std::uint8_t { itrf, wgs84 };
 ///   <dt>lgroup</dt> <dd>Local Group of galaxies rest frame.</dd>
 ///   <dt>cmb</dt>    <dd>CMB dipole rest frame.</dd>
 /// </dl>
-/// </synopsis>
+/// 
 enum class FrequencyRef : std::uint8_t {
     rest,
     lsrk,
@@ -228,7 +228,7 @@ enum class FrequencyRef : std::uint8_t {
 
 /// MDoppler reference conventions.
 ///
-/// <synopsis>
+/// 
 /// Different communities define Doppler shift differently:
 /// <dl>
 ///   <dt>radio</dt> <dd>v/c = (f0-f)/f0  (radio convention, most common in cm/mm radio).</dd>
@@ -237,7 +237,7 @@ enum class FrequencyRef : std::uint8_t {
 ///   <dt>beta</dt>  <dd>v/c relativistic beta = (f0^2-f^2)/(f0^2+f^2).</dd>
 ///   <dt>gamma</dt> <dd>Lorentz gamma factor.</dd>
 /// </dl>
-/// </synopsis>
+/// 
 enum class DopplerRef : std::uint8_t { radio, z, ratio, beta, gamma };
 [[nodiscard]] std::string_view doppler_ref_to_string(DopplerRef r);
 [[nodiscard]] DopplerRef string_to_doppler_ref(std::string_view s);
@@ -342,11 +342,11 @@ enum class EarthMagneticRef : std::uint8_t {
 
 /// Variant of all reference frame enum types.
 ///
-/// <synopsis>
-/// Held in <src>MeasureRef::ref_type</src> to carry the active reference
+/// 
+/// Held in `MeasureRef::ref_type` to carry the active reference
 /// frame for a Measure without virtual dispatch.  The active alternative
-/// must match the <src>MeasureType</src> of the enclosing Measure.
-/// </synopsis>
+/// must match the `MeasureType` of the enclosing Measure.
+/// 
 using MeasureRefType = std::variant<EpochRef, DirectionRef, PositionRef, FrequencyRef, DopplerRef,
                                     RadialVelocityRef, BaselineRef, UvwRef, EarthMagneticRef>;
 
@@ -359,12 +359,12 @@ using MeasureRefType = std::variant<EpochRef, DirectionRef, PositionRef, Frequen
 
 /// Epoch value: Modified Julian Date split for numerical precision.
 ///
-/// <synopsis>
-/// MJD is stored as integer <src>day</src> and fractional
-/// <src>fraction</src> to preserve sub-nanosecond precision that would
+/// 
+/// MJD is stored as integer `day` and fractional
+/// `fraction` to preserve sub-nanosecond precision that would
 /// be lost in a single 64-bit double (which has only ~15 significant
-/// decimal digits).  The full MJD is <src>day + fraction</src>.
-/// </synopsis>
+/// decimal digits).  The full MJD is `day + fraction`.
+/// 
 struct EpochValue {
     double day = 0.0;      ///< Integer MJD part.
     double fraction = 0.0; ///< Fractional day remainder.
@@ -373,12 +373,12 @@ struct EpochValue {
 
 /// Direction value: celestial longitude and latitude in radians.
 ///
-/// <synopsis>
-/// Angles are stored in radians.  For equatorial frames <src>lon_rad</src>
-/// is right ascension and <src>lat_rad</src> is declination; for
-/// horizontal frames <src>lon_rad</src> is azimuth and <src>lat_rad</src>
+/// 
+/// Angles are stored in radians.  For equatorial frames `lon_rad`
+/// is right ascension and `lat_rad` is declination; for
+/// horizontal frames `lon_rad` is azimuth and `lat_rad`
 /// is elevation.
-/// </synopsis>
+/// 
 struct DirectionValue {
     double lon_rad = 0.0;
     double lat_rad = 0.0;
@@ -421,12 +421,12 @@ struct BaselineValue {
 
 /// UVW coordinate value in metres.
 ///
-/// <synopsis>
-/// <src>u_m</src> and <src>v_m</src> are the east and north components of
+/// 
+/// `u_m` and `v_m` are the east and north components of
 /// the baseline projected onto the plane perpendicular to the phase centre
-/// direction.  <src>w_m</src> is the component along the phase centre
+/// direction.  `w_m` is the component along the phase centre
 /// direction (delay axis).
-/// </synopsis>
+/// 
 struct UvwValue {
     double u_m = 0.0;
     double v_m = 0.0;
@@ -444,9 +444,9 @@ struct EarthMagneticValue {
 
 /// Variant of all measure value types.
 ///
-/// <synopsis>
-/// Held in <src>Measure::value</src>.  The active alternative must be
-/// consistent with <src>Measure::type</src>:
+/// 
+/// Held in `Measure::value`.  The active alternative must be
+/// consistent with `Measure::type`:
 /// <dl>
 ///   <dt>epoch</dt>           <dd>EpochValue</dd>
 ///   <dt>direction</dt>       <dd>DirectionValue</dd>
@@ -458,7 +458,7 @@ struct EarthMagneticValue {
 ///   <dt>uvw</dt>             <dd>UvwValue</dd>
 ///   <dt>earth_magnetic</dt>  <dd>EarthMagneticValue</dd>
 /// </dl>
-/// </synopsis>
+/// 
 using MeasureValue =
     std::variant<EpochValue, DirectionValue, PositionValue, FrequencyValue, DopplerValue,
                  RadialVelocityValue, BaselineValue, UvwValue, EarthMagneticValue>;
@@ -471,13 +471,13 @@ struct Measure; // forward
 
 /// Reference frame with an optional chained offset measure.
 ///
-/// <synopsis>
-/// <src>ref_type</src> holds the primary reference frame for the measure.
-/// <src>offset</src> is a recursive Measure used to express a difference
+/// 
+/// `ref_type` holds the primary reference frame for the measure.
+/// `offset` is a recursive Measure used to express a difference
 /// from a base epoch or direction (e.g. an epoch offset for a pulsar
 /// timing reference).  The offset measure must have the same
-/// <src>MeasureType</src> as the parent.
-/// </synopsis>
+/// `MeasureType` as the parent.
+/// 
 struct MeasureRef {
     MeasureRefType ref_type;
     std::optional<std::shared_ptr<const Measure>> offset;
@@ -485,13 +485,13 @@ struct MeasureRef {
     [[nodiscard]] bool operator==(const MeasureRef& other) const;
 };
 
-/// <summary>
+/// 
 /// A concrete physical measure: type discriminator, reference frame, and value.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// Measure is the central aggregate that binds together:
 /// <dl>
 ///   <dt>type</dt>  <dd>MeasureType enum selecting the physical quantity kind.</dd>
@@ -503,16 +503,16 @@ struct MeasureRef {
 /// (MEpoch, MDirection, etc.) but without virtual dispatch, enabling
 /// storage in standard containers and cheap copies.
 ///
-/// Invariant: <src>ref.ref_type</src> must hold the alternative that
-/// corresponds to <src>type</src> (e.g. type==epoch implies
-/// <src>std::holds_alternative<EpochRef>(ref.ref_type)</src>).  Functions
-/// in <src>measure_convert.hpp</src> and <src>measure_record.hpp</src>
-/// enforce this invariant and throw <src>std::invalid_argument</src> on
+/// Invariant: `ref.ref_type` must hold the alternative that
+/// corresponds to `type` (e.g. type==epoch implies
+/// `std::holds_alternative<EpochRef>(ref.ref_type)`).  Functions
+/// in `measure_convert.hpp` and `measure_record.hpp`
+/// enforce this invariant and throw `std::invalid_argument` on
 /// violation.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Build a UTC epoch at MJD 59000.5
 ///   Measure utc_epoch;
 ///   utc_epoch.type  = MeasureType::epoch;
@@ -524,8 +524,8 @@ struct MeasureRef {
 ///   auto tai_epoch = convert_measure(utc_epoch, EpochRef::tai, frame);
 ///   double tai_mjd = std::get<EpochValue>(tai_epoch.value).day
 ///                  + std::get<EpochValue>(tai_epoch.value).fraction;
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct Measure {
     MeasureType type;
     MeasureRef ref;
@@ -536,11 +536,11 @@ struct Measure {
 
 /// Return the default reference type for a given measure type.
 ///
-/// <synopsis>
+/// 
 /// Returns the most natural "zero-point" reference frame for each measure
 /// kind (e.g. EpochRef::utc for epoch, DirectionRef::j2000 for direction).
 /// Used when constructing measures where the reference is not yet known.
-/// </synopsis>
+/// 
 [[nodiscard]] MeasureRefType default_ref_for_type(MeasureType t);
 
 } // namespace casacore_mini

@@ -23,32 +23,32 @@ namespace casacore_mini {
 // Table-level lock model
 // ---------------------------------------------------------------------------
 
-/// <summary>
+/// 
 /// Lock mode for table access, mirroring upstream casacore's TableLock options.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
-/// TableLockMode controls how a <linkto>Table</linkto> acquires and releases
+///
+/// 
+/// TableLockMode controls how a Table acquires and releases
 /// the advisory lock on its table directory.  casacore-mini implements
-/// locking through a simple lock-file (<src>table.lock</src>) rather than
+/// locking through a simple lock-file (`table.lock`) rather than
 /// the full inter-process synchronisation used by upstream casacore.
 ///
 /// Modes:
-/// <ul>
-///   <li> <src>NoLock</src>       — No lock file is created or checked.
+///
+///   - `NoLock`       — No lock file is created or checked.
 ///        Suitable for read-only access when concurrent writers are known
 ///        to be absent.
-///   <li> <src>AutoLock</src>     — The table acquires a lock before each
-///        read or write operation and releases it after <src>flush()</src>.
-///   <li> <src>PermanentLock</src>— A single lock is taken at open time and
+///   - `AutoLock`     — The table acquires a lock before each
+///        read or write operation and releases it after `flush()`.
+///   - `PermanentLock`— A single lock is taken at open time and
 ///        held until the Table object is destroyed or explicitly unlocked.
-///   <li> <src>UserLock</src>     — The caller manages lock acquisition and
-///        release manually via <src>Table::lock()</src> and
-///        <src>Table::unlock()</src>.
-/// </ul>
-/// </synopsis>
+///   - `UserLock`     — The caller manages lock acquisition and
+///        release manually via `Table::lock()` and
+///        `Table::unlock()`.
+///
+/// 
 enum class TableLockMode : std::uint8_t {
     NoLock,        ///< No locking (default for read-only tables).
     AutoLock,      ///< Lock automatically on read/write, release on flush.
@@ -56,26 +56,26 @@ enum class TableLockMode : std::uint8_t {
     UserLock,      ///< Lock/unlock manually via lock()/unlock().
 };
 
-/// <summary>
+/// 
 /// Type and subtype metadata read from a table's table.info file.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
-/// Every casacore table directory contains a plain-text <src>table.info</src>
+///
+/// 
+/// Every casacore table directory contains a plain-text `table.info`
 /// file with two lines of the form:
-/// <srcblock>
+/// @code{.cpp}
 ///   Type = MeasurementSet
 ///   SubType = 2
-/// </srcblock>
+/// @endcode
 ///
-/// TableInfo captures those two fields.  Use <src>Table::table_info()</src>
-/// to retrieve them and <src>Table::set_table_info()</src> to update them.
-/// The <src>type</src> field is the casacore table class name (e.g.
-/// <src>MeasurementSet</src>, <src>ANTENNA</src>); <src>sub_type</src>
+/// TableInfo captures those two fields.  Use `Table::table_info()`
+/// to retrieve them and `Table::set_table_info()` to update them.
+/// The `type` field is the casacore table class name (e.g.
+/// `MeasurementSet`, `ANTENNA`); `sub_type`
 /// carries an optional secondary tag (often a version string or empty).
-/// </synopsis>
+/// 
 struct TableInfo {
     std::string type{};     ///< The "Type = ..." value.
     std::string sub_type{}; ///< The "SubType = ..." value.
@@ -93,7 +93,7 @@ struct TableInfo {
 /// "R8", "D", "COMPLEX", "Complex", "C4", "DCOMPLEX", "DComplex", "C8",
 /// "STRING", "String", "S".
 ///
-/// <thrown><li>std::runtime_error if the name is not recognized.</thrown>
+/// @throws std::runtime_error if the name is not recognized.
 [[nodiscard]] DataType parse_data_type_name(std::string_view name);
 
 /// Convert a DataType enum to a canonical string name.
@@ -110,28 +110,28 @@ struct TableInfo {
 
 class Table;
 
-/// <summary>
+/// 
 /// Column specification used when creating a new Table.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
-/// TableColumnSpec describes one column passed to <src>Table::create()</src>.
+///
+/// 
+/// TableColumnSpec describes one column passed to `Table::create()`.
 /// Each field maps directly to a field in the AipsIO column descriptor
-/// written into <src>table.dat</src>.
+/// written into `table.dat`.
 ///
-/// For scalar columns, leave <src>shape</src> empty and set
-/// <src>kind = ColumnKind::scalar</src>.  For fixed-shape array columns,
-/// populate <src>shape</src> and set <src>kind = ColumnKind::array</src>.
+/// For scalar columns, leave `shape` empty and set
+/// `kind = ColumnKind::scalar`.  For fixed-shape array columns,
+/// populate `shape` and set `kind = ColumnKind::array`.
 /// Variable-shape array columns are also expressed with
-/// <src>kind = ColumnKind::array</src> but with an empty <src>shape</src>;
+/// `kind = ColumnKind::array` but with an empty `shape`;
 /// cell shapes are then provided at write time via
-/// <src>Table::write_indirect_array()</src>.
-/// </synopsis>
+/// `Table::write_indirect_array()`.
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Scalar double column
 ///   TableColumnSpec time_col;
 ///   time_col.name      = "TIME";
@@ -144,8 +144,8 @@ class Table;
 ///   data_col.data_type = DataType::tp_complex;
 ///   data_col.kind      = ColumnKind::array;
 ///   data_col.shape     = {4, 64};
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct TableColumnSpec {
     std::string name;
     DataType data_type = DataType::tp_int;
@@ -154,39 +154,39 @@ struct TableColumnSpec {
     std::string comment{};
 };
 
-/// <summary>
+/// 
 /// Options controlling the storage manager and metadata for Table::create().
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// TableCreateOptions lets callers override the default storage manager
 /// selection and embed initial table-level metadata when calling
-/// <src>Table::create()</src>.
+/// `Table::create()`.
 ///
-/// The default configuration uses <src>StandardStMan</src> with big-endian
+/// The default configuration uses `StandardStMan` with big-endian
 /// byte order, which is compatible with all casacore readers.
 ///
 /// Fields:
-/// <ul>
-///   <li> <src>sm_type</src>        — storage manager class name, e.g.
-///        <src>StandardStMan</src> or <src>TiledShapeStMan</src>.
-///   <li> <src>sm_group</src>       — SM group name; must match the
-///        <src>dm_group</src> in the column descriptors.
-///   <li> <src>big_endian</src>     — byte order flag written into
-///        <src>table.dat</src>.
-///   <li> <src>tile_shape</src>     — cell tile dimensions for tiled SMs;
-///        ignored for <src>StandardStMan</src>.
-///   <li> <src>table_keywords</src> — table-level keywords embedded in the
-///        <src>TableDesc</src> section of <src>table.dat</src>.
-///   <li> <src>column_keywords</src>— per-column keywords; the vector must
+///
+///   - `sm_type`        — storage manager class name, e.g.
+///        `StandardStMan` or `TiledShapeStMan`.
+///   - `sm_group`       — SM group name; must match the
+///        `dm_group` in the column descriptors.
+///   - `big_endian`     — byte order flag written into
+///        `table.dat`.
+///   - `tile_shape`     — cell tile dimensions for tiled SMs;
+///        ignored for `StandardStMan`.
+///   - `table_keywords` — table-level keywords embedded in the
+///        `TableDesc` section of `table.dat`.
+///   - `column_keywords`— per-column keywords; the vector must
 ///        be either empty or parallel to the columns vector passed to
-///        <src>Table::create()</src>.
-///   <li> <src>private_keywords</src>— private TableRecord (e.g. hypercolumn
-///        definitions required by <src>TiledDataStMan</src>).
-/// </ul>
-/// </synopsis>
+///        `Table::create()`.
+///   - `private_keywords`— private TableRecord (e.g. hypercolumn
+///        definitions required by `TiledDataStMan`).
+///
+/// 
 struct TableCreateOptions {
     std::string sm_type = "StandardStMan";
     std::string sm_group = "StandardStMan";
@@ -201,45 +201,45 @@ struct TableCreateOptions {
     Record private_keywords;
 };
 
-/// <summary>
+/// 
 /// Row-oriented accessor that reads or writes an entire table row as a Record.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> <src>Table</src>       — the table being accessed
-///   <li> <src>Record</src>      — the row representation (field = column name)
-///   <li> <src>RecordValue</src> — per-cell value type
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - `Table`       — the table being accessed
+///   - `Record`      — the row representation (field = column name)
+///   - `RecordValue` — per-cell value type
+/// 
+///
+/// 
 /// TableRow provides a convenient interface for reading or writing complete
 /// rows without needing to call column-specific cell methods individually.
 /// It is most useful when:
-/// <ul>
-///   <li> column names are not known at compile time, or
-///   <li> an entire row must be inspected or copied at once.
-/// </ul>
+///
+///   - column names are not known at compile time, or
+///   - an entire row must be inspected or copied at once.
+///
 ///
 /// On construction, the TableRow captures a reference to the owning
-/// <src>Table</src> and the set of column names to include.  The
+/// `Table` and the set of column names to include.  The
 /// two-argument constructor accepts an explicit list; the single-argument
 /// constructor reads all scalar columns present in the table.
 ///
-/// <src>get(row)</src> returns a <linkto>Record</linkto> whose field names
+/// `get(row)` returns a Record whose field names
 /// are the selected column names and whose values are scalar
-/// <src>RecordValue</src> objects.  <src>put(row, values)</src> writes a
+/// `RecordValue` objects.  `put(row, values)` writes a
 /// Record back; field names must match column names exactly.
 ///
-/// <note role="caution">
+/// @warning
 /// TableRow holds a raw pointer to the Table.  The Table must outlive all
 /// TableRow objects that reference it.
-/// </note>
-/// </synopsis>
+/// 
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   Table tbl = Table::open("my.tbl");
 ///   TableRow row(tbl);
 ///
@@ -247,8 +247,8 @@ struct TableCreateOptions {
 ///       Record rec = row.get(r);
 ///       // rec["TIME"] holds a RecordValue(double)
 ///   }
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class TableRow {
   public:
     /// Construct a TableRow that reads all scalar columns.
@@ -269,55 +269,55 @@ class TableRow {
     std::vector<std::string> column_names_;
 };
 
-/// <summary>
+/// 
 /// The fundamental casacore-mini table abstraction.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> <src>TableColumnSpec</src> — column descriptor for creation
-///   <li> <src>Record</src>          — keyword storage
-///   <li> <src>TableDesc</src>       — parsed schema
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - `TableColumnSpec` — column descriptor for creation
+///   - `Record`          — keyword storage
+///   - `TableDesc`       — parsed schema
+/// 
+///
+/// 
 /// Table wraps a casacore table directory and provides high-level access to
 /// rows, columns, and keywords.  Storage manager details (StandardStMan,
 /// TiledShapeStMan, IncrementalStMan) are hidden behind a uniform cell-level
 /// read/write API.
 ///
 /// A casacore table directory contains:
-/// <ul>
-///   <li> <src>table.dat</src>  — binary schema and storage manager metadata
-///   <li> <src>table.info</src> — type/subtype text file
-///   <li> One or more storage manager files (e.g. <src>table.f0</src> for SSM)
-/// </ul>
+///
+///   - `table.dat`  — binary schema and storage manager metadata
+///   - `table.info` — type/subtype text file
+///   - One or more storage manager files (e.g. `table.f0` for SSM)
+///
 ///
 /// The three factory methods cover the common access patterns:
-/// <ul>
-///   <li> <src>Table::open()</src>    — read-only access to an existing table
-///   <li> <src>Table::open_rw()</src> — read-write access to an existing table
-///   <li> <src>Table::create()</src>  — create a new table with a given column schema
-/// </ul>
 ///
-/// Tables are reference-counted via <src>shared_ptr</src> internally, so
+///   - `Table::open()`    — read-only access to an existing table
+///   - `Table::open_rw()` — read-write access to an existing table
+///   - `Table::create()`  — create a new table with a given column schema
+///
+///
+/// Tables are reference-counted via `shared_ptr` internally, so
 /// copies of a Table object refer to the same underlying state.
 ///
 /// Cell-level access is type-specific; choose the method that matches the
-/// column's <src>DataType</src>:
-/// <ul>
-///   <li> Scalar: <src>read_scalar_cell()</src>, <src>write_scalar_cell()</src>
-///   <li> Float array: <src>read_array_float_cell()</src>, <src>write_array_float_cell()</src>
-///   <li> Double array: <src>read_array_double_cell()</src>, <src>write_array_double_cell()</src>
-///   <li> Complex array: <src>read_array_complex_cell()</src>, <src>write_array_complex_cell()</src>
-///   <li> Variable-shape: <src>write_indirect_array()</src>, <src>cell_shape()</src>
-/// </ul>
-/// </synopsis>
+/// column's `DataType`:
 ///
-/// <example>
+///   - Scalar: `read_scalar_cell()`, `write_scalar_cell()`
+///   - Float array: `read_array_float_cell()`, `write_array_float_cell()`
+///   - Double array: `read_array_double_cell()`, `write_array_double_cell()`
+///   - Complex array: `read_array_complex_cell()`, `write_array_complex_cell()`
+///   - Variable-shape: `write_indirect_array()`, `cell_shape()`
+///
+/// 
+///
+/// @par Example
 /// Create a two-column table, add rows, and read them back:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   // Create
@@ -333,14 +333,14 @@ class TableRow {
 ///   // Open read-only
 ///   auto ro = Table::open("my.tbl");
 ///   auto val = ro.read_scalar_cell("TIME", 0);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// casacore tables use a complex binary format with pluggable storage
 /// managers.  Table hides that complexity behind a stable API that can
 /// read and write any SM type without exposing SM internals to callers.
-/// </motivation>
+/// 
 class Table {
   public:
     /// Open an existing table from a directory path (read-only).
@@ -527,7 +527,7 @@ class Table {
     /// @param path  Path to the table directory.
     /// @param force Skip lock checks and remove even if lock metadata exists.
     /// @return True if successfully removed, false if path doesn't exist.
-    /// <thrown><li>std::runtime_error if the table is locked (unless force is true).</thrown>
+    /// @throws std::runtime_error if the table is locked (unless force is true).
     [[nodiscard]] static bool drop_table(const std::filesystem::path& path, bool force = false);
 
   private:

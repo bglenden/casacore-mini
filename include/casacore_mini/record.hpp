@@ -22,29 +22,29 @@ namespace casacore_mini {
 class Record;
 struct RecordList;
 
-/// <summary>
+/// 
 /// Shape-aware typed array value used in Record fields.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// RecordArray stores a multidimensional array of a single element type
 /// in flattened Fortran-order (first axis varies fastest), together with
 /// a shape vector describing the array extents.
 ///
-/// The shape invariant: <src>elements.size()</src> must equal the product
-/// of all values in <src>shape</src>.  An empty <src>shape</src> implies
+/// The shape invariant: `elements.size()` must equal the product
+/// of all values in `shape`.  An empty `shape` implies
 /// zero elements.
 ///
 /// RecordArray is used as one of the array alternatives inside
-/// <linkto>RecordValue</linkto>.  Public APIs work with
-/// <src>uint64_t</src> extents; signed IPosition semantics are handled
+/// RecordValue.  Public APIs work with
+/// `uint64_t` extents; signed IPosition semantics are handled
 /// internally during I/O conversion.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Build a 3x4 double array
 ///   RecordArray<double> arr;
 ///   arr.shape = {3, 4};
@@ -53,8 +53,8 @@ struct RecordList;
 ///   // Wrap in a RecordValue and store in a Record
 ///   Record rec;
 ///   rec.set("data", RecordValue(std::move(arr)));
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 template <typename element_t> struct RecordArray {
     /// Array extents. Rank is `shape.size()`.
     ///
@@ -68,33 +68,33 @@ template <typename element_t> struct RecordArray {
     [[nodiscard]] bool operator==(const RecordArray& other) const;
 };
 
-/// <summary>
+/// 
 /// Tagged union of all persistence-facing value types used by Record fields.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
+///
+/// 
 /// RecordValue is a small, deterministic tagged union that covers every
 /// numeric and string type that casacore records can contain.  It supports
 /// both scalar and multidimensional array variants, as well as nested
-/// <linkto>Record</linkto> and <linkto>RecordList</linkto> containers.
+/// Record and RecordList containers.
 ///
-/// Both <src>std::complex<float></src> and <src>std::complex<double></src>
+/// Both `std::complex<float>` and `std::complex<double>`
 /// are included to reflect casacore's numeric value domains precisely.
 ///
-/// The underlying storage is a <src>std::variant</src> accessible through
-/// <src>storage()</src>.  Callers should use
-/// <src>std::holds_alternative<T></src> and <src>std::get_if<T></src> to
+/// The underlying storage is a `std::variant` accessible through
+/// `storage()`.  Callers should use
+/// `std::holds_alternative<T>` and `std::get_if<T>` to
 /// inspect the active alternative.
 ///
-/// Nested records and lists are stored behind <src>shared_ptr</src> so that
-/// <src>RecordValue</src> remains cheaply copyable; equality comparisons
+/// Nested records and lists are stored behind `shared_ptr` so that
+/// `RecordValue` remains cheaply copyable; equality comparisons
 /// dereference the pointer and compare by value.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   // Scalar construction
 ///   RecordValue v_int(std::int32_t{42});
 ///   RecordValue v_str(std::string{"hello"});
@@ -113,14 +113,14 @@ template <typename element_t> struct RecordArray {
 ///   Record inner;
 ///   inner.set("key", RecordValue(1.0));
 ///   RecordValue v_rec = RecordValue::from_record(std::move(inner));
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <note role="caution">
+/// @warning
 /// Array constructors validate the shape-product invariant and throw
-/// <src>std::invalid_argument</src> if
-/// <src>elements.size() != product(shape)</src>.
-/// </note>
+/// `std::invalid_argument` if
+/// `elements.size() != product(shape)`.
+/// 
 class RecordValue {
   public:
     /// Signed 16-bit multidimensional array.
@@ -253,34 +253,34 @@ bool RecordArray<element_t>::operator==(const RecordArray<element_t>& other) con
     return shape == other.shape && elements == other.elements;
 }
 
-/// <summary>
+/// 
 /// Ordered list container for heterogeneous RecordValue elements.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <synopsis>
-/// RecordList holds an ordered sequence of <linkto>RecordValue</linkto>
-/// objects.  Unlike <linkto>Record</linkto>, elements are not keyed; they
+///
+/// 
+/// RecordList holds an ordered sequence of RecordValue
+/// objects.  Unlike Record, elements are not keyed; they
 /// are accessed by position.  RecordList is the in-memory representation
 /// of casacore TableRecord arrays-of-records and AIPS++ list fields.
 ///
 /// A RecordList is always heap-allocated and referenced through
-/// <src>RecordValue::list_ptr</src> (a <src>shared_ptr<RecordList></src>)
+/// `RecordValue::list_ptr` (a `shared_ptr<RecordList>`)
 /// when stored inside a RecordValue.  Use
-/// <src>RecordValue::from_list()</src> to transfer ownership.
-/// </synopsis>
+/// `RecordValue::from_list()` to transfer ownership.
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   RecordList lst;
 ///   lst.elements.push_back(RecordValue(std::int32_t{1}));
 ///   lst.elements.push_back(RecordValue(std::string{"two"}));
 ///
 ///   Record rec;
 ///   rec.set("items", RecordValue::from_list(std::move(lst)));
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 struct RecordList {
     /// Elements in insertion order.
     std::vector<RecordValue> elements;
@@ -288,41 +288,41 @@ struct RecordList {
     [[nodiscard]] bool operator==(const RecordList& other) const;
 };
 
-/// <summary>
+/// 
 /// Ordered key/value record mapping string keys to RecordValue entries.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> <src>RecordValue</src> — the value type stored per key
-///   <li> <src>RecordList</src>  — list alternative storable in a RecordValue
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - `RecordValue` — the value type stored per key
+///   - `RecordList`  — list alternative storable in a RecordValue
+/// 
+///
+/// 
 /// Record is the in-memory representation of a casacore TableRecord.  It
-/// maps string keys to <linkto>RecordValue</linkto> entries while
+/// maps string keys to RecordValue entries while
 /// preserving insertion order exactly.
 ///
 /// Key characteristics:
-/// <ul>
-///   <li> Insertion order is preserved across all mutations.
-///   <li> Setting an existing key replaces its value in place without
+///
+///   - Insertion order is preserved across all mutations.
+///   - Setting an existing key replaces its value in place without
 ///        changing position.
-///   <li> Lookup and removal are linear in the number of entries; the
+///   - Lookup and removal are linear in the number of entries; the
 ///        expected entry count in practice is small (tens of fields).
-///   <li> Nested records are stored inside RecordValue via
-///        <src>RecordValue::from_record()</src>, giving arbitrary depth.
-/// </ul>
+///   - Nested records are stored inside RecordValue via
+///        `RecordValue::from_record()`, giving arbitrary depth.
+///
 ///
 /// Record is used at several levels of the casacore-mini API:
-/// table-level keywords (<src>Table::keywords()</src>), column-level
-/// keywords (<src>ColumnDesc::keywords</src>), and individual cells
-/// returned by <src>TableRow::get()</src>.
-/// </synopsis>
+/// table-level keywords (`Table::keywords()`), column-level
+/// keywords (`ColumnDesc::keywords`), and individual cells
+/// returned by `TableRow::get()`.
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   Record rec;
 ///   rec.set("OBSERVER", RecordValue(std::string{"Alice"}));
 ///   rec.set("NANT",     RecordValue(std::int32_t{27}));
@@ -337,15 +337,15 @@ struct RecordList {
 ///
 ///   // Remove
 ///   rec.remove("NANT");
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// casacore TableRecord uses a complex class hierarchy with runtime type
 /// registration.  Record provides a simpler, header-only alternative that
 /// is sufficient for the keyword payloads encountered in real Measurement
 /// Sets while remaining straightforward to serialize and deserialize.
-/// </motivation>
+/// 
 class Record {
   public:
     /// Stored key/value entry type.

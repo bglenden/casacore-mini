@@ -16,22 +16,22 @@ namespace casacore_mini {
 /// @file
 /// @brief Direction coordinate using WCSLIB for celestial projections.
 
-/// <summary>
+/// 
 /// Celestial direction coordinate (longitude/latitude pair) using WCSLIB for
 /// non-linear sky projections.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Coordinate — abstract base class defining the pixel/world interface
-///   <li> DirectionRef — enumeration of supported celestial reference frames
+///
+/// @par Prerequisites
+///   - Coordinate — abstract base class defining the pixel/world interface
+///   - DirectionRef — enumeration of supported celestial reference frames
 ///         (J2000, B1950, Galactic, etc.)
-///   <li> Projection — WCS projection type (SIN, TAN, ZEA, etc.)
-///   <li> WCSLIB — the underlying C library performing the non-linear math
-/// </prerequisite>
+///   - Projection — WCS projection type (SIN, TAN, ZEA, etc.)
+///   - WCSLIB — the underlying C library performing the non-linear math
+/// 
 ///
-/// <synopsis>
+/// 
 /// DirectionCoordinate maps a pair of pixel axes (typically image x and y)
 /// to a pair of angular world axes representing a celestial longitude and
 /// latitude.  Common examples are right ascension and declination in the
@@ -53,17 +53,17 @@ namespace casacore_mini {
 ///     native coordinate system relative to the celestial one.
 ///
 /// Pixel-to-world transforms are delegated to WCSLIB via an internal
-/// <src>wcsprm</src> structure allocated in the constructor and freed in the
+/// `wcsprm` structure allocated in the constructor and freed in the
 /// destructor.  Copying performs a deep clone of the WCSLIB state.
 ///
 /// The world axis ordering is [longitude, latitude], and units are radians
 /// for both axes.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Construct a J2000 RA/Dec coordinate with a SIN projection centred on the
 /// Galactic centre, with 1 arcsecond pixels:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   const double deg = M_PI / 180.0;
@@ -87,15 +87,15 @@ namespace casacore_mini {
 ///
 ///   // Inverse transform
 ///   auto pixel = dir.to_pixel(world);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <motivation>
+/// @par Motivation
 /// Radio and optical images require accurate non-linear sky projections.
 /// Delegating the projection math to WCSLIB avoids re-implementing a complex,
 /// well-tested standard and keeps casacore-mini compatible with FITS files
 /// produced by other packages.
-/// </motivation>
+/// 
 class DirectionCoordinate : public Coordinate {
   public:
     /// Construct a direction coordinate.

@@ -14,26 +14,26 @@ namespace casacore_mini {
 /// @file
 /// @brief Spectral coordinate: linear frequency channel mapping.
 
-/// <summary>
+/// 
 /// Single-axis coordinate mapping pixel channel indices to physical
 /// frequencies via a linear transform.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> Coordinate — abstract base class
-///   <li> FrequencyRef — enumeration of supported frequency reference frames
+///
+/// @par Prerequisites
+///   - Coordinate — abstract base class
+///   - FrequencyRef — enumeration of supported frequency reference frames
 ///         (LSRK, LSRD, BARY, TOPO, etc.)
-/// </prerequisite>
+/// 
 ///
-/// <synopsis>
+/// 
 /// SpectralCoordinate represents a single spectral (frequency) axis.  The
 /// pixel-to-world mapping is purely linear:
 ///
-/// <srcblock>
+/// @code{.cpp}
 ///   freq_hz = crval_hz + cdelt_hz * (pixel - crpix)
-/// </srcblock>
+/// @endcode
 ///
 /// where crval_hz is the reference frequency at reference pixel crpix, and
 /// cdelt_hz is the channel width (increment).  The reference pixel is
@@ -48,11 +48,11 @@ namespace casacore_mini {
 /// velocities relative to a spectral line.
 ///
 /// The world axis name is "Frequency" and the unit is "Hz".
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Construct a 1024-channel LSRK spectral axis centred on the HI 21-cm line:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///
 ///   const double hi_rest_hz = 1.42040575177e9; // HI rest frequency in Hz
@@ -71,8 +71,8 @@ namespace casacore_mini {
 ///
 ///   // Inverse: which channel corresponds to 1.421 GHz?
 ///   auto pixel = spec.to_pixel({1.421e9});
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 class SpectralCoordinate : public Coordinate {
   public:
     /// Construct a spectral coordinate.

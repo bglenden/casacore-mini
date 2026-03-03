@@ -17,7 +17,7 @@ namespace casacore_mini {
 
 /// Extract measure/coordinate metadata from binary-decoded Records.
 ///
-/// <synopsis>
+/// 
 /// This function parallels `parse_showtableinfo_measure_coordinate_metadata`
 /// but operates on `Record` objects decoded from AipsIO binary streams rather
 /// than parsed text from `showtableinfo` output.
@@ -30,10 +30,10 @@ namespace casacore_mini {
 /// Use this path when binary `.bin` fixture files are available alongside a
 /// table directory; it is more precise than text parsing and round-trips
 /// correctly through the AipsIO codec.
-/// </synopsis>
+/// 
 ///
-/// <example>
-/// <srcblock>
+/// @par Example
+/// @code{.cpp}
 ///   AipsIoReader kw_reader(table_keywords_bytes);
 ///   Record table_kw = read_aipsio_record(kw_reader);
 ///
@@ -41,8 +41,8 @@ namespace casacore_mini {
 ///   col_kws.emplace_back("TIME", read_aipsio_record(time_reader));
 ///
 ///   auto meta = extract_record_metadata(table_kw, col_kws);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
 /// @param table_keywords  Top-level table keyword Record.
 /// @param column_keywords Column keyword Records as `(column_name, record)` pairs.

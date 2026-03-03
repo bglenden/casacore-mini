@@ -13,42 +13,42 @@ namespace casacore_mini {
 /// @file
 /// @brief Flag manipulation for MeasurementSet rows.
 
-/// <summary>
+/// 
 /// Row-level flag manipulation and statistics for a MeasurementSet.
-/// </summary>
+/// 
 ///
-/// <use visibility=export>
 ///
-/// <prerequisite>
-///   <li> MeasurementSet — the MS container whose FLAG_ROW column is modified
-/// </prerequisite>
 ///
-/// <synopsis>
+/// @par Prerequisites
+///   - MeasurementSet — the MS container whose FLAG_ROW column is modified
+/// 
+///
+/// 
 /// This header provides three operations on the FLAG_ROW column of the
 /// MeasurementSet main table:
 ///
-/// 1. <src>ms_flag_stats()</src> — query the total number of rows and the
-///    number of rows whose FLAG_ROW is currently set to <src>true</src>.
+/// 1. `ms_flag_stats()` — query the total number of rows and the
+///    number of rows whose FLAG_ROW is currently set to `true`.
 ///
-/// 2. <src>ms_flag_rows()</src> — set FLAG_ROW to <src>true</src> for a
+/// 2. `ms_flag_rows()` — set FLAG_ROW to `true` for a
 ///    specified list of row indices.  The main-table SSM data file is
 ///    rewritten with the updated values.
 ///
-/// 3. <src>ms_unflag_rows()</src> — set FLAG_ROW to <src>false</src> for a
+/// 3. `ms_unflag_rows()` — set FLAG_ROW to `false` for a
 ///    specified list of row indices.
 ///
 /// These functions operate at the row level only.  Per-channel, per-baseline,
 /// or per-correlation flag manipulation (i.e. the FLAG array column) is not
-/// provided here; use the <src>Table</src> write API directly for that.
+/// provided here; use the `Table` write API directly for that.
 ///
 /// Note: because the SSM data file is rewritten on each call, applications
 /// that need to apply many individual flag operations should batch the row
 /// indices and call these functions once rather than once per row.
-/// </synopsis>
+/// 
 ///
-/// <example>
+/// @par Example
 /// Query flagging statistics and then flag a specific subset of rows:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -58,12 +58,12 @@ namespace casacore_mini {
 ///
 ///   // Flag rows 0, 5, and 10 (e.g. shadowed baselines identified earlier)
 ///   ms_flag_rows(ms, {0, 5, 10});
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 ///
-/// <example>
+/// @par Example
 /// Unflag all previously flagged rows:
-/// <srcblock>
+/// @code{.cpp}
 ///   using namespace casacore_mini;
 ///   auto ms = MeasurementSet::open("my.ms");
 ///
@@ -72,8 +72,8 @@ namespace casacore_mini {
 ///   for (std::uint64_t r = 0; r < ms.row_count(); ++r)
 ///       all_rows.push_back(r);
 ///   ms_unflag_rows(ms, all_rows);
-/// </srcblock>
-/// </example>
+/// @endcode
+/// 
 
 /// Flag statistics for a MeasurementSet.
 struct MsFlagStats {
