@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/table_desc.hpp"
@@ -13,7 +16,18 @@ namespace casacore_mini {
 /// @file
 /// @brief Table directory reader: orchestrates table.dat + data files.
 
+/// <summary>
 /// Metadata about a storage manager data file within a table directory.
+/// </summary>
+///
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// Each storage manager that participates in a table is represented on disk
+/// by one or more numbered data files (e.g. `table.f0`, `table.f1`).
+/// `StorageManagerFile` describes a single such file as discovered during
+/// `read_table_directory`.
+/// </synopsis>
 struct StorageManagerFile {
     /// File name (e.g. "table.f0").
     std::string filename;
@@ -25,13 +39,39 @@ struct StorageManagerFile {
     std::uint32_t sequence_number = 0;
 };
 
+/// <summary>
 /// Represents a table directory on disk.
+/// </summary>
 ///
-/// A casacore table directory contains:
-/// - `table.dat`: metadata (table header + TableDesc + SM descriptors)
-/// - `table.f<N>`: per-SM data files (StandardStMan, IncrementalStMan, etc.)
-/// - `table.lock`: lock file (ignored for read-only)
-/// - `table.info`: info text (ignored for read-only)
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// A casacore table directory is a filesystem directory whose name ends in
+/// `.ms` or `.table` by convention but has no enforced suffix.  The directory
+/// contains:
+///
+/// - `table.dat` — binary metadata file (table header + TableDesc + SM
+///   descriptors).  Parsed into `table_dat`.
+/// - `table.f<N>` — per-storage-manager data files catalogued in `sm_files`.
+/// - `table.lock` — lock file used by casacore for concurrent access control
+///   (ignored for read-only access).
+/// - `table.info` — plain-text info file (ignored for read-only access).
+///
+/// `read_table_directory` populates a `TableDirectory` by reading `table.dat`
+/// and enumerating the `table.f*` files.  `write_table_directory` creates the
+/// directory from a `TableDatFull` structure and optionally copies SM data
+/// files from a source directory.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   auto td = read_table_directory("my_vis.ms");
+///   std::cout << "rows: " << td.table_dat.header.row_count << "\n";
+///   for (const auto& f : td.sm_files) {
+///       std::cout << f.filename << " (" << f.sm_type << ")\n";
+///   }
+/// </srcblock>
+/// </example>
 struct TableDirectory {
     /// Path to the table directory.
     std::filesystem::path directory;

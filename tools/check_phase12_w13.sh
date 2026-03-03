@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # P12-W13 wave gate: mdspan foundation + migration
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

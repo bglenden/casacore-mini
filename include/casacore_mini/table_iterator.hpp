@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/ref_table.hpp"
@@ -12,19 +15,46 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Table iterator — groups rows by key column values.
+
+/// <summary>
+/// Groups table rows by one or more key column values and iterates over the groups.
+/// </summary>
 ///
-/// Sorts the table by one or more key columns and iterates over groups of
-/// consecutive rows with identical key values. Each iteration step returns
-/// a RefTable containing the rows for that group.
+/// <use visibility=export/>
 ///
-/// Usage:
-/// @code
-///   TableIterator iter(table, {"FIELD_ID", "SCAN_NUMBER"});
+/// <synopsis>
+/// `TableIterator` sorts the table by one or more key columns and iterates
+/// over contiguous groups of rows that share identical key values.  Each call
+/// to `next()` advances to the next group and makes a `RefTable` view of those
+/// rows available via `current()`.
+///
+/// The sort is performed once during construction (via `build_sorted_rows()`).
+/// Subsequent calls to `next()` scan the sorted row list to locate group
+/// boundaries using `keys_equal()`.
+///
+/// Calling `reset()` returns the iterator to the beginning without re-sorting.
+///
+/// Groups are emitted in sorted-key order, which matches casacore's
+/// `TableIterator` default behavior with `Order::Ascending`.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   Table ms = Table::open("my_vis.ms");
+///   TableIterator iter(ms, {"FIELD_ID", "SCAN_NUMBER"});
 ///   while (iter.next()) {
-///       auto& group = iter.current();
-///       // group is a RefTable with rows sharing the same FIELD_ID+SCAN_NUMBER
+///       const RefTable& group = iter.current();
+///       // group contains rows sharing the same FIELD_ID and SCAN_NUMBER
+///       std::cout << "group nrow=" << group.nrow() << "\n";
 ///   }
-/// @endcode
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Many visibility processing algorithms iterate over baselines, fields, or
+/// scans independently.  `TableIterator` provides this grouping without
+/// requiring the caller to manage row sorting and boundary detection manually.
+/// </motivation>
 class TableIterator {
   public:
     /// Construct an iterator that groups by the given columns.

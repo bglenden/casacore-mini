@@ -1,0 +1,32 @@
+version = 1
+
+# Binary test fixtures (casacore table directories) and reference data
+# cannot carry inline SPDX headers.
+[[annotations]]
+path = ["tests/fixtures/**", "data/**"]
+SPDX-FileCopyrightText = "2026 Brian Glendenning"
+SPDX-License-Identifier = "LGPL-3.0-or-later"
+
+# Documentation and prose files (Markdown, phase plans, etc.)
+[[annotations]]
+path = [
+    "*.md",
+    "docs/**",
+    ".claude/**",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+]
+SPDX-FileCopyrightText = "2026 Brian Glendenning"
+SPDX-License-Identifier = "LGPL-3.0-or-later"
+
+# Config/tooling files that use comment syntax but are too small for headers
+[[annotations]]
+path = [
+    ".clang-format",
+    ".clang-tidy",
+    ".editorconfig",
+    ".gitignore",
+    "tools/docker/ci-fast.Dockerfile",
+]
+SPDX-FileCopyrightText = "2026 Brian Glendenning"
+SPDX-License-Identifier = "LGPL-3.0-or-later"

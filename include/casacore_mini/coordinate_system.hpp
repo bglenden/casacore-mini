@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/coordinate.hpp"
@@ -15,11 +18,56 @@ namespace casacore_mini {
 /// @file
 /// @brief CoordinateSystem: composition of multiple Coordinate objects with axis mapping.
 
-/// A coordinate system composing multiple coordinates with pixel/world axis mapping.
+/// <summary>
+/// Composition of multiple Coordinate objects with pixel/world axis mapping.
+/// </summary>
 ///
-/// Each coordinate owns a set of pixel and world axes. The CoordinateSystem maps
-/// these to system-level axes via world_maps and pixel_maps. Removed axes use
-/// replacement values.
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Coordinate — abstract coordinate base class
+///   <li> DirectionCoordinate, SpectralCoordinate, StokesCoordinate, etc.
+///   <li> ObsInfo — telescope and date of observation
+/// </prerequisite>
+///
+/// <synopsis>
+/// CoordinateSystem describes the complete mapping between pixel axes
+/// (integer lattice coordinates) and world axes (physical coordinates
+/// such as right ascension, declination, frequency, and Stokes parameter).
+///
+/// A CoordinateSystem is built by adding one or more Coordinate objects
+/// via add_coordinate().  Each coordinate contributes a set of pixel
+/// and world axes; these are accumulated into system-level axis lists.
+/// Removed axes use replacement values rather than live mappings.
+///
+/// The system supports forward (pixel → world) and inverse
+/// (world → pixel) transforms via to_world() and to_pixel().  Both
+/// methods delegate to the constituent Coordinate objects.
+///
+/// CoordinateSystem can be serialized to and restored from a Record
+/// using the save() / restore() methods, which produce a Record
+/// compatible with casacore's CoordinateSystem::save() format.
+/// </synopsis>
+///
+/// <example>
+/// Build a 2D sky + spectral coordinate system:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   CoordinateSystem cs;
+///
+///   // Direction (RA/Dec)
+///   auto dir = std::make_unique<DirectionCoordinate>(...);
+///   cs.add_coordinate(std::move(dir));
+///
+///   // Spectral
+///   auto spec = std::make_unique<SpectralCoordinate>(...);
+///   cs.add_coordinate(std::move(spec));
+///
+///   // Convert pixel {x,y,chan} to world {ra, dec, freq}
+///   std::vector<double> pixel = {128.0, 128.0, 0.0};
+///   auto world = cs.to_world(pixel);
+/// </srcblock>
+/// </example>
 class CoordinateSystem {
   public:
     CoordinateSystem() = default;

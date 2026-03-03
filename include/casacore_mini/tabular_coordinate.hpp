@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/coordinate.hpp"
@@ -10,8 +13,64 @@ namespace casacore_mini {
 /// @file
 /// @brief Tabular coordinate: table-lookup with linear interpolation.
 
-/// A tabular coordinate that maps between pixel and world via lookup tables
-/// with linear interpolation.
+/// <summary>
+/// Single-axis coordinate that maps between pixel and world values via an
+/// explicit lookup table with linear interpolation between entries.
+/// </summary>
+///
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Coordinate — abstract base class
+/// </prerequisite>
+///
+/// <synopsis>
+/// TabularCoordinate is appropriate when the pixel-to-world mapping cannot
+/// be expressed as a simple linear or non-linear analytic formula.  Instead,
+/// a pair of parallel arrays — <src>pixel_values</src> and
+/// <src>world_values</src> — defines the mapping at a discrete set of
+/// sample points.  Between sample points the mapping is linearly
+/// interpolated.
+///
+/// Requirements on the input arrays:
+///   - Both arrays must have the same length (at least 2 entries).
+///   - <src>pixel_values</src> must be strictly monotonically increasing so
+///     that the inverse transform (world → pixel) can be computed by binary
+///     search followed by linear interpolation.
+///   - <src>world_values</src> may be non-monotonic, but the inverse
+///     transform is only well-defined if it is also monotonic.
+///
+/// The reference value returned by reference_value() is the world value at
+/// the first table entry.  The reference pixel is the first pixel value.
+/// The increment() is computed as the mean step size across the table.
+///
+/// Typical uses include irregularly sampled time axes, non-linear frequency
+/// solutions, or any 1D axis whose values are known only at observed
+/// sample positions.
+/// </synopsis>
+///
+/// <example>
+/// Map five unevenly-spaced time stamps to their MJD values:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // Pixel indices of the time samples
+///   std::vector<double> pixels = {0.0, 1.0, 2.0, 3.0, 4.0};
+///
+///   // Corresponding MJD values (not uniformly spaced)
+///   std::vector<double> mjd = {
+///       58000.0, 58000.5, 58001.2, 58002.0, 58003.9
+///   };
+///
+///   TabularCoordinate time(pixels, mjd, "Time", "d");
+///
+///   // Interpolate at pixel 1.5 -> MJD between 58000.5 and 58001.2
+///   auto world = time.to_world({1.5}); // world[0] ~ 58000.85
+///
+///   // Inverse: which pixel corresponds to MJD 58002.0?
+///   auto pixel = time.to_pixel({58002.0}); // pixel[0] == 3.0
+/// </srcblock>
+/// </example>
 class TabularCoordinate : public Coordinate {
   public:
     /// Construct from pixel and world value arrays.

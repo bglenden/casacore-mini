@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #include "casacore_mini/ms_concat.hpp"
 #include "casacore_mini/ms_columns.hpp"
 #include "casacore_mini/ms_writer.hpp"

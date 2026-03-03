@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/coordinate.hpp"
@@ -10,10 +13,63 @@ namespace casacore_mini {
 /// @file
 /// @brief Stokes coordinate: discrete pixel-to-Stokes-parameter mapping.
 
-/// Stokes coordinate: maps integer pixel indices to Stokes parameter codes.
+/// <summary>
+/// Single-axis coordinate that maps integer pixel indices to FITS Stokes
+/// parameter codes (I, Q, U, V, RR, LL, etc.).
+/// </summary>
 ///
-/// Stokes codes follow the FITS convention: I=1, Q=2, U=3, V=4, RR=5, RL=6, LR=7, LL=8,
-/// XX=9, XY=10, YX=11, YY=12, ...
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Coordinate — abstract base class
+///   <li> FITS WCS Paper I (Greisen & Calabretta) — Stokes axis convention
+/// </prerequisite>
+///
+/// <synopsis>
+/// StokesCoordinate represents a polarization axis whose world values are
+/// not physical angles or frequencies but discrete enumeration codes
+/// defined by the FITS standard:
+///
+/// <srcblock>
+///   I=1  Q=2  U=3  V=4
+///   RR=5 RL=6 LR=7 LL=8
+///   XX=9 XY=10 YX=11 YY=12
+///   ...
+/// </srcblock>
+///
+/// Each pixel index maps to exactly one Stokes code stored in the
+/// <src>stokes_values</src> list supplied at construction.  The world
+/// representation returned by to_world() is the Stokes code cast to
+/// double.
+///
+/// Unlike other coordinates there is no analytic formula relating pixel
+/// to world: to_world() performs a direct array lookup, and to_pixel()
+/// performs a linear search for the requested code.
+///
+/// The world axis name is "Stokes" and the unit is an empty string,
+/// consistent with the FITS convention for the Stokes axis.
+/// </synopsis>
+///
+/// <example>
+/// Create a full-Stokes (I, Q, U, V) polarization axis:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // FITS Stokes codes: I=1, Q=2, U=3, V=4
+///   StokesCoordinate stokes({1, 2, 3, 4});
+///
+///   // Pixel 0 -> Stokes I (code 1.0)
+///   auto world = stokes.to_world({0.0}); // world[0] == 1.0
+///
+///   // Find the pixel index of Stokes V (code 4)
+///   auto pixel = stokes.to_pixel({4.0}); // pixel[0] == 3.0
+/// </srcblock>
+///
+/// Create a circular-feed correlation axis (RR, LL only):
+/// <srcblock>
+///   StokesCoordinate circ({5, 8}); // RR=5, LL=8
+/// </srcblock>
+/// </example>
 class StokesCoordinate : public Coordinate {
   public:
     /// Construct from a list of Stokes parameter codes.

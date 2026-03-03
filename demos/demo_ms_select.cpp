@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // demo_ms_select.cpp -- Phase 9: MS selection transliteration demo
 //
 // casacore-original reference excerpts:

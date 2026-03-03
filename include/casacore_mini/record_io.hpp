@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/platform.hpp"
@@ -15,18 +18,37 @@ namespace casacore_mini {
 
 /// Write a `Record` using the project-local deterministic binary encoding.
 ///
-/// This format is internal scaffolding for current phases and is not yet
-/// casacore `AipsIO` wire-compatible.
+/// <synopsis>
+/// This format is internal scaffolding for current phases and is **not**
+/// casacore `AipsIO` wire-compatible.  It is used where a stable, round-
+/// trippable binary encoding is needed independently of the casacore wire
+/// format.
 ///
-/// Current wire format:
-/// - magic: `CCMR`
-/// - format version: `1`
+/// Wire format layout:
+/// - magic bytes: `CCMR` (4 bytes)
+/// - format version: `1` (4-byte little-endian `uint32`)
 /// - payload: recursive tagged value tree
 ///
 /// Encoding details:
-/// - integer and floating payloads are encoded little-endian
-/// - arrays encode rank, shape, and flattened Fortran-order elements
-/// - nested list/record depth is bounded for safety
+/// - Integer and floating-point payloads are encoded little-endian.
+/// - Arrays encode rank, shape (one `int64` per dimension), and flattened
+///   Fortran-order elements.
+/// - Nested list/record depth is bounded to prevent stack overflow on
+///   pathologically deep inputs.
+///
+/// The four free functions `write_record_binary`, `read_record_binary`,
+/// `serialize_record_binary`, and `deserialize_record_binary` cover both
+/// stream-based and byte-span based access patterns.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   Record rec;
+///   rec.fields["PI"] = RecordValue(3.14159);
+///   auto bytes = serialize_record_binary(rec);
+///   Record copy = deserialize_record_binary(bytes);
+/// </srcblock>
+/// </example>
 ///
 /// @throws std::runtime_error on stream write errors, unsupported/invalid value
 /// state, shape/count mismatches, or depth-limit violations.

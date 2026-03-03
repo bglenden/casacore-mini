@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/coordinate.hpp"
@@ -13,10 +16,86 @@ namespace casacore_mini {
 /// @file
 /// @brief Direction coordinate using WCSLIB for celestial projections.
 
-/// A celestial direction coordinate (RA/Dec, Gal lon/lat, etc.) using WCSLIB
-/// for the non-linear projection stage.
+/// <summary>
+/// Celestial direction coordinate (longitude/latitude pair) using WCSLIB for
+/// non-linear sky projections.
+/// </summary>
 ///
-/// Internally allocates a WCSLIB `wcsprm` structure for the projection math.
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Coordinate — abstract base class defining the pixel/world interface
+///   <li> DirectionRef — enumeration of supported celestial reference frames
+///         (J2000, B1950, Galactic, etc.)
+///   <li> Projection — WCS projection type (SIN, TAN, ZEA, etc.)
+///   <li> WCSLIB — the underlying C library performing the non-linear math
+/// </prerequisite>
+///
+/// <synopsis>
+/// DirectionCoordinate maps a pair of pixel axes (typically image x and y)
+/// to a pair of angular world axes representing a celestial longitude and
+/// latitude.  Common examples are right ascension and declination in the
+/// J2000 frame, or Galactic longitude and latitude.
+///
+/// The mathematical model follows the FITS WCS standard (Greisen &
+/// Calabretta 2002, A&A 395, 1077).  The coordinate is parameterized by:
+///
+///   - A reference frame (DirectionRef), which fixes the equatorial or
+///     Galactic system and epoch.
+///   - A sky projection (Projection), such as SIN (orthographic, used for
+///     interferometric images) or TAN (gnomonic, used for optical fields).
+///   - A reference longitude and latitude in radians (crval).
+///   - A longitude and latitude increment in radians per pixel (cdelt).
+///   - A 2×2 PC matrix for rotation and shear.
+///   - Reference pixel coordinates in 0-based pixel space (crpix).
+///   - Optional native longitude and latitude of the celestial pole
+///     (longpole_deg, latpole_deg) that determine the orientation of the
+///     native coordinate system relative to the celestial one.
+///
+/// Pixel-to-world transforms are delegated to WCSLIB via an internal
+/// <src>wcsprm</src> structure allocated in the constructor and freed in the
+/// destructor.  Copying performs a deep clone of the WCSLIB state.
+///
+/// The world axis ordering is [longitude, latitude], and units are radians
+/// for both axes.
+/// </synopsis>
+///
+/// <example>
+/// Construct a J2000 RA/Dec coordinate with a SIN projection centred on the
+/// Galactic centre, with 1 arcsecond pixels:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   const double deg = M_PI / 180.0;
+///   const double arcsec = deg / 3600.0;
+///
+///   DirectionCoordinate dir(
+///       DirectionRef::j2000,
+///       Projection{ProjectionType::SIN},
+///       266.405 * deg,   // ref RA  (rad)
+///      -29.008 * deg,   // ref Dec (rad)
+///      -1.0 * arcsec,   // RA increment (negative: RA increases right-to-left)
+///       1.0 * arcsec,   // Dec increment
+///       {},              // identity PC matrix
+///       512.0,           // crpix x (0-based)
+///       512.0            // crpix y (0-based)
+///   );
+///
+///   // Forward transform: centre pixel -> (RA, Dec) in radians
+///   auto world = dir.to_world({512.0, 512.0});
+///   // world[0] == 266.405 * deg, world[1] == -29.008 * deg
+///
+///   // Inverse transform
+///   auto pixel = dir.to_pixel(world);
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Radio and optical images require accurate non-linear sky projections.
+/// Delegating the projection math to WCSLIB avoids re-implementing a complex,
+/// well-tested standard and keeps casacore-mini compatible with FITS files
+/// produced by other packages.
+/// </motivation>
 class DirectionCoordinate : public Coordinate {
   public:
     /// Construct a direction coordinate.

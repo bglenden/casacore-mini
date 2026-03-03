@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // demo_coordinate_remove_axes.cpp -- Phase 8: remove-axes transliteration demo
 //
 // casacore-original reference excerpts:

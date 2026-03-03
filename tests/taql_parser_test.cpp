@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file taql_parser_test.cpp
 /// @brief Tests for the TaQL parser and AST construction.
 

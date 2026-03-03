@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # P12-W11 wave gate: Table infrastructure tranche B
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

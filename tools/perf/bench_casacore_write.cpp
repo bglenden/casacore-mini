@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // bench_casacore_write.cpp -- casacore-original: write benchmark timings.
 //
 // Build: clang++ -std=c++20 -O2 $(pkg-config --cflags --libs casacore) \

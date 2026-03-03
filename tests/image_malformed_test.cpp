@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file image_malformed_test.cpp
 /// Malformed-input hardening tests for PagedImage, SubImage, ImageExpr,
 /// ImageConcat.  Verifies that invalid operations throw specific exceptions

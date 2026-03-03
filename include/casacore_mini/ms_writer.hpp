@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/measurement_set.hpp"
@@ -17,6 +20,94 @@ namespace casacore_mini {
 /// MsWriter collects rows in memory and writes them all at once when flush()
 /// is called. This matches the SsmWriter/TiledStManWriter model which requires
 /// a known row count at setup time.
+
+/// <summary>
+/// Batch writer that accumulates MeasurementSet rows in memory and writes
+/// them to disk in a single flush.
+/// </summary>
+///
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> MeasurementSet — the MS container that receives the data
+///   <li> MsSubtables — column schemas used when creating subtable rows
+/// </prerequisite>
+///
+/// <synopsis>
+/// <src>MsWriter</src> implements the standard casacore-mini write pattern:
+/// accumulate all rows in memory, then write the complete dataset with one
+/// <src>flush()</src> call.  This approach allows the underlying storage
+/// manager to know the final row count at allocation time, which is required
+/// by the SSM (Standard Storage Manager) and tiled storage managers.
+///
+/// The writer maintains separate in-memory buffers for the main table and
+/// for each of the commonly populated subtables: ANTENNA, SPECTRAL_WINDOW,
+/// FIELD, DATA_DESCRIPTION, POLARIZATION, OBSERVATION, and STATE.
+///
+/// Before writing, <src>flush()</src> automatically calls
+/// <src>validate_foreign_keys()</src>, which checks that every ID column in
+/// the pending main-table rows (ANTENNA1, ANTENNA2, FIELD_ID, DATA_DESC_ID,
+/// OBSERVATION_ID, PROCESSOR_ID, STATE_ID) refers to a valid row index in
+/// the corresponding subtable buffer.  A <src>std::runtime_error</src> is
+/// thrown listing all invalid references if any are found.
+///
+/// POD row structs are provided for each supported table:
+/// <ul>
+///   <li> <src>MsMainRow</src>        — one main-table visibility sample
+///   <li> <src>MsAntennaRow</src>     — one ANTENNA subtable row
+///   <li> <src>MsSpWindowRow</src>    — one SPECTRAL_WINDOW subtable row
+///   <li> <src>MsFieldRow</src>       — one FIELD subtable row
+///   <li> <src>MsDataDescRow</src>    — one DATA_DESCRIPTION subtable row
+///   <li> <src>MsPolarizationRow</src> — one POLARIZATION subtable row
+///   <li> <src>MsObservationRow</src> — one OBSERVATION subtable row
+///   <li> <src>MsStateRow</src>       — one STATE subtable row
+/// </ul>
+/// </synopsis>
+///
+/// <example>
+/// Build a minimal two-antenna, single-SPW MeasurementSet from scratch:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   auto ms = MeasurementSet::create("my.ms");
+///   MsWriter writer(ms);
+///
+///   writer.add_antenna({.name="ANT0", .station="PAD0",
+///                       .position={-1601185.0, -5041977.0, 3554875.0},
+///                       .offset={0,0,0}, .dish_diameter=25.0});
+///   writer.add_antenna({.name="ANT1", .station="PAD1",
+///                       .position={-1601185.0, -5041978.0, 3554875.0},
+///                       .offset={0,0,0}, .dish_diameter=25.0});
+///
+///   writer.add_polarization({.num_corr=2,
+///                            .corr_type={5, 8}}); // RR, LL
+///   writer.add_spectral_window({.num_chan=64,
+///                               .name="SPW0",
+///                               .ref_frequency=1.4e9,
+///                               .total_bandwidth=1e7});
+///   writer.add_data_description({.spectral_window_id=0,
+///                                .polarization_id=0});
+///   writer.add_field({.name="J0534+2200", .time=4.8e9});
+///   writer.add_observation({.telescope_name="VLA",
+///                           .observer="Smith",
+///                           .project="VLASS"});
+///   writer.add_state({.obs_mode="OBSERVE_TARGET#ON_SOURCE"});
+///
+///   writer.add_row({.antenna1=0, .antenna2=1,
+///                   .data_desc_id=0, .field_id=0,
+///                   .time=4.8e9, .interval=10.0,
+///                   .uvw={100.0, 200.0, 50.0},
+///                   .sigma={1.0f, 1.0f},
+///                   .weight={1.0f, 1.0f}});
+///   writer.flush();
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Separating the accumulation phase from the write phase lets the storage
+/// manager preallocate contiguous blocks of the correct size rather than
+/// growing the file incrementally one row at a time.  This produces compact,
+/// well-aligned table files that read back efficiently.
+/// </motivation>
 
 /// A single main-table row's scalar + array data.
 struct MsMainRow {

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/aipsio_reader.hpp"
@@ -10,10 +13,34 @@ namespace casacore_mini {
 
 /// Read a casacore-encoded `Record` from an `AipsIO` byte stream.
 ///
-/// This decodes the binary format produced by casacore `RecordRep::putRecord`
+/// <synopsis>
+/// Decodes the binary format produced by casacore `RecordRep::putRecord`,
 /// including the RecordDesc, field values, nested sub-records, and arrays.
+/// The reader is positioned just after the terminating end-marker when the
+/// function returns.
 ///
-/// Supported object types: `Record`, `RecordDesc`, `Array`, `IPosition`.
+/// Supported object types encountered during decode: `Record`, `RecordDesc`,
+/// `Array`, `IPosition`.
+///
+/// Type promotion notes:
+/// - `Char` and `uChar` scalars and arrays are losslessly promoted to
+///   <src>int16_t</src> and <src>uint16_t</src> respectively because
+///   `RecordValue` has no 8-bit type slot.
+///
+/// Entry points:
+/// - `read_aipsio_record` — root record with `0xBEBEBEBE` magic prefix.
+/// - `read_aipsio_embedded_record` — nested record without magic prefix.
+/// - `read_aipsio_record_body` — raw body (no wrapping Record header at all),
+///   used when a `TableRecord` header already wraps the contents.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   auto raw = read_file("table_keywords.bin");
+///   AipsIoReader reader(raw);
+///   Record rec = read_aipsio_record(reader);
+/// </srcblock>
+/// </example>
 ///
 /// @note `Char` and `uChar` scalars and arrays are losslessly promoted to
 /// `int16_t` and `uint16_t` respectively since `RecordValue` has no 8-bit type.

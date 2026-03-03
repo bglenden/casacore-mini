@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file ms_selection_table_expr_bridge_test.cpp
 /// @brief Tests for to_taql_where() bridge and accessor methods.
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/unit.hpp"
@@ -9,13 +12,70 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Physical quantity: numeric value + unit with arithmetic and conversion.
+///
+/// <use visibility=export>
+///
+/// <synopsis>
+/// A Quantity pairs a <src>double</src> numeric value with a Unit, enabling
+/// dimension-aware arithmetic and lossless unit conversion.  The design
+/// mirrors casacore-original's <src>Quantum<double></src> (also called
+/// <src>Quantity</src>) while using a flat, non-template representation.
+///
+/// The public <src>value</src> member preserves backward compatibility with
+/// code that constructs quantities as aggregates (<src>Quantity{1.5, "GHz"}</src>)
+/// or accesses the raw number directly.
+///
+/// Unit conformance is checked lazily at conversion time rather than at
+/// construction time, so constructing a Quantity with an unknown or
+/// dimensionally inconsistent unit is not an error until a conversion or
+/// comparison is attempted.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   // Basic construction and conversion
+///   Quantity freq(1.5, "GHz");
+///   Quantity freq_hz = freq.convert("Hz");     // 1.5e9 Hz
+///   double   hz_val  = freq.get_value("Hz");   // 1.5e9
+///
+///   // Arithmetic preserves units
+///   Quantity bw(200, "MHz");
+///   Quantity sum = freq + bw.convert("GHz");   // 1.7 GHz
+///
+///   // Conformance check
+///   Quantity vel(30, "km/s");
+///   assert(!freq.conforms(vel));   // Hz and km/s are incompatible
+///
+///   // Scalar scaling
+///   Quantity double_freq = freq * 2.0;         // 3.0 GHz
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Radio-astronomy data pipelines mix many physical quantities — frequencies,
+/// velocities, angles, flux densities — each with its own unit system.
+/// Wrapping a numeric value together with its unit prevents the common error
+/// of silently applying a computation in the wrong unit and makes interface
+/// contracts self-documenting.
+/// </motivation>
 
 /// A physical quantity: a double value paired with a Unit.
 ///
+/// <synopsis>
 /// Supports conversion between any dimensionally compatible units, arithmetic
 /// between quantities, and scalar multiplication/division.  Backward-compatible
-/// with the original `Quantity{double, string}` aggregate -- `q.value` is a
+/// with the original <src>Quantity{double, string}</src> aggregate -- <src>value</src> is a
 /// public double member.
+///
+/// Addition and subtraction require dimensionally conformant units; the
+/// right-hand operand is converted to the left-hand unit before the
+/// operation.  Multiplication and division accept any unit combination and
+/// produce a compound result unit string.
+///
+/// Comparison operators convert the right-hand operand to the left-hand
+/// unit before comparing numeric values.  Comparing dimensionally
+/// incompatible quantities throws <src>std::invalid_argument</src>.
+/// </synopsis>
 class Quantity {
   public:
     /// The numeric value in the stored unit.  Public for backward compatibility.
@@ -28,17 +88,17 @@ class Quantity {
     /// Construct with value and Unit object.
     Quantity(double v, const Unit& u);
 
-    /// The unit string (e.g. "km/s").
+    /// Return the unit string (e.g. "km/s").
     [[nodiscard]] const std::string& get_unit() const {
         return unit_.name();
     }
 
-    /// The parsed Unit object.
+    /// Return the parsed Unit object.
     [[nodiscard]] const Unit& unit() const {
         return unit_;
     }
 
-    /// The Unit's UnitVal (factor + dimensions).
+    /// Return the Unit's UnitVal (factor + dimensions).
     [[nodiscard]] const UnitVal& unit_value() const {
         return unit_.value();
     }
@@ -46,16 +106,29 @@ class Quantity {
     // -- Conversion --
 
     /// Convert to a different unit (must be dimensionally conformant).
+    ///
+    /// <synopsis>
+    /// Scales <src>value</src> by the ratio of the stored unit's SI factor
+    /// to the target unit's SI factor, then wraps the result in a new
+    /// Quantity with the target unit.  Dimension vectors must match exactly.
+    /// </synopsis>
+    ///
     /// @throws std::invalid_argument on dimension mismatch or unknown unit.
     [[nodiscard]] Quantity convert(const Unit& target) const;
     [[nodiscard]] Quantity convert(std::string_view target) const;
 
-    /// Shorthand: convert and return just the value.
+    /// Convert and return just the numeric value in the target unit.
+    ///
+    /// Equivalent to <src>convert(target).value</src>.
+    ///
+    /// @throws std::invalid_argument on dimension mismatch or unknown unit.
     [[nodiscard]] double get_value(std::string_view target) const;
 
     // -- Dimension checking --
 
+    /// True if this quantity's dimensions conform to <src>other</src>'s unit.
     [[nodiscard]] bool conforms(const Unit& other) const;
+    /// True if this quantity's dimensions conform to <src>other</src>'s unit.
     [[nodiscard]] bool conforms(const Quantity& other) const;
 
     // -- Arithmetic --
@@ -75,7 +148,7 @@ class Quantity {
     /// Negate.
     [[nodiscard]] Quantity operator-() const;
 
-    // -- Comparison (converts to common unit) --
+    // -- Comparison (converts rhs to lhs unit before comparing) --
 
     [[nodiscard]] bool operator==(const Quantity& rhs) const;
     [[nodiscard]] bool operator<(const Quantity& rhs) const;
@@ -87,7 +160,14 @@ class Quantity {
     Unit unit_;
 };
 
-/// Free function: convert a quantity to a different unit (backward compat).
+/// Convert a quantity to a different unit (free-function form for backward compatibility).
+///
+/// <synopsis>
+/// Equivalent to <src>q.convert(target_unit)</src>.  Provided for
+/// compatibility with call sites that use the free-function spelling from
+/// casacore-original's Quantum utilities.
+/// </synopsis>
+///
 /// @throws std::invalid_argument if the conversion is not supported.
 [[nodiscard]] Quantity convert_quantity(const Quantity& q, std::string_view target_unit);
 

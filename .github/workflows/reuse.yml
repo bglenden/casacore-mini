@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+name: reuse
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@v6

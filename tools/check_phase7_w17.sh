@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Phase 7 W17 gate: full hardening — all wave gates + build + tests + strict matrix
 set -euo pipefail
 

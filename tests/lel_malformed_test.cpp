@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file lel_malformed_test.cpp
 /// Malformed-input hardening tests for the LEL parser and evaluator.
 /// Complements lel_parser_test by exercising additional edge cases:

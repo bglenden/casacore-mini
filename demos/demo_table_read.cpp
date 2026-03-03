@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // demo_table_read.cpp -- Phase 7: table read/introspection transliteration demo
 //
 // casacore-original reference excerpts:

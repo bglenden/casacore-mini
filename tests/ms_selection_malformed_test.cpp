@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file ms_selection_malformed_test.cpp
 /// @brief Malformed-input tests for W5 MS selection categories.
 

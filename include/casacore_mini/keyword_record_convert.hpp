@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/keyword_record.hpp"
@@ -8,8 +11,19 @@ namespace casacore_mini {
 /// @file
 /// @brief Bidirectional conversion between text `KeywordRecord` and binary
 /// `Record` models.
+
+/// <synopsis>
+/// This header provides four free functions that convert between the two
+/// keyword-record representations used in casacore-mini:
 ///
-/// ## Type promotion rules (KeywordRecord → Record)
+/// - The **text model** (`KeywordRecord` / `KeywordValue` / `KeywordArray`)
+///   is built by parsing `showtableinfo` output and holds only the types
+///   distinguishable in that text format.
+/// - The **binary model** (`Record` / `RecordValue`) is produced by decoding
+///   AipsIO byte streams and preserves the full type vocabulary of the
+///   casacore `DataType` enum.
+///
+/// ## Type promotion rules (KeywordRecord -> Record)
 ///
 /// | Text type          | Binary type        |
 /// |--------------------|--------------------|
@@ -20,7 +34,7 @@ namespace casacore_mini {
 /// | `KeywordArray`     | 1-D typed array    |
 /// | `KeywordRecord`    | nested `Record`    |
 ///
-/// ## Type demotion rules (Record → KeywordRecord)
+/// ## Type demotion rules (Record -> KeywordRecord)
 ///
 /// | Binary type         | Text type          | Notes                    |
 /// |---------------------|--------------------|--------------------------|
@@ -32,6 +46,7 @@ namespace casacore_mini {
 /// | Typed N-D array     | flat `KeywordArray`| Shape information lost   |
 /// | `RecordList`        | flat `KeywordArray`| Heterogeneous flattened  |
 /// | Nested `Record`     | `KeywordRecord`    |                          |
+/// </synopsis>
 
 /// Convert a text-model `KeywordValue` to a binary-model `RecordValue`.
 ///

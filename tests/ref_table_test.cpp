@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file ref_table_test.cpp
 /// @brief P12-W11 tests for RefTable (row-mapped view).
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/measurement_set.hpp"
@@ -15,10 +18,50 @@ namespace casacore_mini {
 // StokesConverter
 // ---------------------------------------------------------------------------
 
-/// Convert between Stokes/correlation types.
+/// <summary>
+/// Converts complex visibility data between Stokes/correlation bases.
+/// </summary>
 ///
-/// Stokes codes follow the FITS convention:
-/// I=1, Q=2, U=3, V=4, RR=5, RL=6, LR=7, LL=8, XX=9, XY=10, YX=11, YY=12.
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> MeasurementSet — source of the correlation type metadata (POLARIZATION subtable)
+/// </prerequisite>
+///
+/// <synopsis>
+/// <src>StokesConverter</src> transforms a vector of complex visibilities
+/// from one set of correlation products to another.  Stokes codes follow the
+/// FITS/AIPS convention:
+///
+/// <ul>
+///   <li> I=1, Q=2, U=3, V=4
+///   <li> RR=5, RL=6, LR=7, LL=8
+///   <li> XX=9, XY=10, YX=11, YY=12
+/// </ul>
+///
+/// The converter is constructed once with the input and output type lists.
+/// Subsequent calls to <src>convert()</src> apply the same linear
+/// transformation to each visibility vector.  For circular feed data the
+/// standard relations are:
+///
+/// <ul>
+///   <li> I = (RR + LL) / 2
+///   <li> Q = (RL + LR) / 2
+///   <li> U = i*(LR - RL) / 2
+///   <li> V = (RR - LL) / 2
+/// </ul>
+/// </synopsis>
+///
+/// <example>
+/// Convert RR, RL, LR, LL visibilities to Stokes I, Q, U, V:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   StokesConverter conv({5,6,7,8}, {1,2,3,4}); // RRLLLR→IQUV
+///
+///   std::vector<std::complex<float>> in_vis = /* ... */;
+///   auto out_vis = conv.convert(in_vis); // length 4
+/// </srcblock>
+/// </example>
 class StokesConverter {
   public:
     /// Set up conversion from input to output Stokes types.
@@ -51,6 +94,40 @@ class StokesConverter {
 // MsDopplerUtil
 // ---------------------------------------------------------------------------
 
+/// <summary>
+/// Stateless Doppler conversion utilities for MS frequency/velocity data.
+/// </summary>
+///
+/// <use visibility=export>
+///
+/// <synopsis>
+/// <src>MsDopplerUtil</src> provides radio-convention Doppler conversions
+/// between observed frequency and line-of-sight velocity, given the rest
+/// frequency of a spectral line.
+///
+/// The radio velocity convention is used:
+/// <ul>
+///   <li> v = c * (f_rest - f_obs) / f_rest
+///   <li> f_obs = f_rest * (1 - v/c)
+/// </ul>
+///
+/// Rest frequencies are typically found in the SOURCE subtable
+/// (REST_FREQUENCY column).  These utilities are designed to work alongside
+/// the DOPPLER and FREQ_OFFSET optional subtables.
+/// </synopsis>
+///
+/// <example>
+/// Convert a 21 cm HI rest frequency line to velocity at a given observed
+/// frequency:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   double rest  = 1.420405751e9; // Hz
+///   double f_obs = 1.418e9;       // Hz
+///   double v = MsDopplerUtil::frequency_to_velocity(f_obs, rest);
+///   // v ≈ +515 km/s (recession)
+/// </srcblock>
+/// </example>
+
 /// Doppler tracking utility for MS data.
 ///
 /// Wraps VelocityMachine conversions in an MS context, providing
@@ -67,6 +144,43 @@ struct MsDopplerUtil {
 // ---------------------------------------------------------------------------
 // MsHistoryHandler
 // ---------------------------------------------------------------------------
+
+/// <summary>
+/// Appends processing history entries to the HISTORY subtable of a
+/// MeasurementSet.
+/// </summary>
+///
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> MeasurementSet — the MS whose HISTORY subtable is written
+/// </prerequisite>
+///
+/// <synopsis>
+/// <src>MsHistoryHandler</src> buffers one or more history log entries in
+/// memory and writes them to the HISTORY subtable when <src>flush()</src> is
+/// called.  Each entry carries a timestamp (MJD seconds), an observation ID,
+/// a free-text message, a priority level string, and an origin identifier.
+///
+/// If the <src>time_s</src> argument to <src>add_entry()</src> is zero, the
+/// handler substitutes the current wall-clock time expressed in MJD seconds.
+///
+/// Priority strings follow the casacore convention: "DEBUGGING", "INFO",
+/// "WARN", "SEVERE".
+/// </synopsis>
+///
+/// <example>
+/// Log two processing steps and flush to disk:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   auto ms = MeasurementSet::open("my.ms");
+///   MsHistoryHandler hist(ms);
+///
+///   hist.add_entry("Flagged shadowed antennas", "INFO", "flagger");
+///   hist.add_entry("Calibration applied", "INFO", "applycal");
+///   hist.flush();
+/// </srcblock>
+/// </example>
 
 /// Add entries to the HISTORY subtable of a MeasurementSet.
 class MsHistoryHandler {

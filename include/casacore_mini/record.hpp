@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/platform.hpp"
@@ -19,13 +22,39 @@ namespace casacore_mini {
 class Record;
 struct RecordList;
 
-/// Shape-aware typed array value used inside `RecordValue`.
+/// <summary>
+/// Shape-aware typed array value used in Record fields.
+/// </summary>
 ///
-/// Values are stored in flattened Fortran-order (first axis varying fastest).
+/// <use visibility=export>
 ///
-/// Invariant:
-/// - `elements.size()` equals product of all dimensions in `shape`.
-/// - If `shape` is empty, expected element count is `0`.
+/// <synopsis>
+/// RecordArray stores a multidimensional array of a single element type
+/// in flattened Fortran-order (first axis varies fastest), together with
+/// a shape vector describing the array extents.
+///
+/// The shape invariant: <src>elements.size()</src> must equal the product
+/// of all values in <src>shape</src>.  An empty <src>shape</src> implies
+/// zero elements.
+///
+/// RecordArray is used as one of the array alternatives inside
+/// <linkto>RecordValue</linkto>.  Public APIs work with
+/// <src>uint64_t</src> extents; signed IPosition semantics are handled
+/// internally during I/O conversion.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   // Build a 3x4 double array
+///   RecordArray<double> arr;
+///   arr.shape = {3, 4};
+///   arr.elements.assign(12, 0.0);   // 12 = 3*4
+///
+///   // Wrap in a RecordValue and store in a Record
+///   Record rec;
+///   rec.set("data", RecordValue(std::move(arr)));
+/// </srcblock>
+/// </example>
 template <typename element_t> struct RecordArray {
     /// Array extents. Rank is `shape.size()`.
     ///
@@ -39,11 +68,59 @@ template <typename element_t> struct RecordArray {
     [[nodiscard]] bool operator==(const RecordArray& other) const;
 };
 
-/// Typed value used by `Record`.
+/// <summary>
+/// Tagged union of all persistence-facing value types used by Record fields.
+/// </summary>
 ///
-/// This is a small, deterministic tagged union for persistence-facing metadata.
-/// It intentionally supports both `std::complex<float>` and
-/// `std::complex<double>` to reflect casacore numeric value domains.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// RecordValue is a small, deterministic tagged union that covers every
+/// numeric and string type that casacore records can contain.  It supports
+/// both scalar and multidimensional array variants, as well as nested
+/// <linkto>Record</linkto> and <linkto>RecordList</linkto> containers.
+///
+/// Both <src>std::complex<float></src> and <src>std::complex<double></src>
+/// are included to reflect casacore's numeric value domains precisely.
+///
+/// The underlying storage is a <src>std::variant</src> accessible through
+/// <src>storage()</src>.  Callers should use
+/// <src>std::holds_alternative<T></src> and <src>std::get_if<T></src> to
+/// inspect the active alternative.
+///
+/// Nested records and lists are stored behind <src>shared_ptr</src> so that
+/// <src>RecordValue</src> remains cheaply copyable; equality comparisons
+/// dereference the pointer and compare by value.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   // Scalar construction
+///   RecordValue v_int(std::int32_t{42});
+///   RecordValue v_str(std::string{"hello"});
+///
+///   // Array construction
+///   RecordArray<float> arr;
+///   arr.shape = {2, 3};
+///   arr.elements = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+///   RecordValue v_arr(std::move(arr));
+///
+///   // Introspection
+///   if (auto* p = std::get_if<std::int32_t>(&v_int.storage()))
+///       std::cout << *p << "\n";
+///
+///   // Nested record
+///   Record inner;
+///   inner.set("key", RecordValue(1.0));
+///   RecordValue v_rec = RecordValue::from_record(std::move(inner));
+/// </srcblock>
+/// </example>
+///
+/// <note role="caution">
+/// Array constructors validate the shape-product invariant and throw
+/// <src>std::invalid_argument</src> if
+/// <src>elements.size() != product(shape)</src>.
+/// </note>
 class RecordValue {
   public:
     /// Signed 16-bit multidimensional array.
@@ -176,7 +253,34 @@ bool RecordArray<element_t>::operator==(const RecordArray<element_t>& other) con
     return shape == other.shape && elements == other.elements;
 }
 
-/// Ordered list container for `RecordValue`.
+/// <summary>
+/// Ordered list container for heterogeneous RecordValue elements.
+/// </summary>
+///
+/// <use visibility=export>
+///
+/// <synopsis>
+/// RecordList holds an ordered sequence of <linkto>RecordValue</linkto>
+/// objects.  Unlike <linkto>Record</linkto>, elements are not keyed; they
+/// are accessed by position.  RecordList is the in-memory representation
+/// of casacore TableRecord arrays-of-records and AIPS++ list fields.
+///
+/// A RecordList is always heap-allocated and referenced through
+/// <src>RecordValue::list_ptr</src> (a <src>shared_ptr<RecordList></src>)
+/// when stored inside a RecordValue.  Use
+/// <src>RecordValue::from_list()</src> to transfer ownership.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   RecordList lst;
+///   lst.elements.push_back(RecordValue(std::int32_t{1}));
+///   lst.elements.push_back(RecordValue(std::string{"two"}));
+///
+///   Record rec;
+///   rec.set("items", RecordValue::from_list(std::move(lst)));
+/// </srcblock>
+/// </example>
 struct RecordList {
     /// Elements in insertion order.
     std::vector<RecordValue> elements;
@@ -184,10 +288,64 @@ struct RecordList {
     [[nodiscard]] bool operator==(const RecordList& other) const;
 };
 
-/// Ordered key/value record.
+/// <summary>
+/// Ordered key/value record mapping string keys to RecordValue entries.
+/// </summary>
 ///
-/// Insertion order is preserved. Setting an existing key replaces its value in
-/// place without changing order.
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> <src>RecordValue</src> — the value type stored per key
+///   <li> <src>RecordList</src>  — list alternative storable in a RecordValue
+/// </prerequisite>
+///
+/// <synopsis>
+/// Record is the in-memory representation of a casacore TableRecord.  It
+/// maps string keys to <linkto>RecordValue</linkto> entries while
+/// preserving insertion order exactly.
+///
+/// Key characteristics:
+/// <ul>
+///   <li> Insertion order is preserved across all mutations.
+///   <li> Setting an existing key replaces its value in place without
+///        changing position.
+///   <li> Lookup and removal are linear in the number of entries; the
+///        expected entry count in practice is small (tens of fields).
+///   <li> Nested records are stored inside RecordValue via
+///        <src>RecordValue::from_record()</src>, giving arbitrary depth.
+/// </ul>
+///
+/// Record is used at several levels of the casacore-mini API:
+/// table-level keywords (<src>Table::keywords()</src>), column-level
+/// keywords (<src>ColumnDesc::keywords</src>), and individual cells
+/// returned by <src>TableRow::get()</src>.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   Record rec;
+///   rec.set("OBSERVER", RecordValue(std::string{"Alice"}));
+///   rec.set("NANT",     RecordValue(std::int32_t{27}));
+///
+///   // Lookup
+///   if (const RecordValue* v = rec.find("OBSERVER"))
+///       std::cout << std::get<std::string>(v->storage()) << "\n";
+///
+///   // Iterate in insertion order
+///   for (const auto& [key, val] : rec.entries())
+///       std::cout << key << "\n";
+///
+///   // Remove
+///   rec.remove("NANT");
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// casacore TableRecord uses a complex class hierarchy with runtime type
+/// registration.  Record provides a simpler, header-only alternative that
+/// is sufficient for the keyword payloads encountered in real Measurement
+/// Sets while remaining straightforward to serialize and deserialize.
+/// </motivation>
 class Record {
   public:
     /// Stored key/value entry type.

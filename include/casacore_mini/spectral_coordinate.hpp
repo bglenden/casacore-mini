@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/coordinate.hpp"
@@ -11,10 +14,65 @@ namespace casacore_mini {
 /// @file
 /// @brief Spectral coordinate: linear frequency channel mapping.
 
-/// A spectral coordinate mapping pixel channels to frequencies.
+/// <summary>
+/// Single-axis coordinate mapping pixel channel indices to physical
+/// frequencies via a linear transform.
+/// </summary>
 ///
-/// Uses a simple linear mapping: freq = crval + cdelt * (pixel - crpix).
-/// Supports an optional rest frequency for velocity conversion.
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Coordinate — abstract base class
+///   <li> FrequencyRef — enumeration of supported frequency reference frames
+///         (LSRK, LSRD, BARY, TOPO, etc.)
+/// </prerequisite>
+///
+/// <synopsis>
+/// SpectralCoordinate represents a single spectral (frequency) axis.  The
+/// pixel-to-world mapping is purely linear:
+///
+/// <srcblock>
+///   freq_hz = crval_hz + cdelt_hz * (pixel - crpix)
+/// </srcblock>
+///
+/// where crval_hz is the reference frequency at reference pixel crpix, and
+/// cdelt_hz is the channel width (increment).  The reference pixel is
+/// 0-based, consistent with the rest of casacore-mini's pixel convention.
+///
+/// The coordinate carries a frequency reference frame (FrequencyRef) that
+/// identifies the Doppler/kinematic frame in which the frequencies are
+/// expressed (e.g. LSRK for radio spectral-line data).
+///
+/// An optional rest frequency may be stored for velocity-frame conversions.
+/// When non-zero, it allows external code to compute radio or optical
+/// velocities relative to a spectral line.
+///
+/// The world axis name is "Frequency" and the unit is "Hz".
+/// </synopsis>
+///
+/// <example>
+/// Construct a 1024-channel LSRK spectral axis centred on the HI 21-cm line:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   const double hi_rest_hz = 1.42040575177e9; // HI rest frequency in Hz
+///   const double chan_width  = 10.0e3;          // 10 kHz per channel
+///
+///   SpectralCoordinate spec(
+///       FrequencyRef::lsrk,
+///       hi_rest_hz,       // crval: centre frequency at reference pixel
+///       chan_width,        // cdelt: channel width in Hz
+///       511.5,             // crpix: centre of a 1024-channel band (0-based)
+///       hi_rest_hz         // rest frequency for velocity conversion
+///   );
+///
+///   // Channel 511.5 should return the rest frequency
+///   auto world = spec.to_world({511.5}); // world[0] ~ 1.42040575177e9 Hz
+///
+///   // Inverse: which channel corresponds to 1.421 GHz?
+///   auto pixel = spec.to_pixel({1.421e9});
+/// </srcblock>
+/// </example>
 class SpectralCoordinate : public Coordinate {
   public:
     /// Construct a spectral coordinate.

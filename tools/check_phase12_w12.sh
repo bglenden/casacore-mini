@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # P12-W12 wave gate: Storage manager fidelity re-audit + deferred-on-demand freeze
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

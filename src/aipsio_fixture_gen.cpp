@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// Fixture generator: produces binary Record .bin files matching existing
 /// showtableinfo text fixture structures. Run once, commit output to git.
 

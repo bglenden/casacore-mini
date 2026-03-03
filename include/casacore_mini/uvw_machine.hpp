@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/measure_types.hpp"
@@ -8,6 +11,23 @@ namespace casacore_mini {
 
 /// @file
 /// @brief UVW rotation, parallactic angle, and earth magnetic field utilities.
+
+/// <synopsis>
+/// This header provides free functions and stateful helper classes for three
+/// categories of radio-astronomy geometric computations:
+///
+/// 1. **UVW rotation** — transforms baseline UVW coordinates from one phase
+///    centre to another using a 3x3 rotation matrix.
+/// 2. **Parallactic angle** — computes the parallactic angle for a source at
+///    a given hour angle and declination, as seen from a geodetic latitude.
+/// 3. **Earth magnetic field** — placeholder (not implemented; always throws).
+///
+/// The free functions `uvw_rotation_matrix`, `rotate_uvw`, and
+/// `parallactic_angle` are the computational kernels.  The stateful classes
+/// `UvwMachine`, `ParAngleMachine`, and `EarthMagneticMachine` cache fixed
+/// parameters (phase-centre coordinates, observer latitude, epoch) to avoid
+/// recomputing them on every row.
+/// </synopsis>
 
 /// Compute 3x3 rotation matrix to transform UVW coordinates from one phase
 /// center (ra1, dec1) to another (ra2, dec2). All angles in radians.
@@ -34,7 +54,27 @@ namespace casacore_mini {
 [[noreturn]] void earth_magnetic_field(double lon_rad, double lat_rad, double height_m,
                                        double epoch_yr);
 
-/// Stateful UVW conversion helper.
+/// <summary>
+/// Stateful UVW phase-centre conversion helper.
+/// </summary>
+///
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `UvwMachine` pre-computes the 3x3 rotation matrix for a fixed source-to-
+/// target phase-centre pair and applies it to successive UVW vectors via
+/// `convert()`.  This avoids recomputing six trigonometric functions per row
+/// when re-phasing a large measurement set.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   UvwMachine machine(from_ra, from_dec, to_ra, to_dec);
+///   for (uint64_t row = 0; row < nrow; ++row) {
+///       auto rotated = machine.convert(uvw_at(row));
+///   }
+/// </srcblock>
+/// </example>
 class UvwMachine {
   public:
     UvwMachine(double from_ra_rad, double from_dec_rad, double to_ra_rad, double to_dec_rad);
@@ -48,7 +88,16 @@ class UvwMachine {
     std::array<std::array<double, 3>, 3> rotation_matrix_{};
 };
 
+/// <summary>
 /// Stateful parallactic-angle helper for a fixed observer latitude.
+/// </summary>
+///
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `ParAngleMachine` caches the observer geodetic latitude and wraps
+/// `parallactic_angle()` to avoid passing the latitude on every call.
+/// </synopsis>
 class ParAngleMachine {
   public:
     explicit ParAngleMachine(double latitude_rad) noexcept : latitude_rad_(latitude_rad) {}
@@ -59,7 +108,17 @@ class ParAngleMachine {
     double latitude_rad_ = 0.0;
 };
 
+/// <summary>
 /// Stateful earth magnetic field helper for a fixed epoch.
+/// </summary>
+///
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// Placeholder class mirroring casacore's `EarthMagneticMachine` interface.
+/// The `compute` method always throws `std::runtime_error` because the IGRF
+/// model is not implemented.
+/// </synopsis>
 class EarthMagneticMachine {
   public:
     explicit EarthMagneticMachine(double epoch_yr) noexcept : epoch_yr_(epoch_yr) {}

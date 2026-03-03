@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Phase 11 Wave 2 gate: closure contract lock + tranche planning
 set -euo pipefail
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file table_info_test.cpp
 /// @brief P12-W10 tests for Table info/metadata, private keywords, has_column,
 ///        parse_data_type_name, data_type_to_string utilities.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include <array>
@@ -6,6 +9,27 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Thin C++ wrappers around ERFA astronomical functions.
+
+/// <synopsis>
+/// This header provides a thin, exception-safe C++ wrapper layer over the
+/// ERFA (Essential Routines for Fundamental Astronomy) C library.  Each
+/// function maps closely to its ERFA counterpart, converting error codes to
+/// `std::runtime_error` exceptions and using C++ value semantics where the
+/// ERFA interface uses output pointers.
+///
+/// Time scale conversions (UTC, TAI, TT, UT1, TDB) use the standard
+/// two-part Julian Date representation `(jd1, jd2)` where the split is
+/// typically `jd1 = 2400000.5` (the Modified Julian Date epoch) and
+/// `jd2 = MJD`.
+///
+/// Coordinate conversions use angular values in radians throughout.
+///
+/// Error handling:
+/// - ERFA return values of 0 (OK) and +1 (dubious year/date, acceptable)
+///   are treated as success.
+/// - Return values <= -1 (unacceptable date, internal error) throw
+///   `std::runtime_error`.
+/// </synopsis>
 
 /// UTC to TAI. Input/output as 2-part JD (typically JD = 2400000.5 + MJD).
 /// @throws std::runtime_error if ERFA returns an error status.

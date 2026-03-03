@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file ms_selection_parity_extended_test.cpp
 /// @brief P12-W8 tests for MSSelection parser/evaluator closure:
 ///   regex patterns, antenna &&/&&&, field negation/range/bounds,

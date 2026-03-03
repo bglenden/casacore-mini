@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #include "casacore_mini/aipsio_reader.hpp"
 #include "casacore_mini/aipsio_record_reader.hpp"
 #include "casacore_mini/measure_coord_metadata.hpp"

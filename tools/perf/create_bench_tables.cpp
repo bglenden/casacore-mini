@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // create_bench_tables.cpp -- casacore-original: create 3 benchmark tables
 // (SSM, ISM, TSM) with 500k rows for read-benchmark comparison.
 //

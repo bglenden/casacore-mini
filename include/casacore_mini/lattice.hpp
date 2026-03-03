@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/lattice_array.hpp"
@@ -36,10 +39,77 @@ template <typename T> class LatticeIterator;
 
 // ── Lattice<T> ─────────────────────────────────────────────────────────
 
-/// Abstract base class for all lattice types.
+/// <summary>
+/// Abstract base class for all N-dimensional array (lattice) types.
+/// </summary>
 ///
-/// Defines the minimal interface for multidimensional data access.
-/// Data is always in Fortran order (first axis varies fastest).
+/// <use visibility=export>
+///
+/// <synopsis>
+/// Lattice<T> defines the minimal interface for reading and writing
+/// multidimensional data in casacore-mini.  All data is stored and
+/// accessed in Fortran order (first axis varies fastest), consistent
+/// with casacore's array convention.
+///
+/// Concrete implementations include:
+/// <ul>
+///   <li> ArrayLattice<T>  — all data in memory
+///   <li> PagedArray<T>    — data on disk in a casacore table
+///   <li> TempLattice<T>   — memory for small data, disk for large
+///   <li> SubLattice<T>    — windowed view of another lattice
+///   <li> LatticeConcat<T> — concatenation of multiple lattices
+///   <li> RebinLattice<T>  — integer-factor downsampled view
+/// </ul>
+///
+/// The lattice hierarchy mirrors casacore's <src>Lattice</src> /
+/// <src>MaskedLattice</src> / <src>ImageInterface</src> design but
+/// strips AIPS++-era complexity in favour of modern C++17 idioms.
+///
+/// <b>Read/write contract:</b> before calling any mutating method
+/// (<src>put</src>, <src>put_slice</src>, <src>put_at</src>,
+/// <src>set</src>, <src>apply</src>), callers must verify
+/// <src>is_writable()</src> returns true.  Read-only lattice types
+/// (SubLattice constructed from a const parent, LatticeConcat,
+/// RebinLattice) will throw <src>std::runtime_error</src> on write
+/// attempts.
+///
+/// <b>Ownership:</b> Lattice does not own its data by default; only
+/// ArrayLattice and PagedArray are primary owners.  SubLattice,
+/// LatticeConcat, and RebinLattice hold non-owning pointers to their
+/// parent(s) and must not outlive them.
+/// </synopsis>
+///
+/// <example>
+/// Read and modify an in-memory lattice:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   IPosition shape{64, 64, 16};
+///   ArrayLattice<float> lat(shape, 0.0f);
+///
+///   // Write a single pixel.
+///   lat.put_at(1.5f, IPosition{10, 20, 5});
+///
+///   // Read a slice.
+///   Slicer sl(IPosition{0, 0, 0}, IPosition{8, 8, 1});
+///   auto chunk = lat.get_slice(sl);
+///
+///   // Apply a function element-wise (squares every pixel).
+///   lat.apply([](float x) { return x * x; });
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// A uniform abstract interface allows pipeline algorithms to be written
+/// once and applied to in-memory, disk-backed, sub-region, concatenated,
+/// or rebinned arrays without modification, mirroring casacore's approach
+/// to data abstraction.
+/// </motivation>
+///
+/// <prerequisite>
+///   <li> LatticeArray<T> — concrete owning array type
+///   <li> IPosition       — shape and index vector
+///   <li> Slicer          — sub-region descriptor
+/// </prerequisite>
 template <typename T>
 class Lattice {
   public:
@@ -87,9 +157,34 @@ class Lattice {
 
 // ── MaskedLattice<T> ──────────────────────────────────────────────────
 
-/// Abstract lattice with an associated boolean mask.
+/// <summary>
+/// Abstract lattice that also exposes a boolean pixel mask.
+/// </summary>
 ///
-/// Mask convention: `true` means the pixel is valid (not masked out).
+/// <use visibility=export>
+///
+/// <synopsis>
+/// MaskedLattice<T> extends <src>Lattice<T></src> with methods for
+/// reading a per-pixel validity mask.  The mask convention follows
+/// casacore: <b>true means the pixel is valid</b> (unmasked); false
+/// means the pixel is flagged and should be ignored by algorithms.
+///
+/// Not all MaskedLattice implementations carry an explicit mask.
+/// <src>has_pixel_mask()</src> returns false for lattice types that
+/// always treat every pixel as valid (ArrayLattice, PagedArray, etc.).
+/// In that case <src>get_mask()</src> returns an all-true array of the
+/// appropriate shape.
+///
+/// Implementations that do carry a mask (e.g. casacore images with
+/// OTF masks) override <src>has_pixel_mask()</src> to return true and
+/// provide genuine data from <src>get_mask()</src>.
+/// </synopsis>
+///
+/// <note role="caution">
+/// casacore's mask convention is the logical inverse of FITS BLANK or
+/// IEEE NaN masking: a stored value of <b>true</b> indicates a good
+/// (not blanked) pixel, while <b>false</b> marks a flagged pixel.
+/// </note>
 template <typename T>
 class MaskedLattice : public Lattice<T> {
   public:
@@ -106,9 +201,48 @@ class MaskedLattice : public Lattice<T> {
 
 // ── ArrayLattice<T> ───────────────────────────────────────────────────
 
-/// In-memory lattice backed by a `LatticeArray<T>`.
+/// <summary>
+/// In-memory lattice backed by a LatticeArray<T>.
+/// </summary>
 ///
-/// This is the simplest concrete Lattice: all data lives in memory.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// ArrayLattice<T> is the simplest concrete Lattice: all data lives in
+/// a <src>LatticeArray<T></src> held as a member.  It is always writable
+/// and never has a pixel mask (every pixel is implicitly valid).
+///
+/// Because the underlying <src>LatticeArray<T></src> uses copy-on-write
+/// storage, constructing an ArrayLattice from an existing LatticeArray
+/// is cheap (shared pointer copy) until the first mutation.
+///
+/// Use ArrayLattice when:
+/// <ul>
+///   <li> The entire dataset fits comfortably in RAM.
+///   <li> Random access to individual elements is required.
+///   <li> You need an mdspan view of the data (via <src>array().const_view<N>()</src>).
+/// </ul>
+///
+/// For data larger than available RAM, prefer <src>TempLattice<T></src>
+/// (which transparently spills to disk) or <src>PagedArray<T></src>.
+/// </synopsis>
+///
+/// <example>
+/// Creating and slicing an in-memory lattice:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   ArrayLattice<float> lat(IPosition{256, 256, 4}, 0.0f);
+///   lat.put_at(42.0f, IPosition{128, 128, 2});
+///
+///   Slicer sl(IPosition{0, 0, 2}, IPosition{256, 256, 1});
+///   auto plane = lat.get_slice(sl);    // 256 x 256 x 1 LatticeArray
+///
+///   // Access the raw array for mdspan work.
+///   const auto& arr = lat.array();
+///   auto v = arr.const_view<3>();      // 3-D mdspan
+/// </srcblock>
+/// </example>
 template <typename T>
 class ArrayLattice : public MaskedLattice<T> {
   public:
@@ -144,10 +278,61 @@ class ArrayLattice : public MaskedLattice<T> {
 
 // ── PagedArray<T> ─────────────────────────────────────────────────────
 
-/// Disk-backed lattice stored as a single-column table with TiledShapeStMan.
+/// <summary>
+/// Disk-backed lattice stored as a single-column casacore table.
+/// </summary>
 ///
-/// Compatible with casacore's `PagedArray` table format: a table with
-/// one array column ("map") backed by a tiled storage manager.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// PagedArray<T> persists lattice data in a casacore-format table
+/// directory on disk.  The table schema mirrors casacore's
+/// <src>PagedArray</src> layout: a table with one array column named
+/// "map" backed by a tiled storage manager (TiledShapeStMan).
+///
+/// Two construction modes are available:
+/// <ul>
+///   <li> Create a new table: <src>PagedArray(shape, path)</src>.
+///        The path must not already exist.
+///   <li> Open an existing table: <src>PagedArray(path, writable)</src>.
+///        Pass <src>writable = true</src> to enable writes.
+/// </ul>
+///
+/// <src>get()</src> reads the entire array into a LatticeArray in
+/// memory.  For large arrays prefer <src>get_slice()</src> combined
+/// with <src>LatticeIterator<T></src> to process data in tiles.
+///
+/// Call <src>flush()</src> to ensure all pending writes reach disk
+/// before the object is destroyed or the path is handed to another
+/// process.
+/// </synopsis>
+///
+/// <example>
+/// Creating and reading back a paged array:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   namespace fs = std::filesystem;
+///
+///   fs::path p = "/tmp/my_paged_array";
+///   {
+///       PagedArray<float> pa(IPosition{1024, 1024, 64}, p);
+///       pa.set(0.0f);
+///       pa.put_at(1.0f, IPosition{512, 512, 32});
+///       pa.flush();
+///   }
+///
+///   // Re-open read-only.
+///   PagedArray<float> pa2(p);
+///   float val = pa2.get_at(IPosition{512, 512, 32});
+///   assert(val == 1.0f);
+/// </srcblock>
+/// </example>
+///
+/// <note role="caution">
+/// PagedArray does not delete the on-disk table when the C++ object is
+/// destroyed.  Callers are responsible for removing the table directory
+/// when it is no longer needed (e.g. via <src>Table::drop_table()</src>).
+/// </note>
 template <typename T>
 class PagedArray : public MaskedLattice<T> {
   public:
@@ -189,9 +374,56 @@ class PagedArray : public MaskedLattice<T> {
 
 // ── SubLattice<T> ─────────────────────────────────────────────────────
 
-/// A view into a sub-region of another lattice.
+/// <summary>
+/// A non-owning view into a sub-region of another lattice.
+/// </summary>
 ///
-/// Does not own data. Reads/writes are forwarded to the parent lattice.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// SubLattice<T> presents a windowed, optionally strided, view of a
+/// parent <src>Lattice<T></src>.  It does not own any data; all reads
+/// and writes are forwarded to the parent after translating local
+/// coordinates into the parent coordinate space.
+///
+/// The sub-region is specified by a <src>Slicer</src> supplied at
+/// construction time.  The SubLattice shape equals
+/// <src>slicer.length()</src>.
+///
+/// Two constructors are provided:
+/// <ul>
+///   <li> Mutable: <src>SubLattice(Lattice<T>&, Slicer)</src>.
+///        Writable only if the parent is writable.
+///   <li> Read-only: <src>SubLattice(const Lattice<T>&, Slicer)</src>.
+///        Always read-only regardless of the parent's writability.
+/// </ul>
+///
+/// Coordinate mapping:  for a local index <src>l[d]</src> on axis d,
+/// the corresponding parent index is
+/// <src>slicer.start()[d] + l[d] * slicer.stride()[d]</src>.
+/// </synopsis>
+///
+/// <example>
+/// Extracting a writable sub-region:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   ArrayLattice<float> parent(IPosition{512, 512, 32}, 0.0f);
+///
+///   // View the first 64 x 64 x 1 region of plane 10.
+///   Slicer sl(IPosition{0, 0, 10}, IPosition{64, 64, 1});
+///   SubLattice<float> sub(parent, sl);
+///
+///   sub.put_at(7.0f, IPosition{0, 0, 0});
+///   // Equivalent to: parent.put_at(7.0f, IPosition{0, 0, 10})
+/// </srcblock>
+/// </example>
+///
+/// <note role="caution">
+/// SubLattice holds a raw pointer to its parent.  The parent must
+/// remain alive for the entire lifetime of the SubLattice; use-after-free
+/// is undefined behaviour.
+/// </note>
 template <typename T>
 class SubLattice : public MaskedLattice<T> {
   public:
@@ -231,10 +463,55 @@ class SubLattice : public MaskedLattice<T> {
 
 // ── TempLattice<T> ───────────────────────────────────────────────────
 
-/// Temporary lattice that lives in memory (small) or on disk (large).
+/// <summary>
+/// Temporary lattice that stores data in memory for small arrays and
+/// transparently spills to disk for large ones.
+/// </summary>
 ///
-/// If the total size exceeds `max_memory_bytes`, data is stored in a
-/// temporary table on disk. Otherwise, it behaves like an ArrayLattice.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// TempLattice<T> chooses its backing store at construction time:
+///
+/// <ul>
+///   <li> If <src>shape.product() * sizeof(T) <= max_memory_bytes</src>,
+///        a <src>ArrayLattice<T></src> is used (all data in RAM).
+///   <li> Otherwise, a <src>PagedArray<T></src> in a system-designated
+///        temporary directory is used.
+/// </ul>
+///
+/// The default memory limit is 16 MiB, which is appropriate for
+/// moderate-sized intermediate arrays in image-plane algorithms.
+/// Adjust <src>max_memory_bytes</src> based on the available system
+/// RAM and the size of the data being processed.
+///
+/// The temporary table (if created) is stored under
+/// <src>std::filesystem::temp_directory_path() / "casacore_mini_tmp"</src>
+/// with a hash-derived filename.  It is <b>not</b> automatically
+/// deleted when the TempLattice is destroyed; callers should arrange
+/// cleanup if the temporary directory must not persist.
+///
+/// All public methods delegate to the internal implementation
+/// (<src>ArrayLattice</src> or <src>PagedArray</src>) transparently,
+/// so callers need not distinguish between the two cases.
+/// </synopsis>
+///
+/// <example>
+/// Using TempLattice as an intermediate work buffer:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // Automatically uses RAM for small arrays, disk for large ones.
+///   TempLattice<float> work(IPosition{4096, 4096, 1});
+///   work.set(0.0f);
+///
+///   if (work.is_paged()) {
+///       // Large array — was spilled to disk.
+///   } else {
+///       // Small array — lives in RAM.
+///   }
+/// </srcblock>
+/// </example>
 template <typename T>
 class TempLattice : public MaskedLattice<T> {
   public:
@@ -271,11 +548,59 @@ class TempLattice : public MaskedLattice<T> {
 
 // ── LatticeConcat<T> ──────────────────────────────────────────────────
 
-/// Read-only concatenation of multiple lattices along one axis.
+/// <summary>
+/// Read-only logical concatenation of multiple lattices along one axis.
+/// </summary>
 ///
-/// The concatenation axis must have the same shape for all non-concat
-/// dimensions. The result shape on the concat axis is the sum of the
-/// input shapes on that axis.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// LatticeConcat<T> presents two or more lattices as a single larger
+/// lattice joined along a specified axis without copying data.  Only
+/// the shapes of the constituent lattices along the concatenation axis
+/// are summed; all other axes must have identical extents.
+///
+/// For example, concatenating three lattices of shape {64, 64, 16}
+/// along axis 2 yields a LatticeConcat of shape {64, 64, 48}.
+///
+/// Reads are dispatched to the appropriate component lattice based on
+/// the position along the concatenation axis.  Slices that span a
+/// component boundary are handled by reading from the full concatenated
+/// array (<src>get()</src>) and then slicing the result.
+///
+/// LatticeConcat is read-only: calls to <src>put()</src>,
+/// <src>put_slice()</src>, or <src>put_at()</src> throw
+/// <src>std::runtime_error</src>.
+///
+/// The component lattice pointers must remain valid for the lifetime of
+/// the LatticeConcat object.
+/// </synopsis>
+///
+/// <example>
+/// Concatenating spectral planes:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   ArrayLattice<float> a(IPosition{64, 64, 10}, 1.0f);
+///   ArrayLattice<float> b(IPosition{64, 64, 10}, 2.0f);
+///   ArrayLattice<float> c(IPosition{64, 64,  5}, 3.0f);
+///
+///   // Concatenate along axis 2 (channel axis).
+///   LatticeConcat<float> cat(
+///       {&a, &b, &c},   // raw pointers; a, b, c must outlive cat
+///       2);
+///   assert(cat.shape() == (IPosition{64, 64, 25}));
+///
+///   // Read pixel from the second component.
+///   float v = cat.get_at(IPosition{0, 0, 15}); // in component b
+/// </srcblock>
+/// </example>
+///
+/// <note role="caution">
+/// LatticeConcat holds raw (non-owning) pointers to the component
+/// lattices.  If any component is destroyed before the LatticeConcat,
+/// subsequent reads will produce undefined behaviour.
+/// </note>
 template <typename T>
 class LatticeConcat : public MaskedLattice<T> {
   public:
@@ -319,10 +644,50 @@ class LatticeConcat : public MaskedLattice<T> {
 
 // ── RebinLattice<T> ──────────────────────────────────────────────────
 
-/// Read-only view that rebins (downsamples) a lattice by integer factors.
+/// <summary>
+/// Read-only downsampling view of a lattice by integer rebin factors.
+/// </summary>
 ///
-/// Each output pixel is the mean of a bin of input pixels. The output
-/// shape is `ceil(input_shape[d] / factor[d])` for each dimension.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// RebinLattice<T> presents a coarser version of a parent lattice.
+/// Each output pixel is the arithmetic mean of a rectangular bin of
+/// input pixels whose size on axis d is <src>factors[d]</src>.
+///
+/// The output shape on axis d is
+/// <src>ceil(parent_shape[d] / factors[d])</src>.  If the parent extent
+/// is not evenly divisible by the factor, the last bin on that axis is
+/// smaller, averaging only the remaining input pixels.
+///
+/// All rebin factors must be positive (>= 1).  A factor of 1 on an
+/// axis leaves that axis unchanged.
+///
+/// RebinLattice is read-only: calls to <src>put()</src>,
+/// <src>put_slice()</src>, or <src>put_at()</src> throw
+/// <src>std::runtime_error</src>.
+///
+/// <b>Performance note:</b> <src>get()</src> reads the entire parent
+/// lattice into memory and then computes the rebin.  For large lattices,
+/// use <src>get_at()</src> or <src>get_slice()</src> to limit the
+/// working set.
+/// </synopsis>
+///
+/// <example>
+/// Downsampling a spectral cube:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   ArrayLattice<float> full(IPosition{1024, 1024, 128}, 1.0f);
+///
+///   // Bin by 4 in each spatial axis, 2 in spectral.
+///   RebinLattice<float> binned(full, IPosition{4, 4, 2});
+///   assert(binned.shape() == (IPosition{256, 256, 64}));
+///
+///   // Read a single output pixel (mean of 4x4x2 = 32 input pixels).
+///   float v = binned.get_at(IPosition{0, 0, 0});
+/// </srcblock>
+/// </example>
 template <typename T>
 class RebinLattice : public MaskedLattice<T> {
   public:
@@ -355,10 +720,62 @@ class RebinLattice : public MaskedLattice<T> {
 
 // ── LatticeIterator<T> ────────────────────────────────────────────────
 
+/// <summary>
 /// Cursor-based iterator that walks through a lattice in tile-sized chunks.
+/// </summary>
 ///
-/// Iterates in Fortran order (first axis varies fastest). At each step,
-/// the cursor provides a `LatticeArray<T>` containing the current chunk.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// LatticeIterator<T> divides a lattice into rectangular tiles of a
+/// requested cursor shape and iterates over them in Fortran order (the
+/// first axis position advances fastest).  At each step the caller can:
+///
+/// <ul>
+///   <li> Query the current tile position via <src>position()</src>.
+///   <li> Obtain the actual tile shape (may be smaller at the lattice
+///        boundary) via <src>cursor_shape()</src>.
+///   <li> Read the current tile into a LatticeArray via <src>cursor()</src>.
+///   <li> Write modified data back (for writable lattices) via
+///        <src>write_cursor()</src>.
+/// </ul>
+///
+/// Iteration terminates when <src>at_end()</src> returns true.  Call
+/// <src>reset()</src> to restart from the beginning.
+///
+/// Two constructors are provided mirroring <src>SubLattice</src>:
+/// <ul>
+///   <li> Mutable: <src>LatticeIterator(Lattice<T>&, cursor_shape)</src>.
+///   <li> Read-only: <src>LatticeIterator(const Lattice<T>&, cursor_shape)</src>.
+/// </ul>
+///
+/// Tile-based iteration is the recommended approach for processing
+/// data that may not fit entirely in memory (e.g. <src>PagedArray<T></src>
+/// or <src>TempLattice<T></src> with disk backing).
+/// </synopsis>
+///
+/// <example>
+/// Iterating over a lattice in 64 x 64 x 1 tiles:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   ArrayLattice<float> lat(IPosition{256, 256, 16}, 1.0f);
+///   LatticeIterator<float> it(lat, IPosition{64, 64, 1});
+///
+///   for (; !it.at_end(); ++it) {
+///       auto tile = it.cursor();         // LatticeArray<float>
+///       tile.make_unique();
+///       // ... process tile in place ...
+///       it.write_cursor(tile);           // write modified tile back
+///   }
+/// </srcblock>
+/// </example>
+///
+/// <note role="caution">
+/// LatticeIterator holds a raw pointer to its lattice; the lattice must
+/// remain alive for the entire iteration.  Modifying the lattice shape
+/// while an iterator is active leads to undefined behaviour.
+/// </note>
 template <typename T>
 class LatticeIterator {
   public:

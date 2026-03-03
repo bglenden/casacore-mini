@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/ms_enums.hpp"
@@ -19,15 +22,82 @@ namespace casacore_mini {
 /// Wraps a table directory tree (main table + subtable directories) and
 /// provides lifecycle management, subtable access, and schema introspection.
 
-/// MeasurementSet implementation using composition over Table.
+/// <summary>
+/// High-level interface to a CASA MeasurementSet (MS) table directory.
+/// </summary>
 ///
-/// A MeasurementSet is a casacore table directory with:
-/// - A main table whose `table.info` type is "Measurement Set"
-/// - Table-level keywords referencing subtable directories
-/// - 12 required subtable directories (ANTENNA, DATA_DESCRIPTION, FEED, FIELD,
-///   FLAG_CMD, HISTORY, OBSERVATION, POINTING, POLARIZATION, PROCESSOR,
-///   SPECTRAL_WINDOW, STATE) plus 5 optional (DOPPLER, FREQ_OFFSET, SOURCE,
-///   SYSCAL, WEATHER)
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Table — the underlying table access layer
+///   <li> MSEnums — column and subtable name constants
+/// </prerequisite>
+///
+/// <synopsis>
+/// A MeasurementSet is the standard data format for radio interferometry
+/// visibility data.  It is a casacore table directory whose main table
+/// stores one visibility sample per row, and whose 12 required subtable
+/// directories hold instrumental and observational metadata.
+///
+/// The required subtables are:
+/// <ul>
+///   <li> ANTENNA         — antenna positions and properties
+///   <li> DATA_DESCRIPTION — (SPW, polarisation) pairs
+///   <li> FEED            — feed properties per antenna
+///   <li> FIELD           — source pointing directions
+///   <li> FLAG_CMD        — flagging history
+///   <li> HISTORY         — processing log
+///   <li> OBSERVATION     — observation metadata
+///   <li> POINTING        — time-varying antenna pointings
+///   <li> POLARIZATION    — Stokes product definitions
+///   <li> PROCESSOR       — correlator descriptions
+///   <li> SPECTRAL_WINDOW — frequency axis definitions
+///   <li> STATE           — correlator state (on-source, reference, etc.)
+/// </ul>
+///
+/// Five optional subtables may also be present: DOPPLER, FREQ_OFFSET, SOURCE,
+/// SYSCAL, and WEATHER.
+///
+/// The main table columns include TIME, ANTENNA1, ANTENNA2, DATA (complex
+/// visibilities), FLAG, UVW, and the optional WEIGHT and SIGMA columns.
+///
+/// Subtables are opened lazily: the first call to <src>subtable(name)</src>
+/// opens the directory from disk and caches it. Subsequent calls return the
+/// cached Table.
+/// </synopsis>
+///
+/// <example>
+/// Create a new MeasurementSet and populate its ANTENNA subtable:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   auto ms = MeasurementSet::create("my.ms");
+///
+///   auto& ant = ms.subtable("ANTENNA");
+///   ant.add_row(2);
+///   ant.write_scalar_cell("NAME", 0, CellValue(std::string("ANT1")));
+///   ant.write_scalar_cell("NAME", 1, CellValue(std::string("ANT2")));
+///   ms.flush();
+/// </srcblock>
+/// </example>
+///
+/// <example>
+/// Open an existing MS and query its row count:
+/// <srcblock>
+///   using namespace casacore_mini;
+///   auto ms = MeasurementSet::open("my.ms");
+///   std::cout << "rows: " << ms.row_count() << "\n";
+///   for (auto& name : ms.subtable_names())
+///       std::cout << "  " << name << "\n";
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// The MeasurementSet class provides a clean lifecycle wrapper around
+/// the table directory tree, ensuring all required subtables are created
+/// on construction and lazily opened on first access.  Ownership of the
+/// root path and all open Table objects lives here so that callers never
+/// need to manage subdirectory paths directly.
+/// </motivation>
 class MeasurementSet {
   public:
     /// Create a new empty MeasurementSet at the given path.

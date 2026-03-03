@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file taql_udf_equiv_test.cpp
 /// @brief P12-W7 tests: datetime, angle, array, complex, unit, cone, measure funcs.
 

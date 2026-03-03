@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
-from __future__ import annotations
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 
+from __future__ import annotations
 import hashlib
 import pathlib
 import struct
 import sys
-
 ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "tools"))
-
 import oracle_dump  # noqa: E402
-
-
 def sha256_hex(data: bytes) -> str:
     digest = hashlib.sha256()
     digest.update(data)
     return digest.hexdigest()
-
-
 def payload_hash(rows: list[bytes]) -> str:
     payload = bytearray()
     payload.extend(struct.pack("<I", len(rows)))
@@ -25,8 +21,6 @@ def payload_hash(rows: list[bytes]) -> str:
         payload.extend(struct.pack("<I", len(row)))
         payload.extend(row)
     return sha256_hex(bytes(payload))
-
-
 def encode_array_row(elements: list[bytes]) -> bytes:
     encoded = bytearray()
     encoded.extend(struct.pack("<I", len(elements)))
@@ -34,28 +28,18 @@ def encode_array_row(elements: list[bytes]) -> bytes:
         encoded.extend(struct.pack("<I", len(element)))
         encoded.extend(element)
     return bytes(encoded)
-
-
 def encode_int32(value: int) -> bytes:
     return struct.pack("<i", value)
-
-
 def encode_complex64(real: float, imag: float) -> bytes:
     return struct.pack("<ff", real, imag)
-
-
 def encode_complex128(real: float, imag: float) -> bytes:
     return struct.pack("<dd", real, imag)
-
-
 def require_hash(name: str, column: dict[str, str], taql_text: str, expected: str) -> None:
     observed, reason = oracle_dump.typed_payload_hash(column, taql_text)
     if reason is not None:
         raise AssertionError(f"{name}: unexpected reason {reason}")
     if observed != expected:
         raise AssertionError(f"{name}: expected {expected}, got {observed}")
-
-
 def test_complex_scalar() -> None:
     taql_text = """    select result of 2 rows
 1 selected columns:  ccol
@@ -74,8 +58,6 @@ def test_complex_scalar() -> None:
         taql_text,
         expected,
     )
-
-
 def test_dcomplex_scalar() -> None:
     taql_text = """    select result of 1 rows
 1 selected columns:  zcol
@@ -88,8 +70,6 @@ def test_dcomplex_scalar() -> None:
         taql_text,
         expected,
     )
-
-
 def test_complex_array() -> None:
     taql_text = """    select result of 2 rows
 1 selected columns:  carr
@@ -108,8 +88,6 @@ def test_complex_array() -> None:
         taql_text,
         expected,
     )
-
-
 def test_multidim_array_matrix_format() -> None:
     taql_text = """    select result of 2 rows
 1 selected columns:  arrcol
@@ -132,8 +110,6 @@ Axis Lengths: [2, 2]  (NB: Matrix in Row/Column order)
         taql_text,
         expected,
     )
-
-
 def test_multidim_array_slice_format() -> None:
     taql_text = """Ndim=3 Axis Lengths: [2, 2, 2]
 [0, 0, 0][1, 2]
@@ -163,8 +139,6 @@ def test_multidim_array_slice_format() -> None:
         taql_text,
         expected,
     )
-
-
 def main() -> int:
     test_complex_scalar()
     test_dcomplex_scalar()
@@ -173,7 +147,5 @@ def main() -> int:
     test_multidim_array_slice_format()
     print("Phase 2 typed hash checks passed")
     return 0
-
-
 if __name__ == "__main__":
     sys.exit(main())

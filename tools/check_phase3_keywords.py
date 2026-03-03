@@ -1,34 +1,28 @@
 #!/usr/bin/env python3
-from __future__ import annotations
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 
+from __future__ import annotations
 import hashlib
 import json
 import pathlib
 import sys
 from typing import Any
-
-
 def canonical_text(text: str) -> str:
     lines = [line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
     while lines and lines[-1] == "":
         lines.pop()
     return "\n".join(lines) + "\n"
-
-
 def sha256_hex(data: bytes) -> str:
     digest = hashlib.sha256()
     digest.update(data)
     return digest.hexdigest()
-
-
 def extract_keywords_section(showtableinfo_text: str) -> str:
     marker = "Keywords of main table"
     marker_index = showtableinfo_text.find(marker)
     if marker_index < 0:
         raise RuntimeError("missing 'Keywords of main table' section")
     return showtableinfo_text[marker_index + len(marker) :]
-
-
 EXPECTED: dict[str, dict[str, Any]] = {
     "logtable_stdstman_keywords": {
         "fixture_path": "data/corpus/fixtures/logtable_stdstman_keywords/showtableinfo.txt",
@@ -72,32 +66,24 @@ EXPECTED: dict[str, dict[str, Any]] = {
         ],
     },
 }
-
-
 def main() -> int:
     repo_root = pathlib.Path(__file__).resolve().parent.parent
     failures: list[str] = []
     report: dict[str, Any] = {"artifacts": {}}
-
     for artifact_id, spec in EXPECTED.items():
         fixture_path = (repo_root / str(spec["fixture_path"])).resolve()
         artifact_report: dict[str, Any] = {"fixture_path": str(fixture_path)}
-
         if not fixture_path.exists():
             failures.append(f"{artifact_id}: missing fixture file {fixture_path}")
             report["artifacts"][artifact_id] = artifact_report
             continue
-
         text = fixture_path.read_text(encoding="utf-8")
         full_canonical = canonical_text(text)
         keywords_canonical = canonical_text(extract_keywords_section(text))
-
         observed_full_sha = sha256_hex(full_canonical.encode("utf-8"))
         observed_keywords_sha = sha256_hex(keywords_canonical.encode("utf-8"))
-
         artifact_report["observed_full_sha256"] = observed_full_sha
         artifact_report["observed_keywords_sha256"] = observed_keywords_sha
-
         expected_full_sha = str(spec["full_sha256"])
         expected_keywords_sha = str(spec["keywords_sha256"])
         if observed_full_sha != expected_full_sha:
@@ -110,23 +96,17 @@ def main() -> int:
                 f"{artifact_id}: keywords section hash mismatch "
                 f"(expected {expected_keywords_sha}, observed {observed_keywords_sha})"
             )
-
         missing = [token for token in spec["required_substrings"] if token not in text]
         artifact_report["missing_substrings"] = missing
         if missing:
             failures.append(f"{artifact_id}: missing required metadata markers: {missing}")
-
         report["artifacts"][artifact_id] = artifact_report
-
     report["status"] = "PASS" if not failures else "FAIL"
     print(json.dumps(report, sort_keys=True, indent=2))
-
     if failures:
         for failure in failures:
             print(f"ERROR: {failure}", file=sys.stderr)
         return 1
     return 0
-
-
 if __name__ == "__main__":
     sys.exit(main())

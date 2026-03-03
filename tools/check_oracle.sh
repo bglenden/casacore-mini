@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # P9-W13 oracle conformance gate.
 # Verifies casacore-mini reads the upstream test MS cell-by-cell
 # against a committed oracle dump.

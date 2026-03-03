@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/table_desc.hpp"
@@ -20,10 +23,47 @@ class Table; // forward declaration for friend access
 /// Supports TiledColumnStMan, TiledCellStMan, TiledShapeStMan, and
 /// TiledDataStMan for fixed-shape array columns with a single hypercube.
 
+/// <summary>
 /// Read-only TSM reader for a single table directory.
+/// </summary>
 ///
-/// Reads array cell values from the `_TSM0` data file using the hypercube
-/// layout described in the `.f0` header file.
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// The Tiled Storage Manager stores multidimensional array data in tile-based
+/// hypercubes.  Each hypercube is described by a `.f0` AipsIO header file
+/// that specifies the tile shape, cube shape, and column layout.  The actual
+/// data lives in one or more `_TSM<N>` data files.
+///
+/// `TiledStManReader` reads these files using the hypercube geometry to
+/// locate the tile that contains each requested row, then extracts the
+/// per-column slice from within that tile.
+///
+/// Variants supported:
+/// - `TiledColumnStMan` — fixed cell shape, one or more columns per hypercube.
+/// - `TiledCellStMan` — each row is a separate sub-cube.
+/// - `TiledShapeStMan` / `TiledDataStMan` — variable or fixed per-row shapes
+///   with an auxiliary shape-row interval map.
+///
+/// Usage:
+/// 1. Call `open()` with the table directory, SM index, and parsed table.dat.
+/// 2. Call the typed `read_*_cell()` methods by column name and row.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   TiledStManReader reader;
+///   reader.open("my_image.image", 0, table_dat);
+///   auto pixels = reader.read_float_cell("map", 0);
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// The TSM is the dominant storage manager for CASA image data and for
+/// visibility data columns (DATA, FLAG, WEIGHT_SPECTRUM) in large measurement
+/// sets.  Its tile layout enables efficient I/O for both sequential and random
+/// multi-dimensional access patterns.
+/// </motivation>
 class TiledStManReader {
   public:
     /// Open a TSM data file pair (.f0 header + .f0_TSM0 data) for reading.
@@ -133,10 +173,39 @@ class TiledStManReader {
     std::vector<std::vector<std::uint8_t>> tsm_file_data_;
 };
 
+/// <summary>
 /// Write-only TSM writer for producing a complete TSM table directory.
+/// </summary>
 ///
-/// Writes a .f0 header and .f0_TSM0 data file for a single hypercube.
-/// Supports TiledColumnStMan and TiledCellStMan for fixed-shape arrays.
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// `TiledStManWriter` writes the `.f0` AipsIO header and the `_TSM0` data
+/// file for a single hypercube.  It supports `TiledColumnStMan` and
+/// `TiledCellStMan` layouts for fixed-shape array columns.
+///
+/// All cell data is accumulated in a flat per-column buffer during the write
+/// phase.  `write_files()` tiles the data according to the tile shape and
+/// writes both the header and data files to disk.
+///
+/// Usage:
+/// 1. Call `setup()` with SM type, data manager name, column descriptors,
+///    row count, and byte order.
+/// 2. Call `write_*_cell()` for each cell.
+/// 3. Call `make_blob()` to produce the TSM blob for `table.dat`.
+/// 4. Call `write_files()` to write the `.f0` and `_TSM0` files.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   TiledStManWriter writer;
+///   writer.setup("TiledColumnStMan", "TiledData", columns, nrow, false);
+///   for (uint64_t r = 0; r < nrow; ++r) {
+///       writer.write_float_cell(0, data_for_row(r), r);
+///   }
+///   writer.write_files("my_image.image", 0);
+/// </srcblock>
+/// </example>
 class TiledStManWriter {
   public:
     /// Set up the writer with column descriptors and row count.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/record.hpp"
@@ -13,7 +16,21 @@ namespace casacore_mini {
 /// @file
 /// @brief Abstract coordinate base class and CoordinateType enum.
 
-/// Discriminator for coordinate types.
+/// <summary>
+/// Discriminator enumeration identifying the concrete type of a Coordinate.
+/// </summary>
+///
+/// <use visibility=export>
+///
+/// <synopsis>
+/// Every concrete coordinate subclass carries one of these values, returned
+/// by <src>Coordinate::type()</src>.  The value is used by the factory
+/// function <src>Coordinate::restore()</src> to dispatch to the correct
+/// derived-class constructor when deserializing from a Record.
+///
+/// The numeric values are stable across versions so that serialized Records
+/// remain compatible.
+/// </synopsis>
 enum class CoordinateType : std::uint8_t {
     linear,
     direction,
@@ -29,11 +46,73 @@ enum class CoordinateType : std::uint8_t {
 /// @throws std::invalid_argument if unrecognized.
 [[nodiscard]] CoordinateType string_to_coordinate_type(std::string_view s);
 
-/// Abstract base class for all coordinate types.
+/// <summary>
+/// Abstract base class defining the pixel/world transform contract for all
+/// coordinate types.
+/// </summary>
 ///
-/// Each concrete coordinate implements pixel<->world transforms and
-/// Record serialization. Coordinates are owned via unique_ptr in
-/// CoordinateSystem.
+/// <use visibility=export>
+///
+/// <prerequisite>
+///   <li> Record — the serialization container used by save()/restore()
+///   <li> CoordinateType — discriminator returned by type()
+/// </prerequisite>
+///
+/// <synopsis>
+/// Coordinate is the common interface shared by all concrete coordinate
+/// classes: DirectionCoordinate, SpectralCoordinate, StokesCoordinate,
+/// LinearCoordinate, TabularCoordinate, and QualityCoordinate.
+///
+/// Every concrete coordinate describes a bijective (or near-bijective)
+/// mapping between a set of pixel axes (integer lattice positions) and a
+/// set of world axes (physical quantities such as angle, frequency, or
+/// polarization code).
+///
+/// The number of pixel axes and world axes need not be equal in the general
+/// case, but all current concrete subclasses use square (N:N) mappings.
+///
+/// Concrete coordinates are normally held through
+/// <src>std::unique_ptr<Coordinate></src> inside a CoordinateSystem.  They
+/// support deep-copy via clone() and round-trip serialization via save() and
+/// restore().
+///
+/// Lifetime and ownership: instances are move-only in the sense that
+/// CoordinateSystem takes ownership via unique_ptr.  Protected copy/move
+/// special members are provided so that clone() implementations in derived
+/// classes can delegate to the compiler-generated copy constructor.
+/// </synopsis>
+///
+/// <example>
+/// Typical usage through a derived class:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // Construct a concrete coordinate
+///   SpectralCoordinate spec(FrequencyRef::lsrk,
+///                           1.42e9,   // crval Hz
+///                           1.0e6,    // cdelt Hz
+///                           0.0);     // crpix (0-based)
+///
+///   // Query axes through the base-class interface
+///   std::size_t np = spec.n_pixel_axes(); // 1
+///   std::size_t nw = spec.n_world_axes(); // 1
+///
+///   // Forward transform
+///   std::vector<double> world = spec.to_world({3.0}); // channel 3 in Hz
+///
+///   // Serialize / deserialize
+///   Record rec = spec.save();
+///   auto restored = Coordinate::restore(rec);
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// A common abstract interface allows CoordinateSystem to store heterogeneous
+/// coordinate objects in a single container and to apply pixel/world
+/// transforms uniformly without knowing the concrete type at the call site.
+/// The type() discriminator is reserved for the factory and for code that
+/// genuinely needs to downcast.
+/// </motivation>
 class Coordinate {
   public:
     virtual ~Coordinate() = default;

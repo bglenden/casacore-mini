@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/lattice_shape.hpp"
@@ -19,11 +22,103 @@ namespace casacore_mini {
 /// order and provides `std::mdspan` views over it. Copies share the
 /// underlying storage (copy-on-write semantics via `std::shared_ptr`).
 
-/// Reference-counted multidimensional array with Fortran-order storage.
+// ── LatticeArray<T> ────────────────────────────────────────────────────
+
+/// <summary>
+/// Reference-counted, copy-on-write multidimensional array with Fortran-order
+/// (column-major) storage and mdspan views.
+/// </summary>
 ///
-/// Storage is shared between copies until mutation is requested via
-/// `make_unique()`. The primary data access interface is through mdspan
-/// views returned by `view()` and `const_view()`.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// LatticeArray<T> is the primary owning multidimensional array type in
+/// casacore-mini.  It wraps a flat <src>std::vector<T></src> together with
+/// an <src>IPosition</src> shape descriptor and exposes:
+///
+/// <ul>
+///   <li> Copy-on-write (CoW) sharing via <src>std::shared_ptr</src>: copying
+///        a LatticeArray is cheap (pointer copy); the underlying data is
+///        duplicated only when a mutation method is called on a shared
+///        instance.  Call <src>make_unique()</src> to force an eager copy.
+///   <li> Rank-N <src>std::mdspan</src> views with <src>layout_left</src>
+///        (Fortran/column-major order) via <src>const_view<N>()</src> and
+///        <src>view<N>()</src>.  The compile-time rank N must match the
+///        runtime <src>ndim()</src>.
+///   <li> Single-element access via <src>at()</src> and <src>put()</src>.
+///   <li> Strided sub-region extraction and writing via
+///        <src>get_slice()</src> and <src>put_slice()</src>.
+/// </ul>
+///
+/// Data layout follows the casacore convention: the first axis (axis 0)
+/// varies fastest in memory.  This matches Fortran array order and the
+/// FITS pixel-ordering convention used in radio-astronomy software.
+///
+/// <b>Thread safety:</b> concurrent reads on different LatticeArray objects
+/// that share storage are safe.  Any write (including <src>make_unique()</src>)
+/// on a shared instance must be externally synchronised.
+///
+/// <b>bool specialisation:</b> <src>std::vector<bool></src> is a packed
+/// bitset that does not provide a contiguous data pointer.  The strided
+/// copy/scatter paths therefore fall back to element-wise iteration when
+/// <src>T == bool</src>.  All other scalar types use the fast pointer-based
+/// kernel.
+/// </synopsis>
+///
+/// <example>
+/// Creating and writing an in-memory array:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // Allocate a 64 x 64 x 16 float cube, filled with 0.
+///   LatticeArray<float> cube(IPosition{64, 64, 16}, 0.0f);
+///   assert(cube.ndim() == 3);
+///   assert(cube.nelements() == 64 * 64 * 16);
+///
+///   // Write a single voxel.
+///   cube.make_unique();
+///   cube.put(IPosition{10, 20, 5}, 3.14f);
+///   assert(cube.at(IPosition{10, 20, 5}) == 3.14f);
+///
+///   // Read a 8 x 8 x 1 sub-region starting at (0, 0, 2).
+///   Slicer sl(IPosition{0, 0, 2}, IPosition{8, 8, 1});
+///   auto chunk = cube.get_slice(sl);
+///   assert(chunk.shape() == (IPosition{8, 8, 1}));
+///
+///   // Obtain a 3-D mdspan view.
+///   auto span = cube.const_view<3>();
+///   float v = span(10, 20, 5);   // same as cube.at({10,20,5})
+/// </srcblock>
+/// </example>
+///
+/// <example>
+/// Copy-on-write sharing:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   LatticeArray<float> a(IPosition{4, 4}, 1.0f);
+///   LatticeArray<float> b = a;           // cheap: shared storage
+///   assert(!a.is_unique());              // storage is shared
+///
+///   b.make_unique();                     // deep copy now
+///   b.put(IPosition{0, 0}, 99.0f);
+///   assert(a.at(IPosition{0, 0}) == 1.0f); // a is unaffected
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Radio-astronomy images are large (often > 10^8 elements) and are
+/// frequently passed by value between pipeline stages.  Reference-counting
+/// with copy-on-write amortises the cost of such passing to nearly zero when
+/// the data is not modified, while still presenting simple value semantics to
+/// callers.
+/// </motivation>
+///
+/// <prerequisite>
+///   <li> IPosition — shape and index type
+///   <li> Slicer    — sub-region descriptor
+///   <li> strided_fortran_copy / strided_fortran_scatter — inner copy kernels
+/// </prerequisite>
 template <typename T> class LatticeArray {
   public:
     /// Construct an empty (rank-0, zero-element) array.

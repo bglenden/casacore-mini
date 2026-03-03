@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // original_small_table_test.cpp
 // Standalone test: create small casacore tables using casacore-original,
 // write scalar Int values, flush, reopen, and verify.

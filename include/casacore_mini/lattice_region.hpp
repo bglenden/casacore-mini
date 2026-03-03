@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/lattice_array.hpp"
@@ -21,10 +24,47 @@ namespace casacore_mini {
 
 // ── LcRegion (abstract base) ─────────────────────────────────────────
 
-/// Abstract base class for lattice-coordinate regions.
+/// <summary>
+/// Abstract base class for lattice-coordinate (pixel-domain) regions.
+/// </summary>
 ///
-/// Every LC region knows its lattice shape, its bounding box within that
-/// lattice, and can produce a boolean mask over the bounding box.
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// An `LcRegion` describes a region expressed in pixel coordinates within a
+/// lattice of known shape.  Every `LcRegion` has:
+///
+/// - A `lattice_shape` — the shape of the lattice it lives in.
+/// - A `bounding_box` (a `Slicer`) — the tightest axis-aligned box enclosing
+///   the region within the lattice.
+/// - An optional boolean mask (`get_mask()`) over the bounding box:
+///   `true` = pixel included, `false` = pixel excluded.  `has_mask()` returns
+///   `false` for box regions where all pixels in the bounding box are included.
+///
+/// Subclasses are expected to implement `type()`, `clone()`, `to_record()`,
+/// and (if they have a non-trivial mask) `has_mask()` and `get_mask()`.
+///
+/// The `from_record()` static factory dispatches to the appropriate subclass
+/// based on the `"type"` field of the serialized `Record`.
+///
+/// Concrete subclasses provided in this header:
+/// - `LcBox` — rectangular pixel region (no mask needed).
+/// - `LcPixelSet` — arbitrary mask over a bounding box.
+/// - `LcEllipsoid` — ellipsoidal mask in pixel coordinates.
+/// - `LcPolygon` — 2D polygonal mask in pixel coordinates.
+/// - `LcMask` — full-lattice in-memory boolean mask.
+/// - `LcPagedMask` — persistent mask (stub).
+/// - `LcUnion`, `LcIntersection`, `LcDifference`, `LcComplement`, `LcExtension`
+///   — set-algebra compound regions.
+/// </synopsis>
+///
+/// <motivation>
+/// Separating the pixel-domain representation (`LcRegion`) from the world-
+/// coordinate representation (`WcRegion`) allows image algorithms to work
+/// entirely with integer pixel ranges and boolean masks once the coordinate
+/// transformation has been applied, without re-evaluating the WCS for each
+/// pixel.
+/// </motivation>
 class LcRegion {
   public:
     virtual ~LcRegion() = default;
@@ -76,10 +116,20 @@ class LcRegion {
 
 // ── LcBox ────────────────────────────────────────────────────────────
 
+/// <summary>
 /// Rectangular region in pixel coordinates.
+/// </summary>
 ///
-/// Defined by a start position and shape (or equivalently, a Slicer).
-/// All pixels within the box are included (no mask needed).
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `LcBox` is the simplest `LcRegion`: an axis-aligned rectangle defined by
+/// `blc` (bottom-left corner) and `trc` (top-right corner) in 0-based pixel
+/// coordinates.  Because the region is a full rectangle, `has_mask()` returns
+/// `false` and `get_mask()` produces an all-true mask.
+///
+/// Constructors accept either explicit corner pairs or a `Slicer`.
+/// </synopsis>
 class LcBox : public LcRegion {
   public:
     /// Construct from explicit corners.
@@ -105,7 +155,18 @@ class LcBox : public LcRegion {
 
 // ── LcPixelSet ───────────────────────────────────────────────────────
 
+/// <summary>
 /// Region defined by an explicit boolean mask over a bounding box.
+/// </summary>
+///
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `LcPixelSet` allows any arbitrary shape to be expressed as a boolean mask
+/// over a rectangular sub-region of the lattice.  The `blc` of the sub-region
+/// is specified at construction; the mask dimensions define the bounding-box
+/// size implicitly.
+/// </synopsis>
 class LcPixelSet : public LcRegion {
   public:
     /// Construct from a mask and its origin in the lattice.
@@ -316,9 +377,21 @@ class LcExtension : public LcRegion {
 
 // ── LatticeRegion ────────────────────────────────────────────────────
 
-/// Holder wrapping an LcRegion with optional stride support.
+/// <summary>
+/// Holder wrapping an LcRegion with optional stride/slicer support.
+/// </summary>
 ///
-/// This is the type stored in image keywords for named regions.
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `LatticeRegion` is a thin wrapper around a heap-allocated `LcRegion` that
+/// optionally associates a `Slicer` for strided sub-lattice access.  It is
+/// the type stored in image keywords for named pixel-domain regions.
+///
+/// `has_slicer()` is `true` when the region was constructed from a `Slicer`.
+/// Both the enclosed `LcRegion` and the `Slicer` are serializable to and from
+/// a `Record`.
+/// </synopsis>
 class LatticeRegion {
   public:
     LatticeRegion() = default;

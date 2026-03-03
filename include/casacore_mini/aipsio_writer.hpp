@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/platform.hpp"
@@ -13,10 +16,52 @@ namespace casacore_mini {
 /// @file
 /// @brief Write-only encoder for canonical big-endian casacore `AipsIO` payloads.
 
+/// <summary>
 /// Encode primitive values into a canonical big-endian `AipsIO` byte buffer.
+/// </summary>
 ///
-/// This is the write-path counterpart to `AipsIoReader`. All multi-byte values
-/// are written in big-endian byte order matching casacore canonical format.
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// `AipsIoWriter` is the write-path counterpart to `AipsIoReader`.  It
+/// appends big-endian encoded primitives to an internal `std::vector<uint8_t>`
+/// buffer that grows on demand.  When serialization is complete the caller
+/// either calls `take_bytes()` to move the buffer out, or `bytes()` to inspect
+/// it in place.
+///
+/// Object headers are written by `write_object_header` (root level, includes
+/// the `0xBEBEBEBE` magic prefix) and `write_nested_object_header` (sub-object,
+/// no magic prefix).  Because the object body length is not known until after
+/// the body has been written, callers typically:
+///
+/// 1. Record the current `size()` as the patch position.
+/// 2. Write a placeholder length with `write_u32(0)` inside the header call.
+/// 3. Write the body.
+/// 4. Call `patch_u32(patch_position, actual_length)` to back-fill the length.
+///
+/// All multi-byte scalars are encoded in big-endian byte order.  Strings use
+/// casacore's TypeIO framing: a 32-bit `uInt` length prefix followed by the
+/// raw bytes of the string (no null terminator).
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   AipsIoWriter w;
+///   std::size_t len_pos = w.size();
+///   w.write_object_header(0, "Table", 2);   // placeholder length = 0
+///   w.write_u64(row_count);
+///   // ... write remaining body ...
+///   std::uint32_t body = static_cast<uint32_t>(w.size() - len_pos - 8);
+///   w.patch_u32(len_pos + 4, body);         // back-patch length field
+///   auto bytes = w.take_bytes();
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// casacore's `AipsIO` uses a push-style API where the object-length field must
+/// be filled in after the body is serialized.  `patch_u32` makes this pattern
+/// safe without requiring two-pass serialization or temporary buffers.
+/// </motivation>
 class AipsIoWriter {
   public:
     /// Create a writer that appends to a byte buffer.

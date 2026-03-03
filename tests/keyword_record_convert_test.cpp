@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #include "casacore_mini/keyword_record.hpp"
 #include "casacore_mini/keyword_record_convert.hpp"
 #include "casacore_mini/record.hpp"

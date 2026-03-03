@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include <cstddef>
@@ -19,11 +22,63 @@ namespace casacore_mini {
 /// The view type for lattice data is `std::mdspan` with `layout_left`
 /// (column-major / Fortran order), matching casacore's Array convention.
 
-/// Multidimensional shape/index vector compatible with casacore `IPosition`.
+// ── IPosition ──────────────────────────────────────────────────────────
+
+/// <summary>
+/// Multidimensional shape and index vector, compatible with casacore IPosition.
+/// </summary>
 ///
-/// Stores axis extents or axis indices as a small vector of signed 64-bit
-/// integers. Negative values are valid for index-offset semantics but not for
-/// shape extents.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// IPosition stores a small vector of signed 64-bit integers representing
+/// either axis extents (a shape) or axis indices (a coordinate).  It is the
+/// primary currency for specifying shapes, positions, strides, and slice
+/// boundaries throughout the casacore-mini lattice layer.
+///
+/// Design notes:
+/// <ul>
+///   <li> Values are stored in a <src>std::vector<int64_t></src> so the rank
+///        is a runtime quantity; there is no compile-time rank.
+///   <li> Negative values are permitted for index-offset semantics, but must
+///        not appear in shape extents (all extents must be >= 1).
+///   <li> A rank-0 (empty) IPosition is valid and represents a scalar.
+///   <li> <src>product()</src> returns 1 for rank-0, consistent with the
+///        convention that an empty product equals the multiplicative identity.
+/// </ul>
+///
+/// The class mirrors casacore's <src>IPosition</src> but drops rarely-used
+/// relational operators and AIPS++ string-formatting conventions in favour of
+/// a simple <src>to_string()</src> diagnostic helper.
+/// </synopsis>
+///
+/// <example>
+/// Constructing shapes and performing index arithmetic:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // Shape for a 64 x 64 x 16 cube.
+///   IPosition shape{64, 64, 16};
+///   assert(shape.ndim() == 3);
+///   assert(shape.product() == 64 * 64 * 16);
+///
+///   // Index a single voxel.
+///   IPosition idx{10, 20, 5};
+///   auto strides = fortran_strides(shape);
+///   auto offset  = linear_index(idx, strides);
+///
+///   // Construct with explicit rank and fill value.
+///   IPosition zeros(4, 0);   // four-dimensional zero index
+///   IPosition ones (3, 1);   // unit strides placeholder
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// A uniform, rank-agnostic integer-vector type is necessary to express
+/// shapes, indices, and strides without specialising every algorithm to a
+/// fixed number of dimensions.  Signed 64-bit storage avoids silent overflow
+/// when computing large array extents (e.g. a 65536^3 cube).
+/// </motivation>
 class IPosition {
   public:
     /// Construct empty (rank-0) position.
@@ -100,10 +155,69 @@ class IPosition {
     std::vector<std::int64_t> values_;
 };
 
-/// Describes a multidimensional slice: start, length, stride per axis.
+// ── Slicer ─────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Describes a multidimensional slice: start position, length, and stride
+/// per axis.
+/// </summary>
 ///
-/// Equivalent to casacore's `Slicer`. All three vectors must have the same
-/// rank. Stride values must be >= 1.
+/// <use visibility=export>
+///
+/// <synopsis>
+/// A Slicer specifies a regular sub-region of a lattice or array by giving,
+/// for each axis, three quantities:
+///
+/// <ul>
+///   <li> <b>start</b>  — the first element index on that axis (0-based).
+///   <li> <b>length</b> — the number of output elements on that axis.
+///   <li> <b>stride</b> — the step between consecutive input elements
+///        (must be >= 1; stride 1 selects contiguous elements).
+/// </ul>
+///
+/// The last input element selected on axis <i>d</i> is
+/// <src>start[d] + (length[d] - 1) * stride[d]</src>, which must be less
+/// than the lattice extent on that axis.  All three IPosition vectors must
+/// have the same rank.
+///
+/// Use <src>Slicer::full(shape)</src> to construct a slicer that covers the
+/// entire array, or the two-argument constructor for unit-stride slices.
+///
+/// Equivalent to casacore's <src>Slicer</src> class but restricted to the
+/// (start, length, stride) parameterisation; the (start, end, stride)
+/// variant is not provided.
+/// </synopsis>
+///
+/// <example>
+/// Selecting a strided sub-region:
+/// <srcblock>
+///   using namespace casacore_mini;
+///
+///   // Shape of the full lattice.
+///   IPosition shape{128, 128, 64};
+///
+///   // Full-extent slicer (selects everything).
+///   auto sl_all = Slicer::full(shape);
+///
+///   // Select columns 10..17 and rows 20..27 in plane 0, unit stride.
+///   Slicer sl(IPosition{10, 20, 0}, IPosition{8, 8, 1});
+///
+///   // Every other element in x, every third in y, all of z.
+///   Slicer sl_strided(
+///       IPosition{0, 0, 0},
+///       IPosition{64, 43, 64},
+///       IPosition{2, 3, 1});
+///
+///   // Validate against the lattice shape.
+///   validate_slicer(sl_strided, shape);
+/// </srcblock>
+/// </example>
+///
+/// <note role="caution">
+/// The <src>length</src> field gives the number of *output* elements, not
+/// the index of the last element.  Confusing length with end-index is a
+/// common source of off-by-one errors.
+/// </note>
 class Slicer {
   public:
     /// Construct a full-extent slicer for the given shape.
@@ -141,15 +255,26 @@ class Slicer {
 /// We use a fixed maximum rank of 8 (matching casacore practice).
 inline constexpr std::size_t kMaxLatticeRank = 8;
 
+/// <summary>
 /// Dynamic-extent mdspan with Fortran (column-major) layout.
+/// </summary>
 ///
-/// This is the primary view type for lattice data. Data pointers are
-/// non-owning; ownership lives in `LatticeArray<T>`.
+/// <synopsis>
+/// This is the primary non-owning view type for lattice data.  Data pointers
+/// are non-owning; lifetime and ownership live in <src>LatticeArray<T></src>.
+/// The <src>layout_left</src> policy ensures the first axis varies fastest,
+/// matching casacore's Array storage convention.
+///
+/// The compile-time rank <src>Rank</src> must be known at the call site; use
+/// <src>make_const_lattice_span<T, N>()</src> to construct a view from a flat
+/// pointer and an IPosition shape.
+/// </synopsis>
 template <typename T, std::size_t Rank>
 using LatticeSpan = mdspan_compat::mdspan<T, mdspan_compat::dextents<std::size_t, Rank>,
                                           mdspan_compat::layout_left>;
 
-/// Const version.
+/// Const version of LatticeSpan: non-owning read-only mdspan view with
+/// Fortran (column-major) layout.
 template <typename T, std::size_t Rank>
 using ConstLatticeSpan = mdspan_compat::mdspan<const T, mdspan_compat::dextents<std::size_t, Rank>,
                                                mdspan_compat::layout_left>;
@@ -181,17 +306,28 @@ void validate_index(const IPosition& index, const IPosition& shape);
 /// @throws std::out_of_range on invalid slice.
 void validate_slicer(const Slicer& slicer, const IPosition& shape);
 
+/// <summary>
 /// Copy elements between strided Fortran-order arrays using mdspan-style
 /// stride arithmetic.
+/// </summary>
 ///
-/// Copies `count` elements (the product of `slice_shape`) from `src` to `dst`,
-/// where `src` is a flat Fortran-order array with strides `src_strides` and
-/// elements are read at offsets `src_start[d] * src_strides[d]` with increments
-/// of `src_step[d] * src_strides[d]`. The destination is densely packed in
-/// Fortran order.
+/// <synopsis>
+/// Copies `count` elements (the product of `slice_shape`) from `src` to
+/// `dst`, where `src` is a flat Fortran-order array with strides
+/// `src_strides` and elements are read at offsets
+/// <src>src_start[d] * src_strides[d]</src> with increments of
+/// <src>src_step[d] * src_strides[d]</src>.  The destination is densely
+/// packed in Fortran order.
 ///
 /// This replaces manual IPosition-based index iteration with direct stride
-/// computation, matching how mdspan layout_left maps indices to offsets.
+/// computation, matching how mdspan <src>layout_left</src> maps indices to
+/// offsets.  It is the inner kernel of <src>LatticeArray::get_slice()</src>.
+/// </synopsis>
+///
+/// <note role="caution">
+/// This function does not check bounds.  Call <src>validate_slicer()</src>
+/// before invoking to ensure the selected region lies within `src`.
+/// </note>
 template <typename T>
 void strided_fortran_copy(const T* src, const IPosition& src_strides, const IPosition& src_start,
                           const IPosition& src_step, T* dst, const IPosition& slice_shape) {
@@ -225,8 +361,22 @@ void strided_fortran_copy(const T* src, const IPosition& src_strides, const IPos
     }
 }
 
+/// <summary>
 /// Scatter elements from a dense Fortran-order source into a strided
-/// destination array. Inverse of `strided_fortran_copy`.
+/// destination array.
+/// </summary>
+///
+/// <synopsis>
+/// Inverse of <src>strided_fortran_copy</src>: reads elements sequentially
+/// from the dense `src` buffer and writes them into `dst` at positions
+/// determined by `dst_start`, `dst_step`, and `dst_strides`.  This is the
+/// inner kernel of <src>LatticeArray::put_slice()</src>.
+/// </synopsis>
+///
+/// <note role="caution">
+/// This function does not check bounds.  Call <src>validate_slicer()</src>
+/// before invoking to ensure the target region lies within `dst`.
+/// </note>
 template <typename T>
 void strided_fortran_scatter(const T* src, T* dst, const IPosition& dst_strides,
                              const IPosition& dst_start, const IPosition& dst_step,

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/standard_stman.hpp"
@@ -14,11 +17,40 @@ namespace casacore_mini {
 /// @file
 /// @brief Read/write access to IncrementalStMan (ISM) data files.
 
+/// <summary>
 /// Read-only ISM reader for a single table directory.
+/// </summary>
 ///
-/// ISM stores values incrementally: a value is only stored when it changes
-/// from the previous row. This reader reconstructs full cell values by
-/// walking the value chain for each column.
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// The IncrementalStMan (ISM) stores values incrementally: a cell value is
+/// only written when it differs from the previous row.  For columns where many
+/// consecutive rows share the same value (e.g. `FIELD_ID` in a measurement
+/// set), this can be significantly more compact than StandardStMan.
+///
+/// `IsmReader` reconstructs full cell values by building a sorted list of
+/// `(start_row, value)` entries for each column.  Reading row `r` returns
+/// the value of the most recent entry whose `start_row <= r`.
+///
+/// Open via `open()`, then call `read_cell()` to obtain typed `CellValue`
+/// variants for any managed column.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   IsmReader reader;
+///   reader.open("my_vis.ms", 1, table_dat);
+///   auto field_id = std::get<int32_t>(reader.read_cell("FIELD_ID", 42));
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// ISM is commonly used for slowly-changing columns such as `FIELD_ID`,
+/// `DATA_DESC_ID`, and `SCAN_NUMBER` in measurement sets.  Keeping a
+/// lightweight in-memory value chain avoids scanning the entire file for
+/// each row access.
+/// </motivation>
 class IsmReader {
   public:
     /// Open an ISM data file for reading.
@@ -55,10 +87,36 @@ class IsmReader {
     std::vector<IsmColumnInfo> columns_;
 };
 
-/// Write-only ISM writer for producing a complete ISM table.f0 file.
+/// <summary>
+/// Write-only ISM writer for producing a complete ISM `table.f0` file.
+/// </summary>
 ///
-/// This writer stores values incrementally. Consecutive identical values
-/// are collapsed into a single entry.
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// `IsmWriter` is the write-path counterpart to `IsmReader`.  It stores
+/// cell values in a row-indexed buffer during the write phase, then on
+/// `flush()` collapses consecutive identical values into a single run
+/// (incremental encoding) before serializing the complete `.f0` file.
+///
+/// Usage:
+/// 1. Call `setup()` with column descriptors, row count, and endianness.
+/// 2. Call `write_cell()` for each cell in any order.
+/// 3. Call `flush()` to produce the `.f0` binary.
+/// 4. Call `make_blob()` to produce the AipsIO blob for `table.dat`.
+/// 5. Call `write_file()` to write the `.f0` file to disk.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   IsmWriter writer;
+///   writer.setup(columns, nrow, /*big_endian=*/false);
+///   for (uint64_t r = 0; r < nrow; ++r) {
+///       writer.write_cell(0, CellValue(field_id_for_row(r)), r);
+///   }
+///   writer.write_file("my_table", 1);
+/// </srcblock>
+/// </example>
 class IsmWriter {
   public:
     /// Set up the writer with column descriptors and row count.

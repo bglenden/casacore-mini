@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file mdspan_migration_test.cpp
 /// @brief P12-W13 tests for mdspan foundation helpers and migration parity.
 

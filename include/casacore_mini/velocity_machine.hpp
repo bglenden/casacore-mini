@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/measure_types.hpp"
@@ -10,14 +13,24 @@ namespace casacore_mini {
 /// Speed of light in m/s.
 constexpr double kSpeedOfLight = 299792458.0;
 
-/// Convert a Doppler ratio to velocity in m/s using the given Doppler convention.
+/// <synopsis>
+/// Free functions in this header convert between Doppler values expressed in
+/// different conventions (radio, optical/Z, relativistic beta/gamma) and
+/// physical velocities (m/s) or frequency ratios.
 ///
-/// Doppler conventions (DopplerRef):
-/// - radio:   v = c * (1 - f/f0), so doppler = 1 - f/f0, v = c * doppler
-/// - z:       v = c * z (optical, non-relativistic), z = f0/f - 1
-/// - ratio:   ratio = f/f0 directly
-/// - beta:    v = c * beta (relativistic, beta = v/c)
-/// - gamma:   gamma = 1/sqrt(1 - beta^2)
+/// Doppler conventions (`DopplerRef`):
+/// - `radio`  — v = c * (1 - f/f0); doppler = 1 - f/f0
+/// - `z`      — z = f0/f - 1 (optical, non-relativistic); v_optical = c * z
+/// - `ratio`  — ratio = f/f0 directly
+/// - `beta`   — v = c * beta (relativistic)
+/// - `gamma`  — Lorentz factor; gamma = 1/sqrt(1 - beta^2)
+///
+/// The stateful `VelocityMachine` class caches a source and target convention
+/// and implements `convert()` as a single call.
+///
+/// `convert_doppler(value, from, to)` is the general converter between any two
+/// conventions, routing through radio Doppler as an intermediate representation.
+/// </synopsis>
 
 /// Convert radio Doppler value to velocity (m/s).
 /// radio_val = 1 - f/f0, so v = c * radio_val.
@@ -71,8 +84,26 @@ constexpr double kSpeedOfLight = 299792458.0;
 /// @throws std::invalid_argument for unsupported/invalid values.
 [[nodiscard]] double convert_doppler(double value, DopplerRef from, DopplerRef to);
 
-/// Stateful Doppler conversion helper, similar in role to casacore's
-/// `MDoppler::Convert` helper objects.
+/// <summary>
+/// Stateful Doppler convention conversion helper.
+/// </summary>
+///
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `VelocityMachine` caches a source-convention and target-convention pair
+/// and provides a single `convert()` entry point.  This mirrors the role of
+/// casacore's `MDoppler::Convert` helper objects.
+///
+/// Both `from_ref()` and `to_ref()` are available for inspection.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   VelocityMachine vm(DopplerRef::radio, DopplerRef::z);
+///   double z_val = vm.convert(0.01);  // convert radio doppler 0.01 to z
+/// </srcblock>
+/// </example>
 class VelocityMachine {
   public:
     VelocityMachine(DopplerRef from_ref, DopplerRef to_ref) noexcept

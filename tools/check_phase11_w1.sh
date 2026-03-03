@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Phase 11 Wave 1 gate: remaining-capabilities audit + disposition freeze
 set -euo pipefail
 

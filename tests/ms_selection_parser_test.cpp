@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file ms_selection_parser_test.cpp
 /// @brief Tests for W5 MS selection parser parity: observation, array, feed,
 ///        TaQL injection, scan bounds, clear/reset, combined expressions.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/measure_types.hpp"
@@ -13,7 +16,42 @@ namespace casacore_mini {
 /// @file
 /// @brief Table measure descriptor: MEASINFO keyword codec and QuantumUnits.
 
+/// <summary>
 /// Descriptor for a measure-bearing table column, extracted from MEASINFO keywords.
+/// </summary>
+///
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// casacore attaches a `MEASINFO` sub-record and an optional `QuantumUnits`
+/// entry to the keyword set of any column that holds a physical measure.
+/// `TableMeasDesc` mirrors these keyword fields in a structured form that is
+/// independent of the underlying keyword representation (text or binary).
+///
+/// Fields:
+/// - `measure_type` — the kind of measure (epoch, direction, uvw, position, …).
+/// - `default_ref` — the default reference frame when no per-row column is used.
+/// - `var_ref_column` — name of a companion scalar column that stores per-row
+///   reference codes (empty when the reference is fixed).
+/// - `tab_ref_types` / `tab_ref_codes` — the reference name/code mapping for
+///   variable-reference columns, parallel arrays.
+/// - `units` — physical units for the numeric values in the column.
+/// - `offset` / `offset_column` / `offset_per_array` — optional measure offset
+///   applied during reconstruction.
+///
+/// The codec functions `read_table_measure_desc` and `write_table_measure_desc`
+/// translate between this struct and a binary `Record` column keyword set.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   auto desc_opt = read_table_measure_desc("TIME", column_keywords);
+///   if (desc_opt) {
+///       const auto& desc = *desc_opt;
+///       std::cout << "units: " << desc.units[0] << "\n";  // "s"
+///   }
+/// </srcblock>
+/// </example>
 struct TableMeasDesc {
     /// Column name that holds the measure data values.
     std::string column_name;
@@ -62,7 +100,21 @@ struct TableMeasDesc {
 /// Creates/replaces the "MEASINFO" sub-record and "QuantumUnits" entries.
 void write_table_measure_desc(const TableMeasDesc& desc, Record& column_keywords);
 
+/// <summary>
 /// Descriptor for quantum units on a column (without full measure semantics).
+/// </summary>
+///
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// Some columns carry physical units but are not full measures.  For example,
+/// a `WEIGHT` column may have units of `"Jy^{-2}"` without being a Measure.
+/// `TableQuantumDesc` captures the `QuantumUnits` keyword entry for such
+/// columns.
+///
+/// When `var_units_column` is non-empty, the units vary per row and are read
+/// from the named companion column rather than from the fixed `units` vector.
+/// </synopsis>
 struct TableQuantumDesc {
     /// Column name.
     std::string column_name;

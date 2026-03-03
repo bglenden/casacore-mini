@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Gate script for Phase 11, Wave 5: MS selection grammar/parser parity
 set -euo pipefail
 PASS=0; FAIL=0; TOTAL=0

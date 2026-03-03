@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # Generate the oracle dump from the upstream casacore test MS.
 # Requires: casacore_interop_tool built with casacore support.
 set -euo pipefail

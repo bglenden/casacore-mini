@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file phase11_integration_test.cpp
 /// @brief P11-W8 cross-tranche integration test: MS creation -> TaQL queries -> MSSelection.
 

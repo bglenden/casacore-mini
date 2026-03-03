@@ -154,21 +154,25 @@ pacman -S erfa
 
 ## API Documentation
 
-The repository includes optional Doxygen HTML generation from public headers.
+The API reference is published to GitHub Pages on every push to `main`:
+
+**https://bglenden.github.io/casacore-mini/**
+
+To build locally:
 
 - Template: `docs/Doxyfile.in`
 - Build target: `doc`
 - Output directory: `build*/docs/doxygen/html/`
 
-Example:
-
 ```bash
 cmake -S . -B build -G Ninja
 cmake --build build --target doc
+open build/docs/doxygen/html/index.html
 ```
 
-The `quality-full` CI workflow validates Doxygen HTML generation in nightly,
-manual, and release-tag runs.
+The `pages` CI workflow deploys updated docs automatically.
+The `quality-full` CI workflow also validates Doxygen HTML generation in
+nightly, manual, and release-tag runs.
 
 ## Pre-push guardrail (recommended)
 

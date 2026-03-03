@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file ms_selection_api_parity_test.cpp
 /// @brief P12-W9 tests for MSSelection API/accessor/mode/error closure:
 ///   split antenna/feed lists, time/UV range outputs, DDID/pol maps,

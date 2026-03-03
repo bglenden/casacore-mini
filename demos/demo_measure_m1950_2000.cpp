@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // demo_measure_m1950_2000.cpp -- Phase 8: B1950<->J2000 transliteration demo
 //
 // casacore-original reference excerpts:

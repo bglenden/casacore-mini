@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/table.hpp"
@@ -11,16 +14,49 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Columns index — fast key lookup on scalar columns.
+
+/// <summary>
+/// Builds an in-memory index on one or more scalar columns for fast row lookup.
+/// </summary>
 ///
-/// Builds an in-memory index on one or more scalar columns for fast row
-/// lookup by key value. Supports unique and non-unique keys.
+/// <use visibility=export/>
 ///
-/// Usage:
-/// @code
-///   ColumnsIndex idx(table, {"SCAN_NUMBER"});
-///   auto rows = idx.get_row_numbers(Record{{"SCAN_NUMBER", RecordValue(1)}});
-///   // rows contains all row indices where SCAN_NUMBER == 1
-/// @endcode
+/// <synopsis>
+/// `ColumnsIndex` pre-reads all values for the nominated key columns into a
+/// sorted `std::map` that maps composite key vectors to lists of matching row
+/// indices.  After construction the index supports O(log N) lookup by key.
+///
+/// Both unique and non-unique keys are supported:
+/// - `get_row_numbers()` returns all matching rows.
+/// - `get_row_number()` returns exactly one row or throws if the key is absent
+///   or maps to multiple rows.
+/// - `contains()` tests existence without returning rows.
+///
+/// `rebuild()` re-scans the table to refresh the index after rows are added
+/// or modified.
+///
+/// Keys are represented as `std::vector<CellValue>` (one element per key
+/// column) and compared via a custom lexicographic `KeyCompare` functor that
+/// respects the variant ordering of `CellValue`.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   Table ms = Table::open("my_vis.ms");
+///   ColumnsIndex idx(ms, {"SCAN_NUMBER"});
+///
+///   Record key;
+///   key.fields["SCAN_NUMBER"] = RecordValue(std::int32_t{3});
+///   auto rows = idx.get_row_numbers(key);
+///   // rows contains all row indices where SCAN_NUMBER == 3
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Repeated lookup of rows by key (e.g., finding all baselines for a given
+/// scan) would otherwise require a full table scan per query.  Pre-building
+/// the index pays the O(N) scan cost once and amortises it over many queries.
+/// </motivation>
 class ColumnsIndex {
   public:
     /// Build an index on the given key columns.

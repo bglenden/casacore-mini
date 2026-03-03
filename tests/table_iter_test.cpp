@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file table_iter_test.cpp
 /// @brief P12-W11 tests for TableIterator (group-by iteration).
 

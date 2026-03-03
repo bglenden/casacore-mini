@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // bench_mini_write.cpp -- casacore-mini: write benchmark timings.
 //
 // Built via CMake (bench_mini_write target).

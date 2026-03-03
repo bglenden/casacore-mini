@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #include "casacore_mini/coordinate_system.hpp"
 #include "casacore_mini/direction_coordinate.hpp"
 #include "casacore_mini/spectral_coordinate.hpp"

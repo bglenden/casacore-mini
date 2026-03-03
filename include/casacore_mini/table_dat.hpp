@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/platform.hpp"
@@ -12,7 +15,29 @@ namespace casacore_mini {
 /// @file
 /// @brief Read top-level metadata from casacore `table.dat` files.
 
+/// <summary>
 /// Summary metadata parsed from a casacore `table.dat` file header.
+/// </summary>
+///
+/// <use visibility=local/>
+///
+/// <synopsis>
+/// A casacore table directory always contains a `table.dat` file whose first
+/// `AipsIO` object is typed `"Table"`.  The `TableDatMetadata` struct captures
+/// the four fields that appear immediately after the object header:
+///
+/// - `table_version` — the `AipsIO` object version, which governs how the
+///   row count is encoded (32-bit for v1, 64-bit for v2+).
+/// - `row_count` — number of rows in the table.
+/// - `big_endian` — endianness flag stored in the file; `true` when the flag
+///   byte is `0` (big-endian), `false` when it is `1` (little-endian).
+/// - `table_type` — the concrete table implementation token written next,
+///   typically `"PlainTable"`.
+///
+/// This structure is populated by `parse_table_dat_metadata` and
+/// `read_table_dat_metadata`, and consumed by the storage-manager readers
+/// to select the correct byte-swap path.
+/// </synopsis>
 struct TableDatMetadata {
     /// `Table` object version from the root `AipsIO` object header.
     std::uint32_t table_version = 0;

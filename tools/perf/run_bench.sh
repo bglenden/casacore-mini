@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 # run_bench.sh -- Build and run casacore-original vs casacore-mini benchmarks.
 #
 # Usage: ./tools/perf/run_bench.sh [build_dir]

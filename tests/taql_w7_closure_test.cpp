@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file taql_w7_closure_test.cpp
 /// @brief W7 TaQL closure tests: new functions, regex, LIKE, rownr, end-to-end.
 

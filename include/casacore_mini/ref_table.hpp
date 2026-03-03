@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/table.hpp"
@@ -11,17 +14,46 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Reference table (view) — an ephemeral subset of rows/columns.
+
+/// <summary>
+/// An ephemeral, in-memory view over a subset of rows from a base `Table`.
+/// </summary>
 ///
-/// A RefTable wraps an existing Table and presents a filtered view of its rows.
-/// It does not persist to disk. All cell reads/writes are delegated to the base
-/// table through the row-index mapping.
+/// <use visibility=export/>
 ///
-/// Usage:
-/// @code
-///   auto result = taql_execute("SELECT FROM t WHERE SCAN_NUMBER = 1", t);
-///   RefTable view(t, result.rows);
-///   auto val = view.read_scalar_cell("TIME", 0);  // row 0 in view
-/// @endcode
+/// <synopsis>
+/// A `RefTable` wraps an existing `Table` and presents a filtered view of a
+/// subset of its rows identified by a `std::vector<uint64_t>` index mapping.
+/// It does not persist to disk and holds no data of its own; all cell reads
+/// and writes are delegated to the base table through the row mapping.
+///
+/// Three construction modes are provided:
+/// - From an explicit list of base-table row indices.
+/// - From a boolean mask (selects rows where `mask[i]` is true).
+/// - Empty (for progressive population via `add_row()`).
+///
+/// `base_row(view_row)` translates a view-local row number to the corresponding
+/// base-table row, allowing callers to pass the mapped index to direct
+/// base-table APIs.
+///
+/// `RefTable` is the return type of `TableIterator::current()` and of
+/// TaQL query results.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   Table ms = Table::open("my_vis.ms");
+///   // Select rows where ANTENNA1 == 0
+///   std::vector<uint64_t> rows;
+///   for (uint64_t r = 0; r < ms.nrow(); ++r) {
+///       if (std::get<int32_t>(ms.read_scalar_cell("ANTENNA1", r)) == 0)
+///           rows.push_back(r);
+///   }
+///   RefTable view(ms, std::move(rows));
+///   std::cout << "selected " << view.nrow() << " rows\n";
+///   auto val = view.read_scalar_cell("ANTENNA2", 0);
+/// </srcblock>
+/// </example>
 class RefTable {
   public:
     /// Construct a view with selected rows.

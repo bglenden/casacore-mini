@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Brian Glendenning
+# SPDX-License-Identifier: LGPL-3.0-or-later
 set -euo pipefail
 
 # Phase 12, Wave 1: Coordinate regression closure + diagnostics hardening.

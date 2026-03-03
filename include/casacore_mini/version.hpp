@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/platform.hpp"
@@ -8,6 +11,29 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Build and source version/provenance accessors.
+
+/// <synopsis>
+/// This header exposes version strings captured at CMake configure time.  All
+/// functions return `string_view` values pointing to static storage; callers
+/// must not store the pointer beyond the lifetime of the library.
+///
+/// Version strings are populated by the CMake `configure_file` step from
+/// `version.cpp.in`.  They reflect the state of the source tree at
+/// configuration time.
+///
+/// - `project_version()` — semantic version from the `project(VERSION ...)` call.
+/// - `build_version()` — semantic version with git-derived pre-release or
+///   build-metadata suffix when the build is not on an exact release tag.
+/// - `git_describe()` — raw `git describe --tags --dirty` output.
+/// - `git_revision()` — short git commit hash.
+/// - `version()` — alias for `build_version()`.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   std::cout << "casacore-mini " << casacore_mini::version() << "\n";
+/// </srcblock>
+/// </example>
 
 /// Canonical source version from `project(... VERSION X.Y.Z)`.
 [[nodiscard]] std::string_view project_version() noexcept;

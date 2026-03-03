@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #pragma once
 
 #include "casacore_mini/table.hpp"
@@ -11,16 +14,46 @@ namespace casacore_mini {
 
 /// @file
 /// @brief Concatenated table — virtual concatenation of multiple tables.
-///
+
+/// <summary>
 /// Presents multiple tables with the same schema as a single virtual table.
-/// Row N in the concatenated view maps to a specific (table_index, local_row).
-/// Keywords are taken from the first table.
+/// </summary>
 ///
-/// Usage:
-/// @code
-///   ConcatTable ct({&table1, &table2, &table3});
-///   auto val = ct.read_scalar_cell("COL", 5);  // routes to correct table
-/// @endcode
+/// <use visibility=export/>
+///
+/// <synopsis>
+/// `ConcatTable` provides a row-union view over a list of `Table` objects
+/// that share the same column schema.  Row N in the concatenated view is
+/// mapped to a specific `(table_index, local_row)` pair via a cumulative
+/// row-count array, so reads are O(1) dispatched.
+///
+/// Keywords are taken from the first component table; the remaining tables'
+/// keywords are not consulted.  Column descriptors are also taken from the
+/// first table.
+///
+/// Only read operations are currently supported via `read_scalar_cell` and
+/// `read_array_double_cell`.  Write operations must be performed through the
+/// individual component `Table` objects directly.
+///
+/// Use `decompose_row()` to translate a global row index into the component
+/// table index and local row for low-level access.
+/// </synopsis>
+///
+/// <example>
+/// <srcblock>
+///   Table t1 = Table::open("ms_part1.ms");
+///   Table t2 = Table::open("ms_part2.ms");
+///   ConcatTable ct({&t1, &t2});
+///   std::cout << "total rows: " << ct.nrow() << "\n";
+///   auto val = ct.read_scalar_cell("ANTENNA1", ct.nrow() - 1);
+/// </srcblock>
+/// </example>
+///
+/// <motivation>
+/// Processing large measurement sets that have been split into per-chunk
+/// sub-tables benefits from a unified virtual table that routes row requests
+/// transparently to the correct chunk.
+/// </motivation>
 class ConcatTable {
   public:
     /// Construct from a list of tables (must have same column schema).

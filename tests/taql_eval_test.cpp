@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Brian Glendenning
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /// @file taql_eval_test.cpp
 /// @brief Tests for TaQL expression evaluator and CALC.
 
